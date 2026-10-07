@@ -22,6 +22,10 @@ export interface QuizQuestion {
   type: QuestionType;
   difficulty: 1 | 2 | 3;
   prompt: string;
+  code?: string;
+  table?: string;
+  image?: string;
+  imageAlt?: string;
   options?: string[];
   answer: number[] | number;
   tolerance?: number | string; // numeric: absoluta (0.01) o relativa ('rel:0.02')
@@ -137,4 +141,31 @@ export const PASS_THRESHOLD = 0.8;
 
 export function passed(result: QuizResult): boolean {
   return result.score >= PASS_THRESHOLD;
+}
+
+/**
+ * Interpreta un número escrito por un usuario español: "14,85", "28.173",
+ * "1.234,5", "14.85". Devuelve NaN si no es un número.
+ *
+ * Reglas: con coma, los puntos son separadores de miles y la coma es el
+ * decimal. Sin coma, un patrón de puntos de miles exacto (1.234 / 28.173.000)
+ * se interpreta como miles; en otro caso, el punto es decimal.
+ */
+export function parseNumberEs(raw: string): number {
+  const text = raw.trim().replace(/\s/g, '');
+  if (text === '') return Number.NaN;
+  if (text.includes(',')) {
+    const normalized = text.replace(/\./g, '').replace(',', '.');
+    return /^-?\d+(\.\d+)?$/.test(normalized) ? Number(normalized) : Number.NaN;
+  }
+  if (/^-?\d{1,3}(\.\d{3})+$/.test(text)) return Number(text.replace(/\./g, ''));
+  return /^-?\d+(\.\d+)?$/.test(text) ? Number(text) : Number.NaN;
+}
+
+/** Baraja los índices de las opciones con una semilla; devuelve el orden de presentación. */
+export function shuffledOrder(length: number, seed: string): number[] {
+  return seededShuffle(
+    Array.from({ length }, (_, i) => i),
+    seed,
+  );
 }

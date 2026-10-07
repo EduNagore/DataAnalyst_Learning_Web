@@ -2,6 +2,9 @@
 import { getCollection, render } from 'astro:content';
 import LessonLayout from '../../../layouts/LessonLayout.astro';
 import { url } from '../../../lib/url';
+import { loadAllQuestions } from '../../../lib/questions';
+import Quiz from '../../../components/quiz/Quiz.tsx';
+import LessonComplete from '../../../components/quiz/LessonComplete.tsx';
 
 export async function getStaticPaths() {
   const modules = await getCollection('modules');
@@ -37,6 +40,7 @@ export async function getStaticPaths() {
 
 const { lesson, moduleTitle, siblings, prev, next } = Astro.props;
 const { Content, headings } = await render(lesson);
+const questions = (await loadAllQuestions()).filter((q) => q.lessonId === lesson.id);
 ---
 
 <LessonLayout
@@ -50,4 +54,16 @@ const { Content, headings } = await render(lesson);
   nextLesson={next}
 >
   <Content />
+  <Fragment slot="after">
+    <LessonComplete client:load lessonId={lesson.id} />
+    {questions.length > 0 && (
+      <Quiz
+        client:visible
+        quizId={lesson.id}
+        mode="lesson"
+        title="Comprueba lo aprendido"
+        questions={questions}
+      />
+    )}
+  </Fragment>
 </LessonLayout>

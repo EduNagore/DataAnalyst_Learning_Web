@@ -1,9 +1,18 @@
 ---
-import ComingSoon from '../../../components/layout/ComingSoon.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import ExamRunner from '../../../components/quiz/ExamRunner.tsx';
 ---
 
-<ComingSoon
+<BaseLayout
   title="Modo examen"
-  description="Elige partes o módulos, número de preguntas y temporizador opcional. Al terminar, un informe de resultados por módulo con enlaces para repasar."
-  phase="Fase 3 · Motor de tests"
-/>
+  description="Examen con preguntas aleatorias de los módulos que elijas, temporizador opcional e informe de resultados por módulo."
+>
+  <section class="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Modo examen</h1>
+    <p class="mt-2 mb-8 text-[var(--color-text-muted)]">
+      Preguntas aleatorias de los módulos que elijas. Al terminar verás un informe por módulo con
+      enlaces para repasar. Tus aciertos y fallos alimentan el repaso espaciado.
+    </p>
+    <ExamRunner client:load />
+  </section>
+</BaseLayout>

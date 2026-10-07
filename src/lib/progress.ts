@@ -8,6 +8,7 @@
  * privada, almacenamiento bloqueado, SSR) o puede lanzar por cuota.
  */
 import { atom } from 'nanostores';
+import { reviewCard } from './srs';
 
 export const PROGRESS_STORAGE_KEY = 'daa:progress:v1';
 const SCHEMA_VERSION = 1;
@@ -170,4 +171,18 @@ export function resetProgress(): void {
   const next = emptyProgress();
   progressStore.set(next);
   writeToStorage(next);
+}
+
+/**
+ * Registra el resultado de una pregunta en el repaso espaciado (Leitner).
+ * Fallar mete la pregunta en la caja 1; acertar solo avanza una pregunta
+ * que ya estaba en el sistema (acertar a la primera no la añade).
+ */
+export function recordSrsResult(questionId: string, correct: boolean, now = new Date()): void {
+  update((draft) => {
+    const existing = draft.srs[questionId];
+    if (!correct || existing) {
+      draft.srs[questionId] = reviewCard(existing, correct, now);
+    }
+  });
 }

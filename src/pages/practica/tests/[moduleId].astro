@@ -1,0 +1,37 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Quiz from '../../../components/quiz/Quiz.tsx';
+import { loadAllQuestions } from '../../../lib/questions';
+import { url } from '../../../lib/url';
+
+export async function getStaticPaths() {
+  const modules = await getCollection('modules');
+  const all = await loadAllQuestions();
+  return modules
+    .filter((m) => all.some((q) => q.module === m.data.id))
+    .map((m) => ({
+      params: { moduleId: m.data.id },
+      props: { title: m.data.title, questions: all.filter((q) => q.module === m.data.id) },
+    }));
+}
+
+const { moduleId } = Astro.params;
+const { title, questions } = Astro.props;
+---
+
+<BaseLayout
+  title={`Test: ${title}`}
+  description={`Test del módulo ${title}, con ${questions.length} preguntas.`}
+>
+  <section class="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+    <a href={url('/practica/tests/')} class="text-xs text-[var(--color-accent)] hover:underline">
+      ← Todos los tests
+    </a>
+    <h1 class="mt-2 text-3xl font-bold text-[var(--color-text)]">Test: {title}</h1>
+    <p class="mt-2 text-sm text-[var(--color-text-muted)]">
+      {questions.length} preguntas · se aprueba con un 80 % o más.
+    </p>
+    <Quiz client:load quizId={`module:${moduleId}`} mode="module" questions={questions} />
+  </section>
+</BaseLayout>

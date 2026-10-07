@@ -1,9 +1,25 @@
 ---
-import ComingSoon from '../../components/layout/ComingSoon.astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import ProgressPanel from '../../components/progress/ProgressPanel.tsx';
+import { url } from '../../lib/url';
+
+const modules = await getCollection('modules');
+const lessons = (await getCollection('lessons')).map((l) => ({
+  id: l.id,
+  title: l.data.title,
+  module: l.data.module,
+  moduleTitle: modules.find((m) => m.data.id === l.data.module)?.data.title ?? l.data.module,
+  url: url(`/teoria/${l.data.module}/${l.id.split('/').pop()}/`),
+}));
 ---
 
-<ComingSoon
+<BaseLayout
   title="Tu progreso"
-  description="Panel de progreso con lecciones leídas, puntuaciones de quiz, laboratorios superados y exámenes. Todo en tu navegador, con exportar/importar en JSON."
-  phase="Fase 3 · Motor de tests"
-/>
+  description="Panel de progreso con lecciones leídas, puntuaciones, laboratorios y exámenes. Todo en tu navegador, con exportar e importar en JSON."
+>
+  <section class="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="mb-8 text-3xl font-bold text-[var(--color-text)]">Tu progreso</h1>
+    <ProgressPanel client:load lessons={lessons} />
+  </section>
+</BaseLayout>

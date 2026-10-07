@@ -6,6 +6,7 @@ const BASE_PATH = '/DataAnalyst_Learning_Web';
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
+  workers: process.env.CI ? 2 : 3,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? 'dot' : 'list',

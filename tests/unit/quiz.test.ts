@@ -105,3 +105,31 @@ describe('seededShuffle', () => {
     expect(seededShuffle(items, 'semilla-A')).not.toEqual(seededShuffle(items, 'semilla-B'));
   });
 });
+
+import { parseNumberEs, shuffledOrder } from '../../src/lib/quiz';
+
+describe('parseNumberEs', () => {
+  it.each([
+    ['14,85', 14.85],
+    ['28.173', 28173],
+    ['1.234,5', 1234.5],
+    ['14.85', 14.85],
+    ['  18 ', 18],
+    ['-3,5', -3.5],
+    ['2.275.942,25', 2275942.25],
+  ])('interpreta %s como %d', (raw, expected) => {
+    expect(parseNumberEs(raw)).toBeCloseTo(expected);
+  });
+
+  it.each(['', 'abc', '1,2,3', '12a'])('devuelve NaN para %j', (raw) => {
+    expect(parseNumberEs(raw)).toBeNaN();
+  });
+});
+
+describe('shuffledOrder', () => {
+  it('es una permutación determinista de 0..n-1', () => {
+    const order = shuffledOrder(5, 'q1');
+    expect([...order].sort()).toEqual([0, 1, 2, 3, 4]);
+    expect(shuffledOrder(5, 'q1')).toEqual(order);
+  });
+});

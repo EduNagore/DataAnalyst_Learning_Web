@@ -1,9 +1,54 @@
 ---
-import ComingSoon from '../../../components/layout/ComingSoon.astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import BestScore from '../../../components/quiz/BestScore.tsx';
+import { loadAllQuestions } from '../../../lib/questions';
+import { url } from '../../../lib/url';
+
+const modules = (await getCollection('modules')).sort(
+  (a, b) => a.data.partOrder - b.data.partOrder || a.data.order - b.data.order,
+);
+const questions = await loadAllQuestions();
+const countByModule = new Map<string, number>();
+for (const q of questions) countByModule.set(q.module, (countByModule.get(q.module) ?? 0) + 1);
+const available = modules.filter((m) => (countByModule.get(m.data.id) ?? 0) > 0);
 ---
 
-<ComingSoon
+<BaseLayout
   title="Tests por módulo"
   description="Preguntas tipo test agrupadas por módulo, con explicación de por qué cada respuesta es correcta o incorrecta."
-  phase="Fase 3 · Motor de tests"
-/>
+>
+  <section class="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Tests por módulo</h1>
+    <p class="mt-2 text-[var(--color-text-muted)]">
+      Cada test reúne las preguntas de todas las lecciones del módulo. Se aprueba con un 80 % o más.
+      Las preguntas falladas pasan a tu{' '}
+      <a class="text-[var(--color-accent)] hover:underline" href={url('/practica/repaso/')}>
+        repaso espaciado
+      </a>
+      .
+    </p>
+    {available.length === 0 ? (
+      <p class="mt-8 text-sm text-[var(--color-text-muted)]">Aún no hay tests publicados.</p>
+    ) : (
+      <ul class="mt-8 space-y-3">
+        {available.map((m) => (
+          <li>
+            <a
+              href={url(`/practica/tests/${m.data.id}/`)}
+              class="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-4 hover:border-[var(--color-accent)]"
+            >
+              <span>
+                <span class="font-medium text-[var(--color-text)]">{m.data.title}</span>
+                <span class="ml-2 text-xs text-[var(--color-text-muted)]">
+                  {countByModule.get(m.data.id)} preguntas
+                </span>
+              </span>
+              <BestScore client:load quizId={`module:${m.data.id}`} />
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+</BaseLayout>

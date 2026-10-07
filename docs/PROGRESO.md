@@ -16,9 +16,9 @@ Registro de qué fase del `PLAN.md` está hecha, verificada y pendiente. Se actu
 
 Repo: `https://github.com/EduNagore/DataAnalyst_Learning_Web` (rama `main`). Sitio: `https://edunagore.github.io/DataAnalyst_Learning_Web/`.
 
-## Despliegue (lo primero a verificar al retomar)
+## Despliegue
 
-`deploy.yml` falló con `withastro/action@v6` (dos veces, antes y después de habilitar Pages) y se sustituyó por `pnpm build` + `actions/upload-pages-artifact@v4` + `actions/deploy-pages@v4` (commit `f5030a0`). **Sin confirmar todavía que ese deploy funciona.** Comprobar con la API (sin caché): `https://api.github.com/repos/EduNagore/DataAnalyst_Learning_Web/actions/runs?per_page=4&_cb=N` y, si falla, `.../actions/runs/{id}/jobs`. NO fiarse de la vista HTML de Actions (dio un "success" falso). Detalle en `docs/DECISIONS.md`.
+✅ Funciona: CI y Deploy en verde desde el commit `f5030a0` (tras sustituir `withastro/action` por build directo + `upload-pages-artifact@v4` + `deploy-pages@v4`). Para comprobar un run: API sin caché `https://api.github.com/repos/EduNagore/DataAnalyst_Learning_Web/actions/runs?per_page=4&_cb=N` y `.../runs/{id}/jobs`. NO fiarse de la vista HTML de Actions (dio un "success" falso).
 
 ---
 
@@ -44,9 +44,18 @@ Pendiente menor: job de CI que regenere el dataset y compare `data-gen/checksums
 
 ---
 
-## Siguiente: F3 — Motor de tests
+## F3 ✅
 
-Según PLAN §12/§7.2: `Quiz.tsx` + `Question*` (tipos single, multiple, truefalse, order, numeric, sql-output, formula-output, chart-critique), `QuizResult`, quiz al final de cada lección (leer la colección `quizzes` por `lesson`), `/practica/tests/` + `/practica/tests/<modulo>/` (aprobado ≥ 80 %), `/practica/examen/`, `/practica/repaso/` (Leitner, `srs.ts` ya existe), `/progreso/` (export/import JSON; `progress.ts` ya existe), barrido de `hydrateProgress`, marcar lección leída. Tests unitarios ya existentes para `quiz.ts`/`srs.ts`; añadir e2e de un quiz.
+- `src/components/quiz/`: `Quiz.tsx` (modos lesson/module/exam/review, aprobado ≥ 80 %, corrección con explicación y enlace a la sección, temporizador de examen, `aria-live`), `QuestionView.tsx` (radio/checkbox/orden por clic/numérico con coma decimal), `ExamRunner.tsx` (módulos, 20/40/60, temporizador, informe por módulo), `ReviewRunner.tsx` (Leitner, 20 por sesión), `LessonComplete.tsx`, `BestScore.tsx`, `InlineText.tsx`. `src/components/progress/ProgressPanel.tsx` (progreso por módulo, exámenes, exportar/importar/borrar JSON).
+- `src/lib/questions.ts` (carga todas las preguntas con módulo/lección/URL) y endpoint estático `/practica/questions.json` (banco para examen y repaso). Rutas: `/practica/` (hub real), `/practica/tests/` y `/practica/tests/[moduleId]/`, `/practica/examen/`, `/practica/repaso/`, `/progreso/`. El quiz de lección se renderiza al final de cada lección (slot `after` de `LessonLayout`).
+- `quiz.ts`: `parseNumberEs` ("14,85", "28.173", "1.234,5"), `shuffledOrder`; `progress.ts`: `recordSrsResult` (fallar → caja 1 con vencimiento +1 día; acertar solo avanza lo que ya estaba en el sistema). Unit 55/55, e2e 10/10 (quiz de lección, examen con informe, repaso). Playwright con `workers: 3` (con más, `astro preview` se atasca y hay timeouts de `goto`).
+- Pendiente menor: los tipos `formula-output` y `chart-critique` están soportados en el render pero aún no hay preguntas de esos tipos (llegarán con M03 hojas de cálculo y M10 visualización).
+
+---
+
+## Siguiente: F4 — Laboratorios
+
+PLAN §7.4: runtime SQL (`src/lib/duckdb/{client,worker}.ts`, DuckDB-WASM en Web Worker, vistas sobre los Parquet con `url()`, timeout 10 s, límite 1.000 filas), corrección con `resultCompare.ts` + `checks.yaml` (y `hiddenOnVariant` contra `lumen_variant`), runtime Python (`src/lib/pyodide/`, Pyodide 314 en module worker, `datakit` en `public/py/datakit`), UI de lab (enunciado | editor CodeMirror 6 | resultado/tests | pistas | solución tras 3 intentos), `/practica/labs/` + `/practica/labs/[id]/`, `/practica/sql/` (Playground), `tests/labs/test_sql_labs.py` y `test_py_labs.py`, y los labs prioritarios de M04 (`sql-primeras-consultas`, `sql-fanout-joins`, `sql-antijoin`, `sql-nulls-coalesce`, `sql-case-segmentos`, `sql-fechas-zonas-horarias`) más al menos un lab Python. Colección `labs` (Zod ya definida); ficheros por lab en `src/content/labs/<id>/{index.mdx,starter.sql,solution.sql,checks.yaml}`.
 
 ## Notas para retomar
 

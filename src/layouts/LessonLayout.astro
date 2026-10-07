@@ -110,6 +110,8 @@ const levelLabels = { básico: 'Básico', intermedio: 'Intermedio', avanzado: 'A
 
       <SourceList sources={sources} />
 
+      <slot name="after" />
+
       <nav class="mt-10 flex items-center justify-between border-t border-[var(--color-border)] pt-6 text-sm">
         {prevLesson ? (
           <a

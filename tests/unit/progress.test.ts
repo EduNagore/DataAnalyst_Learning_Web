@@ -86,3 +86,27 @@ describe('resetProgress', () => {
     expect(progressStore.get()).toMatchObject({ lessonsRead: {}, quizScores: {}, labs: {} });
   });
 });
+
+import { recordSrsResult } from '../../src/lib/progress';
+
+describe('recordSrsResult', () => {
+  const now = new Date('2026-01-01T00:00:00.000Z');
+
+  it('fallar una pregunta nueva la mete en la caja 1', () => {
+    recordSrsResult('q-nueva', false, now);
+    expect(progressStore.get().srs['q-nueva'].box).toBe(1);
+  });
+
+  it('acertar una pregunta que no estaba en el sistema no la añade', () => {
+    recordSrsResult('q-limpia', true, now);
+    expect(progressStore.get().srs['q-limpia']).toBeUndefined();
+  });
+
+  it('acertar una pregunta ya en el sistema la sube de caja; fallar la devuelve a la 1', () => {
+    recordSrsResult('q', false, now);
+    recordSrsResult('q', true, now);
+    expect(progressStore.get().srs['q'].box).toBe(2);
+    recordSrsResult('q', false, now);
+    expect(progressStore.get().srs['q'].box).toBe(1);
+  });
+});

@@ -1,9 +1,18 @@
 ---
-import ComingSoon from '../../../components/layout/ComingSoon.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import ReviewRunner from '../../../components/quiz/ReviewRunner.tsx';
 ---
 
-<ComingSoon
+<BaseLayout
   title="Repaso espaciado"
-  description="Repasa con el sistema Leitner las preguntas que has fallado, con intervalos crecientes de 1, 2, 4, 8 y 16 días."
-  phase="Fase 3 · Motor de tests"
-/>
+  description="Repasa con el sistema Leitner las preguntas que has fallado, con intervalos de 1, 2, 4, 8 y 16 días."
+>
+  <section class="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Repaso espaciado</h1>
+    <p class="mt-2 mb-8 text-[var(--color-text-muted)]">
+      Toda pregunta que fallas entra en la caja 1. Cada acierto la sube una caja y la aleja en el
+      tiempo (1, 2, 4, 8 y 16 días); un fallo la devuelve a la caja 1.
+    </p>
+    <ReviewRunner client:load />
+  </section>
+</BaseLayout>
