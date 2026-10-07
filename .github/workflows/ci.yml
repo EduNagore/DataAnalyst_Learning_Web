@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web (lint · typecheck · unit · contenido · build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint (ESLint)
+        run: pnpm lint
+
+      - name: Formato (Prettier)
+        run: pnpm format
+
+      - name: Typecheck (astro check)
+        run: pnpm check
+
+      - name: Tests unitarios (Vitest)
+        run: pnpm test
+
+      - name: Validar integridad del contenido
+        run: pnpm validate-content
+
+      - name: Build
+        run: pnpm build
+
+      - name: Instalar navegadores de Playwright
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Smoke e2e (Playwright)
+        run: pnpm e2e
+
+      - name: Subir reporte de Playwright si falla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  python:
+    name: Python (ruff · pytest de laboratorios)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Comprobar que existe el entorno Python del proyecto
+        id: has-pyproject
+        run: echo "exists=$([ -f pyproject.toml ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Instalar dependencias (uv)
+        if: steps.has-pyproject.outputs.exists == 'true'
+        run: uv sync --all-extras
+
+      - name: Ruff
+        if: steps.has-pyproject.outputs.exists == 'true'
+        run: uv run ruff check .
+
+      - name: pytest (labs SQL y Python)
+        if: steps.has-pyproject.outputs.exists == 'true'
+        run: uv run pytest -q

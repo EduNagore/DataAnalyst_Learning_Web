@@ -1,0 +1,74 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const entries = await getCollection('radar');
+
+const ringLabels: Record<string, string> = {
+  adoptar: 'Adoptar',
+  probar: 'Probar',
+  evaluar: 'Evaluar',
+  evitar: 'Evitar',
+};
+const ringOrder = ['adoptar', 'probar', 'evaluar', 'evitar'];
+
+const categoryLabels: Record<string, string> = {
+  'sql-motores': 'Motores SQL',
+  'herramientas-python': 'Herramientas Python',
+  bi: 'BI',
+  'ingenieria-analitica': 'Ingeniería analítica',
+  'ia-analitica': 'IA analítica',
+  tecnicas: 'Técnicas',
+};
+---
+
+<BaseLayout
+  title="Radar del analista"
+  description="Herramientas y técnicas del oficio en los anillos Adoptar, Probar, Evaluar y Evitar, con fecha de revisión y fuentes."
+>
+  <section class="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Radar del analista</h1>
+    <p class="mt-2 max-w-2xl text-[var(--color-text-muted)]">
+      Un vistazo rápido al estado del arte: qué herramientas y técnicas merece la pena adoptar hoy,
+      cuáles probar, cuáles conviene evaluar con cautela y cuáles evitar. Cada entrada lleva la
+      fecha en que se revisó y sus fuentes.
+    </p>
+
+    {entries.length === 0 ? (
+      <div class="mt-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-subtle)] p-8 text-center">
+        <p class="font-medium text-[var(--color-text)]">El radar todavía no tiene entradas.</p>
+        <p class="mt-2 text-sm text-[var(--color-text-muted)]">
+          Se completa a partir de la Fase 8 del plan de implementación, en paralelo con el contenido
+          de IA para analistas.
+        </p>
+      </div>
+    ) : (
+      <div class="mt-10 space-y-10">
+        {ringOrder.map((ring) => {
+          const ringEntries = entries.filter((e) => e.data.ring === ring);
+          if (ringEntries.length === 0) return null;
+          return (
+            <div>
+              <h2 class="text-xl font-semibold text-[var(--color-text)]">{ringLabels[ring]}</h2>
+              <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                {ringEntries.map((entry) => (
+                  <div class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-5">
+                    <p class="text-xs font-medium text-[var(--color-text-muted)]">
+                      {categoryLabels[entry.data.category]} · a fecha de{' '}
+                      {entry.data.asOf.toLocaleDateString('es-ES', {
+                        year: 'numeric',
+                        month: 'long',
+                      })}
+                    </p>
+                    <h3 class="mt-1 font-semibold text-[var(--color-text)]">{entry.data.name}</h3>
+                    <p class="mt-2 text-sm text-[var(--color-text-muted)]">{entry.data.summary}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
+  </section>
+</BaseLayout>

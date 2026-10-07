@@ -1,0 +1,64 @@
+---
+import Header from '../components/layout/Header.astro';
+import Footer from '../components/layout/Footer.astro';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Desactiva el <Header>/<Footer> comunes (p.ej. layouts especializados). */
+  bare?: boolean;
+}
+
+const { title, description, bare = false } = Astro.props;
+const pageTitle = title === 'Data Analyst Academy' ? title : `${title} · Data Analyst Academy`;
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonicalUrl} />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+
+    <script is:inline>
+      // Se ejecuta antes del primer pintado para evitar parpadeo de tema
+      // (FOUC): lee la preferencia guardada y la aplica al <html>.
+      (function () {
+        try {
+          const stored = localStorage.getItem('daa:theme');
+          if (stored === 'light' || stored === 'dark') {
+            document.documentElement.setAttribute('data-theme', stored);
+          }
+        } catch (_e) {
+          // localStorage no disponible: se usa prefers-color-scheme vía CSS.
+        }
+      })();
+    </script>
+  </head>
+  <body class="min-h-screen antialiased">
+    {bare ? (
+      <slot />
+    ) : (
+      <>
+        <Header />
+        <main>
+          <slot />
+        </main>
+        <Footer />
+      </>
+    )}
+  </body>
+</html>

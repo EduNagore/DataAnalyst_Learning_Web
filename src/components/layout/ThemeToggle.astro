@@ -1,0 +1,71 @@
+---
+// Toggle de tema claro/oscuro. Vanilla JS (sin isla React): es un botón
+// trivial y evitamos el coste de hidratar un framework solo para esto.
+// El script inline en BaseLayout.astro aplica el tema guardado antes del
+// primer pintado para evitar parpadeo (FOUC).
+---
+
+<button
+  id="theme-toggle"
+  type="button"
+  aria-label="Cambiar tema claro/oscuro"
+  class="inline-flex size-9 items-center justify-center rounded-md border border-[var(--color-border)] text-[var(--color-text-muted)] transition-colors hover:text-[var(--color-text)]"
+>
+  <svg
+    aria-hidden="true"
+    class="size-4 theme-icon-light"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+  >
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+  </svg>
+  <svg
+    aria-hidden="true"
+    class="size-4 theme-icon-dark hidden"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+  >
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" />
+  </svg>
+</button>
+
+<script>
+  function setStoredTheme(theme: 'light' | 'dark') {
+    try {
+      localStorage.setItem('daa:theme', theme);
+    } catch {
+      // almacenamiento no disponible: el tema solo durará esta carga
+    }
+  }
+
+  function currentlyDark(): boolean {
+    const explicit = document.documentElement.getAttribute('data-theme');
+    if (explicit === 'dark') return true;
+    if (explicit === 'light') return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+
+  function syncIcons() {
+    const dark = currentlyDark();
+    document
+      .querySelectorAll('.theme-icon-light')
+      .forEach((el) => el.classList.toggle('hidden', dark));
+    document
+      .querySelectorAll('.theme-icon-dark')
+      .forEach((el) => el.classList.toggle('hidden', !dark));
+  }
+
+  document.getElementById('theme-toggle')?.addEventListener('click', () => {
+    const next = currentlyDark() ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    setStoredTheme(next);
+    syncIcons();
+  });
+
+  syncIcons();
+</script>

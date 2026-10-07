@@ -1,0 +1,41 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const terms = (await getCollection('glossary')).sort((a, b) =>
+  a.data.termEs.localeCompare(b.data.termEs, 'es'),
+);
+---
+
+<BaseLayout
+  title="Glosario"
+  description="Glosario bilingüe (español/inglés) de los términos técnicos del curso, con enlaces a las lecciones donde se explican."
+>
+  <section class="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Glosario</h1>
+    <p class="mt-2 text-[var(--color-text-muted)]">
+      Términos técnicos en español e inglés, tal y como se usan en la industria.
+    </p>
+
+    {terms.length === 0 ? (
+      <div class="mt-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-subtle)] p-8 text-center">
+        <p class="font-medium text-[var(--color-text)]">El glosario todavía no tiene entradas.</p>
+        <p class="mt-2 text-sm text-[var(--color-text-muted)]">
+          Se completa a medida que se redactan las lecciones, de la Fase 6 en adelante.
+        </p>
+      </div>
+    ) : (
+      <dl class="mt-10 divide-y divide-[var(--color-border)]">
+        {terms.map((term) => (
+          <div class="py-4">
+            <dt class="font-semibold text-[var(--color-text)]">
+              {term.data.termEs}{' '}
+              <span class="text-[var(--color-text-muted)]">· {term.data.termEn}</span>
+            </dt>
+            <dd class="mt-1 text-sm text-[var(--color-text-muted)]">{term.data.definition}</dd>
+          </div>
+        ))}
+      </dl>
+    )}
+  </section>
+</BaseLayout>

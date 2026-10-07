@@ -1,0 +1,68 @@
+name: Frescura del contenido
+
+on:
+  schedule:
+    # Primer día de cada mes a las 06:00 UTC.
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Enlaces rotos (lychee)
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --exclude-mail
+            --accept 200,206,429
+            'src/content/**/*.{mdx,md,yaml,yml}'
+            'docs/**/*.md'
+          format: markdown
+          output: lychee-report.md
+          fail: false
+
+      - name: Contenido caducado
+        id: stale
+        run: |
+          node scripts/check-freshness.mjs > freshness-report.md
+          cat freshness-report.md
+
+      - name: Componer el cuerpo del issue
+        run: |
+          {
+            echo "Revisión automática de frescura del contenido (workflow \`content-freshness.yml\`)."
+            echo
+            cat freshness-report.md
+            echo
+            echo "---"
+            echo
+            echo "### Enlaces rotos"
+            echo
+            cat lychee-report.md 2>/dev/null || echo "Sin reporte de lychee."
+          } > issue-body.md
+
+      - name: Abrir o actualizar el issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="Revisión mensual de frescura del contenido"
+          EXISTING=$(gh issue list --search "in:title \"$TITLE\"" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue edit "$EXISTING" --body-file issue-body.md
+            echo "Actualizado el issue #$EXISTING"
+          else
+            gh issue create --title "$TITLE" --body-file issue-body.md
+          fi

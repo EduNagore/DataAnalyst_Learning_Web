@@ -1,0 +1,30 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { url } from '../../lib/url';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Fase del PLAN.md en la que se construye esta sección. */
+  phase: string;
+  backHref?: string;
+}
+
+const { title, description, phase, backHref = url('/') } = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+  <section class="mx-auto max-w-2xl px-4 py-24 text-center sm:px-6 lg:px-8">
+    <p class="text-xs font-semibold tracking-wide text-[var(--color-accent)] uppercase">
+      En construcción · {phase}
+    </p>
+    <h1 class="mt-3 text-3xl font-bold text-[var(--color-text)]">{title}</h1>
+    <p class="mt-4 text-[var(--color-text-muted)]">{description}</p>
+    <a
+      href={backHref}
+      class="mt-8 inline-block rounded-md border border-[var(--color-border)] px-4 py-2 text-sm font-medium text-[var(--color-text)] hover:bg-[var(--color-bg-subtle)]"
+    >
+      ← Volver al inicio
+    </a>
+  </section>
+</BaseLayout>

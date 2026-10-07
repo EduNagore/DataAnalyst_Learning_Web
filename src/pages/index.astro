@@ -1,0 +1,163 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { url } from '../lib/url';
+
+const parts = [
+  {
+    id: 'parte-0',
+    title: 'Parte 0 · Fundamentos del oficio',
+    description: 'Cómo piensa un analista top, métricas de negocio y estadística descriptiva.',
+    modules: 3,
+  },
+  {
+    id: 'parte-1',
+    title: 'Parte I · Herramientas núcleo',
+    description: 'Hojas de cálculo modernas, SQL de cero a avanzado y Python para análisis.',
+    modules: 7,
+  },
+  {
+    id: 'parte-2',
+    title: 'Parte II · Visualización y comunicación',
+    description: 'Gramática de gráficos, dashboards, Power BI/Tableau y storytelling con datos.',
+    modules: 3,
+  },
+  {
+    id: 'parte-3',
+    title: 'Parte III · Estadística y causalidad',
+    description: 'Inferencia, A/B testing, inferencia causal, regresión y forecasting.',
+    modules: 5,
+  },
+  {
+    id: 'parte-4',
+    title: 'Parte IV · Analítica por dominio',
+    description: 'Producto, marketing y crecimiento, finanzas y operaciones.',
+    modules: 3,
+  },
+  {
+    id: 'parte-5',
+    title: 'Parte V · Stack moderno e ingeniería analítica',
+    description: 'Warehouses, dbt, capa semántica, gobierno y privacidad de datos.',
+    modules: 4,
+  },
+  {
+    id: 'parte-6',
+    title: 'Parte VI · IA para analistas',
+    description: 'Copilotos, text-to-SQL, analítica agéntica con MCP y LLMs sobre texto.',
+    modules: 4,
+  },
+  {
+    id: 'parte-7',
+    title: 'Parte VII · Carrera profesional',
+    description: 'Portfolio, entrevistas de SQL y producto, certificaciones y negociación.',
+    modules: 1,
+  },
+];
+
+const pillars = [
+  {
+    title: 'SQL y Python en el navegador',
+    description:
+      'Laboratorios que se corrigen solos con DuckDB-WASM y Pyodide, sin instalar nada, sobre un dataset de negocio realista.',
+  },
+  {
+    title: 'Un caso de negocio, no un ejercicio suelto',
+    description:
+      'Cada técnica responde a una pregunta real de "Lumen", una empresa de retail ficticia con datos coherentes de 3 años.',
+  },
+  {
+    title: 'Estado del arte verificado',
+    description:
+      'Cada lección cita sus fuentes y lleva fecha de revisión. Un Radar y un workflow mensual vigilan qué ha quedado desactualizado.',
+  },
+];
+---
+
+<BaseLayout
+  title="Data Analyst Academy"
+  description="Curso gratuito y de código abierto para convertirte en data analyst de nivel senior: SQL, Python, estadística, experimentación, BI e IA aplicada al análisis."
+>
+  <section class="mx-auto max-w-5xl px-4 pt-16 pb-12 text-center sm:px-6 sm:pt-24 lg:px-8">
+    <p class="text-sm font-semibold tracking-wide text-[var(--color-accent)] uppercase">
+      Gratis · Código abierto · En español
+    </p>
+    <h1 class="mt-4 text-4xl font-bold tracking-tight text-[var(--color-text)] sm:text-5xl">
+      Conviértete en un data analyst de primer nivel
+    </h1>
+    <p class="mx-auto mt-6 max-w-2xl text-lg text-[var(--color-text-muted)]">
+      Teoría estructurada, laboratorios de SQL y Python que se corrigen solos en tu navegador, casos
+      de negocio reales y preparación de entrevistas. Todo sobre un dataset propio, sin necesidad de
+      instalar nada.
+    </p>
+    <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+      <a
+        href={url('/teoria/')}
+        class="rounded-md bg-[var(--color-accent)] px-5 py-2.5 text-sm font-semibold text-[var(--color-accent-contrast)] shadow-sm hover:opacity-90"
+      >
+        Empieza por los fundamentos
+      </a>
+      <a
+        href={url('/ruta/')}
+        class="rounded-md border border-[var(--color-border)] px-5 py-2.5 text-sm font-semibold text-[var(--color-text)] hover:bg-[var(--color-bg-subtle)]"
+      >
+        Ver rutas de aprendizaje
+      </a>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+    <div class="grid gap-6 sm:grid-cols-3">
+      {pillars.map((pillar) => (
+        <div class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-6">
+          <h2 class="font-semibold text-[var(--color-text)]">{pillar.title}</h2>
+          <p class="mt-2 text-sm text-[var(--color-text-muted)]">{pillar.description}</p>
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+    <div class="mb-8 flex items-baseline justify-between">
+      <h2 class="text-2xl font-bold text-[var(--color-text)]">Plan de estudios</h2>
+      <a
+        href={url('/teoria/')}
+        class="text-sm font-medium text-[var(--color-accent)] hover:underline"
+      >
+        Ver todos los módulos →
+      </a>
+    </div>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {parts.map((part) => (
+        <a
+          href={url('/teoria/')}
+          class="group rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-5 transition-colors hover:border-[var(--color-accent)]"
+        >
+          <p class="text-xs font-medium text-[var(--color-text-muted)]">
+            {part.modules} {part.modules === 1 ? 'módulo' : 'módulos'}
+          </p>
+          <h3 class="mt-1 font-semibold text-[var(--color-text)] group-hover:text-[var(--color-accent)]">
+            {part.title}
+          </h3>
+          <p class="mt-2 text-sm text-[var(--color-text-muted)]">{part.description}</p>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-6xl px-4 py-12 sm:px-6 lg:px-8">
+    <div class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-subtle)] p-8 text-center">
+      <h2 class="text-xl font-bold text-[var(--color-text)]">El dataset "Lumen"</h2>
+      <p class="mx-auto mt-2 max-w-2xl text-sm text-[var(--color-text-muted)]">
+        Todos los ejercicios usan los datos de una empresa ficticia de retail omnicanal: pedidos,
+        clientes, eventos de producto, experimentos A/B y tickets de soporte durante 3 años y medio.
+        Coherente, determinista y con los hallazgos ya "plantados" para que tus respuestas se puedan
+        comprobar.
+      </p>
+      <a
+        href={url('/datos/')}
+        class="mt-4 inline-block text-sm font-medium text-[var(--color-accent)] hover:underline"
+      >
+        Explorar el diccionario de datos →
+      </a>
+    </div>
+  </section>
+</BaseLayout>

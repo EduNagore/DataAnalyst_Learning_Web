@@ -1,0 +1,7 @@
+dist/
+.astro/
+node_modules/
+pnpm-lock.yaml
+public/pagefind/
+public/data/
+CHANGELOG.md

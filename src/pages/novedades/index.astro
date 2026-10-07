@@ -1,0 +1,45 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const entries = (await getCollection('changelog')).sort(
+  (a, b) => b.data.date.getTime() - a.data.date.getTime(),
+);
+---
+
+<BaseLayout
+  title="Novedades"
+  description="Changelog del curso: qué lecciones se han actualizado, por qué y cuándo."
+>
+  <section class="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Novedades</h1>
+    <p class="mt-2 text-[var(--color-text-muted)]">
+      Un registro de qué ha cambiado en el curso y por qué, para que sepas qué volver a leer.
+    </p>
+
+    {entries.length === 0 ? (
+      <div class="mt-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-subtle)] p-8 text-center">
+        <p class="font-medium text-[var(--color-text)]">Todavía no hay entradas de changelog.</p>
+        <p class="mt-2 text-sm text-[var(--color-text-muted)]">
+          Se abrirá la primera entrada en cuanto se publique el primer módulo de teoría.
+        </p>
+      </div>
+    ) : (
+      <ol class="mt-10 space-y-8">
+        {entries.map((entry) => (
+          <li class="border-l-2 border-[var(--color-border)] pl-4">
+            <time class="text-xs font-medium text-[var(--color-text-muted)]">
+              {entry.data.date.toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </time>
+            <h2 class="mt-1 font-semibold text-[var(--color-text)]">{entry.data.title}</h2>
+            <p class="mt-1 text-sm text-[var(--color-text-muted)]">{entry.data.summary}</p>
+          </li>
+        ))}
+      </ol>
+    )}
+  </section>
+</BaseLayout>
