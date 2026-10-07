@@ -1,0 +1,14 @@
+id: hojas-de-calculo
+part: Parte I · Herramientas núcleo
+partOrder: 1
+order: 3
+title: Hojas de cálculo modernas
+description:
+  Excel y Google Sheets con funciones dinámicas, Power Query, modelado y asistentes de IA,
+  con nombres de función en español e inglés.
+objectives:
+  - Usar matrices dinámicas, LET y LAMBDA para sustituir fórmulas frágiles.
+  - Limpiar y transformar datos con Power Query y modelar con tablas dinámicas.
+  - Auditar un libro y verificar el trabajo de un asistente de IA dentro de la hoja.
+estimatedHours: 10
+volatility: high

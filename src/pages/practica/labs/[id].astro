@@ -1,0 +1,140 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import SqlLab from '../../../components/lab/SqlLab.tsx';
+import PyLab from '../../../components/lab/PyLab.tsx';
+import { labIdOf } from '../../../lib/labs';
+import { url } from '../../../lib/url';
+import schemaManifest from '../../../../public/data/_schema.json';
+
+const starters = import.meta.glob('/src/content/labs/*/starter.*', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
+const pyTestFiles = import.meta.glob('/src/content/labs/*/test_lab.py', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
+const checkFiles = import.meta.glob('/src/content/labs/*/checks.yaml', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>;
+
+export async function getStaticPaths() {
+  const labs = await getCollection('labs');
+  return labs.map((lab) => ({ params: { id: labIdOf(lab.id) }, props: { lab } }));
+}
+
+const { lab } = Astro.props;
+const id = labIdOf(lab.id);
+const { Content } = await render(lab);
+const d = lab.data;
+
+const starterKey = Object.keys(starters).find((k) =>
+  k.startsWith(`/src/content/labs/${id}/starter.`),
+);
+const starter = starterKey ? starters[starterKey] : '';
+const pyNeedsVariant = /variant\s*=\s*True/.test(
+  pyTestFiles[`/src/content/labs/${id}/test_lab.py`] ?? '',
+);
+const needsVariant = /hiddenOnVariant:\s*true/.test(
+  checkFiles[`/src/content/labs/${id}/checks.yaml`] ?? '',
+);
+
+const tables = schemaManifest.tables as Record<string, { columns: Record<string, string> }>;
+const schema = Object.fromEntries(
+  d.datasets.filter((t) => tables[t]).map((t) => [t, Object.keys(tables[t].columns)]),
+);
+
+const lessons = await getCollection('lessons');
+const related = d.relatedLessons
+  .map((lid: string) => lessons.find((l) => l.id === lid))
+  .filter((l): l is NonNullable<typeof l> => Boolean(l));
+const difficultyLabel = ['', 'Fácil', 'Media', 'Difícil'][d.difficulty];
+---
+
+<BaseLayout title={`Lab: ${d.title}`} description={d.description}>
+  <div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <a href={url('/practica/labs/')} class="text-xs text-[var(--color-accent)] hover:underline">
+      ← Todos los laboratorios
+    </a>
+    <h1 class="mt-2 text-3xl font-bold text-[var(--color-text)]">{d.title}</h1>
+    <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-[var(--color-text-muted)]">
+      <span class="rounded-full border border-[var(--color-border)] px-2 py-0.5">
+        {d.language === 'sql' ? 'SQL' : 'Python'}
+      </span>
+      <span>{difficultyLabel}</span>
+      <span>{d.estimatedMinutes} min</span>
+    </div>
+
+    <div class="mt-6 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+      <div>
+        <div class="rounded-lg border-l-4 border-[var(--color-accent)] bg-[var(--color-bg-subtle)] p-4">
+          <p class="text-xs font-semibold tracking-wide text-[var(--color-accent)] uppercase">
+            Pregunta de negocio
+          </p>
+          <p class="mt-1 text-sm text-[var(--color-text)]">{d.businessQuestion}</p>
+        </div>
+        <article class="prose prose-neutral dark:prose-invert mt-6 max-w-none">
+          <Content />
+        </article>
+        <p class="mt-6 text-xs text-[var(--color-text-muted)]">
+          Tablas disponibles:{' '}
+          {d.datasets.map((t: string) => (
+            <code class="mr-1">{t}</code>
+          ))}
+          ·{' '}
+          <a class="text-[var(--color-accent)] hover:underline" href={url('/datos/')}>
+            Diccionario de datos
+          </a>
+        </p>
+        {related.length > 0 && (
+          <p class="mt-2 text-xs text-[var(--color-text-muted)]">
+            Teoría relacionada:{' '}
+            {related.map((l, i) => (
+              <>
+                {i > 0 && ', '}
+                <a
+                  class="text-[var(--color-accent)] hover:underline"
+                  href={url(`/teoria/${l.data.module}/${l.id.split('/').pop()}/`)}
+                >
+                  {l.data.title}
+                </a>
+              </>
+            ))}
+          </p>
+        )}
+      </div>
+      <div>
+        {d.language === 'sql' && (
+          <SqlLab
+            client:load
+            labId={id}
+            starter={starter}
+            hints={d.hints}
+            datasets={d.datasets}
+            schema={schema}
+            needsVariant={needsVariant}
+          />
+        )}
+        {d.language === 'python' && (
+          <PyLab
+            client:load
+            labId={id}
+            starter={starter}
+            hints={d.hints}
+            tables={d.datasets.filter((t: string) => !t.startsWith('extra:'))}
+            extras={d.datasets
+              .filter((t: string) => t.startsWith('extra:'))
+              .map((t: string) => t.slice(6))}
+            packages={d.packages ?? []}
+            needsVariant={pyNeedsVariant}
+          />
+        )}
+      </div>
+    </div>
+  </div>
+</BaseLayout>

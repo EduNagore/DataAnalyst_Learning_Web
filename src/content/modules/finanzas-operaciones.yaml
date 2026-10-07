@@ -1,0 +1,12 @@
+id: finanzas-operaciones
+part: Parte IV · Analítica por dominio
+partOrder: 4
+order: 20
+title: Analítica financiera y de operaciones
+description: Unit economics, métricas SaaS, análisis de varianzas, inventario y pricing.
+objectives:
+  - Calcular y leer unit economics y métricas de suscripción.
+  - Descomponer una varianza en precio, volumen y mix.
+  - Analizar rotación de inventario y roturas de stock.
+estimatedHours: 10
+volatility: low

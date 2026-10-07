@@ -1,0 +1,32 @@
+---
+title: 'pandas 3: pedidos por año y canal, sin tocar el original'
+description: 'Agrupa con pandas y aprende la regla de oro de pandas 3: una función no debe modificar el DataFrame que recibe.'
+language: python
+part: 'Parte I · Herramientas núcleo'
+module: python-analisis
+difficulty: 1
+estimatedMinutes: 20
+concepts: ['groupby', 'dt.year', 'Copy-on-Write', 'funciones puras']
+datasets: ['orders']
+packages: []
+output: console
+hints:
+  - 'Extrae el año con `orders["order_date"].dt.year`. Para agrupar por una columna calculada puedes usar `orders.groupby([orders["order_date"].dt.year.rename("anio"), "channel"])`.'
+  - 'Cuenta filas con `.size()` y conviértelo en DataFrame con `.reset_index(name="pedidos")`.'
+  - 'Para `marcar_envio_gratis` devuelve `orders.assign(envio_gratis=orders["shipping_cost"] == 0)`: `assign` crea una copia nueva y no toca el original.'
+  - 'En pandas 3 (Copy-on-Write) modificar un DataFrame «derivado» nunca cambia el original, pero asignar una columna sobre el propio objeto recibido sí lo modifica: evítalo dentro de funciones.'
+relatedLessons: []
+businessQuestion: '¿Cuántos pedidos hubo cada año en cada canal, y cuáles tuvieron envío gratis?'
+---
+
+Escribe dos funciones sobre la tabla `orders` de Lumen (ya cargada en la variable `orders` con
+`load_table`, pero tus funciones deben trabajar con **el DataFrame que reciben como argumento**, no
+con la variable global):
+
+1. `pedidos_por_canal_y_anio(orders)` → DataFrame con las columnas **`anio`**, **`channel`** y
+   **`pedidos`** (número de pedidos por año y canal).
+2. `marcar_envio_gratis(orders)` → **copia** del DataFrame con una columna booleana nueva
+   **`envio_gratis`** (`True` si `shipping_cost == 0`). **El DataFrame original no debe cambiar.**
+
+Usa `print()` para explorar los datos mientras trabajas; «Ejecutar» muestra la salida y
+«Comprobar» ejecuta los tests, incluido uno con otro conjunto de datos.

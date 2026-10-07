@@ -1,0 +1,14 @@
+id: sql-ii
+part: Parte I · Herramientas núcleo
+partOrder: 1
+order: 5
+title: SQL II — Analítico avanzado
+description:
+  CTEs, funciones de ventana, QUALIFY, pivotado, fechas y patrones de análisis (cohortes, sesiones,
+  rachas).
+objectives:
+  - Resolver rankings, acumulados y comparaciones con funciones de ventana.
+  - Construir tablas de cohortes, funnels y sesionización en SQL.
+  - Escribir SQL legible con CTEs y trasladarlo entre dialectos.
+estimatedHours: 12
+volatility: low

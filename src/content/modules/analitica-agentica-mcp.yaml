@@ -1,0 +1,12 @@
+id: analitica-agentica-mcp
+part: Parte VI · IA para analistas
+partOrder: 6
+order: 27
+title: Analítica agéntica y MCP
+description: 'Agentes y MCP sobre datos: diseño seguro, evaluación de conclusiones y límites.'
+objectives:
+  - Diferenciar workflows y agentes.
+  - Diseñar un servidor MCP de datos de solo lectura y con límites de coste.
+  - Evaluar las conclusiones de un agente.
+estimatedHours: 8
+volatility: high

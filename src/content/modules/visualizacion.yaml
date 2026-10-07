@@ -1,0 +1,14 @@
+id: visualizacion
+part: Parte II · Visualización y comunicación
+partOrder: 2
+order: 10
+title: Visualización de datos
+description:
+  Percepción, elección de gráfico, color accesible, gramática de gráficos y cómo mienten los
+  gráficos.
+objectives:
+  - Elegir el gráfico adecuado para cada pregunta.
+  - Aplicar color, anotaciones y títulos que comunican la conclusión.
+  - Detectar y corregir gráficos engañosos.
+estimatedHours: 8
+volatility: medium

@@ -1,0 +1,12 @@
+id: dashboards-bi
+part: Parte II · Visualización y comunicación
+partOrder: 2
+order: 11
+title: Dashboards y BI
+description: Diseño de dashboards, Power BI y DAX, Tableau, Looker y BI como código.
+objectives:
+  - Diseñar un dashboard con jerarquía, contexto y comparación.
+  - Modelar en estrella y escribir medidas DAX con contexto de filtro.
+  - Elegir una herramienta de BI según el caso.
+estimatedHours: 14
+volatility: high

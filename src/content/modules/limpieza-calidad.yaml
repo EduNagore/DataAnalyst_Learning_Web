@@ -1,0 +1,12 @@
+id: limpieza-calidad
+part: Parte I · Herramientas núcleo
+partOrder: 1
+order: 8
+title: Limpieza y calidad de datos
+description: Datos ordenados, valores ausentes, outliers, duplicados, validación y contratos de datos.
+objectives:
+  - Diagnosticar problemas de calidad con un perfilado sistemático.
+  - Elegir una estrategia para valores ausentes según su mecanismo.
+  - Automatizar validaciones y documentar los supuestos.
+estimatedHours: 8
+volatility: medium

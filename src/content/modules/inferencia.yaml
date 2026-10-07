@@ -1,0 +1,14 @@
+id: inferencia
+part: Parte III · Estadística, experimentación y causalidad
+partOrder: 3
+order: 13
+title: Inferencia estadística
+description:
+  Muestreo, intervalos de confianza, bootstrap, contrastes de hipótesis, potencia y comparaciones
+  múltiples.
+objectives:
+  - Interpretar correctamente un p-valor y un intervalo de confianza.
+  - Calcular potencia y tamaño de muestra.
+  - Controlar comparaciones múltiples.
+estimatedHours: 12
+volatility: low

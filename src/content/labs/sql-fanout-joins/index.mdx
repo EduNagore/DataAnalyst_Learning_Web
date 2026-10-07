@@ -1,0 +1,29 @@
+---
+title: 'Envíos de pedidos con electrónica: caza el fan-out'
+description: 'Una consulta devuelve una cifra inflada por un join. Encuentra por qué y corrígela.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-i
+difficulty: 2
+estimatedMinutes: 15
+concepts: ['JOIN', 'fan-out', 'grano', 'EXISTS']
+datasets: ['orders', 'order_items', 'products', 'categories']
+hints:
+  - 'Compara `SELECT COUNT(*) FROM orders` con el número de filas que queda tras unir con `order_items`: cada pedido se repite una vez por línea.'
+  - 'El `shipping_cost` pertenece al pedido, no a la línea. Si sumas tras unir con las líneas, lo cuentas varias veces.'
+  - 'No necesitas unir las líneas al resultado: basta con saber si el pedido tiene alguna línea de Electrónica. Eso es un `WHERE EXISTS (...)` correlacionado con `o.order_id`.'
+  - "Electrónica es la categoría de nivel superior `cat-00`; sus subcategorías tienen `parent_category_id = 'cat-00'`."
+output: table
+relatedLessons: ['sql-i/03-joins-y-fan-out']
+businessQuestion: '¿Cuánto hemos cobrado en envíos de pedidos que incluyen al menos un producto de Electrónica?'
+---
+
+Finanzas quiere el **total de `shipping_cost` de los pedidos que contienen al menos un producto de
+la categoría Electrónica**. Un compañero escribió la consulta del _starter_, pero devuelve una cifra
+muy superior a la real.
+
+Tu tarea: **corrígela** para que cada pedido cuente su envío **una sola vez**, **sin usar
+`DISTINCT`** (la comprobación lo rechaza: `SUM(DISTINCT ...)` es un parche que descarta valores
+repetidos legítimos).
+
+**Formato del resultado:** una fila con la columna `envio_total` (redondeada a 2 decimales).

@@ -1,0 +1,14 @@
+id: llm-texto
+part: Parte VI · IA para analistas
+partOrder: 6
+order: 28
+title: LLMs para datos no estructurados
+description:
+  Clasificación y extracción sobre texto, funciones de IA en SQL, embeddings y evaluación contra
+  etiquetas.
+objectives:
+  - Clasificar y extraer información de texto con salidas estructuradas.
+  - Evaluar un clasificador contra etiquetas humanas.
+  - Estimar coste y diseñar el muestreo.
+estimatedHours: 8
+volatility: high

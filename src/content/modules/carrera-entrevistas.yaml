@@ -1,0 +1,14 @@
+id: carrera-entrevistas
+part: Parte VII · Carrera profesional
+partOrder: 7
+order: 29
+title: Portfolio, carrera y entrevistas
+description:
+  Qué buscan las empresas, portfolio, entrevistas de SQL, producto y estadística, certificaciones
+  y primeros 90 días.
+objectives:
+  - Construir un portfolio con tres casos completos.
+  - Preparar entrevistas de SQL, métricas y estadística.
+  - Planificar los primeros 90 días en un equipo de datos.
+estimatedHours: 8
+volatility: medium

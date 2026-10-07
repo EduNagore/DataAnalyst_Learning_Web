@@ -1,0 +1,14 @@
+id: estadistica-descriptiva
+part: Parte 0 · Fundamentos del oficio
+partOrder: 0
+order: 2
+title: Estadística descriptiva y probabilidad
+description:
+  Tipos de variables, distribuciones, medidas de centralidad y dispersión, probabilidad condicional
+  y el teorema central del límite.
+objectives:
+  - Elegir entre media, mediana y percentiles según la distribución.
+  - Aplicar la probabilidad condicional y el teorema de Bayes a un problema de negocio.
+  - Explicar el teorema central del límite y por qué importa para la inferencia.
+estimatedHours: 8
+volatility: low

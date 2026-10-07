@@ -1,9 +1,27 @@
 ---
-import ComingSoon from '../../../components/layout/ComingSoon.astro';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Playground from '../../../components/lab/Playground.tsx';
+import schemaManifest from '../../../../public/data/_schema.json';
+
+const tables = Object.entries(schemaManifest.tables).map(([name, t]) => ({
+  name,
+  description: t.description,
+  rowCount: t.rowCount,
+  columns: t.columns as Record<string, string>,
+}));
 ---
 
-<ComingSoon
+<BaseLayout
   title="SQL Playground"
-  description="Consola SQL libre sobre el dataset Lumen, con explorador de esquema, ERD, ejemplos e historial de consultas. Funciona con DuckDB-WASM, enteramente en tu navegador."
-  phase="Fase 4 · Laboratorios"
-/>
+  description="Consola SQL libre sobre el dataset Lumen, con explorador de esquema, ejemplos e historial. DuckDB corre en tu navegador."
+>
+  <section class="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">SQL Playground</h1>
+    <p class="mt-2 mb-8 max-w-3xl text-[var(--color-text-muted)]">
+      Consulta libremente el dataset Lumen con DuckDB, que se ejecuta en tu navegador (nada sale de
+      tu equipo). Solo lectura: <code>SELECT</code>, <code>WITH</code>, <code>DESCRIBE</code>... Las
+      consultas largas se cancelan a los 10 segundos y el resultado se recorta a 1.000 filas.
+    </p>
+    <Playground client:load tables={tables} />
+  </section>
+</BaseLayout>

@@ -1,0 +1,14 @@
+id: eda
+part: Parte I · Herramientas núcleo
+partOrder: 1
+order: 9
+title: Análisis exploratorio (EDA)
+description:
+  'Explorar con preguntas, no con gráficos al azar: segmentación, paradoja de Simpson, sesgos
+  y checklist reproducible.'
+objectives:
+  - Plantear preguntas antes de graficar y recorrer un EDA de forma sistemática.
+  - Reconocer la paradoja de Simpson y los sesgos de selección y supervivencia.
+  - Documentar hallazgos de forma reproducible.
+estimatedHours: 8
+volatility: low

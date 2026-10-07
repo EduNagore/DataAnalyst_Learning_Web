@@ -1,0 +1,12 @@
+id: gobierno-etica
+part: Parte V · Stack moderno e ingeniería analítica
+partOrder: 5
+order: 24
+title: Gobierno, privacidad y ética
+description: RGPD, anonimización, control de acceso, AI Act y ética de los datos y los experimentos.
+objectives:
+  - Aplicar minimización de datos y base legal en un análisis.
+  - Distinguir anonimización de seudonimización.
+  - Identificar riesgos éticos y de sesgo en una métrica.
+estimatedHours: 6
+volatility: high

@@ -4,6 +4,10 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import { url } from '../../lib/url';
 
 const allModules = await getCollection('modules');
+const lessonCount = new Map<string, number>();
+for (const l of await getCollection('lessons')) {
+  lessonCount.set(l.data.module, (lessonCount.get(l.data.module) ?? 0) + 1);
+}
 
 const parts = new Map<string, { title: string; order: number; modules: typeof allModules }>();
 for (const mod of allModules) {
@@ -46,15 +50,34 @@ for (const part of orderedParts) {
           <div>
             <h2 class="text-xl font-semibold text-[var(--color-text)]">{part.title}</h2>
             <div class="mt-4 grid gap-4 sm:grid-cols-2">
-              {part.modules.map((mod) => (
-                <a
-                  href={url(`/teoria/${mod.data.id}/`)}
-                  class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-5 hover:border-[var(--color-accent)]"
-                >
-                  <h3 class="font-semibold text-[var(--color-text)]">{mod.data.title}</h3>
-                  <p class="mt-1 text-sm text-[var(--color-text-muted)]">{mod.data.description}</p>
-                </a>
-              ))}
+              {part.modules.map((mod) => {
+                const n = lessonCount.get(mod.data.id) ?? 0;
+                const card =
+                  'rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-5';
+                const body = (
+                  <>
+                    <div class="flex items-baseline justify-between gap-2">
+                      <h3 class="font-semibold text-[var(--color-text)]">{mod.data.title}</h3>
+                      <span class="flex-none text-xs text-[var(--color-text-muted)]">
+                        {n > 0 ? `${n} lecciones` : 'Próximamente'}
+                      </span>
+                    </div>
+                    <p class="mt-1 text-sm text-[var(--color-text-muted)]">
+                      {mod.data.description}
+                    </p>
+                  </>
+                );
+                return n > 0 ? (
+                  <a
+                    href={url(`/teoria/${mod.data.id}/`)}
+                    class={`${card} hover:border-[var(--color-accent)]`}
+                  >
+                    {body}
+                  </a>
+                ) : (
+                  <div class={`${card} opacity-70`}>{body}</div>
+                );
+              })}
             </div>
           </div>
         ))}

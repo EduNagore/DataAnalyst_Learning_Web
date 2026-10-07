@@ -53,9 +53,22 @@ Pendiente menor: job de CI que regenere el dataset y compare `data-gen/checksums
 
 ---
 
-## Siguiente: F4 — Laboratorios
+## F4 ✅
 
-PLAN §7.4: runtime SQL (`src/lib/duckdb/{client,worker}.ts`, DuckDB-WASM en Web Worker, vistas sobre los Parquet con `url()`, timeout 10 s, límite 1.000 filas), corrección con `resultCompare.ts` + `checks.yaml` (y `hiddenOnVariant` contra `lumen_variant`), runtime Python (`src/lib/pyodide/`, Pyodide 314 en module worker, `datakit` en `public/py/datakit`), UI de lab (enunciado | editor CodeMirror 6 | resultado/tests | pistas | solución tras 3 intentos), `/practica/labs/` + `/practica/labs/[id]/`, `/practica/sql/` (Playground), `tests/labs/test_sql_labs.py` y `test_py_labs.py`, y los labs prioritarios de M04 (`sql-primeras-consultas`, `sql-fanout-joins`, `sql-antijoin`, `sql-nulls-coalesce`, `sql-case-segmentos`, `sql-fechas-zonas-horarias`) más al menos un lab Python. Colección `labs` (Zod ya definida); ficheros por lab en `src/content/labs/<id>/{index.mdx,starter.sql,solution.sql,checks.yaml}`.
+- **Motor SQL** (`src/lib/duckdb/client.ts`): DuckDB-WASM en Worker, vistas sobre Parquet por HTTP, `variant` para tests ocultos, timeout 10 s con reinicio, 1.000 filas, `LOAD icu` previo. `sqlGuard.ts` (solo lectura), `sqlCheck.ts` (comparación con `resultCompare` + aserciones de texto + test oculto). 75 tests unitarios.
+- **Motor Python** (`src/lib/pyodide/`): Pyodide 314.0.7 en module worker; `public/py/runner.py` + `public/py/datakit/{data,testing,stats,llm}.py` (`MockLLM` listo para los labs de IA).
+- **UI**: `Editor.tsx` (CodeMirror 6, tema claro/oscuro, autocompletado del esquema), `SqlLab.tsx`, `PyLab.tsx`, `ResultTable.tsx`, `TestResults.tsx`, `LabList.tsx` (filtros lenguaje/dificultad/estado), `Playground.tsx` (esquema, ejemplos, historial, exportar CSV). Rutas `/practica/labs/`, `/practica/labs/[id]/`, `/practica/sql/`, endpoint `/labs-data/[id].json`. Las lecciones muestran «Ponlo en práctica» con sus `relatedLabs`.
+- **9 labs**: SQL (7) `sql-primeras-consultas`, `sql-fanout-joins`, `sql-antijoin`, `sql-nulls-coalesce`, `sql-case-segmentos`, `sql-fechas-limites`, `sql-fechas-zonas-horarias`; Python (2) `py-pandas-primeros-pasos` (módulo `python-analisis`), `py-ab-test-statsmodels` (módulo `experimentacion`; SRM + efecto con statsmodels/scipy). Cada uno en `src/content/labs/<id>/` (`index.mdx`, `starter.*`, `solution.*`, `checks.yaml` o `test_lab.py`).
+- **Verificado**: `pytest tests/labs` 39/39 (solución pasa, starter no, test oculto protege); e2e en navegador real de SQL (correcto/incorrecto/bloqueo de DROP), Python con pandas+pyarrow+Parquet y con statsmodels, y Playground. `ruff check .` limpio.
+- **Los 30 módulos** existen como metadatos (`scripts/gen-modules.py`); `/teoria/` los muestra todos y marca «Próximamente» los que no tienen lecciones.
+- Decisiones y hallazgos (ICU, `search_path`, runner, etc.) en `docs/DECISIONS.md` § Fase 4.
+- Pendiente menor: labs de la lista del PLAN que dependen de lecciones aún no escritas (se añaden con sus módulos en F6-F8); el job de CI de Playwright descarga DuckDB/Pyodide de jsDelivr (tardará más que antes).
+
+---
+
+## Siguiente: F5 — Casos guiados
+
+PLAN §7.6/§6: colección `cases` (Zod ya definida: `title, description, difficulty, estimatedMinutes, role, brief, steps[], rubric[], modelReport`). Motor de casos: `CaseRunner.tsx` (brief del stakeholder → pasos secuenciales; cada paso `tool: sql|python|reasoning` abre un mini-editor SQL/Python o solo pregunta; `answerType: numeric|single|multiple|text-self-assessed` autocorregido; pistas; explicación; informe final con rúbrica de autoevaluación + `modelReport`). Rutas `/practica/casos/` y `/practica/casos/[id]/`; progreso en `progress.cases` (ya existe `saveCaseProgress`). Caso estrella #1 "Las ventas cayeron en marzo" (verdad plantada #10: rotura de stock de Electrónica del 2026-03-01 al 21, `inventory_snapshots` + mix de categoría; ojo: el dataset crece muy deprisa, comparar marzo 2026 con febrero/abril y con la categoría, no con 2025) completo con respuestas numéricas verificadas con DuckDB; después casos 2-3 si hay margen (A/B con lift real; SRM). Test pytest que **recalcule las respuestas numéricas de cada caso** con DuckDB. Tras F5: **PAUSA de revisión** del PLAN (resumen al usuario + URL desplegada); el usuario pidió seguir sin parar, así que continuar con F6 salvo bloqueo.
 
 ## Notas para retomar
 

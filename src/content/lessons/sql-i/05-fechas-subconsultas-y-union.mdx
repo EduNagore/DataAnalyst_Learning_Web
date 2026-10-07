@@ -35,7 +35,7 @@ sources:
     type: docs
     authors: 'DuckDB Foundation'
     year: 2026
-relatedLabs: ['sql-fechas-zonas-horarias']
+relatedLabs: ['sql-fechas-limites', 'sql-fechas-zonas-horarias']
 ---
 
 import BusinessContext from '../../../components/content/BusinessContext.astro';
@@ -100,12 +100,13 @@ eventos de Lumen (`events.occurred_at`, `web_sessions.started_at`) se guardan en
 negocio opera en `Europe/Madrid`, que va 1 o 2 horas por delante según el horario de verano. Un
 evento a las 23:30 UTC del 30 de junio ocurrió ya el 1 de julio en Madrid.
 
-En DuckDB, una `TIMESTAMP` sin zona se interpreta como una hora "ingenua". Para convertirla:
+En DuckDB, una `TIMESTAMP` sin zona se interpreta como una hora "ingenua". Para convertirla hay dos
+sintaxis equivalentes: la estándar, con `AT TIME ZONE`, y la función `TIMEZONE`:
 
 ```sql
 -- 1. Declarar que el valor está en UTC  2. Convertirlo a hora de Madrid
-SELECT TIMEZONE('Europe/Madrid', TIMEZONE('UTC', occurred_at)) AS hora_madrid
-FROM events;
+SELECT (occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Madrid' AS hora_madrid FROM events;
+SELECT TIMEZONE('Europe/Madrid', TIMEZONE('UTC', occurred_at)) AS hora_madrid FROM events;
 ```
 
 El efecto es real: el 30 de junio de 2026 hay 33 eventos de compra por fecha UTC y 32 por fecha de
@@ -114,9 +115,9 @@ ventas de un día al siguiente. La zona horaria tiene que ser una **decisión de
 ¿en qué hora medimos "un día"?
 
 <Callout type="info">
-  La conversión de zonas horarias en DuckDB usa la extensión `icu`, incluida en las distribuciones
-  habituales. En DuckDB-WASM (el motor de los labs de esta web) comprueba que está disponible y, si
-  no, trabaja en UTC y avisa en el enunciado.
+  La conversión de zonas horarias depende de la extensión `icu` de DuckDB. En las distribuciones
+  habituales viene incluida; en DuckDB-WASM (el motor de los labs de esta web) se descarga la
+  primera vez que se usa, así que el primer arranque de un lab necesita conexión a internet.
 </Callout>
 
 ### Subconsultas

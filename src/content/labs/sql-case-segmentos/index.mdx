@@ -1,0 +1,30 @@
+---
+title: 'Puntualidad de los envíos con CASE'
+description: 'Clasifica cada envío como a tiempo, retraso leve o retraso grave y cuenta cuántos hay de cada tipo.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-i
+difficulty: 2
+estimatedMinutes: 15
+concepts: ['CASE', 'GROUP BY', 'fechas']
+datasets: ['shipments']
+hints:
+  - "Calcula los días de retraso con `date_diff('day', promised_date, actual_date)`; 0 o menos es «a tiempo»."
+  - 'Un `CASE` evalúa las condiciones en orden: pon primero la más restrictiva y termina con un `ELSE`.'
+  - 'Agrupa por la expresión `CASE` (puedes darle alias y usar el alias en el `GROUP BY`).'
+output: table
+relatedLessons: ['sql-i/04-null-y-case']
+businessQuestion: '¿Qué proporción de los envíos llega a tiempo, con retraso leve o con retraso grave?'
+---
+
+Logística quiere un resumen de puntualidad. Clasifica cada envío de `shipments` en una de tres
+categorías, según los días entre `promised_date` y `actual_date`:
+
+| `puntualidad`   | regla                       |
+| --------------- | --------------------------- |
+| `a tiempo`      | retraso de 0 días o menos   |
+| `retraso leve`  | entre 1 y 4 días de retraso |
+| `retraso grave` | 5 días o más de retraso     |
+
+**Formato del resultado:** una fila por categoría, con las columnas `puntualidad` y `envios`
+(número de envíos). Las etiquetas deben escribirse exactamente como en la tabla.

@@ -1,0 +1,12 @@
+id: analitica-producto
+part: Parte IV · Analítica por dominio
+partOrder: 4
+order: 18
+title: Analítica de producto
+description: Eventos, funnels, retención, cohortes y diagnóstico de caídas de métricas.
+objectives:
+  - Diseñar un plan de tracking.
+  - Construir y leer curvas de retención y growth accounting.
+  - Seguir un checklist para investigar una caída de métrica.
+estimatedHours: 10
+volatility: medium

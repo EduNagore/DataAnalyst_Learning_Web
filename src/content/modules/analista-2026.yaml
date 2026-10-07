@@ -1,0 +1,14 @@
+id: analista-2026
+part: Parte 0 · Fundamentos del oficio
+partOrder: 0
+order: 0
+title: El data analyst en 2026
+description:
+  Qué hace un analista hoy, cómo ha cambiado el rol con la IA y el ciclo del análisis de la
+  pregunta a la decisión.
+objectives:
+  - Distinguir los perfiles de datos (analista, analytics engineer, data scientist, data engineer).
+  - Aplicar el ciclo pregunta-datos-análisis-decisión-seguimiento a un caso real.
+  - Describir el stack moderno y el papel de la IA y la capa semántica en el trabajo del analista.
+estimatedHours: 4
+volatility: medium

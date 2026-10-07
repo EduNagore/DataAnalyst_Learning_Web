@@ -1,0 +1,5 @@
+compare:
+  orderMatters: false
+  floatTolerance: 0.000001
+  columns: [channel, pedidos]
+hiddenOnVariant: true

@@ -1,0 +1,12 @@
+id: experimentacion
+part: Parte III · Estadística, experimentación y causalidad
+partOrder: 3
+order: 14
+title: Experimentación y A/B testing
+description: Diseño, potencia, SRM, CUPED, tests secuenciales, métricas de ratio y cultura de experimentación.
+objectives:
+  - Diseñar un experimento con métrica primaria, guardrails y potencia.
+  - Detectar un SRM y reducir varianza con CUPED.
+  - Evitar el peeking con métodos secuenciales.
+estimatedHours: 14
+volatility: medium

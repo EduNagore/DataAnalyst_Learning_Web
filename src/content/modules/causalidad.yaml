@@ -1,0 +1,12 @@
+id: causalidad
+part: Parte III · Estadística, experimentación y causalidad
+partOrder: 3
+order: 15
+title: Inferencia causal sin experimentos
+description: DAGs, diferencias en diferencias, control sintético, regresión discontinua y emparejamiento.
+objectives:
+  - Dibujar un DAG e identificar confusores, colisionadores y mediadores.
+  - Estimar un efecto con diferencias en diferencias y comprobar tendencias paralelas.
+  - Decidir cuándo basta un análisis observacional.
+estimatedHours: 14
+volatility: low

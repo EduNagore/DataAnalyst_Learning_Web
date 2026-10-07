@@ -1,0 +1,14 @@
+id: capa-semantica
+part: Parte V · Stack moderno e ingeniería analítica
+partOrder: 5
+order: 23
+title: Capa semántica y métricas
+description:
+  'Definir métricas una vez: MetricFlow, OSI, LookML, modelos semánticos y su papel en la analítica
+  con IA.'
+objectives:
+  - Definir entidades, dimensiones y métricas como código.
+  - Explicar por qué la capa semántica es requisito de la analítica con IA.
+  - Gobernar definiciones de métricas.
+estimatedHours: 8
+volatility: high

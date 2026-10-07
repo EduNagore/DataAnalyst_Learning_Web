@@ -48,3 +48,29 @@ Se ha quitado `withastro/action` de `deploy.yml` y se ha sustituido por los mism
 
 **2026-10-07 — `validate-content.mjs` no depende de `astro:content`.**
 El script de validación de integridad referencial (quiz → lección, ids únicos, anclas, etc.) parsea `src/content/**` directamente con el paquete `yaml` en vez de usar `astro:content` (que solo existe dentro del runtime/build de Astro). Esto permite ejecutarlo como un paso de CI independiente y rápido. La validación de _tipos_ de frontmatter (Zod) sigue haciéndola `astro check` / `astro build` por separado.
+
+## Fase 4 — Laboratorios
+
+**2026-10-07 — DuckDB-WASM desde jsDelivr, vistas sobre Parquet por HTTP.**
+`SqlEngine` (`src/lib/duckdb/client.ts`) carga `@duckdb/duckdb-wasm` con los bundles de jsDelivr (versión del paquete instalado) en un Worker propio, registra cada Parquet con `registerFileURL(..., HTTP)` y crea una vista por tabla (`main.<tabla>`, y `variant.<tabla>` para el test oculto). La lectura es por rangos: solo se descargan las columnas y bloques que la consulta necesita. Cancelar una consulta larga = `worker.terminate()` y recrear el motor en la siguiente (DuckDB-WASM no ofrece otra cancelación).
+
+**2026-10-07 — ICU se precarga con `LOAD icu` (verificado en navegador real).**
+En DuckDB-WASM, `icu` (zonas horarias) es una extensión que se autocarga en el primer uso y esa primera consulta fallaba (`memory access out of bounds` / `Binder Error`). Se hace `LOAD icu` + `SET TimeZone='UTC'` al arrancar (en `try/catch`: sin red, el resto funciona). Tras esto, tanto `TIMEZONE('Europe/Madrid', TIMEZONE('UTC', ts))` como `(ts AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Madrid'` funcionan desde la primera consulta. Consecuencia: el primer arranque de un lab SQL necesita internet.
+
+**2026-10-07 — Solo lectura y una sentencia (`sqlGuard.ts`).**
+El motor corre en el navegador del propio alumno, así que el riesgo es romper su sesión, no la seguridad de un servidor. Se permiten solo consultas que empiezan por SELECT/WITH/FROM/VALUES/TABLE/DESCRIBE/SUMMARIZE/SHOW/EXPLAIN, una sentencia, sin palabras como DROP/CREATE/ATTACH/COPY/SET/PRAGMA fuera de literales y comentarios (tokenizador de un solo recorrido, porque quitar `--` con regex corrompía literales como `'x; --'`).
+
+**2026-10-07 — Corrección en el cliente: la solución se sirve como JSON, no va en el HTML.**
+`/labs-data/<id>.json` (endpoint estático) contiene solución y checks (SQL) o solución y tests (Python) y se descarga solo al pulsar «Comprobar»/«Ver solución». No es secreto (es un sitio estático), solo evita que la solución esté en el HTML de la página. El test oculto (`hiddenOnVariant`) re-ejecuta alumno y solución contra `lumen_variant` cambiando `search_path`.
+
+**2026-10-07 — Pyodide 314.0.7 en module worker; labs Python basados en funciones.**
+`PyEngine` (`src/lib/pyodide/`) carga `pyodide.mjs` desde jsDelivr, instala `pandas` y `pyarrow` (+ los `packages` del lab), monta `public/py/` (datakit + `runner.py`) y los Parquet en el FS virtual. `runner.run_lab(código, tests)` ejecuta el código del alumno y los tests `test_*(ns)` (los `test_hidden_*` se marcan ocultos) y devuelve JSON. Los labs piden **funciones** (no variables globales) para que los tests ocultos puedan llamarlas con `lumen_variant` o con datos sintéticos. Timeout 20 s con reinicio del worker.
+
+**2026-10-07 — `tests/labs/` reproduce la corrección con CPython.**
+`test_sql_labs.py` (DuckDB de Python sobre los mismos Parquet; compara con semántica de `resultCompare.ts`) y `test_py_labs.py` (mismo `runner.py`/`datakit` que el navegador) comprueban para cada lab: la solución pasa, el starter no, la solución cumple sus propias aserciones de texto (ignorando comentarios), y con `hiddenOnVariant` la solución da un resultado distinto en la variante (si no, el test oculto no protegería nada). Este chequeo cazó una aserción mal diseñada (`time zone` rechazaba la forma `TIMEZONE()`).
+
+**2026-10-07 — Los 30 módulos existen como metadatos (`scripts/gen-modules.py`).**
+`/teoria/` muestra el temario completo; los módulos sin lecciones salen como «Próximamente» y no tienen página propia (solo se generan rutas de módulo con ≥ 1 lección). Esto permite que los labs referencien su módulo (`python-analisis`, `experimentacion`) antes de escribir sus lecciones. El script no sobrescribe YAMLs existentes.
+
+**2026-10-07 — Playwright con `workers: 3`.**
+Con 7+ workers, `astro preview` se atascaba y `page.goto` daba timeouts (no era un fallo de la web). Los e2e de labs descargan DuckDB/Pyodide de jsDelivr (el primer arranque de Pyodide tarda ~8 s); cada test lleva su propio timeout.

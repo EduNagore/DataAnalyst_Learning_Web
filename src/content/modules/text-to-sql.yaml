@@ -1,0 +1,14 @@
+id: text-to-sql
+part: Parte VI · IA para analistas
+partOrder: 6
+order: 26
+title: Text-to-SQL y analítica conversacional
+description:
+  Cómo funciona, por qué falla, qué aporta la capa semántica y cómo evaluarlo con un golden
+  set.
+objectives:
+  - Explicar los modos de fallo del text-to-SQL.
+  - Construir un golden set de preguntas y resultados esperados.
+  - Valorar productos de analítica conversacional.
+estimatedHours: 8
+volatility: high

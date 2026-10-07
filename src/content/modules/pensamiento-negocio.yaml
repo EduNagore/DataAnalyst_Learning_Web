@@ -1,0 +1,14 @@
+id: pensamiento-negocio
+part: Parte 0 · Fundamentos del oficio
+partOrder: 0
+order: 1
+title: Pensamiento analítico y de negocio
+description:
+  Formular la pregunta correcta, descomponer problemas, definir métricas sin ambigüedad y entender
+  la economía de una empresa.
+objectives:
+  - Descomponer un problema de negocio con un árbol de hipótesis (MECE).
+  - Diseñar un árbol de KPIs con métrica estrella, métricas de entrada y métricas de control (guardrails).
+  - Definir una métrica con grano, filtros, ventana y numerador/denominador explícitos.
+estimatedHours: 6
+volatility: low

@@ -1,0 +1,12 @@
+id: sql-iii
+part: Parte I · Herramientas núcleo
+partOrder: 1
+order: 6
+title: SQL III — Rendimiento y modelado de datos
+description: Almacenamiento columnar, planes de ejecución, coste en warehouses y modelado dimensional.
+objectives:
+  - Leer un plan de ejecución y reducir el coste de una consulta.
+  - Diseñar un esquema en estrella con el grano correcto.
+  - Aplicar convenciones de estilo SQL y la arquitectura medallón.
+estimatedHours: 8
+volatility: low

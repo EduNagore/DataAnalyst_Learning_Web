@@ -1,0 +1,26 @@
+---
+title: 'Pedidos que no pasaron por store-01'
+description: 'Un filtro «distinto de» que pierde 372.000 filas: arregla el tratamiento de los nulos.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-i
+difficulty: 2
+estimatedMinutes: 10
+concepts: ['NULL', 'lógica trivaluada', 'IS DISTINCT FROM']
+datasets: ['orders']
+hints:
+  - "Los pedidos online tienen `store_id` nulo. ¿Qué devuelve `NULL <> 'store-01'`?"
+  - 'La condición de `WHERE` solo conserva las filas donde es `TRUE`; con `NULL` no lo es.'
+  - "Dos soluciones válidas: `store_id IS DISTINCT FROM 'store-01'`, o `store_id <> 'store-01' OR store_id IS NULL`."
+output: table
+relatedLessons: ['sql-i/04-null-y-case']
+businessQuestion: '¿Cuántos pedidos no se hicieron en la tienda store-01 (incluyendo los pedidos online)?'
+---
+
+El responsable de tiendas pide **todos los pedidos que no se hicieron en la tienda `store-01`**,
+**incluidos los pedidos online** (que no tienen tienda).
+
+El _starter_ usa `store_id <> 'store-01'` y devuelve muchos menos pedidos de los esperados.
+Corrígelo para que cuente también los pedidos online.
+
+**Formato del resultado:** una fila con la columna `pedidos`.

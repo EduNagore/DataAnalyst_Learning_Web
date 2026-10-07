@@ -1,0 +1,12 @@
+id: marketing-clientes
+part: Parte IV · Analítica por dominio
+partOrder: 4
+order: 19
+title: Analítica de marketing y clientes
+description: Atribución, incrementalidad, Marketing Mix Modeling, valor de cliente y churn.
+objectives:
+  - Distinguir atribución de incrementalidad.
+  - Calcular valor de cliente y churn.
+  - Interpretar un modelo de marketing mix con sus límites.
+estimatedHours: 10
+volatility: high

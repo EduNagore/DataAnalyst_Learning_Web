@@ -1,0 +1,8 @@
+compare:
+  orderMatters: false
+  columns: [puntualidad, envios]
+hiddenOnVariant: true
+assertions:
+  - name: 'Usa CASE'
+    kind: query-text-contains
+    value: 'case'

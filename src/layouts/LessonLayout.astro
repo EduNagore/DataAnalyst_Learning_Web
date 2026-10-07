@@ -20,6 +20,7 @@ interface Props {
   headings: Heading[];
   prevLesson?: { slug: string; title: string } | null;
   nextLesson?: { slug: string; title: string } | null;
+  labs?: { id: string; title: string }[];
 }
 
 const {
@@ -31,6 +32,7 @@ const {
   headings,
   prevLesson,
   nextLesson,
+  labs = [],
 } = Astro.props;
 const { title, description, level, estimatedMinutes, objectives, sources, volatility } =
   lesson.data;
@@ -107,6 +109,26 @@ const levelLabels = { básico: 'Básico', intermedio: 'Intermedio', avanzado: 'A
       <article data-pagefind-body class="prose prose-neutral mt-8 max-w-none dark:prose-invert">
         <slot />
       </article>
+
+      {labs.length > 0 && (
+        <aside class="my-6 rounded-lg border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5 p-4">
+          <h3 class="text-sm font-semibold tracking-wide text-[var(--color-text)] uppercase">
+            Ponlo en práctica
+          </h3>
+          <ul class="mt-2 list-inside list-disc space-y-1 text-sm">
+            {labs.map((lab) => (
+              <li>
+                <a
+                  href={url(`/practica/labs/${lab.id}/`)}
+                  class="text-[var(--color-accent)] hover:underline"
+                >
+                  {lab.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </aside>
+      )}
 
       <SourceList sources={sources} />
 

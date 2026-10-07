@@ -1,0 +1,14 @@
+id: regresion-modelos
+part: Parte III · Estadística, experimentación y causalidad
+partOrder: 3
+order: 16
+title: Regresión y modelos para analistas
+description:
+  Regresión lineal y logística interpretadas para negocio, validación, interpretabilidad y
+  segmentación.
+objectives:
+  - Interpretar coeficientes de una regresión para negocio.
+  - Validar un modelo y evitar la fuga de información.
+  - Segmentar clientes (RFM, k-means) conociendo sus trampas.
+estimatedHours: 12
+volatility: low

@@ -1,0 +1,38 @@
+---
+title: 'Analiza un experimento: SRM y efecto con statsmodels'
+description: 'Antes de fiarte del resultado de un A/B test, comprueba que la asignación es sana (SRM) y mide el efecto con su intervalo de confianza.'
+language: python
+part: 'Parte III · Estadística, experimentación y causalidad'
+module: experimentacion
+difficulty: 3
+estimatedMinutes: 30
+concepts: ['SRM', 'chi-cuadrado', 'intervalo de confianza', 'test t de Welch', 'lift']
+datasets: ['experiment_assignments', 'experiment_metrics']
+packages: ['scipy', 'statsmodels']
+output: console
+hints:
+  - 'SRM: cuenta cuántos clientes hay en cada variante y compara con lo esperado con `scipy.stats.chisquare(observado, f_exp=esperado)`. Un p-valor muy pequeño (< 0,001) indica SRM.'
+  - 'Los valores esperados son `n * esperado[i]` (no las proporciones): multiplica por el total de clientes.'
+  - 'Para el efecto, separa las series de `control` y `tratamiento` de la métrica y usa `statsmodels.stats.weightstats.CompareMeans(DescrStatsW(trat), DescrStatsW(ctrl))`.'
+  - '`CompareMeans(...).tconfint_diff(usevar="unequal")` da el intervalo de confianza de la diferencia (Welch) y `.ttest_ind(usevar="unequal")[1]` el p-valor.'
+relatedLessons: []
+businessQuestion: '¿Podemos fiarnos del experimento y, si es así, cuánto mejora el tratamiento a la métrica principal?'
+---
+
+Producto te pide revisar dos experimentos de Lumen. Implementa dos funciones:
+
+1. **`hay_srm(assignments, experiment_id, esperado=(0.5, 0.5), alpha=0.001)`** → `True` si la
+   distribución de clientes entre `control` y `tratamiento` se desvía de la esperada con un test
+   χ² (p-valor < `alpha`). `assignments` es la tabla `experiment_assignments`.
+2. **`analizar_efecto(metrics, experiment_id)`** → diccionario con:
+   - `diferencia`: media de `tratamiento` menos media de `control` de la métrica principal diaria,
+   - `lift`: `diferencia / media_control`,
+   - `ic95`: tupla `(inferior, superior)` del intervalo de confianza al 95 % de la diferencia
+     (test t de Welch),
+   - `p_valor`: p-valor bilateral de ese test.
+
+   `metrics` es la tabla `experiment_metrics`. Usa **solo la métrica principal del experimento**
+   (la primera `metric_name` del experimento tal como aparece en la tabla).
+
+Pista de negocio: `exp-reco-engine` tiene un problema de asignación; `exp-checkout-v2` no. ¿Qué
+experimento puede analizarse con confianza?

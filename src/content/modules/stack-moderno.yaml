@@ -1,0 +1,12 @@
+id: stack-moderno
+part: Parte V · Stack moderno e ingeniería analítica
+partOrder: 5
+order: 21
+title: El stack de datos moderno
+description: Warehouses y lakehouses, formatos de tabla abiertos, ELT, orquestación y analítica local-first.
+objectives:
+  - Situar cada herramienta del stack en el flujo de datos.
+  - Comparar warehouse, lakehouse y analítica local.
+  - Entender formatos abiertos como Iceberg y Delta.
+estimatedHours: 8
+volatility: high

@@ -2,6 +2,7 @@
 import { getCollection, render } from 'astro:content';
 import LessonLayout from '../../../layouts/LessonLayout.astro';
 import { url } from '../../../lib/url';
+import { labIdOf } from '../../../lib/labs';
 import { loadAllQuestions } from '../../../lib/questions';
 import Quiz from '../../../components/quiz/Quiz.tsx';
 import LessonComplete from '../../../components/quiz/LessonComplete.tsx';
@@ -40,6 +41,11 @@ export async function getStaticPaths() {
 
 const { lesson, moduleTitle, siblings, prev, next } = Astro.props;
 const { Content, headings } = await render(lesson);
+const allLabs = await getCollection('labs');
+const labs = (lesson.data.relatedLabs ?? [])
+  .map((id: string) => allLabs.find((l) => labIdOf(l.id) === id))
+  .filter((l): l is NonNullable<typeof l> => Boolean(l))
+  .map((l) => ({ id: labIdOf(l.id), title: l.data.title }));
 const questions = (await loadAllQuestions()).filter((q) => q.lessonId === lesson.id);
 ---
 
@@ -52,6 +58,7 @@ const questions = (await loadAllQuestions()).filter((q) => q.lessonId === lesson
   headings={headings}
   prevLesson={prev}
   nextLesson={next}
+  labs={labs}
 >
   <Content />
   <Fragment slot="after">

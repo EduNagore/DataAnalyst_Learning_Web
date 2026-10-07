@@ -1,0 +1,33 @@
+---
+title: 'Pedidos por canal en 2025'
+description: 'Tu primera consulta de verdad: filtrar un año con límites semiabiertos, agrupar y contar.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-i
+difficulty: 1
+estimatedMinutes: 10
+concepts: ['SELECT', 'WHERE', 'GROUP BY', 'COUNT', 'límites semiabiertos']
+datasets: ['orders']
+hints:
+  - 'Necesitas una fila por canal: la columna `channel` va en el `GROUP BY`.'
+  - 'Para contar pedidos usa `COUNT(*)` y ponle el alias `pedidos`.'
+  - "Para filtrar 2025 usa `order_date >= DATE '2025-01-01' AND order_date < DATE '2026-01-01'`, no `BETWEEN`."
+output: table
+relatedLessons:
+  ['sql-i/01-modelo-relacional-y-primeras-consultas', 'sql-i/02-agregacion-group-by-having']
+businessQuestion: '¿Cuántos pedidos hicimos en 2025, separados por canal (online y tienda)?'
+---
+
+Marta, de operaciones, necesita la cifra para su reunión de las 16:00. Escribe una consulta sobre la
+tabla `orders` que devuelva **una fila por canal** con el número de pedidos de **2025** (año natural
+completo).
+
+**Formato del resultado**
+
+| columna   | significado                            |
+| --------- | -------------------------------------- |
+| `channel` | `online` o `store`                     |
+| `pedidos` | número de pedidos de ese canal en 2025 |
+
+Las filas pueden salir en cualquier orden. El nombre de las columnas importa: la comprobación
+espera exactamente `channel` y `pedidos`.

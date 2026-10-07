@@ -6,15 +6,17 @@ import { url } from '../../../lib/url';
 export async function getStaticPaths() {
   const modules = await getCollection('modules');
   const lessons = await getCollection('lessons');
-  return modules.map((mod) => ({
-    params: { moduleId: mod.data.id },
-    props: {
-      mod,
-      lessons: lessons
-        .filter((l) => l.data.module === mod.data.id)
-        .sort((a, b) => a.data.order - b.data.order),
-    },
-  }));
+  return modules
+    .filter((mod) => lessons.some((l) => l.data.module === mod.data.id))
+    .map((mod) => ({
+      params: { moduleId: mod.data.id },
+      props: {
+        mod,
+        lessons: lessons
+          .filter((l) => l.data.module === mod.data.id)
+          .sort((a, b) => a.data.order - b.data.order),
+      },
+    }));
 }
 
 const { mod, lessons } = Astro.props;

@@ -32,3 +32,8 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/labs"]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/gen-modules.py" = ["E501"]
+"public/py/**" = ["E501", "B", "SIM"]
+"src/content/labs/**/*.py" = ["E501", "F401"]

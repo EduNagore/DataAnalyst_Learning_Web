@@ -1,9 +1,37 @@
 ---
-import ComingSoon from '../../../components/layout/ComingSoon.astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import LabList from '../../../components/lab/LabList.tsx';
+import { labIdOf } from '../../../lib/labs';
+
+const modules = await getCollection('modules');
+const labs = (await getCollection('labs'))
+  .map((l) => ({
+    id: labIdOf(l.id),
+    title: l.data.title,
+    description: l.data.description,
+    language: l.data.language,
+    difficulty: l.data.difficulty,
+    estimatedMinutes: l.data.estimatedMinutes,
+    moduleTitle: modules.find((m) => m.data.id === l.data.module)?.data.title ?? l.data.module,
+    order: modules.find((m) => m.data.id === l.data.module)?.data.order ?? 99,
+  }))
+  .sort(
+    (a, b) =>
+      a.order - b.order || a.difficulty - b.difficulty || a.title.localeCompare(b.title, 'es'),
+  );
 ---
 
-<ComingSoon
+<BaseLayout
   title="Laboratorios"
-  description="Más de 70 laboratorios de SQL y Python que se corrigen solos en tu navegador, con pistas progresivas y solución comentada."
-  phase="Fase 4 · Laboratorios"
-/>
+  description="Laboratorios de SQL y Python que se corrigen solos en tu navegador, con pistas progresivas y solución comentada."
+>
+  <section class="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Laboratorios</h1>
+    <p class="mt-2 mb-8 text-[var(--color-text-muted)]">
+      Cada lab parte de una pregunta de negocio de Lumen. Escribe tu código, ejecútalo y pulsa
+      «Comprobar»: se corrige en tu navegador, sin instalar nada.
+    </p>
+    <LabList client:load labs={labs} />
+  </section>
+</BaseLayout>

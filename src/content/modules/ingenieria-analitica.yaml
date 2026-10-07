@@ -1,0 +1,12 @@
+id: ingenieria-analitica
+part: Parte V · Stack moderno e ingeniería analítica
+partOrder: 5
+order: 22
+title: Ingeniería analítica con dbt
+description: Modelos, tests, documentación, incrementales, CI para datos y el nuevo motor Fusion.
+objectives:
+  - Estructurar un proyecto dbt en capas.
+  - Escribir tests y contratos de datos.
+  - Revisar y desplegar cambios de SQL con CI.
+estimatedHours: 12
+volatility: high

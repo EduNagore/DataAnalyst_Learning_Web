@@ -1,0 +1,24 @@
+---
+title: 'Sesiones de junio de 2025: el último día que desaparece'
+description: 'Un BETWEEN con marcas de tiempo pierde el último día del mes. Arréglalo con límites semiabiertos.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-i
+difficulty: 2
+estimatedMinutes: 10
+concepts: ['TIMESTAMP', 'BETWEEN', 'límites semiabiertos']
+datasets: ['web_sessions']
+hints:
+  - "`started_at` es una marca de tiempo (con hora). `'2025-06-30'` equivale a las 00:00 de ese día."
+  - "Usa `started_at >= '2025-06-01' AND started_at < '2025-07-01'`: el final es el inicio del mes siguiente, exclusivo."
+output: table
+relatedLessons: ['sql-i/05-fechas-subconsultas-y-union']
+businessQuestion: '¿Cuántas sesiones web hubo en junio de 2025?'
+---
+
+Marketing necesita las sesiones web de **junio de 2025 completo**. La consulta del _starter_ usa
+`BETWEEN` y devuelve menos sesiones de las reales, porque se pierde casi todo el 30 de junio.
+
+Corrígela. **La comprobación rechaza `BETWEEN`.**
+
+**Formato del resultado:** una fila con la columna `sesiones_junio`.

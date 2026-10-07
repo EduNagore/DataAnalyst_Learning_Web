@@ -1,0 +1,26 @@
+---
+title: 'Compras del 30 de junio en hora de Madrid'
+description: 'Los eventos se guardan en UTC: convierte a la hora del negocio antes de contar por día.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-i
+difficulty: 3
+estimatedMinutes: 15
+concepts: ['zonas horarias', 'AT TIME ZONE', 'TIMESTAMP', 'CAST']
+datasets: ['events']
+hints:
+  - '`occurred_at` está en UTC pero DuckDB lo trata como una hora «ingenua»: primero declara que es UTC y después conviértela a Madrid.'
+  - "Forma 1: `TIMEZONE('Europe/Madrid', TIMEZONE('UTC', occurred_at))`. Forma 2: `(occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Madrid'`."
+  - "Después convierte a fecha con `CAST(... AS DATE)` y compárala con `DATE '2026-06-30'`."
+output: table
+relatedLessons: ['sql-i/05-fechas-subconsultas-y-union']
+businessQuestion: '¿Cuántas compras hubo el 30 de junio de 2026, contando el día en hora de Madrid?'
+---
+
+El negocio mide los días en **hora de Madrid (`Europe/Madrid`)**, pero la columna
+`events.occurred_at` está guardada en **UTC**. Cuenta los eventos de tipo `purchase` que ocurrieron
+el **30 de junio de 2026 en hora de Madrid**.
+
+El _starter_ cuenta por fecha UTC y da una cifra distinta. Corrígelo.
+
+**Formato del resultado:** una fila con la columna `compras`.

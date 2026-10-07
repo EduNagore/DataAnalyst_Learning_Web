@@ -1,0 +1,5 @@
+hiddenOnVariant: true
+assertions:
+  - name: 'Sin BETWEEN con marcas de tiempo'
+    kind: query-text-not-contains
+    value: 'between'

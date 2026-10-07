@@ -1,0 +1,8 @@
+compare:
+  orderMatters: false
+  columns: [region, sin_pedidos]
+hiddenOnVariant: true
+assertions:
+  - name: 'Sin NOT IN (frágil ante valores nulos)'
+    kind: query-text-not-contains
+    value: 'not in'

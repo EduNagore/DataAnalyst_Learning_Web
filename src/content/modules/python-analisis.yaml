@@ -1,0 +1,12 @@
+id: python-analisis
+part: Parte I · Herramientas núcleo
+partOrder: 1
+order: 7
+title: Python para análisis
+description: pandas 3, Polars, DuckDB desde Python, notebooks reproducibles y cuándo usar cada herramienta.
+objectives:
+  - Manipular datos con pandas 3 y entender Copy-on-Write y el dtype str.
+  - Escribir transformaciones equivalentes en Polars (lazy) y DuckDB.
+  - Montar un análisis reproducible en un notebook.
+estimatedHours: 12
+volatility: high

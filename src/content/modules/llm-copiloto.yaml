@@ -1,0 +1,14 @@
+id: llm-copiloto
+part: Parte VI · IA para analistas
+partOrder: 6
+order: 25
+title: LLMs como copiloto del analista
+description:
+  'Usar LLMs y agentes de código para analizar más rápido sin perder rigor: contexto, verificación
+  y límites.'
+objectives:
+  - Dar contexto y definiciones a un LLM para obtener análisis útiles.
+  - Aplicar un protocolo de verificación a resultados generados.
+  - Saber qué datos no se deben compartir con un modelo.
+estimatedHours: 8
+volatility: high

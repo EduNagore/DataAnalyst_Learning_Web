@@ -1,0 +1,14 @@
+id: series-temporales
+part: Parte III · Estadística, experimentación y causalidad
+partOrder: 3
+order: 17
+title: Series temporales y forecasting
+description:
+  Estacionalidad, descomposición, modelos clásicos y fundacionales, backtesting y detección
+  de anomalías.
+objectives:
+  - Descomponer una serie y elegir un modelo de referencia.
+  - Evaluar un pronóstico con backtesting de origen móvil.
+  - Comparar honestamente modelos clásicos y fundacionales.
+estimatedHours: 12
+volatility: high

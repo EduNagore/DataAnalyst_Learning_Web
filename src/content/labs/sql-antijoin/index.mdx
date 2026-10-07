@@ -1,0 +1,31 @@
+---
+title: 'Clientes que nunca han comprado'
+description: 'Un anti-join: encuentra lo que no tiene pareja, sin caer en la trampa de NOT IN.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-i
+difficulty: 2
+estimatedMinutes: 15
+concepts: ['LEFT JOIN', 'anti-join', 'IS NULL', 'NOT EXISTS']
+datasets: ['customers', 'orders']
+hints:
+  - 'Un `LEFT JOIN` de `customers` a `orders` conserva todos los clientes; los que no tienen pedido quedan con `o.order_id` a NULL.'
+  - 'Filtra con `WHERE o.order_id IS NULL` y agrupa por región.'
+  - 'Alternativa equivalente y segura: `WHERE NOT EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.customer_id)`.'
+output: table
+relatedLessons: ['sql-i/03-joins-y-fan-out', 'sql-i/04-null-y-case']
+businessQuestion: '¿Cuántos clientes registrados no han hecho nunca un pedido, por región?'
+---
+
+Marketing quiere reactivar a los clientes que se registraron pero **nunca han comprado**. Calcula
+cuántos hay **por región**.
+
+**Formato del resultado**
+
+| columna       | significado                                          |
+| ------------- | ---------------------------------------------------- |
+| `region`      | comunidad autónoma del cliente                       |
+| `sin_pedidos` | clientes de esa región sin ningún pedido en `orders` |
+
+Solo deben aparecer las regiones que tengan al menos un cliente sin pedidos. La comprobación
+**rechaza `NOT IN`**: aprende la alternativa segura frente a los valores nulos.

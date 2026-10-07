@@ -1,0 +1,7 @@
+compare:
+  floatTolerance: 0.01
+hiddenOnVariant: true
+assertions:
+  - name: 'Sin DISTINCT (es un parche, no una solución)'
+    kind: query-text-not-contains
+    value: 'distinct'
