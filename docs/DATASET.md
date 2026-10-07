@@ -1,6 +1,8 @@
 # El dataset Lumen
 
-Diseño del dataset ficticio sobre el que corre toda la práctica del curso (ver PLAN.md §7.3). Este documento es el contrato que implementa `data-gen/generate.py` en la **Fase 1**; a fecha de escribirlo (F0) el generador todavía no existe — este es su plano.
+Diseño del dataset ficticio sobre el que corre toda la práctica del curso (ver PLAN.md §7.3). Este documento es el contrato que implementa `data-gen/generate.py`.
+
+> **Estado: Fase 1 completada (2026-10-07).** El generador existe, está verificado (integridad referencial, determinismo byte a byte, las 11 verdades plantadas comprobadas sobre los datos reales) y sus salidas están en `public/data/`. Tamaño total ≈ 45 MB (límite 60 MB). Las cifras de filas de abajo son las reales, no una estimación.
 
 ## 1. Principios
 
@@ -56,37 +58,56 @@ Subconjunto de las tablas anteriores (sobre todo `customers`, `orders`, `events`
 
 Documentadas aquí con su mecanismo exacto; la web nunca las revela salvo en la solución del lab/caso correspondiente.
 
-| #   | Verdad plantada                                                       | Mecanismo de generación                                                                                                                                      | Dónde se usa                          |
-| --- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- |
-| 1   | Estacionalidad semanal + anual, picos en Black Friday/Navidad/rebajas | Multiplicador de demanda por día de la semana y por `calendar.event_name`                                                                                    | Labs de agregación, M17 (forecasting) |
-| 2   | Paradoja de Simpson en conversión por dispositivo × región            | Mezcla de tráfico (mobile vs desktop) correlacionada con región, con tasas de conversión condicionales opuestas al agregado                                  | Lab 28, widget `SimpsonExplorer`, M09 |
-| 3   | Experimento con _lift_ real conocido                                  | Un experimento con un efecto causal simulado de tamaño fijo (p. ej. +8 % conversión) inyectado en `experiment_metrics` del grupo tratamiento                 | Lab 30, caso #2                       |
-| 4   | Experimento con SRM provocado                                         | Un bug de asignación simulado que desequilibra el ratio de `experiment_assignments` (p. ej. 55/45 en vez de 50/50)                                           | Lab 29, caso #3                       |
-| 5   | Reducción de varianza con CUPED                                       | Fuerte correlación simulada entre una métrica pre-experimento y la métrica del experimento, en un experimento concreto                                       | Lab 55, widget `CupedDemo`            |
-| 6   | Cambio de precio regional en fecha concreta                           | `products`/históricos de precio con un salto de precio en una región (Andalucía) en una fecha fija, sin cambio equivalente en el resto                       | Lab 60-61, caso #4                    |
-| 7   | Bug de tracking (eventos duplicados, app v4.2)                        | Para sesiones con `app_version = '4.2.x'` en una ventana de fechas, se duplican eventos `purchase`                                                           | Lab 19, caso #7                       |
-| 8   | Retrasos de envío → churn en Lumen+                                   | `shipments.actual_date - promised_date` grande aumenta la probabilidad simulada de `subscriptions.cancelled_at` cercano                                      | Lab 26, lab 59, M15                   |
-| 9   | Incrementalidad de campaña < atribución _last-click_                  | Una campaña con gasto alto y atribución _last-click_ alta pero con un "efecto causal verdadero" simulado menor (contrafactual conocido)                      | Lab 31-32, M19                        |
-| 10  | Caída de ventas en marzo de 2026 (caso estrella)                      | Combinación simulada de rotura de stock en `inventory_snapshots` de una categoría + cambio de mix de canal en ese mes                                        | Caso #1, lab 41                       |
-| 11  | Temas latentes en `support_tickets.text`                              | Generación de texto en español por plantillas por categoría (envío, devoluciones, app, pagos), con una muestra etiquetada a mano para evaluar clasificadores | Labs 68, 69; M28                      |
+| #   | Verdad plantada                                                       | Mecanismo de generación                                                                                                                                                                                                                                                                                                                                                                                                                                                        | Dónde se usa                          |
+| --- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------- |
+| 1   | Estacionalidad semanal + anual, picos en Black Friday/Navidad/rebajas | Multiplicador de demanda por día de la semana y por `calendar.event_name`                                                                                                                                                                                                                                                                                                                                                                                                      | Labs de agregación, M17 (forecasting) |
+| 2   | Paradoja de Simpson en conversión por dispositivo × región            | El tráfico mobile se concentra en la región de conversión ALTA (Madrid) y el desktop en la de conversión BAJA (Andalucía); mobile convierte peor que desktop en **cada** región, pero al agregar Madrid+Andalucía el orden se invierte. Visible comparando esas dos regiones, no las 16 a la vez (se diluye). Verificado: agregado mobile 6,2 % vs desktop 3,7 %, con Madrid (mobile 7,2 % / desktop 12,0 %) y Andalucía (mobile 1,7 % / desktop 2,5 %) ambas con mobile peor. | Lab 28, widget `SimpsonExplorer`, M09 |
+| 3   | Experimento con _lift_ real conocido                                  | Un experimento con un efecto causal simulado de tamaño fijo (p. ej. +8 % conversión) inyectado en `experiment_metrics` del grupo tratamiento                                                                                                                                                                                                                                                                                                                                   | Lab 30, caso #2                       |
+| 4   | Experimento con SRM provocado                                         | Un bug de asignación simulado que desequilibra el ratio de `experiment_assignments` (p. ej. 55/45 en vez de 50/50)                                                                                                                                                                                                                                                                                                                                                             | Lab 29, caso #3                       |
+| 5   | Reducción de varianza con CUPED                                       | Fuerte correlación simulada entre una métrica pre-experimento y la métrica del experimento, en un experimento concreto                                                                                                                                                                                                                                                                                                                                                         | Lab 55, widget `CupedDemo`            |
+| 6   | Cambio de precio regional en fecha concreta                           | `products`/históricos de precio con un salto de precio en una región (Andalucía) en una fecha fija, sin cambio equivalente en el resto                                                                                                                                                                                                                                                                                                                                         | Lab 60-61, caso #4                    |
+| 7   | Bug de tracking (eventos duplicados, app v4.2)                        | Para sesiones con `app_version = '4.2.x'` en una ventana de fechas, se duplican eventos `purchase`                                                                                                                                                                                                                                                                                                                                                                             | Lab 19, caso #7                       |
+| 8   | Retrasos de envío → churn en Lumen+                                   | `shipments.actual_date - promised_date` grande aumenta la probabilidad simulada de `subscriptions.cancelled_at` cercano                                                                                                                                                                                                                                                                                                                                                        | Lab 26, lab 59, M15                   |
+| 9   | Incrementalidad de campaña < atribución _last-click_                  | Una campaña con gasto alto y atribución _last-click_ alta pero con un "efecto causal verdadero" simulado menor (contrafactual conocido)                                                                                                                                                                                                                                                                                                                                        | Lab 31-32, M19                        |
+| 10  | Caída de ventas en marzo de 2026 (caso estrella)                      | Rotura de stock de Electrónica del 2026-03-01 al 2026-03-21 (`inventory_snapshots.stock_qty` cae de ~212 a ~1 unidad en los 4 centros): los `order_items` de esa categoría casi desaparecen en la ventana, lo que además desplaza el _mix_ de categorías del periodo                                                                                                                                                                                                           | Caso #1, lab 41                       |
+| 11  | Temas latentes en `support_tickets.text`                              | Generación de texto en español por plantillas por categoría (envío, devoluciones, app, pagos), con una muestra etiquetada a mano para evaluar clasificadores                                                                                                                                                                                                                                                                                                                   | Labs 68, 69; M28                      |
 
 ## 6. `extra/`
 
-Datasets pequeños, no de Lumen, para ilustrar conceptos estadísticos puntuales: cuarteto de Anscombe, _Datasaurus Dozen_, una serie temporal de ejemplo con estacionalidad clara. Cada uno con su fuente y licencia citadas en `docs/SOURCES.md`.
+Tres datasets externos reales (no sintéticos, no de Lumen), copiados en `data-gen/lumen/vendor/` desde una fuente pública verificada para no depender de red en el build, y citados en `docs/SOURCES.md`:
 
-## 7. Cómo regenerar el dataset (Fase 1)
+- `anscombe.csv` — el cuarteto de Anscombe (44 filas).
+- `datasaurus_dozen.csv` — el _Datasaurus Dozen_ (1.846 filas, 13 formas).
+- `airline_passengers.csv` — pasajeros aéreos mensuales 1949-1960 (144 filas), la serie clásica de Box & Jenkins.
+
+## 7. Cómo regenerar el dataset
 
 ```bash
-uv run python data-gen/generate.py --config data-gen/config.yaml
+uv run python data-gen/generate.py                     # usa data-gen/config.yaml y escribe en public/data/
+uv run python data-gen/generate.py --config otra.yaml --out otra/ruta --checksums otro.json
 ```
 
-El script debe:
+El script (`data-gen/generate.py` + el paquete `data-gen/lumen/`):
 
-1. Fijar la semilla (`numpy.random.default_rng(seed)` + semilla equivalente para `Faker`).
-2. Generar las tablas en el orden de sus dependencias (dimensiones antes que hechos).
-3. Inyectar cada verdad plantada de la tabla de §5 con sus parámetros explícitos (en `config.yaml`, no mágicos en el código).
-4. Escribir `lumen/`, `lumen_raw/`, `lumen_variant/` y `extra/` en `public/data/`.
-5. Calcular y escribir `data-gen/checksums.json` (hash SHA-256 por archivo).
-6. Un test de CI (Fase 1) regenera el dataset en un runner limpio y compara los checksums: si no coinciden, el build falla (el dataset dejó de ser determinista).
+1. Fija la semilla; cada tabla deriva su propio generador determinista con `lumen.rng.sub_rng(seed, "nombre_tabla")` (ver `lumen/rng.py`) — así generar solo una tabla para depurar no cambia los números de las demás.
+2. Genera las tablas en el orden de sus dependencias (dimensiones → transacciones → comportamiento → crecimiento), inyectando cada verdad plantada de §5 con sus parámetros explícitos en `config.yaml` (nunca mágicos en el código).
+3. Repite todo el proceso con `variant_seed` y `scale.variant` (0.05) para `lumen_variant/`.
+4. Corrompe una muestra de `customers`/`orders`/`events` del dataset principal (`lumen.raw_variant`) para `lumen_raw/`.
+5. Comprueba, antes de escribir, que las columnas de cada tabla coinciden exactamente con `lumen/schema_doc.py` (si no, falla con un error claro en vez de desincronizarse en silencio).
+6. Escribe `lumen/` y `lumen_variant/` como Parquet (ZSTD), `lumen_raw/` y `extra/` como CSV, y `data-gen/checksums.json` (SHA-256 por archivo).
 
-**Límite de tamaño** (PLAN.md §3): el conjunto de `public/data/` debe pesar ≤ 60 MB total, ningún archivo > 25 MB. Si el tamaño generado se acerca al límite, reducir filas de `events`/`web_sessions` (son las tablas más grandes) antes que las demás.
+**Verificado (2026-10-07)**: regenerar dos veces produce `checksums.json` idéntico byte a byte; las 11 verdades plantadas se comprobaron con consultas DuckDB directas sobre el Parquet generado. Tiempo de generación completo: ~15 s. Tamaño total: ~45 MB (límite 60 MB, PLAN.md §3); ningún archivo individual supera los 17 MB (límite 25 MB). **Pendiente**: un job de CI que regenere el dataset en un runner limpio y compare `checksums.json` (para detectar si algún cambio futuro rompe el determinismo).
+
+### Filas por tabla (`lumen/`, escala 1.0)
+
+| Tabla               | Filas                        |     | Tabla                  | Filas     |
+| ------------------- | ---------------------------- | --- | ---------------------- | --------- |
+| customers           | 60.000                       |     | web_sessions           | 1.000.000 |
+| products            | 2.000                        |     | events                 | ~1,7 M    |
+| stores              | 40                           |     | marketing_spend        | 7.662     |
+| orders              | 400.000                      |     | campaigns              | 60        |
+| order_items         | ~1,03 M                      |     | experiments            | 15        |
+| returns             | ~72.000 (7 % de order_items) |     | experiment_assignments | 300.000   |
+| shipments           | ~372.000                     |     | experiment_metrics     | 1.074     |
+| inventory_snapshots | ~1,46 M                      |     | subscriptions          | 25.000    |
+| calendar            | 1.277                        |     | support_tickets        | 15.000    |

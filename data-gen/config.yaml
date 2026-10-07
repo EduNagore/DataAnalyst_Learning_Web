@@ -1,0 +1,104 @@
+# Configuración del generador del dataset Lumen (ver docs/DATASET.md).
+# Toda cifra "mágica" de las verdades plantadas vive aquí, no en el código.
+
+seed: 20240101
+variant_seed: 20250101
+
+date_start: '2023-01-01'
+date_end: '2026-06-30'
+
+scale:
+  main: 1.0
+  variant: 0.05 # lumen_variant/: mismo esquema, ~5% del tamaño, semilla distinta
+
+sizes: # a escala 1.0; la variante se escala por scale.variant y se redondea
+  customers: 60000
+  products: 2000
+  categories_top_level: 8
+  categories_sub_per_top: 5
+  stores: 40
+  orders: 400000
+  avg_items_per_order: 2.5
+  online_share: 0.93 # fracción de pedidos sin store_id (generan shipment)
+  returns_rate: 0.07
+  inventory_locations: 4
+  web_sessions: 1000000
+  events_target: 1500000
+  marketing_channels: 6
+  campaigns: 60
+  experiments: 15
+  experiment_assignment_customers: 20000
+  subscriptions: 25000
+  support_tickets: 15000
+  support_tickets_labeled_sample: 1200
+
+sale_events: # recurrentes cada año del periodo (Black Friday se calcula: 4º viernes de noviembre)
+  - { name: 'Rebajas de invierno', start: '01-07', end: '02-28' }
+  - { name: 'Rebajas de verano', start: '07-01', end: '08-31' }
+  - { name: 'Navidad', start: '12-15', end: '12-24' }
+
+# Verdades plantadas (ver docs/DATASET.md §5). Cada clave referencia el
+# mecanismo exacto implementado en data-gen/lumen/*.py.
+planted_truths:
+  # Para que la paradoja de Simpson se manifieste de verdad en el agregado
+  # (mobile parece ganar a desktop en global aunque pierda en TODAS las
+  # regiones), el tráfico mobile tiene que concentrarse en la región de
+  # conversión ALTA y el tráfico desktop en la región de conversión BAJA
+  # (ver la demostración matemática en docs/DATASET.md y los tests).
+  simpson:
+    high_conversion_region: 'Madrid' # conversión base alta; tráfico mayoritariamente mobile
+    low_conversion_region: 'Andalucía' # conversión base baja; tráfico mayoritariamente desktop
+    high_conversion_base_rate: 0.12
+    low_conversion_base_rate: 0.025
+    mobile_conversion_gap: 0.4 # mobile convierte un 40% peor que desktop, en TODAS las regiones
+    mobile_share_in_high_conversion_region: 0.85
+    mobile_share_in_low_conversion_region: 0.15
+    default_base_rate: 0.05 # resto de regiones: conversión "normal", sin sesgo de dispositivo
+    default_mobile_share: 0.55
+
+  experiment_lift:
+    id: 'exp-checkout-v2'
+    true_lift_pct: 0.08
+
+  experiment_srm:
+    id: 'exp-reco-engine'
+    intended_split: [0.5, 0.5]
+    actual_split: [0.56, 0.44] # bug de asignación
+
+  experiment_cuped:
+    id: 'exp-onboarding-flow'
+    pre_post_correlation: 0.75
+
+  experiment_campaign_incrementality:
+    id: 'exp-social-ads-geo-holdout'
+    attributed_lift_pct: 0.22 # lo que dice la atribución last-click
+    true_lift_pct: 0.06 # el efecto causal real (geo holdout)
+
+  price_change:
+    region: 'Andalucía'
+    category: 'Electrónica'
+    date: '2025-03-01'
+    pct_increase: 0.12
+
+  stockout:
+    category: 'Electrónica'
+    start: '2026-03-01'
+    end: '2026-03-21'
+    suppression: 0.92 # probabilidad de suprimir un item de esa categoría en la ventana
+
+  app_bug_duplicate_events:
+    app_version: '4.2.0'
+    start: '2024-11-10'
+    end: '2024-11-24'
+    duplication_rate: 0.35 # fracción de eventos "purchase" que se duplican
+
+  shipment_delay_churn:
+    delay_threshold_days: 5
+    extra_churn_prob: 0.35 # probabilidad extra de cancelar la suscripción tras un retraso grave
+
+  support_topics:
+    - envio
+    - devoluciones
+    - app
+    - pagos
+    - producto

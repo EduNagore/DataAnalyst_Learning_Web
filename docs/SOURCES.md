@@ -6,6 +6,12 @@ Regla: nivel 1 (primarias) y nivel 2 (expertos reconocidos/blogs técnicos de em
 
 > Todas las URLs deben volver a verificarse en el momento de citarlas en una lección concreta (pueden cambiar o moverse). El workflow `content-freshness.yml` revisa enlaces rotos mensualmente con `lychee`.
 
+## Datasets externos usados en `public/data/extra/`
+
+- Anscombe, F. J. (1973). "Graphs in Statistical Analysis". _The American Statistician_. Datos copiados del dataset `anscombe` de [mwaskom/seaborn-data](https://github.com/mwaskom/seaborn-data) (verificado 2026-10-07).
+- Matejka, J. & Fitzmaurice, G. (2017). "Same Stats, Different Graphs" (CHI 2017); conjunto original de Alberto Cairo. Datos copiados de [jumpingrivers/datasauRus](https://github.com/jumpingrivers/datasauRus) (verificado 2026-10-07).
+- Box, G. E. P. & Jenkins, G. M. (1976). _Time Series Analysis: Forecasting and Control_ (la serie "AirPassengers"). Datos copiados de [jbrownlee/Datasets](https://github.com/jbrownlee/Datasets) (verificado 2026-10-07).
+
 ## Libros de referencia
 
 - Kohavi, Tang & Xu — _Trustworthy Online Controlled Experiments_ (Cambridge University Press, 2020)
