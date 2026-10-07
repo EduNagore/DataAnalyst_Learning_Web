@@ -1,9 +1,131 @@
 ---
-import ComingSoon from '../../components/layout/ComingSoon.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Diagram from '../../components/content/Diagram.tsx';
+import { url } from '../../lib/url';
+import schema from '../../../public/data/_schema.json';
+
+const tableNames = Object.keys(schema.tables);
+
+const erDiagram = [
+  'erDiagram',
+  ...schema.relationships.map((r) => `    ${r.toTable} ||--o{ ${r.fromTable} : "${r.fromColumn}"`),
+].join('\n');
+
+function fmt(n: number): string {
+  return n.toLocaleString('es-ES');
+}
 ---
 
-<ComingSoon
+<BaseLayout
   title="El dataset Lumen"
-  description="Historia de la empresa ficticia 'Lumen', diagrama entidad-relación, diccionario de datos y descargas en Parquet. El corazón de toda la práctica del curso."
-  phase="Fase 1 · Dataset Lumen"
-/>
+  description="Historia de la empresa ficticia Lumen, diagrama entidad-relación, diccionario de datos y descargas. El corazón de toda la práctica del curso."
+>
+  <section class="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">El dataset Lumen</h1>
+    <p class="mt-4 max-w-3xl text-[var(--color-text-muted)]">
+      <strong class="text-[var(--color-text)]">Lumen</strong> es una empresa ficticia de retail
+      omnicanal española: tienda online, app y 40 tiendas físicas, con un programa de suscripción
+      "Lumen+". Todos los datos son sintéticos y deterministas — la misma semilla produce siempre
+      los mismos números — y cubren el periodo 2023-01-01 a 2026-06-30. Ningún parecido con una
+      empresa real es intencionado.
+    </p>
+    <p class="mt-2 max-w-3xl text-sm text-[var(--color-text-muted)]">
+      Los datos tienen hechos "plantados" a propósito (una paradoja de Simpson, un experimento con
+      SRM, una rotura de stock que explica una caída de ventas real...) para que los ejercicios
+      tengan una respuesta verificable. No se revelan aquí: se descubren haciendo los labs y casos.
+    </p>
+
+    <h2 class="mt-12 text-xl font-semibold text-[var(--color-text)]">Diagrama entidad-relación</h2>
+    <p class="mt-2 text-sm text-[var(--color-text-muted)]">
+      Generado automáticamente a partir del esquema real del generador — nunca se desincroniza a
+      mano.
+    </p>
+    <div class="mt-4">
+      <Diagram
+        client:visible
+        chart={erDiagram}
+        alt={`Diagrama entidad-relación de las ${tableNames.length} tablas de Lumen y sus relaciones`}
+      />
+    </div>
+
+    <h2 class="mt-12 text-xl font-semibold text-[var(--color-text)]">Diccionario de datos</h2>
+    <div class="mt-4 space-y-6">
+      {tableNames.map((name) => {
+        const table = schema.tables[name as keyof typeof schema.tables];
+        return (
+          <div class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-5">
+            <div class="flex flex-wrap items-baseline justify-between gap-2">
+              <h3 class="font-mono font-semibold text-[var(--color-text)]">{name}</h3>
+              <span class="text-xs text-[var(--color-text-muted)]">
+                {fmt(table.rowCount)} filas
+              </span>
+            </div>
+            <p class="mt-1 text-sm text-[var(--color-text-muted)]">{table.description}</p>
+            <table class="mt-3 w-full text-left text-sm">
+              <thead>
+                <tr class="border-b border-[var(--color-border)] text-xs text-[var(--color-text-muted)]">
+                  <th scope="col" class="py-1 pr-4 font-medium">
+                    Columna
+                  </th>
+                  <th scope="col" class="py-1 font-medium">
+                    Descripción
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(table.columns).map(([col, desc]) => (
+                  <tr class="border-b border-[var(--color-border)]/50 last:border-0">
+                    <td class="py-1.5 pr-4 font-mono text-xs text-[var(--color-text)] whitespace-nowrap">
+                      {col}
+                    </td>
+                    <td class="py-1.5 text-[var(--color-text-muted)]">{desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
+    </div>
+
+    <h2 class="mt-12 text-xl font-semibold text-[var(--color-text)]">Descargas</h2>
+    <ul class="mt-4 list-inside list-disc space-y-1 text-sm text-[var(--color-text-muted)]">
+      <li>
+        <a
+          class="text-[var(--color-accent)] hover:underline"
+          href={url('/data/lumen/customers.parquet')}
+        >
+          lumen/
+        </a>{' '}
+        — el dataset principal, Parquet. Es el que usan los labs, el SQL Playground y los casos.
+      </li>
+      <li>
+        <a
+          class="text-[var(--color-accent)] hover:underline"
+          href={url('/data/lumen_raw/customers.csv')}
+        >
+          lumen_raw/
+        </a>{' '}
+        — copias "sucias" en CSV para los labs de limpieza de datos.
+      </li>
+      <li>
+        <a
+          class="text-[var(--color-accent)] hover:underline"
+          href={url('/data/lumen_variant/customers.parquet')}
+        >
+          lumen_variant/
+        </a>{' '}
+        — mismo esquema, ~5 % del tamaño, otra semilla. La usan los checks ocultos de los labs.
+      </li>
+      <li>
+        <a
+          class="text-[var(--color-accent)] hover:underline"
+          href={url('/data/extra/anscombe.csv')}
+        >
+          extra/
+        </a>{' '}
+        — datasets de referencia (cuarteto de Anscombe, Datasaurus Dozen, pasajeros aéreos).
+      </li>
+    </ul>
+  </section>
+</BaseLayout>

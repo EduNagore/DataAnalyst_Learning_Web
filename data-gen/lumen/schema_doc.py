@@ -209,3 +209,24 @@ SCHEMA: dict[str, dict] = {
         },
     },
 }
+
+# Relaciones (tabla_hija.columna -> tabla_padre.columna), para el ERD de
+# /datos/. No es exhaustivo a nivel de motor (no hay FKs reales en los
+# Parquet), es la relación lógica que importa para los labs.
+RELATIONSHIPS: list[tuple[str, str, str, str]] = [
+    ("products", "category_id", "categories", "category_id"),
+    ("orders", "customer_id", "customers", "customer_id"),
+    ("orders", "store_id", "stores", "store_id"),
+    ("order_items", "order_id", "orders", "order_id"),
+    ("order_items", "product_id", "products", "product_id"),
+    ("returns", "order_item_id", "order_items", "order_item_id"),
+    ("shipments", "order_id", "orders", "order_id"),
+    ("inventory_snapshots", "product_id", "products", "product_id"),
+    ("web_sessions", "customer_id", "customers", "customer_id"),
+    ("events", "session_id", "web_sessions", "session_id"),
+    ("experiment_assignments", "experiment_id", "experiments", "experiment_id"),
+    ("experiment_assignments", "customer_id", "customers", "customer_id"),
+    ("experiment_metrics", "experiment_id", "experiments", "experiment_id"),
+    ("subscriptions", "customer_id", "customers", "customer_id"),
+    ("support_tickets", "customer_id", "customers", "customer_id"),
+]

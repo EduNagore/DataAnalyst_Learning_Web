@@ -11,13 +11,38 @@ no sea reproducible).
 """
 
 import argparse
+import json
 from pathlib import Path
 
 import yaml
 from lumen.build import build_lumen, build_raw_variant, write_all
 from lumen.extra_datasets import load_extra_datasets
+from lumen.schema_doc import RELATIONSHIPS, SCHEMA
 
 MAX_TOTAL_MB = 60
+
+
+def _write_schema_manifest(out_dir: Path, main_tables: dict) -> None:
+    """`_schema.json`: lo lee /datos/ en build-time para el ERD y el
+    diccionario de datos, para que nunca se desincronice a mano de
+    `schema_doc.py` (ver docs/DATASET.md)."""
+    manifest = {
+        "tables": {
+            name: {
+                "description": SCHEMA[name]["description"],
+                "rowCount": len(main_tables[name]),
+                "columns": SCHEMA[name]["columns"],
+            }
+            for name in SCHEMA
+        },
+        "relationships": [
+            {"fromTable": a, "fromColumn": b, "toTable": c, "toColumn": d}
+            for a, b, c, d in RELATIONSHIPS
+        ],
+    }
+    (out_dir / "_schema.json").write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
 
 
 def main() -> None:
@@ -52,6 +77,8 @@ def main() -> None:
         shutil.rmtree(args.out)
 
     print(f"Escribiendo en {args.out}...")
+    args.out.mkdir(parents=True, exist_ok=True)
+    _write_schema_manifest(args.out, main_tables)
     result = write_all(args.out, main_tables, variant_tables, raw_tables, extra_tables)
 
     from lumen.io_utils import write_checksums
