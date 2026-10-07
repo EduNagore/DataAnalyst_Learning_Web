@@ -1,0 +1,24 @@
+---
+title: 'Compras reales durante el bug de la app 4.2'
+description: 'Deduplica eventos para saber cuántas compras hubo de verdad entre el 10 y el 24 de noviembre de 2024.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-ii
+difficulty: 3
+estimatedMinutes: 20
+concepts: ['deduplicación', 'ROW_NUMBER', 'QUALIFY', 'COUNT DISTINCT']
+datasets: ['events']
+hints:
+  - "Filtra `event_type = 'purchase'` y las fechas `>= 2024-11-10` y `< 2024-11-25`."
+  - 'Una compra real = una sesión con evento de compra: `COUNT(DISTINCT session_id)`.'
+  - 'Alternativa: `QUALIFY ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY occurred_at) = 1` y luego contar.'
+output: table
+relatedLessons: ['sql-ii/05-cte-recursivas-deduplicacion-y-dialectos']
+businessQuestion: '¿Cuántas compras reales hubo entre el 10 y el 24 de noviembre de 2024, descontando los eventos duplicados?'
+---
+
+El panel marca 565 eventos de compra entre el **10 y el 24 de noviembre de 2024** (ambos
+inclusive), pero se sospecha que una versión de la app duplicaba eventos. Calcula cuántas **compras reales**
+hubo, entendiendo por compra una **sesión con al menos un evento `purchase`** en ese periodo.
+
+**Formato del resultado:** una fila con la columna `compras`.

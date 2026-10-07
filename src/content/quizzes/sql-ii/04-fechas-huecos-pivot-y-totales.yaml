@@ -1,0 +1,72 @@
+lesson: sql-ii/04-fechas-huecos-pivot-y-totales
+questions:
+  - id: sql2-04-q1
+    type: single
+    difficulty: 1
+    prompt: 'Para que los días sin pedidos aparezcan con 0 en una serie diaria, ¿qué hay que hacer?'
+    options:
+      - 'Usar un GROUP BY por fecha, que ya incluye todos los días'
+      - 'Generar un calendario completo y hacer LEFT JOIN desde el calendario hacia los datos'
+      - 'Usar INNER JOIN con el calendario'
+      - 'Añadir DISTINCT a la consulta'
+    answer: [1]
+    explanation: 'GROUP BY solo devuelve los grupos que existen en los datos. La date spine aporta todos los días y el LEFT JOIN desde el calendario conserva los que no tienen datos (con COALESCE se sustituye NULL por 0). Un INNER JOIN volvería a perder los días vacíos.'
+    ref: '#date-spine-el-calendario-completo'
+
+  - id: sql2-04-q2
+    type: sql-output
+    difficulty: 3
+    prompt: 'Las fechas 1, 2, 3, 7 y 8 de enero (consecutivas, hueco, consecutivas) se analizan con la técnica gaps and islands (fecha − número de fila). ¿Cuántas islas salen y de qué tamaños?'
+    code: 'x AS (SELECT d, d - ROW_NUMBER() OVER (ORDER BY d) * INTERVAL 1 DAY AS isla FROM d)'
+    options:
+      - '1 isla de 5 días'
+      - '2 islas: 3 y 2 días'
+      - '3 islas de 1, 2 y 2 días'
+      - '5 islas de 1 día'
+    answer: [1]
+    explanation: 'Dentro de una racha consecutiva, fecha − número de fila es constante: del 1 al 3 todas dan el mismo valor, y del 7 al 8 otro distinto. Hay dos islas: la primera de 3 días y la segunda de 2.'
+    ref: '#gaps-and-islands-rachas-y-huecos'
+
+  - id: sql2-04-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las afirmaciones correctas sobre PIVOT.'
+    options:
+      - 'Convierte los valores de una columna en columnas nuevas'
+      - 'UNPIVOT hace la operación inversa'
+      - 'El pivotado con SUM(CASE WHEN ...) es una alternativa portable'
+      - 'Siempre es mejor pivotar antes de agregar'
+    answer: [0, 1, 2]
+    explanation: 'PIVOT pasa de formato largo a ancho; UNPIVOT, de ancho a largo; y el pivotado manual con agregados condicionales funciona en cualquier motor. Lo recomendable es lo contrario de la última opción: agregar primero al grano correcto y pivotar después, para no multiplicar filas.'
+    ref: '#pivot-y-unpivot'
+
+  - id: sql2-04-q4
+    type: sql-output
+    difficulty: 2
+    prompt: 'Una consulta usa `GROUP BY ROLLUP(anio, canal)` con 2 años y 2 canales, y todas las combinaciones tienen datos. ¿Cuántas filas devuelve?'
+    options: ['4', '6', '7', '9']
+    answer: [2]
+    explanation: 'ROLLUP(anio, canal) devuelve: el detalle (2 × 2 = 4 filas), el subtotal por año (2 filas, con canal NULL) y el total general (1 fila): 4 + 2 + 1 = 7. (La opción 9 correspondería a CUBE con subtotales por canal también: 4 + 2 + 2 + 1 = 9.)'
+    ref: '#totales-y-subtotales-rollup-cube-y-grouping-sets'
+
+  - id: sql2-04-q5
+    type: single
+    difficulty: 3
+    prompt: 'En el resultado de un ROLLUP aparece una fila con canal = NULL. ¿Cómo distingues si es un subtotal o un canal que realmente es NULL en los datos?'
+    options:
+      - 'No se puede distinguir'
+      - 'Con la función GROUPING(canal): vale 1 si el NULL viene del subtotal'
+      - 'Con DISTINCT'
+      - 'Ordenando por canal'
+    answer: [1]
+    explanation: 'GROUPING(columna) devuelve 1 cuando la fila es un total en el que esa columna se ha "enrollado" y 0 cuando el valor viene de los datos. Se usa para etiquetar la fila de totales sin confundirla con un NULL real.'
+    ref: '#totales-y-subtotales-rollup-cube-y-grouping-sets'
+
+  - id: sql2-04-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Rellenar con 0 un día sin ningún registro del sistema de tracking (porque el sistema estuvo caído) es siempre correcto.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Un día sin pedidos es 0 (la actividad existió y fue nula); un día en que el sistema no registró nada es un dato no disponible (NULL). Convertirlo en 0 sesga las medias y esconde un problema de calidad de datos.'
+    ref: '#errores-comunes'

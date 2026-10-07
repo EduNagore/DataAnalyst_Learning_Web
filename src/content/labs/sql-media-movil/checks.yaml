@@ -1,0 +1,9 @@
+compare:
+  orderMatters: false
+  floatTolerance: 0.11
+  columns: [dia, pedidos, media_7d]
+hiddenOnVariant: true
+assertions:
+  - name: 'Usa una función de ventana (OVER)'
+    kind: query-text-contains
+    value: 'over'

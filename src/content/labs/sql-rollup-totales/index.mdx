@@ -1,0 +1,24 @@
+---
+title: 'Ingresos por año y canal con subtotales y total'
+description: 'Una sola consulta con ROLLUP que devuelve el detalle, el subtotal de cada año y el total general.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-ii
+difficulty: 2
+estimatedMinutes: 15
+concepts: ['ROLLUP', 'GROUPING SETS', 'totales']
+datasets: ['orders', 'order_items']
+hints:
+  - '`GROUP BY ROLLUP(anio, o.channel)` calcula el detalle, el subtotal por año y el total.'
+  - 'Las filas de subtotal tienen `NULL` en la columna enrollada; no hace falta etiquetarlas.'
+output: table
+relatedLessons: ['sql-ii/04-fechas-huecos-pivot-y-totales']
+businessQuestion: '¿Cuánto se ingresa cada año por canal, con el subtotal anual y el total general?'
+---
+
+Finanzas quiere una tabla de ingresos por **año y canal**, con el **subtotal de cada año** y el
+**total general** en la misma consulta. Ingresos = suma de `quantity * unit_price` de pedidos con
+`status <> 'cancelado'`, en **millones de euros con 2 decimales**.
+
+**Formato del resultado:** `anio`, `channel` e `ingresos_m`. Las filas de subtotal llevan `NULL` en `channel`
+y la del total general, `NULL` en `anio` y `channel`.

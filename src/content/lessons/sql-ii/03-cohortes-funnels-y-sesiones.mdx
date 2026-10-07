@@ -1,0 +1,207 @@
+---
+title: 'Cohortes de retención, funnels y sesionización'
+description: 'Los tres patrones de analítica de producto que se resuelven con SQL: tablas de cohortes, funnels de conversión y agrupar eventos en sesiones.'
+module: sql-ii
+order: 3
+level: intermedio
+estimatedMinutes: 45
+objectives:
+  - 'Construir una tabla de retención por cohortes mensuales con CTEs y funciones de ventana.'
+  - 'Calcular un funnel de conversión contando sesiones distintas, no eventos.'
+  - 'Agrupar eventos en sesiones con un umbral de inactividad usando LAG y una suma acumulada.'
+  - 'Interpretar las cifras de retención y de conversión sin sacar conclusiones precipitadas.'
+prerequisites: ['sql-ii/02-lag-lead-acumulados-y-marcos']
+tools: ['duckdb']
+volatility: low
+lastReviewed: 2026-10-07
+sources:
+  - title: 'DuckDB — Window functions'
+    url: 'https://duckdb.org/docs/stable/sql/functions/window_functions'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — WITH clause (CTEs)'
+    url: 'https://duckdb.org/docs/stable/sql/query_syntax/with'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — Date functions'
+    url: 'https://duckdb.org/docs/stable/sql/functions/date'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+relatedLabs: ['sql-cohortes-retencion', 'sql-funnel-conversion']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  El director de producto pregunta dos cosas: "De los clientes que compran por primera vez cada mes,
+  ¿cuántos vuelven al mes siguiente y a los tres meses?" y "¿en qué paso del embudo de compra
+  perdemos más gente?". Son las dos preguntas fundacionales de la analítica de producto.
+</BusinessContext>
+
+Las medias globales ocultan lo que importa: si el negocio mejora o empeora con el tiempo, y dónde se
+rompe la experiencia. Las cohortes y los funnels son los dos marcos para verlo.
+
+## Intuición
+
+Una **cohorte** es un grupo de clientes que comparten un momento de inicio (por ejemplo, todos los que
+hicieron su primer pedido en enero de 2025). Se les sigue a lo largo del tiempo y se mide qué parte
+sigue "activa" en cada periodo posterior. Comparar cohortes distintas permite ver si los clientes de
+hoy se comportan mejor o peor que los de hace un año, algo que un solo porcentaje global no distingue.
+
+Un **funnel** (embudo) es una secuencia de pasos por los que debe pasar un usuario (ver producto →
+añadir al carrito → _checkout_ → comprar). Se mide cuántos llegan a cada paso y qué porcentaje pasa al
+siguiente.
+
+## Cómo funciona
+
+### Retención por cohortes en SQL
+
+Tres pasos: asignar a cada cliente su cohorte, listar sus meses activos y cruzar ambos.
+
+```sql
+WITH primera AS (                       -- 1. cohorte = mes del primer pedido
+  SELECT customer_id, DATE_TRUNC('month', MIN(order_date)) AS cohorte
+  FROM orders
+  GROUP BY customer_id
+),
+activo AS (                             -- 2. meses en los que el cliente compró
+  SELECT DISTINCT customer_id, DATE_TRUNC('month', order_date) AS mes
+  FROM orders
+)
+SELECT STRFTIME(p.cohorte, '%Y-%m')                                         AS cohorte,
+       COUNT(DISTINCT p.customer_id)                                        AS tamano,
+       COUNT(DISTINCT CASE WHEN DATE_DIFF('month', p.cohorte, a.mes) = 1
+                           THEN p.customer_id END)                          AS retenidos_mes1,
+       COUNT(DISTINCT CASE WHEN DATE_DIFF('month', p.cohorte, a.mes) = 3
+                           THEN p.customer_id END)                          AS retenidos_mes3
+FROM primera AS p
+JOIN activo  AS a USING (customer_id)  -- 3. cruzar
+WHERE p.cohorte BETWEEN DATE '2025-01-01' AND DATE '2025-03-01'
+GROUP BY p.cohorte
+ORDER BY p.cohorte;
+```
+
+Resultado en Lumen:
+
+| cohorte | tamaño | activos al mes 1 | activos al mes 3 |
+| ------- | ------ | ---------------- | ---------------- |
+| 2025-01 | 1.721  | 799 (46,4 %)     | 211 (12,3 %)     |
+| 2025-02 | 1.522  | 742 (48,8 %)     | 187 (12,3 %)     |
+| 2025-03 | 1.658  | 775 (46,7 %)     | 201 (12,1 %)     |
+
+Aquí `BETWEEN` es seguro porque `cohorte` es una **fecha truncada al día 1** y no una marca de tiempo.
+La definición de "retenido" importa: este "activo en el mes N" significa **compró al menos una vez en
+ese mes**, no "compró en cualquier mes posterior". Son métricas distintas, y cuando cambias de una a
+otra, el número cambia mucho.
+
+<Callout type="info">
+  Aquí la retención del mes 3 (≈ 12 %) es más baja que la del mes 1 (≈ 47 %), pero no es una curva
+  monótona: la cohorte "vuelve" por periodos. Una tabla de cohortes completa suele mostrarse como un
+  mapa de calor (filas = cohortes, columnas = meses desde la primera compra) para ver patrones; lo
+  verás en el módulo de analítica de producto.
+</Callout>
+
+### Funnel de conversión
+
+En `events` cada evento pertenece a una sesión y tiene un tipo (`page_view`, `add_to_cart`, `checkout`,
+`purchase`). Para el funnel se cuenta **cuántas sesiones distintas** llegan a cada paso:
+
+```sql
+SELECT event_type, COUNT(DISTINCT session_id) AS sesiones
+FROM events
+GROUP BY event_type
+ORDER BY sesiones DESC;
+```
+
+| paso        | sesiones  | % del paso anterior |
+| ----------- | --------- | ------------------- |
+| page_view   | 1.000.000 | —                   |
+| add_to_cart | 473.364   | 47,3 %              |
+| checkout    | 186.148   | 39,3 %              |
+| purchase    | 42.277    | 22,7 %              |
+
+La conversión global (de ver a comprar) es del 4,23 %. Y el paso con más fuga relativa es el último:
+solo el 22,7 % de quienes llegan al _checkout_ compran.
+
+**¿Por qué `COUNT(DISTINCT session_id)` y no `COUNT(*)`?** Porque un evento puede repetirse en la misma
+sesión. En Lumen, una versión de la app (4.2.0) duplicó eventos `purchase` durante unas semanas: contar
+filas inflaría las compras; contar sesiones distintas, no. Tu denominador, siempre, es la unidad de
+análisis (sesión), no el evento.
+
+### Sesionización: agrupar eventos en sesiones
+
+En muchas fuentes (por ejemplo, un registro de clics) no existe una columna de sesión: hay que
+construirla. La regla habitual es "una sesión nueva empieza tras 30 minutos de inactividad". Se hace
+en tres pasos con ventanas: detectar el salto, marcar el inicio, numerar con una suma acumulada.
+
+```sql
+WITH marcados AS (
+  SELECT u, ts,
+         CASE WHEN LAG(ts) OVER (PARTITION BY u ORDER BY ts) IS NULL
+                OR DATE_DIFF('minute', LAG(ts) OVER (PARTITION BY u ORDER BY ts), ts) > 30
+              THEN 1 ELSE 0 END AS nueva
+  FROM eventos
+)
+SELECT u, ts, SUM(nueva) OVER (PARTITION BY u ORDER BY ts) AS sesion
+FROM marcados;
+```
+
+Con los eventos `u1 10:00`, `u1 10:10`, `u1 11:30` y `u2 09:00` el resultado es: `u1` sesión 1 (10:00),
+`u1` sesión 1 (10:10), `u1` sesión 2 (11:30, tras 80 minutos de pausa) y `u2` sesión 1. El truco es la
+**suma acumulada de los inicios**: cada vez que empieza una sesión, el contador sube una unidad.
+
+## En la práctica
+
+- Define por escrito qué es "activo" y qué es "primera compra" antes de calcular nada.
+- Para cohortes, trunca las fechas al periodo (mes, semana) y calcula la diferencia en **periodos**
+  (`DATE_DIFF('month', ...)`), no en días.
+- Para funnels estrictos (el orden importa), comprueba que el paso 3 ocurre **después** del paso 2 en
+  la misma sesión; un funnel "laxo" solo cuenta si ocurrió cada paso.
+
+## Trade-offs y cuándo usarlo
+
+- **Cohortes por semana o por mes**: semanas dan más resolución pero más ruido con pocos clientes.
+- **Retención "exacta en el mes N" frente a "al menos una vez desde el mes N"** (retención
+  _acumulada_): la segunda nunca baja, y suele ser la que enseñan los dashboards "optimistas".
+- **Funnel por sesión o por usuario**: por usuario es más justo para compras que tardan días; por
+  sesión es lo habitual en el análisis de la web.
+
+## Errores comunes
+
+- **Contar eventos en lugar de unidades distintas** y duplicar por un bug de tracking.
+- **Cohortes de tamaños muy distintos comparadas por valor absoluto** en vez de por porcentaje.
+- **Mezclar zonas horarias** al truncar el mes (un pedido a las 23:30 UTC del 31 pasa al mes siguiente
+  en Madrid).
+- **Interpretar el último mes de una cohorte** cuando todavía no ha terminado (datos parciales).
+- **Olvidar que `retenidos_mes1` incluye solo a quien compró en ese mes concreto** y no a quien volvió
+  más tarde.
+
+## Con IA
+
+Pedir "una tabla de cohortes" a un LLM suele dar una consulta que compila pero define "retención" de
+forma implícita. Pide siempre que la defina, y comprueba con una cohorte pequeña calculada a mano: si
+el tamaño de la cohorte (mes 0) no coincide con el recuento directo de clientes con primer pedido en
+ese mes, hay un error.
+
+## En una entrevista
+
+- _"Calcula la retención a 30 días de los usuarios nuevos."_ — Pista: define cohorte y "retenido"; `DATE_DIFF`; cuidado con cohortes incompletas.
+- _"¿Por qué contar sesiones distintas en un funnel?"_ — Pista: eventos duplicados; unidad de análisis.
+- _"¿Cómo creas sesiones si no existe `session_id`?"_ — Pista: `LAG`, umbral de inactividad, suma acumulada de inicios.
+
+<KeyTakeaways
+  items={[
+    'Una cohorte agrupa clientes por su momento de inicio; compararlas muestra si el negocio mejora o empeora, algo que una media global oculta.',
+    'La retención depende de su definición: "activo en el mes N" no es lo mismo que "activo en algún mes desde N".',
+    'En un funnel cuenta unidades distintas (sesiones), no eventos: un bug de duplicados infla las filas pero no las sesiones.',
+    'En Lumen el funnel es 1.000.000 → 473.364 → 186.148 → 42.277 sesiones (4,23 % de conversión global).',
+    'Sesionización = LAG para detectar la pausa + marca de inicio + suma acumulada de inicios.',
+  ]}
+/>

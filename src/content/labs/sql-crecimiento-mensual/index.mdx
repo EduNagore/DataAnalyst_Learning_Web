@@ -1,0 +1,30 @@
+---
+title: 'Crecimiento mensual de ingresos con LAG'
+description: 'Calcula los ingresos de cada mes del primer semestre de 2025 y su variación frente al mes anterior.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-ii
+difficulty: 2
+estimatedMinutes: 20
+concepts: ['LAG', 'CTE', 'DATE_TRUNC', 'variación porcentual']
+datasets: ['orders', 'order_items']
+hints:
+  - "Agrega primero los ingresos por mes en un CTE con `DATE_TRUNC('month', order_date)`."
+  - 'En un segundo CTE calcula `ingresos / LAG(ingresos) OVER (ORDER BY mes) - 1`.'
+  - 'Filtra enero-junio de 2025 **fuera** del CTE que calcula el `LAG`; si no, enero saldrá con NULL.'
+output: table
+relatedLessons: ['sql-ii/02-lag-lead-acumulados-y-marcos']
+businessQuestion: '¿Cuánto crecieron los ingresos cada mes del primer semestre de 2025 respecto al anterior?'
+---
+
+Finanzas quiere los ingresos de enero a junio de 2025 y su crecimiento mes a mes.
+
+**Ingresos** = suma de `quantity * unit_price` de las líneas de pedidos con `status <> 'cancelado'`.
+
+**Formato del resultado** (una fila por mes, de 2025-01 a 2025-06):
+
+| columna           | significado                                                                                  |
+| ----------------- | -------------------------------------------------------------------------------------------- |
+| `mes`             | texto `AAAA-MM`                                                                              |
+| `ingresos_m`      | ingresos en millones de euros, 2 decimales                                                   |
+| `crecimiento_pct` | variación frente al mes anterior en %, 1 decimal (enero se calcula contra diciembre de 2024) |

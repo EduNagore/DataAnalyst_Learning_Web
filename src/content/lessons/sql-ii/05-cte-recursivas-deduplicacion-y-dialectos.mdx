@@ -1,0 +1,242 @@
+---
+title: 'CTEs recursivas, deduplicación, ASOF JOIN y dialectos'
+description: 'Los patrones que completan el SQL analítico: recorrer jerarquías, limpiar duplicados, unir por el valor vigente en cada momento y escribir SQL que viaje entre motores.'
+module: sql-ii
+order: 5
+level: avanzado
+estimatedMinutes: 45
+objectives:
+  - 'Escribir una CTE recursiva para recorrer una jerarquía o generar una secuencia.'
+  - 'Deduplicar filas con ROW_NUMBER y QUALIFY y cuantificar el efecto sobre una métrica.'
+  - 'Unir cada fila con el valor vigente en ese instante usando ASOF JOIN.'
+  - 'Reconocer las diferencias de dialecto más frecuentes y las comodidades de DuckDB (GROUP BY ALL, EXCLUDE, COLUMNS).'
+prerequisites: ['sql-ii/01-funciones-de-ventana-y-top-n']
+tools: ['duckdb']
+volatility: medium
+lastReviewed: 2026-10-07
+sources:
+  - title: 'DuckDB — WITH clause (CTEs y WITH RECURSIVE)'
+    url: 'https://duckdb.org/docs/stable/sql/query_syntax/with'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — ASOF join'
+    url: 'https://duckdb.org/docs/stable/guides/sql_features/asof_join'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — Friendly SQL'
+    url: 'https://duckdb.org/docs/stable/sql/dialect/friendly_sql'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'BigQuery — Pipe syntax (GoogleSQL)'
+    url: 'https://cloud.google.com/bigquery/docs/pipe-syntax-guide'
+    type: docs
+    authors: 'Google Cloud'
+    year: 2026
+relatedLabs: ['sql-dedup-eventos']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import DialectTabs from '../../../components/content/DialectTabs.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Producto sospecha que las compras de la app de noviembre de 2024 están infladas: "el panel dice
+  565 compras entre el 10 y el 24 de noviembre, pero algo no cuadra". Hay que averiguar cuántas
+  fueron de verdad, y por qué el panel mentía.
+</BusinessContext>
+
+Esta lección reúne cuatro herramientas que no son "básicas" pero aparecen en cuanto el trabajo se
+vuelve real: datos con duplicados, jerarquías, valores que cambian en el tiempo y la necesidad de
+trasladar SQL de un motor a otro.
+
+## Intuición
+
+Todas comparten una idea: **el SQL declarativo también puede expresar procesos**. Una CTE recursiva
+repite un paso hasta que no quedan filas nuevas; la deduplicación se queda con un representante por
+clave; un `ASOF JOIN` busca "el último valor conocido hasta ese momento"; y los dialectos son los
+acentos regionales del mismo idioma.
+
+## Cómo funciona
+
+### CTEs recursivas
+
+Una CTE recursiva tiene dos partes unidas por `UNION ALL`: un **caso base** y un **paso recursivo** que
+se refiere a la propia CTE. El motor aplica el paso hasta que no genera filas.
+
+```sql
+-- Secuencia de 1 a 3
+WITH RECURSIVE r(n) AS (
+  SELECT 1                                -- caso base
+  UNION ALL
+  SELECT n + 1 FROM r WHERE n < 3         -- paso recursivo con condición de parada
+)
+SELECT * FROM r;
+```
+
+Su uso real son las **jerarquías** (organigramas, categorías con profundidad variable): partes de las
+raíces y, en cada vuelta, añades los hijos del nivel anterior mientras llevas la profundidad.
+
+```sql
+WITH RECURSIVE h AS (
+  SELECT category_id, parent_category_id, name, 0 AS nivel
+  FROM categories WHERE parent_category_id IS NULL
+  UNION ALL
+  SELECT c.category_id, c.parent_category_id, c.name, h.nivel + 1
+  FROM categories AS c JOIN h ON c.parent_category_id = h.category_id
+)
+SELECT nivel, COUNT(*) AS categorias FROM h GROUP BY nivel ORDER BY nivel;
+```
+
+En Lumen devuelve 8 categorías de nivel 0 y 40 de nivel 1. Cuidado: **sin condición de parada (o con un
+ciclo en los datos) la recursión no termina**. Pon siempre un límite de profundidad en datos que no
+controlas.
+
+### Deduplicación
+
+Quedarte con una fila por clave es `ROW_NUMBER` más `QUALIFY` (lección 1), eligiendo con el `ORDER BY`
+cuál sobrevive:
+
+```sql
+SELECT *
+FROM events
+QUALIFY ROW_NUMBER() OVER (PARTITION BY session_id, event_type ORDER BY occurred_at) = 1;
+```
+
+Esto deja un único evento de cada tipo por sesión (el primero). El caso de negocio: la app 4.2.0 de
+Lumen duplicó eventos `purchase` entre el 10 y el 24 de noviembre de 2024.
+
+```sql
+SELECT app_version,
+       COUNT(*) FILTER (WHERE event_type = 'purchase')                    AS eventos,
+       COUNT(DISTINCT session_id) FILTER (WHERE event_type = 'purchase')  AS sesiones
+FROM events
+WHERE occurred_at >= TIMESTAMP '2024-11-10' AND occurred_at < TIMESTAMP '2024-11-25'
+GROUP BY app_version;
+```
+
+Resultado: la versión 4.2.0 tiene **317 eventos de compra pero solo 242 sesiones con compra**; el resto
+de la app (sin versión: web) tiene 248 y 248, sin duplicados. En total, 565 eventos frente a 490
+compras reales: el panel exageraba un **15 %**. La causa no era el negocio sino el _tracking_.
+
+<Callout type="warning">
+  Deduplicar es **una decisión, no una limpieza neutra**. Antes de borrar duplicados pregúntate si
+  lo son de verdad (misma compra registrada dos veces) o si son hechos distintos que comparten clave
+  (dos compras seguidas). Documenta el criterio ("un `purchase` por sesión") y cuantifica el efecto,
+  como arriba: 75 filas menos, 15 % de diferencia.
+</Callout>
+
+### ASOF JOIN: el valor vigente en cada instante
+
+Muchos datos son "históricos de cambios": precios, tipos de cambio, el plan de un cliente. Para saber
+qué precio estaba vigente cuando se hizo un pedido, hay que unir cada pedido con la **última fila de
+precios anterior a su fecha**. Un `ASOF JOIN` lo hace sin ventanas ni subconsultas:
+
+```sql
+SELECT o.id, o.t, p.price
+FROM pedidos AS o
+ASOF JOIN precios AS p ON o.t >= p.t;
+```
+
+Con pedidos `o1` (5 de enero) y `o2` (20 de enero) y precios vigentes desde el 1 de enero (10 €) y el
+15 de enero (12 €), `o1` recibe 10 € y `o2`, 12 €. Sin `ASOF JOIN`, se escribe con un `LEFT JOIN` más
+`ROW_NUMBER`, bastante más pesado. Existe en DuckDB, Snowflake y ClickHouse, entre otros; en
+PostgreSQL se imita con `LATERAL`.
+
+### Comodidades de DuckDB ("friendly SQL")
+
+| Función                          | Qué hace                                                 |
+| -------------------------------- | -------------------------------------------------------- |
+| `GROUP BY ALL`                   | agrupa por todas las columnas no agregadas del `SELECT`  |
+| `SELECT * EXCLUDE (col)`         | todas las columnas menos las indicadas                   |
+| `SELECT * REPLACE (expr AS col)` | todas, sustituyendo una                                  |
+| `COLUMNS('patrón')`              | aplica una expresión a todas las columnas que casen      |
+| alias reutilizables              | usar un alias del `SELECT` en el `WHERE` o el `GROUP BY` |
+
+Son un gran ahorro al explorar, pero **no son portables**: antes de pasar una consulta a producción en
+otro motor, reescribe estas comodidades.
+
+### Dialectos: lo que cambia entre motores
+
+La sintaxis básica es común. Lo que más cambia en SQL analítico:
+
+<DialectTabs
+  client:visible
+  dialects={{
+    duckdb:
+      "-- filtro sobre ventana\nSELECT * FROM t\nQUALIFY ROW_NUMBER() OVER (PARTITION BY k ORDER BY d DESC) = 1;\n\n-- diferencia de fechas\nSELECT date_diff('day', a, b);",
+    postgres:
+      '-- filtro sobre ventana (sin QUALIFY)\nSELECT * FROM (\n  SELECT *, ROW_NUMBER() OVER (PARTITION BY k ORDER BY d DESC) rn FROM t\n) x WHERE rn = 1;\n\n-- diferencia de fechas\nSELECT b::date - a::date;',
+    bigquery:
+      '-- QUALIFY disponible\nSELECT * FROM t\nWHERE TRUE\nQUALIFY ROW_NUMBER() OVER (PARTITION BY k ORDER BY d DESC) = 1;\n\n-- diferencia de fechas\nSELECT DATE_DIFF(b, a, DAY);',
+    snowflake:
+      '-- QUALIFY disponible\nSELECT * FROM t\nQUALIFY ROW_NUMBER() OVER (PARTITION BY k ORDER BY d DESC) = 1;\n\n-- diferencia de fechas\nSELECT DATEDIFF(day, a, b);',
+    tsql: '-- filtro sobre ventana (sin QUALIFY)\nSELECT * FROM (\n  SELECT *, ROW_NUMBER() OVER (PARTITION BY k ORDER BY d DESC) rn FROM t\n) x WHERE rn = 1;\n\n-- diferencia de fechas\nSELECT DATEDIFF(day, a, b);',
+  }}
+/>
+
+Lo que más suele romper una migración: las **funciones de fecha** (`date_diff`, `DATEDIFF`, `DATE_DIFF`
+con orden de argumentos distinto), `QUALIFY`, el _quoting_ de identificadores, `LIMIT` frente a `TOP`,
+y el tratamiento de mayúsculas en cadenas.
+
+<Snapshot date="2026-10">
+  BigQuery ofrece una **sintaxis de tubería** (`|>`) en GoogleSQL, con la que una consulta se escribe
+  como una secuencia lineal (`FROM tabla |> WHERE ... |> AGGREGATE ... GROUP BY ...`) en lugar de
+  anidada. Es una novedad reciente de un solo motor (a fecha de esta lección, no es parte del
+  estándar ni de DuckDB o PostgreSQL), así que conviene conocerla pero no depender de ella en SQL
+  portable. Consulta la guía oficial de BigQuery antes de usarla.
+</Snapshot>
+
+## En la práctica
+
+- Cuando una cifra del panel no cuadra, compara **`COUNT(*)`** con **`COUNT(DISTINCT clave)`**: si
+  difieren, hay duplicados.
+- Para trasladar SQL de DuckDB a producción, hazlo con **sqlglot** (traductor entre dialectos en
+  Python) y revisa a mano las funciones de fecha.
+- Escribe tus transformaciones como CTEs con nombres claros; es la forma más fácil de revisar y de
+  portar.
+
+## Trade-offs y cuándo usarlo
+
+- **Recursión frente a profundidad fija**: si la jerarquía tiene niveles conocidos (aquí, 2), unir
+  varias veces es más simple y rápido; la recursión es para profundidad variable.
+- **`ASOF JOIN` frente a ventanas**: más legible y suele ser más rápido, pero menos portable.
+- **Deduplicar en la consulta o corregir el origen**: lo primero es un parche; lo segundo, la
+  solución. Avisa al equipo dueño del _tracking_ y documenta la corrección.
+
+## Errores comunes
+
+- **Recursión sin condición de parada** (o con ciclos en los datos).
+- **Deduplicar por demasiadas pocas columnas** y fusionar hechos distintos.
+- **No cuantificar el efecto** de la deduplicación antes de publicar una cifra.
+- **Usar comodidades de DuckDB** (`GROUP BY ALL`, alias reutilizables) en código que correrá en otro motor.
+- **`ASOF JOIN` con la desigualdad invertida**: `>=` busca el valor anterior más reciente; `<=` busca el
+  siguiente.
+
+## Con IA
+
+Cuando un LLM traduce SQL entre motores, falla sobre todo en funciones de fecha y en `QUALIFY`. Pídele
+la traducción **y** una lista de las construcciones que ha cambiado; luego pruébala con una muestra
+pequeña en el motor de destino. Para deduplicación, exige que explique el criterio de qué fila gana.
+
+## En una entrevista
+
+- _"Una métrica de eventos se ha duplicado. ¿Cómo lo detectas y lo corriges?"_ — Pista: `COUNT(*)` frente a `COUNT(DISTINCT)`, `ROW_NUMBER` + `QUALIFY`, cuantificar el efecto, avisar al dueño del tracking.
+- _"Recorre un organigrama de profundidad variable."_ — Pista: CTE recursiva con caso base, paso y parada.
+- _"¿Cómo obtienes el precio vigente en la fecha de cada pedido?"_ — Pista: `ASOF JOIN` o ventana con `LAG`/`ROW_NUMBER`.
+
+<KeyTakeaways
+  items={[
+    'Una CTE recursiva = caso base + paso recursivo + condición de parada; sirve para jerarquías de profundidad variable.',
+    'Deduplicar con ROW_NUMBER + QUALIFY es una decisión: define el criterio y cuantifica el efecto (en Lumen, 565 eventos frente a 490 compras reales).',
+    'ASOF JOIN une cada fila con el valor vigente en ese instante, sin ventanas ni subconsultas.',
+    'Las comodidades de DuckDB ahorran tiempo al explorar pero no son portables; los dialectos difieren sobre todo en fechas y QUALIFY.',
+    'Ante una cifra que no cuadra, compara COUNT(*) con COUNT(DISTINCT clave) antes de buscar causas más exóticas.',
+  ]}
+/>

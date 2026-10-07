@@ -1,0 +1,223 @@
+---
+title: 'Huecos en el tiempo, PIVOT y totales con ROLLUP'
+description: 'Rellenar los días sin datos con una date spine, detectar rachas (gaps and islands), pivotar columnas y calcular subtotales en una sola consulta.'
+module: sql-ii
+order: 4
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Construir una date spine con generate_series y un LEFT JOIN para que los días sin datos aparezcan con cero.'
+  - 'Detectar rachas de fechas consecutivas con la técnica de gaps and islands.'
+  - 'Pivotar filas a columnas con PIVOT (y devolverlas con UNPIVOT).'
+  - 'Calcular totales y subtotales con ROLLUP, CUBE y GROUPING SETS e identificar las filas de total.'
+prerequisites: ['sql-ii/02-lag-lead-acumulados-y-marcos']
+tools: ['duckdb']
+volatility: low
+lastReviewed: 2026-10-07
+sources:
+  - title: 'DuckDB — PIVOT statement'
+    url: 'https://duckdb.org/docs/stable/sql/statements/pivot'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — UNPIVOT statement'
+    url: 'https://duckdb.org/docs/stable/sql/statements/unpivot'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — GROUPING SETS, ROLLUP and CUBE'
+    url: 'https://duckdb.org/docs/stable/sql/query_syntax/grouping_sets'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+relatedLabs: ['sql-date-spine', 'sql-rollup-totales']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Finanzas pide una tabla con los ingresos por año en filas y por canal en columnas, con una fila de
+  totales. Y operaciones quiere una gráfica de pedidos por día de la primera quincena de enero de
+  2023, "pero sin que desaparezcan los días en que no hubo ninguno".
+</BusinessContext>
+
+Los datos de negocio tienen **huecos**: días sin ventas, meses sin actividad. Una consulta con `GROUP BY`
+solo devuelve los grupos que existen, así que los huecos desaparecen, y con ellos la forma real de la serie.
+Y casi siempre hay que presentar los resultados en formato "tabla cruzada" con totales.
+
+## Intuición
+
+Hay tres ideas distintas en esta lección:
+
+1. **Los datos ausentes también son información.** Un día con cero pedidos no aparece en `orders`, así
+   que hay que construir el calendario completo y cruzarlo con los datos.
+2. **Una tabla "ancha" (una columna por canal) y una "larga" (una fila por canal) son dos formas de
+   representar lo mismo.** Pivotar es pasar de larga a ancha; despivotar, al revés.
+3. **Un total es otro grupo**: un `GROUP BY` que agrupa por "nada". Se puede calcular a la vez que los
+   grupos de detalle.
+
+## Cómo funciona
+
+### Date spine: el calendario completo
+
+Una _date spine_ es una tabla de todas las fechas del periodo. En DuckDB se genera con
+`generate_series`; luego se hace un `LEFT JOIN` desde el calendario hacia los datos y se sustituye
+`NULL` por 0:
+
+```sql
+SELECT CAST(s.d AS DATE) AS dia, COALESCE(o.pedidos, 0) AS pedidos
+FROM generate_series(DATE '2023-01-01', DATE '2023-01-15', INTERVAL 1 DAY) AS s(d)
+LEFT JOIN (
+  SELECT order_date, COUNT(*) AS pedidos FROM orders GROUP BY order_date
+) AS o ON o.order_date = s.d
+ORDER BY dia;
+```
+
+En Lumen, el negocio arranca el 7 de enero de 2023: los días 1 a 6 salen con 0 pedidos. Sin la date
+spine, la serie empezaría el día 7 y nadie notaría que faltaba la primera semana. La izquierda del
+`LEFT JOIN` es el calendario: **manda la tabla que quieres conservar entera**.
+
+<Callout type="info">
+  En otros motores el calendario se genera distinto: `generate_series` en PostgreSQL (con
+  `timestamp`), `GENERATE_DATE_ARRAY` + `UNNEST` en BigQuery, o una tabla de calendario permanente
+  (como `calendar` en Lumen), que es lo habitual en un almacén de datos porque además guarda
+  festivos y eventos.
+</Callout>
+
+### Gaps and islands: rachas y huecos
+
+Dado un conjunto de fechas, ¿cuáles son las rachas de días consecutivos? La técnica clásica: restar a
+cada fecha su número de fila. En una racha consecutiva, `fecha − fila` es constante, y esa constante
+identifica la isla:
+
+```sql
+WITH d AS (
+  SELECT * FROM (VALUES (DATE '2025-01-01'), (DATE '2025-01-02'), (DATE '2025-01-03'),
+                        (DATE '2025-01-07'), (DATE '2025-01-08')) AS t(d)
+),
+x AS (
+  SELECT d, d - CAST(ROW_NUMBER() OVER (ORDER BY d) AS INTEGER) * INTERVAL 1 DAY AS isla FROM d
+)
+SELECT MIN(d) AS inicio, MAX(d) AS fin, COUNT(*) AS dias
+FROM x
+GROUP BY isla
+ORDER BY inicio;
+```
+
+Devuelve dos islas: del 1 al 3 de enero (3 días) y del 7 al 8 (2 días). Sirve para "rachas de días
+con compra", "periodos de inactividad" o "sesiones continuas". Si hay fechas repetidas, deduplica
+antes con `SELECT DISTINCT`.
+
+### PIVOT y UNPIVOT
+
+En DuckDB, `PIVOT` convierte los valores de una columna en columnas nuevas:
+
+```sql
+PIVOT (
+  SELECT YEAR(o.order_date) AS anio, o.channel, SUM(oi.quantity * oi.unit_price) AS ingresos
+  FROM orders AS o JOIN order_items AS oi USING (order_id)
+  WHERE o.status <> 'cancelado'
+  GROUP BY anio, o.channel
+)
+ON channel
+USING ROUND(SUM(ingresos) / 1e6, 2)
+ORDER BY anio;
+```
+
+| anio | online | store |
+| ---- | ------ | ----- |
+| 2023 | 4,91   | 0,39  |
+| 2024 | 20,85  | 1,59  |
+| 2025 | 46,02  | 3,44  |
+| 2026 | 36,05  | 2,73  |
+
+(en millones de euros). `ON` indica la columna cuyos valores pasan a ser columnas y `USING` el
+agregado que rellena las celdas. El camino inverso es `UNPIVOT`, que convierte columnas en filas.
+
+**La alternativa portable** es el pivotado "manual" con agregados condicionales, que funciona en
+cualquier motor: `SUM(CASE WHEN channel = 'online' THEN ingresos END) AS online`. Tiene la desventaja
+de que hay que escribir una columna por cada valor y no se adapta si aparece un canal nuevo.
+
+### Totales y subtotales: ROLLUP, CUBE y GROUPING SETS
+
+`GROUP BY ROLLUP(a, b)` calcula el detalle por `(a, b)`, el subtotal por `a` y el total general, todo
+en una consulta:
+
+```sql
+SELECT YEAR(o.order_date) AS anio, o.channel,
+       ROUND(SUM(oi.quantity * oi.unit_price) / 1e6, 2) AS ingresos_m
+FROM orders AS o JOIN order_items AS oi USING (order_id)
+WHERE o.status <> 'cancelado'
+GROUP BY ROLLUP(anio, o.channel)
+ORDER BY anio, o.channel;
+```
+
+Las filas de subtotal tienen `NULL` en la columna que se "enrolla": `2023, NULL → 5,30` es el total del
+año 2023 y `NULL, NULL → 115,98` es el total general de Lumen (115,98 M€).
+
+- **`ROLLUP(a, b)`**: jerarquía; detalle, subtotal por `a` y total.
+- **`CUBE(a, b)`**: todas las combinaciones (también el subtotal por `b`).
+- **`GROUPING SETS ((a, b), (a), ())`**: tú eliges los conjuntos exactos; `ROLLUP` es un atajo.
+
+<Callout type="warning">
+  Un `NULL` en una fila de subtotal es ambiguo si la columna también puede tener `NULL` en los
+  datos. Para distinguirlos, usa la función `GROUPING(columna)`, que devuelve 1 si el `NULL` viene
+  del total y 0 si viene de un dato real. Etiquetar con `CASE WHEN GROUPING(channel) = 1 THEN
+  'Total' ELSE channel END` es la forma limpia de pintar la fila de totales.
+</Callout>
+
+## En la práctica
+
+- Antes de graficar una serie temporal, **pasa por una date spine**: los huecos cambian la forma
+  de la gráfica y los cálculos de media y crecimiento.
+- Para un informe en formato cruzado, pivota en el último paso, **después** de agregar al grano
+  correcto (año × canal): pivotar sobre datos sin agregar suele multiplicar filas.
+- Guarda `ROLLUP` para informes de totales; no lo uses para "ahorrar" una consulta si los totales no
+  se necesitan: añade filas y complica el consumo posterior.
+
+## Trade-offs y cuándo usarlo
+
+- **`PIVOT` frente a `CASE` manual**: el `PIVOT` es más corto y se adapta a nuevos valores; el `CASE`
+  es portable y explícito. Si el resultado alimenta un dashboard con columnas fijas, el `CASE`
+  evita sorpresas.
+- **Tabla calendario permanente frente a `generate_series`**: la tabla permite unir festivos,
+  semanas fiscales y eventos; el generador es perfecto para análisis puntuales.
+- **Pivotar en SQL frente a hacerlo en la herramienta de BI**: suele ser mejor dejar la tabla
+  "larga" en SQL y pivotar en la visualización (las herramientas de BI lo hacen nativamente).
+
+## Errores comunes
+
+- **`INNER JOIN` con el calendario** (en vez de `LEFT`): vuelves a perder los días vacíos.
+- **Rellenar con 0 un hueco que en realidad es "dato no disponible"**: un día sin pedidos es 0; un día
+  sin que el sistema registrara nada es `NULL`.
+- **Pivotar sin agregar** y duplicar filas.
+- **Olvidar `GROUPING()`** y confundir un total con un grupo cuyo valor es `NULL`.
+- **Calcular una media sobre los días con datos solamente**, cuando la media diaria correcta incluye
+  los días en cero.
+
+## Con IA
+
+Un LLM puede escribir un `PIVOT` o un `ROLLUP` correctos en cuanto le dices el motor, pero rara vez
+propone la _date spine_ por su cuenta: devolverá una serie con huecos y una media incorrecta. Cuando le
+pidas una serie temporal, di explícitamente "incluye los días sin datos con valor 0" y verifica el
+número de filas (`COUNT(*)` debe ser igual al número de días del periodo).
+
+## En una entrevista
+
+- _"¿Cómo muestras los días sin ventas en un informe diario?"_ — Pista: date spine y `LEFT JOIN` desde el calendario.
+- _"Encuentra los periodos de inactividad de cada usuario."_ — Pista: `LAG` con diferencia de fechas, o gaps and islands.
+- _"¿Qué hace `ROLLUP` y cómo distingues un subtotal de un `NULL` real?"_ — Pista: `GROUPING()`.
+
+<KeyTakeaways
+  items={[
+    'Una consulta con GROUP BY pierde los días sin datos: construye una date spine y haz LEFT JOIN desde el calendario.',
+    'Gaps and islands: fecha − número de fila es constante dentro de una racha consecutiva.',
+    'PIVOT pasa valores de una columna a columnas; el pivotado con CASE es la alternativa portable.',
+    'ROLLUP, CUBE y GROUPING SETS calculan detalle, subtotales y total en una sola pasada.',
+    'En una fila de total el NULL puede confundirse con un NULL real: distínguelo con GROUPING().',
+  ]}
+/>

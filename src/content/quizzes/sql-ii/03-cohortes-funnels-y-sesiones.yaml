@@ -1,0 +1,66 @@
+lesson: sql-ii/03-cohortes-funnels-y-sesiones
+questions:
+  - id: sql2-03-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué es una cohorte en un análisis de retención?'
+    options:
+      - 'Un grupo de clientes que comparten un momento de inicio, por ejemplo el mes de su primera compra'
+      - 'El conjunto de todos los clientes activos hoy'
+      - 'Una métrica que mide los ingresos por cliente'
+      - 'Un tipo de gráfico de líneas'
+    answer: [0]
+    explanation: 'Una cohorte agrupa clientes por su origen común y se sigue en el tiempo. Comparar cohortes distintas permite ver si los clientes nuevos se comportan mejor o peor que los antiguos, algo que una media global no distingue.'
+    ref: '#intuición'
+
+  - id: sql2-03-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'En la cohorte de enero de 2025 de Lumen hay 1.721 clientes y 799 vuelven a comprar en febrero. ¿Qué porcentaje es (con un decimal)?'
+    answer: [46.4]
+    tolerance: 0.1
+    explanation: '799 / 1.721 = 0,4643..., es decir 46,4 %. El denominador es el tamaño de la cohorte (clientes con primera compra en enero), no el total de clientes de febrero.'
+    ref: '#retención-por-cohortes-en-sql'
+
+  - id: sql2-03-q3
+    type: truefalse
+    difficulty: 2
+    prompt: 'En un funnel se debe contar con `COUNT(*)` de eventos, porque cada evento es un paso del usuario.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Un evento puede repetirse dentro de la misma sesión (por ejemplo, por un bug de tracking que duplique las compras). La unidad de análisis del funnel es la sesión, así que se cuenta COUNT(DISTINCT session_id) por paso.'
+    ref: '#funnel-de-conversión'
+
+  - id: sql2-03-q4
+    type: numeric
+    difficulty: 2
+    prompt: 'Un funnel tiene 473.364 sesiones con "añadir al carrito" y 186.148 con "checkout". ¿Qué porcentaje de las que añadieron al carrito llegan al checkout (un decimal)?'
+    answer: [39.3]
+    tolerance: 0.1
+    explanation: '186.148 / 473.364 = 0,3932, es decir 39,3 %. Es el porcentaje respecto al paso anterior, no respecto al total de sesiones (que sería 18,6 %).'
+    ref: '#funnel-de-conversión'
+
+  - id: sql2-03-q5
+    type: order
+    difficulty: 3
+    prompt: 'Ordena los pasos para crear sesiones a partir de eventos con un umbral de inactividad de 30 minutos.'
+    options:
+      - 'Calcular con LAG el instante del evento anterior de cada usuario'
+      - 'Marcar con 1 los eventos que inician sesión (primer evento o pausa mayor de 30 min)'
+      - 'Sumar acumuladamente las marcas por usuario para numerar las sesiones'
+    answer: [0, 1, 2]
+    explanation: 'Primero se detecta la pausa con LAG, después se marca el inicio de sesión y por último una suma acumulada de los inicios asigna a cada evento el número de su sesión: cada vez que empieza una, el contador sube una unidad.'
+    ref: '#sesionización-agrupar-eventos-en-sesiones'
+
+  - id: sql2-03-q6
+    type: single
+    difficulty: 3
+    prompt: 'Una dashboard define "retención al mes 3" como "compró en algún mes desde el 3". Otra, como "compró en el mes 3 exactamente". ¿Qué consecuencia tiene?'
+    options:
+      - 'Ninguna: son la misma métrica'
+      - 'La primera nunca baja con el tiempo y suele ser mayor; son métricas distintas y no deben compararse sin aclararlo'
+      - 'La segunda es siempre mayor'
+      - 'Solo cambia el nombre de la columna'
+    answer: [1]
+    explanation: 'La retención "al menos una vez desde el mes N" es acumulada: no puede disminuir y suele ser más alta que la "exacta en el mes N". Cambiar de definición cambia mucho el número, por eso hay que escribir siempre qué significa "activo".'
+    ref: '#trade-offs-y-cuándo-usarlo'

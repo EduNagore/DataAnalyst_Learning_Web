@@ -1,0 +1,65 @@
+lesson: sql-ii/02-lag-lead-acumulados-y-marcos
+questions:
+  - id: sql2-02-q1
+    type: numeric
+    difficulty: 1
+    prompt: 'Los ingresos mensuales son 2,50 M€ en enero y 2,75 M€ en febrero. ¿Cuál es la variación porcentual de febrero respecto a enero (en %)?'
+    answer: [10]
+    tolerance: 0.01
+    explanation: 'Variación = actual / anterior − 1 = 2,75 / 2,50 − 1 = 0,10, es decir +10 %. El error típico es dividir por el valor actual en vez del anterior (2,75 − 2,50) / 2,75 ≈ 9,1 %.'
+    ref: '#lag-y-lead'
+
+  - id: sql2-02-q2
+    type: sql-output
+    difficulty: 2
+    prompt: 'Con los valores (m, v) = (1,10), (2,12), (3,9), ¿qué devuelve `LAG(v) OVER (ORDER BY m)` en la fila m = 3?'
+    code: 'SELECT m, v, LAG(v) OVER (ORDER BY m) AS anterior\nFROM (VALUES (1,10), (2,12), (3,9)) AS t(m, v);'
+    options: ['NULL', '9', '12', '10']
+    answer: [2]
+    explanation: 'LAG devuelve el valor de la fila anterior en el orden dado: para m = 3, la fila anterior es m = 2, con v = 12. Para m = 1 devolvería NULL porque no hay fila anterior.'
+    ref: '#lag-y-lead'
+
+  - id: sql2-02-q3
+    type: single
+    difficulty: 2
+    prompt: 'Calculas el crecimiento mensual con LAG y filtras `WHERE mes >= 2025-01-01` en la MISMA consulta donde está el LAG. ¿Qué pasa con enero?'
+    options:
+      - 'Sale bien, con el crecimiento frente a diciembre'
+      - 'Sale con NULL: WHERE descarta diciembre antes de que se calcule la ventana'
+      - 'La consulta falla con un error'
+      - 'Enero se duplica'
+    answer: [1]
+    explanation: 'WHERE se evalúa antes que las funciones de ventana, así que diciembre ya no existe cuando LAG busca la fila anterior. La solución es calcular la ventana en un CTE y filtrar el periodo en la consulta exterior.'
+    ref: '#lag-y-lead'
+
+  - id: sql2-02-q4
+    type: sql-output
+    difficulty: 3
+    prompt: 'Con los valores x = 1, 1, 2, ¿qué devuelve `SUM(x) OVER (ORDER BY x)` (marco por defecto) en la primera fila?'
+    code: 'SELECT x, SUM(x) OVER (ORDER BY x) AS acumulado\nFROM (VALUES (1), (1), (2)) AS t(x);'
+    options: ['1', '2', '4', 'NULL']
+    answer: [1]
+    explanation: 'El marco por defecto es RANGE hasta la fila actual y las filas que empatan con ella en el orden: las dos filas con x = 1 son "la fila actual" a la vez, así que cada una ve la suma de ambas (2). Con ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW saldría 1, 2 y 4.'
+    ref: '#el-marco-qué-filas-ve-la-ventana'
+
+  - id: sql2-02-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Quieres una media móvil de los últimos 7 días a partir de una tabla con una fila por día. Selecciona TODAS las afirmaciones correctas.'
+    options:
+      - '`ROWS BETWEEN 6 PRECEDING AND CURRENT ROW` abarca 7 filas'
+      - 'Si faltan días en la tabla, esas 7 filas abarcan más de 7 días reales'
+      - '`RANGE BETWEEN INTERVAL 6 DAY PRECEDING AND CURRENT ROW` cuenta por tiempo real'
+      - '`ROWS` cuenta días de calendario aunque falten filas'
+    answer: [0, 1, 2]
+    explanation: 'ROWS cuenta filas físicas (no días): con huecos en la serie, la ventana de 7 filas cubre más días. RANGE con INTERVAL cuenta por valor de la fecha, y se arregla también rellenando los huecos con una date spine. La última afirmación es falsa por la misma razón.'
+    ref: '#media-móvil'
+
+  - id: sql2-02-q6
+    type: truefalse
+    difficulty: 3
+    prompt: 'Con el marco por defecto, `LAST_VALUE(x) OVER (ORDER BY x)` devuelve el último valor de toda la partición.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. El marco por defecto termina en la fila actual, así que LAST_VALUE devuelve el valor de la propia fila actual. Para obtener el último valor real hay que ampliar el marco con `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING`.'
+    ref: '#first_value-last_value-y-el-marco'

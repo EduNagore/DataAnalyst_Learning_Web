@@ -1,0 +1,24 @@
+---
+title: 'Media móvil de pedidos a 7 días'
+description: 'Suaviza el ruido diario con una media móvil y comprueba que el primer día de junio ve los días de mayo.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-ii
+difficulty: 2
+estimatedMinutes: 15
+concepts: ['AVG OVER', 'ROWS BETWEEN', 'marco de ventana']
+datasets: ['orders']
+hints:
+  - 'Cuenta los pedidos por día en un CTE (`COUNT(*)` agrupando por `order_date`).'
+  - 'La media móvil es `AVG(pedidos) OVER (ORDER BY dia ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)`.'
+  - 'Filtra junio de 2026 **después** de calcular la ventana, en la consulta exterior.'
+output: table
+relatedLessons: ['sql-ii/02-lag-lead-acumulados-y-marcos']
+businessQuestion: '¿Cómo evoluciona la media de pedidos de los últimos 7 días durante junio de 2026?'
+---
+
+Operaciones quiere ver la tendencia de pedidos sin el ruido del día a día. Para cada día de
+**junio de 2026** devuelve los pedidos del día y la **media de pedidos de ese día y los 6 anteriores**
+(los primeros días de junio usan los últimos de mayo).
+
+**Formato del resultado:** columnas `dia` (fecha), `pedidos` y `media_7d` (1 decimal), una fila por día de junio.

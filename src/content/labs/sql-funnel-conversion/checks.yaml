@@ -1,0 +1,4 @@
+compare:
+  orderMatters: false
+  columns: [event_type, sesiones]
+hiddenOnVariant: true

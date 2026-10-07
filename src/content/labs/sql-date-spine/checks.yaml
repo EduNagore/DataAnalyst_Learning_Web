@@ -1,0 +1,4 @@
+compare:
+  orderMatters: false
+  columns: [dia, pedidos]
+hiddenOnVariant: true

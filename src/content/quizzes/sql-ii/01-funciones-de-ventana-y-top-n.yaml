@@ -1,0 +1,73 @@
+lesson: sql-ii/01-funciones-de-ventana-y-top-n
+questions:
+  - id: sql2-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué diferencia fundamental hay entre `SUM(x) OVER (PARTITION BY g)` y `SUM(x) ... GROUP BY g`?'
+    options:
+      - 'La función de ventana conserva todas las filas; GROUP BY devuelve una fila por grupo.'
+      - 'La función de ventana devuelve una fila por grupo; GROUP BY conserva todas las filas.'
+      - 'No hay diferencia: son sintaxis equivalentes.'
+      - 'La función de ventana solo funciona con ORDER BY.'
+    answer: [0]
+    explanation: 'Una función de ventana añade un valor calculado a cada fila sin colapsarlas; GROUP BY colapsa cada grupo en una fila. Por eso la ventana permite, por ejemplo, mostrar cada pedido junto al total de su cliente. La ventana no exige ORDER BY (SUM(x) OVER () o con solo PARTITION BY es válida).'
+    ref: '#intuición'
+
+  - id: sql2-01-q2
+    type: sql-output
+    difficulty: 2
+    prompt: 'Las filas tienen los valores v = 100, 100, 90. ¿Qué devuelve `RANK() OVER (ORDER BY v DESC)` para la fila con v = 90?'
+    code: 'SELECT v, RANK() OVER (ORDER BY v DESC) AS puesto\nFROM (VALUES (100), (100), (90)) AS t(v);'
+    options: ['1', '2', '3', 'NULL']
+    answer: [2]
+    explanation: 'RANK asigna el mismo puesto a los empatados (1 y 1) y salta los puestos ocupados: la siguiente fila es la tercera, así que recibe 3. DENSE_RANK daría 2 (sin huecos) y ROW_NUMBER daría 3 también pero sin repetir el 1 para los dos primeros.'
+    ref: '#rankings-row_number-rank-y-dense_rank'
+
+  - id: sql2-01-q3
+    type: single
+    difficulty: 2
+    prompt: 'Quieres una sola fila por región (el mejor cliente) y no admites empates. ¿Qué función eliges?'
+    options:
+      - '`RANK()`, porque respeta los empates'
+      - '`DENSE_RANK()`, porque no deja huecos'
+      - '`ROW_NUMBER()` con un criterio de desempate en el ORDER BY'
+      - '`NTILE(1)`'
+    answer: [2]
+    explanation: 'ROW_NUMBER numera sin repetir, así que `= 1` deja una sola fila por grupo; añadir un desempate (por ejemplo el id) hace el resultado determinista. RANK y DENSE_RANK devolverían varias filas si hay empate en el primer puesto.'
+    ref: '#en-la-práctica'
+
+  - id: sql2-01-q4
+    type: truefalse
+    difficulty: 2
+    prompt: 'Puedes filtrar por el resultado de `ROW_NUMBER()` directamente en la cláusula WHERE de la misma consulta.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. WHERE se evalúa antes que las funciones de ventana, así que el ranking todavía no existe. Se filtra con QUALIFY (DuckDB, Snowflake, BigQuery) o calculando la ventana en una subconsulta/CTE y filtrando fuera.'
+    ref: '#qualify-filtrar-por-el-resultado-de-una-ventana'
+
+  - id: sql2-01-q5
+    type: order
+    difficulty: 3
+    prompt: 'Ordena estas etapas según el orden lógico de evaluación de una consulta con funciones de ventana y QUALIFY.'
+    options:
+      - 'WHERE'
+      - 'GROUP BY / HAVING'
+      - 'Funciones de ventana'
+      - 'QUALIFY'
+      - 'ORDER BY'
+    answer: [0, 1, 2, 3, 4]
+    explanation: 'Primero se filtran filas (WHERE), luego se agrupa y filtra por grupos (GROUP BY / HAVING), después se calculan las ventanas, se filtra por ellas (QUALIFY) y por último se ordena el resultado. Por eso QUALIFY puede usar ventanas y HAVING no, y por eso ORDER BY puede usar alias del SELECT.'
+    ref: '#qualify-filtrar-por-el-resultado-de-una-ventana'
+
+  - id: sql2-01-q6
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODOS los errores habituales al calcular un top-N por grupo.'
+    options:
+      - 'Olvidar PARTITION BY, de modo que el ranking es global'
+      - 'Usar ROW_NUMBER sin desempate cuando hay empates en la métrica'
+      - 'Intentar `WHERE rn = 1` en la misma consulta donde se define `rn`'
+      - 'Añadir PARTITION BY con la columna de grupo'
+    answer: [0, 1, 2]
+    explanation: 'Sin PARTITION BY obtienes un único mejor global; sin desempate el resultado puede cambiar entre ejecuciones; y la ventana no puede filtrarse en el WHERE de la misma consulta. Añadir PARTITION BY por la columna de grupo es precisamente lo correcto.'
+    ref: '#errores-comunes'

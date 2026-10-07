@@ -1,0 +1,26 @@
+---
+title: 'Funnel de conversión: cuenta sesiones, no eventos'
+description: 'Calcula cuántas sesiones llegan a cada paso del embudo y evita que un bug de duplicados infle las compras.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-ii
+difficulty: 2
+estimatedMinutes: 15
+concepts: ['funnel', 'COUNT DISTINCT', 'unidad de análisis']
+datasets: ['events']
+hints:
+  - 'Agrupa por `event_type` y cuenta `session_id` **distintos**.'
+  - '`COUNT(*)` cuenta filas: un evento duplicado en la misma sesión se contaría dos veces.'
+output: table
+relatedLessons:
+  ['sql-ii/03-cohortes-funnels-y-sesiones', 'sql-ii/05-cte-recursivas-deduplicacion-y-dialectos']
+businessQuestion: '¿Cuántas sesiones llegan a cada paso del embudo de compra?'
+---
+
+Producto quiere el embudo de la web: `page_view` → `add_to_cart` → `checkout` → `purchase`.
+La unidad de análisis es la **sesión**.
+
+El _starter_ cuenta eventos y la cifra de compras sale inflada (hubo una versión de la app que duplicaba
+eventos de compra). Corrígelo.
+
+**Formato del resultado:** una fila por tipo de evento con `event_type` y `sesiones`.

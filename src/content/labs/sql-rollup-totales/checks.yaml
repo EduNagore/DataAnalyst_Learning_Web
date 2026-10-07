@@ -1,0 +1,9 @@
+compare:
+  orderMatters: false
+  floatTolerance: 0.011
+  columns: [anio, channel, ingresos_m]
+hiddenOnVariant: true
+assertions:
+  - name: 'Usa ROLLUP, CUBE o GROUPING SETS'
+    kind: query-text-contains
+    value: 'rollup'

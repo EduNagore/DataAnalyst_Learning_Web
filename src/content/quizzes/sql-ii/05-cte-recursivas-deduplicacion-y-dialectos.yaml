@@ -1,0 +1,71 @@
+lesson: sql-ii/05-cte-recursivas-deduplicacion-y-dialectos
+questions:
+  - id: sql2-05-q1
+    type: single
+    difficulty: 2
+    prompt: '¿Qué partes necesita una CTE recursiva?'
+    options:
+      - 'Solo un SELECT con WITH'
+      - 'Un caso base y un paso recursivo unidos con UNION ALL, con una condición de parada'
+      - 'Un JOIN consigo misma'
+      - 'Una subconsulta correlacionada'
+    answer: [1]
+    explanation: 'El caso base da las filas iniciales; el paso recursivo se refiere a la propia CTE y se repite hasta que no genera filas nuevas; la condición de parada (o un límite de profundidad) evita bucles infinitos, sobre todo si los datos pueden tener ciclos.'
+    ref: '#ctes-recursivas'
+
+  - id: sql2-05-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'En la ventana del bug de la app 4.2.0 hay 565 eventos de compra en total, pero solo 490 sesiones distintas con compra. ¿Cuántos eventos sobran?'
+    answer: [75]
+    tolerance: 0
+    explanation: '565 − 490 = 75 eventos duplicados (un 15,3 % más que las compras reales). La comparación COUNT(*) frente a COUNT(DISTINCT clave) es el primer chequeo ante una cifra que no cuadra.'
+    ref: '#deduplicación'
+
+  - id: sql2-05-q3
+    type: truefalse
+    difficulty: 2
+    prompt: 'Eliminar duplicados con ROW_NUMBER es una limpieza neutra: siempre es correcto quedarse con la primera fila.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Es una decisión: hay que saber si las filas son realmente duplicados (la misma compra registrada dos veces) o hechos distintos que comparten clave (dos compras seguidas). Hay que documentar el criterio y cuantificar su efecto.'
+    ref: '#deduplicación'
+
+  - id: sql2-05-q4
+    type: single
+    difficulty: 3
+    prompt: 'Tienes pedidos con fecha y una tabla de precios con la fecha desde la que rige cada precio. ¿Qué construcción une cada pedido con el precio vigente en su fecha de forma más directa?'
+    options:
+      - 'CROSS JOIN'
+      - 'ASOF JOIN con `ON pedido.t >= precio.t`'
+      - 'UNION ALL'
+      - 'GROUP BY fecha'
+    answer: [1]
+    explanation: 'ASOF JOIN une cada fila con la fila más reciente de la otra tabla cuya clave temporal cumple la desigualdad. Con `>=` busca el último precio anterior o igual a la fecha del pedido. En motores sin ASOF se imita con una ventana o con LATERAL.'
+    ref: '#asof-join-el-valor-vigente-en-cada-instante'
+
+  - id: sql2-05-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las comodidades de DuckDB que NO son portables a otros motores sin reescribir.'
+    options:
+      - '`GROUP BY ALL`'
+      - '`SELECT * EXCLUDE (col)`'
+      - 'Reutilizar un alias del SELECT en el WHERE'
+      - '`SELECT col FROM tabla WHERE col > 0`'
+    answer: [0, 1, 2]
+    explanation: 'GROUP BY ALL, EXCLUDE y los alias reutilizables son extensiones de DuckDB; la última consulta es SQL estándar que funciona en cualquier motor. Conviene reescribir las primeras antes de llevar una consulta a producción en otro motor.'
+    ref: '#comodidades-de-duckdb-friendly-sql'
+
+  - id: sql2-05-q6
+    type: single
+    difficulty: 2
+    prompt: 'Migras una consulta con QUALIFY de DuckDB a PostgreSQL. ¿Qué haces?'
+    options:
+      - 'Nada: PostgreSQL soporta QUALIFY'
+      - 'Calcular la ventana en una subconsulta o CTE y filtrar en la consulta exterior'
+      - 'Sustituir QUALIFY por HAVING'
+      - 'Sustituir QUALIFY por LIMIT'
+    answer: [1]
+    explanation: 'PostgreSQL (y SQL Server) no tienen QUALIFY: la forma portable es calcular la función de ventana en una subconsulta o CTE y filtrar fuera con WHERE. HAVING filtra grupos agregados, no ventanas, y LIMIT corta filas sin tener en cuenta el ranking por grupo.'
+    ref: '#dialectos-lo-que-cambia-entre-motores'

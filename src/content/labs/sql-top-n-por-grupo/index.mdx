@@ -1,0 +1,26 @@
+---
+title: 'El mejor cliente de cada región'
+description: 'Un top-N por grupo con funciones de ventana: una fila por región con su cliente que más ha gastado.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-ii
+difficulty: 2
+estimatedMinutes: 20
+concepts: ['ROW_NUMBER', 'PARTITION BY', 'QUALIFY']
+datasets: ['orders', 'order_items', 'customers']
+hints:
+  - 'Primero calcula el gasto por cliente y región con `GROUP BY c.region, o.customer_id`.'
+  - 'Después numera a los clientes de cada región con `ROW_NUMBER() OVER (PARTITION BY c.region ORDER BY gasto DESC)`.'
+  - 'Filtra con `QUALIFY ... = 1` (o con una subconsulta). No olvides excluir los pedidos cancelados.'
+output: table
+relatedLessons: ['sql-ii/01-funciones-de-ventana-y-top-n']
+businessQuestion: '¿Quién es el cliente que más ha gastado en cada región, y cuánto?'
+---
+
+Marketing quiere invitar a una cena al **mejor cliente de cada región**. Calcula, para cada
+región, el cliente que más ha gastado.
+
+Define **gasto** como la suma de `quantity * unit_price` de las líneas de pedidos con
+`status <> 'cancelado'`, redondeada a **0 decimales**.
+
+**Formato del resultado:** una fila por región con las columnas `region`, `customer_id` y `gasto`.

@@ -1,0 +1,213 @@
+---
+title: 'Funciones de ventana: rankings y top-N con QUALIFY'
+description: 'Calcular sobre un grupo de filas sin colapsarlas: ROW_NUMBER, RANK, DENSE_RANK y cómo sacar el mejor de cada grupo.'
+module: sql-ii
+order: 1
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Explicar la diferencia entre GROUP BY (colapsa filas) y una función de ventana (las conserva).'
+  - 'Escribir expresiones OVER con PARTITION BY y ORDER BY.'
+  - 'Distinguir ROW_NUMBER, RANK y DENSE_RANK ante empates y elegir la adecuada.'
+  - 'Resolver un top-N por grupo con QUALIFY y con una alternativa portable a otros motores.'
+prerequisites: ['sql-i/02-agregacion-group-by-having']
+tools: ['duckdb']
+volatility: low
+lastReviewed: 2026-10-07
+sources:
+  - title: 'DuckDB — Window functions'
+    url: 'https://duckdb.org/docs/stable/sql/functions/window_functions'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — QUALIFY clause'
+    url: 'https://duckdb.org/docs/stable/sql/query_syntax/qualify'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'PostgreSQL — Window Functions (tutorial)'
+    url: 'https://www.postgresql.org/docs/current/tutorial-window.html'
+    type: docs
+    authors: 'PostgreSQL Global Development Group'
+    year: 2026
+relatedLabs: ['sql-top-n-por-grupo']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import DialectTabs from '../../../components/content/DialectTabs.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Marketing quiere invitar a una cena de agradecimiento al mejor cliente de cada región. Te piden
+  una tabla con una fila por región: el cliente que más ha gastado y cuánto. Con `GROUP BY region`
+  sabrías cuánto gasta cada región, pero no **quién** es el mejor.
+</BusinessContext>
+
+"El mejor de cada grupo", "el segundo pedido de cada cliente", "cuánto pesa cada fila sobre el
+total": son preguntas que `GROUP BY` no sabe responder porque, al colapsar las filas, pierde la
+identidad de cada una. Las funciones de ventana resuelven justo eso, y son la herramienta que más
+distingue un SQL de nivel intermedio de uno avanzado.
+
+## Intuición
+
+`GROUP BY` toma muchas filas y devuelve **una por grupo**. Una función de ventana toma muchas filas
+y devuelve **las mismas filas**, cada una con un valor calculado mirando a un conjunto de filas
+"vecinas" (su ventana). Piensa en una columna nueva que se calcula con contexto: "el puesto de esta
+fila dentro de su grupo", "la suma acumulada hasta esta fila", "el valor de la fila anterior".
+
+## Cómo funciona
+
+### La sintaxis OVER
+
+```sql
+función(...) OVER (
+  PARTITION BY columna_de_grupo      -- opcional: reinicia el cálculo en cada grupo
+  ORDER BY columna_de_orden          -- opcional (obligatorio en rankings): orden dentro del grupo
+)
+```
+
+- `PARTITION BY` divide las filas en grupos independientes. Sin él, toda la tabla es un solo grupo.
+- `ORDER BY` ordena las filas **dentro de cada partición** para funciones que dependen del orden.
+- La fila no desaparece: la función añade una columna.
+
+El cálculo más simple es un agregado "con ventana". Por ejemplo, el peso de cada línea sobre el total:
+
+```sql
+SELECT n, v, ROUND(100.0 * v / SUM(v) OVER (), 1) AS pct   -- SUM(v) OVER () = suma de toda la tabla
+FROM (VALUES ('A', 50), ('B', 30), ('C', 20)) AS t(n, v);
+```
+
+Devuelve `A 50 50.0`, `B 30 30.0`, `C 20 20.0`: cada fila conserva su valor y gana el porcentaje.
+
+### Rankings: ROW_NUMBER, RANK y DENSE_RANK
+
+Las tres numeran las filas de una partición según el `ORDER BY`. Difieren **cuando hay empates**:
+
+```sql
+SELECT n, v,
+  ROW_NUMBER() OVER (ORDER BY v DESC, n) AS row_number,
+  RANK()       OVER (ORDER BY v DESC)    AS rank,
+  DENSE_RANK() OVER (ORDER BY v DESC)    AS dense_rank
+FROM (VALUES ('A', 100), ('B', 100), ('C', 90)) AS t(n, v);
+```
+
+| n   | v   | row_number | rank | dense_rank |
+| --- | --- | ---------- | ---- | ---------- |
+| A   | 100 | 1          | 1    | 1          |
+| B   | 100 | 2          | 1    | 1          |
+| C   | 90  | 3          | 3    | 2          |
+
+- **`ROW_NUMBER`**: numera 1, 2, 3... sin repetir. Con empates, el orden entre las filas empatadas es
+  arbitrario salvo que añadas un criterio de desempate (aquí, `n`).
+- **`RANK`**: las filas empatadas comparten puesto y el siguiente **salta** (1, 1, 3).
+- **`DENSE_RANK`**: igual, pero sin saltos (1, 1, 2).
+
+Cuál usar depende de la pregunta: "el mejor" exige una sola fila (`ROW_NUMBER`, con desempate
+explícito); "los que están en el podio" admite empates (`RANK` o `DENSE_RANK`).
+
+### QUALIFY: filtrar por el resultado de una ventana
+
+Las funciones de ventana se evalúan **después** de `WHERE`, `GROUP BY` y `HAVING`, así que no puedes
+filtrar por ellas en un `WHERE`. El orden lógico completo queda:
+
+`FROM → WHERE → GROUP BY → HAVING → funciones de ventana → QUALIFY → SELECT → DISTINCT → ORDER BY → LIMIT`
+
+`QUALIFY` es a las funciones de ventana lo que `HAVING` a los agregados: filtra por su resultado.
+
+```sql
+-- El mejor cliente de cada región
+SELECT c.region, o.customer_id, ROUND(SUM(oi.quantity * oi.unit_price)) AS gasto
+FROM orders AS o
+JOIN order_items AS oi USING (order_id)
+JOIN customers  AS c  USING (customer_id)
+WHERE o.status <> 'cancelado'
+GROUP BY c.region, o.customer_id
+QUALIFY ROW_NUMBER() OVER (PARTITION BY c.region ORDER BY SUM(oi.quantity * oi.unit_price) DESC) = 1
+ORDER BY gasto DESC;
+```
+
+En Lumen, el mejor cliente de Madrid es `cust-005941` con unos 16.146 €, seguido en el ranking
+general por `cust-056383` (Cataluña, unos 16.113 €) y `cust-041364` (Andalucía, unos 15.664 €).
+Fíjate en que la ventana se calcula **sobre el resultado agregado**: `SUM(...)` dentro del `OVER`.
+
+### La alternativa portable
+
+No todos los motores tienen `QUALIFY` (DuckDB, Snowflake y BigQuery sí; PostgreSQL y SQL Server no).
+La forma que funciona en todas partes es calcular el ranking en una subconsulta o CTE y filtrar fuera:
+
+<DialectTabs
+  client:visible
+  dialects={{
+    duckdb:
+      'SELECT region, customer_id, gasto\nFROM gasto_por_cliente\nQUALIFY ROW_NUMBER() OVER (PARTITION BY region ORDER BY gasto DESC) = 1;',
+    postgres:
+      'SELECT region, customer_id, gasto\nFROM (\n  SELECT region, customer_id, gasto,\n         ROW_NUMBER() OVER (PARTITION BY region ORDER BY gasto DESC) AS rn\n  FROM gasto_por_cliente\n) AS ranked\nWHERE rn = 1;',
+    tsql: 'SELECT region, customer_id, gasto\nFROM (\n  SELECT region, customer_id, gasto,\n         ROW_NUMBER() OVER (PARTITION BY region ORDER BY gasto DESC) AS rn\n  FROM gasto_por_cliente\n) AS ranked\nWHERE rn = 1;',
+  }}
+/>
+
+## En la práctica
+
+Tres patrones que reaparecen constantemente:
+
+1. **Top-N por grupo**: `QUALIFY ROW_NUMBER() OVER (PARTITION BY grupo ORDER BY métrica DESC) <= N`.
+2. **Primera o última fila de cada grupo** (el primer pedido de cada cliente, el último estado de cada
+   ticket): `ROW_NUMBER` con `ORDER BY fecha` ascendente o descendente y `= 1`.
+3. **Deduplicar**: quedarte con una sola fila por clave cuando hay repetidos
+   (`PARTITION BY clave ORDER BY fecha_de_carga DESC` y `= 1`). En la lección 5 lo usaremos para el
+   bug de eventos duplicados de la app.
+
+<Callout type="warning">
+  Con `ROW_NUMBER`, **añade siempre un desempate** en el `ORDER BY` (por ejemplo, el identificador).
+  Si dos filas empatan en la métrica, el motor elige una cualquiera y tu resultado puede cambiar
+  entre ejecuciones o motores: una consulta que "a veces" da otro cliente es un dolor de cabeza en
+  producción.
+</Callout>
+
+## Trade-offs y cuándo usarlo
+
+- **Ventana vs `GROUP BY` + join**: antes de las ventanas, "el mejor de cada grupo" se resolvía uniendo
+  la tabla con un agregado de sí misma (más código y más lento). La ventana lo hace en una pasada.
+- **Ventana vs subconsulta correlacionada**: la ventana suele ser mucho más rápida porque ordena una
+  vez por partición, en lugar de recalcular por fila.
+- **Coste**: una ventana con `ORDER BY` obliga a ordenar cada partición; en tablas enormes con pocas
+  particiones muy grandes es lo caro. Filtra antes (`WHERE`) todo lo que puedas.
+- **Legibilidad**: si la consulta mezcla agregados, ventanas y filtros, sepárala en CTEs.
+
+## Errores comunes
+
+- **Olvidar `PARTITION BY`**: el ranking pasa a ser global y obtienes un solo "mejor" en vez de uno por
+  grupo.
+- **Intentar `WHERE rn = 1`** en la misma consulta donde se define `rn`: la ventana aún no existe en
+  `WHERE`; usa `QUALIFY` o una subconsulta.
+- **Elegir mal entre `RANK` y `ROW_NUMBER`** y devolver dos "mejores clientes" por región (empate) sin
+  querer, o ocultar un empate real.
+- **Confundir ventana con agregado**: `SUM(x) OVER (PARTITION BY g)` no colapsa filas; si quieres una
+  fila por grupo, necesitas `GROUP BY` (o `DISTINCT` sobre el resultado).
+
+## Con IA
+
+Los LLM conocen bien `ROW_NUMBER() OVER (PARTITION BY ...)`, pero fallan en dos sitios: eligen
+`RANK` cuando el enunciado pedía "uno solo" (y devuelven empates) y escriben `QUALIFY` en motores que
+no lo soportan. Al revisar, comprueba el motor de destino y pide el desempate explícito. Un test
+sencillo: cuenta las filas devueltas y compáralas con el número de grupos; si no coinciden, hay
+empates.
+
+## En una entrevista
+
+- _"¿Qué diferencia hay entre `RANK` y `DENSE_RANK`?"_ — Pista: huecos tras un empate; pon un ejemplo con 100, 100, 90.
+- _"Devuelve el segundo pedido de cada cliente."_ — Pista: `ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date) = 2`.
+- _"¿Por qué no puedes filtrar por `ROW_NUMBER()` en el `WHERE`?"_ — Pista: orden lógico de ejecución.
+
+<KeyTakeaways
+  items={[
+    'Una función de ventana añade un valor calculado con contexto a cada fila sin colapsarlas, a diferencia de GROUP BY.',
+    'OVER (PARTITION BY ... ORDER BY ...) define el grupo y el orden; sin PARTITION BY, toda la tabla es un grupo.',
+    'ROW_NUMBER no repite números, RANK salta tras un empate (1,1,3) y DENSE_RANK no salta (1,1,2).',
+    'Las ventanas se evalúan después de WHERE/GROUP BY/HAVING: se filtran con QUALIFY o con una subconsulta.',
+    'Con ROW_NUMBER añade siempre un criterio de desempate para que el resultado sea determinista.',
+  ]}
+/>

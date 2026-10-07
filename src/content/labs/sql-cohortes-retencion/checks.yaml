@@ -1,0 +1,4 @@
+compare:
+  orderMatters: false
+  columns: [cohorte, tamano, retenidos_mes1, retenidos_mes3]
+hiddenOnVariant: true

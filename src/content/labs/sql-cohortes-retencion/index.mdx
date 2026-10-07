@@ -1,0 +1,28 @@
+---
+title: 'Tabla de cohortes de retención mensual'
+description: 'Construye la retención a 1 y 3 meses de las cohortes de enero a marzo de 2025.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-ii
+difficulty: 3
+estimatedMinutes: 30
+concepts: ['cohortes', 'CTE', 'DATE_DIFF', 'COUNT DISTINCT']
+datasets: ['orders']
+hints:
+  - "Cohorte de un cliente = `DATE_TRUNC('month', MIN(order_date))`, agrupando por cliente."
+  - "Los meses activos de cada cliente: `SELECT DISTINCT customer_id, DATE_TRUNC('month', order_date) AS mes`."
+  - "Une ambas y cuenta clientes distintos donde `DATE_DIFF('month', cohorte, mes) = 1` (y `= 3`). Usa `COUNT(DISTINCT CASE WHEN ... THEN customer_id END)`."
+output: table
+relatedLessons: ['sql-ii/03-cohortes-funnels-y-sesiones']
+businessQuestion: 'De los clientes que compran por primera vez cada mes, ¿cuántos vuelven a comprar al mes siguiente y a los tres meses?'
+---
+
+Producto quiere la **retención por cohortes**. Una cohorte es el conjunto de clientes cuyo
+**primer pedido** cae en un mes. Un cliente está **retenido en el mes N** si compra **al menos una vez en
+el mes que está N meses después de su cohorte** (la compra exacta de ese mes, no "en cualquier mes posterior").
+
+Calcula la tabla para las cohortes de **enero, febrero y marzo de 2025**. Cuenta todos los pedidos (sin
+filtrar por estado).
+
+**Formato del resultado:** `cohorte` (texto `AAAA-MM`), `tamano` (clientes de la cohorte), `retenidos_mes1`
+y `retenidos_mes3`.

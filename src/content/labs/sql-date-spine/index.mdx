@@ -1,0 +1,23 @@
+---
+title: 'Pedidos por día sin que desaparezcan los días vacíos'
+description: 'Construye una date spine y haz un LEFT JOIN para que los días sin pedidos salgan con 0.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-ii
+difficulty: 2
+estimatedMinutes: 15
+concepts: ['generate_series', 'date spine', 'LEFT JOIN', 'COALESCE']
+datasets: ['orders']
+hints:
+  - "Genera el calendario con `generate_series(DATE '2023-01-01', DATE '2023-01-15', INTERVAL 1 DAY) AS s(d)`."
+  - 'El calendario debe ir a la **izquierda** de un `LEFT JOIN`: manda la tabla que quieres conservar entera.'
+  - 'Sustituye los `NULL` por 0 con `COALESCE(pedidos, 0)` y convierte la fecha generada con `CAST(s.d AS DATE)`.'
+output: table
+relatedLessons: ['sql-ii/04-fechas-huecos-pivot-y-totales']
+businessQuestion: '¿Cuántos pedidos hubo cada día de la primera quincena de enero de 2023, incluidos los días sin ninguno?'
+---
+
+Operaciones quiere una gráfica de pedidos por día del **1 al 15 de enero de 2023**, **sin que
+desaparezcan los días en los que no hubo ninguno**.
+
+**Formato del resultado:** 15 filas con `dia` (fecha) y `pedidos` (0 si no hubo ninguno).

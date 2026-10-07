@@ -1,0 +1,228 @@
+---
+title: 'LAG, LEAD, acumulados y marcos de ventana'
+description: 'Crecimiento mes a mes, totales acumulados y medias móviles; y por qué el marco por defecto de una ventana te puede dar una cifra distinta de la que esperas.'
+module: sql-ii
+order: 2
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Comparar una fila con la anterior o la siguiente con LAG y LEAD y calcular variaciones porcentuales.'
+  - 'Calcular totales acumulados y medias móviles con un marco de ventana explícito.'
+  - 'Distinguir los marcos ROWS, RANGE y GROUPS y el marco por defecto cuando hay ORDER BY.'
+  - 'Evitar la trampa de LAST_VALUE con el marco por defecto.'
+prerequisites: ['sql-ii/01-funciones-de-ventana-y-top-n']
+tools: ['duckdb']
+volatility: low
+lastReviewed: 2026-10-07
+sources:
+  - title: 'DuckDB — Window functions'
+    url: 'https://duckdb.org/docs/stable/sql/functions/window_functions'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'PostgreSQL — Window Function Processing (frames)'
+    url: 'https://www.postgresql.org/docs/current/functions-window.html'
+    type: docs
+    authors: 'PostgreSQL Global Development Group'
+    year: 2026
+  - title: 'PostgreSQL — SELECT (cláusula WINDOW y marcos)'
+    url: 'https://www.postgresql.org/docs/current/sql-select.html'
+    type: docs
+    authors: 'PostgreSQL Global Development Group'
+    year: 2026
+relatedLabs: ['sql-crecimiento-mensual', 'sql-media-movil']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  La directora financiera quiere ver, para el primer semestre de 2025, los ingresos de cada mes,
+  cuánto crecieron frente al mes anterior y el acumulado del año. Y operaciones pide una media móvil
+  de pedidos a 7 días para suavizar el ruido de los fines de semana.
+</BusinessContext>
+
+Casi todo informe de negocio compara un periodo con el anterior o acumula algo a lo largo del tiempo.
+Antes de las funciones de ventana eso exigía unir la tabla consigo misma; ahora es una columna más.
+
+## Intuición
+
+Una función de ventana con `ORDER BY` trabaja sobre una **ventana deslizante**: para cada fila, el
+motor define qué filas "ve" (el **marco**, _frame_) y calcula sobre ellas. `LAG` mira hacia atrás,
+`LEAD` hacia delante y los agregados con marco (`SUM`, `AVG`...) acumulan o promedian un tramo.
+
+## Cómo funciona
+
+### LAG y LEAD
+
+`LAG(x, n)` devuelve el valor de `x` de `n` filas **antes** (por defecto 1) dentro de la partición y
+el orden dados; `LEAD`, de `n` filas **después**. Si no existe esa fila devuelven `NULL`.
+
+```sql
+SELECT m, v, LAG(v) OVER (ORDER BY m) AS anterior, LEAD(v) OVER (ORDER BY m) AS siguiente
+FROM (VALUES (1, 10), (2, 12), (3, 9)) AS t(m, v);
+```
+
+Devuelve `1 10 NULL 12`, `2 12 10 9` y `3 9 12 NULL`. Un tercer argumento da un valor por defecto en
+lugar de `NULL`: `LAG(v, 1, 0)`.
+
+**Crecimiento mes a mes** (la petición de finanzas). Hay que calcular la ventana **antes** de filtrar el
+periodo, porque el `LAG` de enero necesita ver diciembre; por eso va en un CTE y el filtro, fuera:
+
+```sql
+WITH mensual AS (
+  SELECT DATE_TRUNC('month', o.order_date) AS mes,
+         SUM(oi.quantity * oi.unit_price)  AS ingresos
+  FROM orders AS o JOIN order_items AS oi USING (order_id)
+  WHERE o.status <> 'cancelado'
+  GROUP BY mes
+),
+con_crecimiento AS (
+  SELECT mes, ingresos,
+         ROUND(100 * (ingresos / LAG(ingresos) OVER (ORDER BY mes) - 1), 1) AS crecimiento_pct
+  FROM mensual
+)
+SELECT mes, ROUND(ingresos / 1e6, 2) AS ingresos_m, crecimiento_pct
+FROM con_crecimiento
+WHERE mes >= DATE '2025-01-01' AND mes < DATE '2025-07-01'
+ORDER BY mes;
+```
+
+Si pusieras ese `WHERE mes >= ...` en la misma consulta que calcula el `LAG`, enero saldría con
+`NULL`: `WHERE` se evalúa **antes** que las ventanas y habría descartado diciembre.
+
+Resultado en Lumen: enero de 2025, 2,94 M€ (+2,5 %); febrero, 2,89 M€ (−1,9 %); marzo, 3,54 M€
+(**+22,6 %**); abril, 3,52 M€ (−0,6 %); mayo, 3,77 M€ (+7,1 %); junio, 3,79 M€ (+0,7 %). El salto de
+marzo es una señal para investigar, no una cifra para entregar sin más.
+
+### Acumulados
+
+Un `SUM` con `ORDER BY` calcula un total acumulado:
+
+```sql
+SELECT mes, ROUND(ingresos / 1e6, 2) AS ingresos_m,
+       ROUND(SUM(ingresos) OVER (ORDER BY mes) / 1e6, 2) AS acumulado_m
+FROM mensual_2025
+ORDER BY mes;
+```
+
+En el primer semestre de 2025 el acumulado va de 2,94 M€ (enero) a 20,45 M€ (junio).
+
+### El marco: qué filas ve la ventana
+
+Cuando escribes `ORDER BY` en un `OVER` sin más, el marco por defecto es
+`RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW`: "desde el principio de la partición hasta la fila
+actual **y todas las que empatan con ella en el orden**". Se puede (y se debe) especificar:
+
+| Marco                    | Cuenta por...                                        | Cuándo                              |
+| ------------------------ | ---------------------------------------------------- | ----------------------------------- |
+| `ROWS BETWEEN a AND b`   | número de **filas** físicas                          | medias móviles de N filas           |
+| `RANGE BETWEEN a AND b`  | **valor** de la columna de orden (admite `INTERVAL`) | "últimos 7 días" aunque falten días |
+| `GROUPS BETWEEN a AND b` | grupos de filas **empatadas**                        | casos especiales con empates        |
+
+Los extremos pueden ser `UNBOUNDED PRECEDING`, `n PRECEDING`, `CURRENT ROW`, `n FOLLOWING` o
+`UNBOUNDED FOLLOWING`.
+
+**La trampa del marco por defecto con empates:**
+
+```sql
+SELECT x,
+  SUM(x) OVER (ORDER BY x)                                                  AS marco_por_defecto,
+  SUM(x) OVER (ORDER BY x ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS por_filas
+FROM (VALUES (1), (1), (2)) AS t(x);
+```
+
+| x   | marco_por_defecto | por_filas |
+| --- | ----------------- | --------- |
+| 1   | 2                 | 1         |
+| 1   | 2                 | 2         |
+| 2   | 4                 | 4         |
+
+Con el marco por defecto, las dos filas con `x = 1` son "la fila actual" a la vez (empatan en el
+orden), así que ambas ven la suma de las dos: 2. Con `ROWS`, cada fila ve solo hasta sí misma. Si
+acumulas por una columna **que no es única** (una fecha con varios pedidos, por ejemplo), usa `ROWS`
+o añade un desempate para obtener un acumulado "fila a fila".
+
+### Media móvil
+
+La media de pedidos de los últimos 7 días (la fila actual y las 6 anteriores):
+
+```sql
+WITH diario AS (
+  SELECT order_date AS dia, COUNT(*) AS pedidos FROM orders GROUP BY dia
+),
+suavizado AS (
+  SELECT dia, pedidos,
+         ROUND(AVG(pedidos) OVER (ORDER BY dia ROWS BETWEEN 6 PRECEDING AND CURRENT ROW), 1) AS media_7d
+  FROM diario
+)
+SELECT * FROM suavizado WHERE dia >= DATE '2026-06-01' ORDER BY dia;
+```
+
+En los primeros días de junio de 2026: 742 pedidos con media de 743,7; 731 con 741,0; 712 con 736,3;
+812 con 751,0. Cada media incluye los seis días anteriores, también los de mayo (la ventana se calculó
+antes de filtrar a junio). Así el ruido de un día concreto (un pico de 812) se diluye en la tendencia.
+
+<Callout type="warning">
+  `ROWS BETWEEN 6 PRECEDING` cuenta **filas**, no días. Si faltan días en la tabla (un día sin
+  pedidos no genera fila), esas 7 filas abarcan más de 7 días y la media no es "de 7 días". Para una
+  ventana por tiempo real usa `RANGE BETWEEN INTERVAL 6 DAY PRECEDING AND CURRENT ROW` o rellena los
+  huecos con una _date spine_ (lección 4).
+</Callout>
+
+### FIRST_VALUE, LAST_VALUE y el marco
+
+`FIRST_VALUE(x)` y `LAST_VALUE(x)` devuelven el primero y el último valor **del marco**. Como el marco
+por defecto acaba en la fila actual, `LAST_VALUE` devuelve... la propia fila actual:
+
+```sql
+SELECT x,
+  LAST_VALUE(x) OVER (ORDER BY x)                                                          AS por_defecto,
+  LAST_VALUE(x) OVER (ORDER BY x ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS ultimo_real
+FROM (VALUES (1), (2), (3)) AS t(x);
+```
+
+Da `por_defecto = 1, 2, 3` (cada fila se ve a sí misma) y `ultimo_real = 3, 3, 3`. Es uno de los fallos
+más comunes con `LAST_VALUE`: hay que ampliar el marco hasta `UNBOUNDED FOLLOWING`.
+
+## Trade-offs y cuándo usarlo
+
+- **`ROWS` vs `RANGE`**: `ROWS` es predecible y rápido; `RANGE` expresa "por valor" y maneja huecos,
+  pero cambia el resultado si hay empates. Elige según lo que quieras decir y escríbelo explícito.
+- **Calcular la ventana y filtrar después** (CTE) para no perder las filas que la ventana necesita.
+- **Ventana frente a autounión**: la ventana evita joins costosos y errores de fan-out.
+
+## Errores comunes
+
+- **Filtrar antes de la ventana** y quedarte sin la fila anterior que necesita `LAG`.
+- **Variación porcentual con el denominador equivocado**: es `actual / anterior − 1`, no `actual /
+actual_siguiente`.
+- **Acumular por una columna no única** con el marco por defecto (el efecto de empates de arriba).
+- **Confiar en `LAST_VALUE` sin ampliar el marco.**
+- **Media móvil con huecos en la serie** sin darse cuenta (ver el aviso de arriba).
+
+## Con IA
+
+Los modelos escriben bien `LAG` y los acumulados, pero suelen omitir el marco explícito y filtran el
+periodo en la misma consulta que calcula la ventana. Al revisar SQL generado, comprueba que el primer
+periodo del informe no sale con `NULL` por haber filtrado demasiado pronto, y que las medias móviles
+usan `ROWS` o `RANGE` a propósito.
+
+## En una entrevista
+
+- _"Calcula el crecimiento mes a mes."_ — Pista: `LAG` sobre el agregado mensual; filtra después.
+- _"¿Qué marco usa una ventana con `ORDER BY` si no lo indicas?"_ — Pista: `RANGE UNBOUNDED PRECEDING` a la fila actual, con efecto de empates.
+- _"¿Por qué `LAST_VALUE` te devuelve la fila actual?"_ — Pista: el marco por defecto termina en la fila actual.
+
+<KeyTakeaways
+  items={[
+    'LAG y LEAD comparan una fila con la anterior o la siguiente; la variación porcentual es actual / anterior − 1.',
+    'Calcula la ventana en un CTE y filtra el periodo fuera, o LAG perderá su fila de referencia.',
+    'Con ORDER BY, el marco por defecto es RANGE hasta la fila actual y trata como "actuales" las filas empatadas.',
+    'Para acumulados fila a fila y medias móviles usa ROWS con límites explícitos; ROWS cuenta filas, no días.',
+    'LAST_VALUE necesita ampliar el marco a UNBOUNDED FOLLOWING para devolver el último valor real.',
+  ]}
+/>

@@ -1,0 +1,9 @@
+compare:
+  orderMatters: false
+  floatTolerance: 0.11
+  columns: [mes, ingresos_m, crecimiento_pct]
+hiddenOnVariant: true
+assertions:
+  - name: 'Usa LAG'
+    kind: query-text-contains
+    value: 'lag'

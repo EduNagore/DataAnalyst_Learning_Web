@@ -1,0 +1,8 @@
+compare:
+  orderMatters: false
+  columns: [region, customer_id, gasto]
+hiddenOnVariant: true
+assertions:
+  - name: 'Usa una función de ventana (OVER)'
+    kind: query-text-contains
+    value: 'over'
