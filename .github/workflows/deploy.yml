@@ -30,10 +30,15 @@ jobs:
       - name: Instalar dependencias
         run: pnpm install --frozen-lockfile
 
-      - uses: withastro/action@v6
+      # Build directo en vez de withastro/action: esa action falló en los
+      # dos primeros intentos de despliegue (ver docs/DECISIONS.md) y este
+      # es exactamente el paso que ya funciona en ci.yml.
+      - name: Build
+        run: pnpm build
+
+      - uses: actions/upload-pages-artifact@v4
         with:
-          node-version: 24
-          package-manager: pnpm@latest
+          path: dist
 
   deploy:
     needs: build

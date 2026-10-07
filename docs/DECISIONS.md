@@ -41,7 +41,10 @@ Se revirtió a `pnpm/action-setup@v4` (sin `version` explícita: lee `packageMan
 
 El job "Python" de `ci.yml` (que usa `actions/checkout@v6` y `astral-sh/setup-uv@v8.1.0`) **sí completó con éxito** en ambos runs, confirmando esas dos actualizaciones.
 
-**Pendiente de confirmar con el próximo run**: `actions/setup-node@v6`, `pnpm/action-setup@v4` sin `version` (lee `packageManager`), `actions/upload-artifact@v5` y `withastro/action@v6` — el job "build" de `deploy.yml` nunca llegó a ejecutar el step de `withastro/action` porque falló antes, en `pnpm/setup`.
+**2026-10-07 — `withastro/action@v6` falla de forma consistente; sustituida por build directo.**
+Con `pnpm/action-setup` ya arreglado, `deploy.yml` llegó por fin al step de `withastro/action@v6` en dos commits distintos (uno antes y otro después de que el usuario habilitara GitHub Pages) y **falló los dos** (confirmado vía API, no la UI). Mientras tanto, el job "web" de `ci.yml` —que hace `pnpm build` directamente, sin esa action— pasa sin problema en ambos commits. Conclusión: el problema es de la action en sí (entrada/salida que ya no coincide con lo esperado, o incompatibilidad con Astro 7), no del resto del workflow.
+
+Se ha quitado `withastro/action` de `deploy.yml` y se ha sustituido por los mismos tres pasos que ya funcionan en `ci.yml`: `pnpm build` directo + `actions/upload-pages-artifact@v4` + `actions/deploy-pages@v4` (sin cambios). Es más código pero cero dependencia de una action de terceros cuyo contrato no se puede verificar sin gastar un run entero cada vez. **Pendiente de confirmar con el próximo push.**
 
 **2026-10-07 — `validate-content.mjs` no depende de `astro:content`.**
 El script de validación de integridad referencial (quiz → lección, ids únicos, anclas, etc.) parsea `src/content/**` directamente con el paquete `yaml` en vez de usar `astro:content` (que solo existe dentro del runtime/build de Astro). Esto permite ejecutarlo como un paso de CI independiente y rápido. La validación de _tipos_ de frontmatter (Zod) sigue haciéndola `astro check` / `astro build` por separado.
