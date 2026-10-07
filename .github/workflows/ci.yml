@@ -16,14 +16,15 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # pnpm/setup reemplaza a pnpm/action-setup + actions/setup-node para
-      # pnpm v11+ (este proyecto usa pnpm 12): instala el binario de pnpm y
-      # el runtime de Node en un solo paso.
-      - uses: pnpm/setup@v1
+      # Sin "version": pnpm/action-setup usa el campo "packageManager" de
+      # package.json (pnpm@12.9.1), así que la versión de pnpm solo se
+      # mantiene en un sitio.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
         with:
-          version: 12
-          runtime: node@24
-          cache: true
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
 
       - name: Instalar dependencias
         run: pnpm install --frozen-lockfile

@@ -29,13 +29,19 @@ Para los checks de labs SQL (`checks.yaml`, `orderMatters`), por defecto (`order
 Antes del primer push se verificó con búsqueda web la versión mayor vigente de cada action usada en los workflows, porque las conocidas de memoria estaban desactualizadas:
 
 - `actions/checkout` y `actions/setup-node`: v5 → **v6**.
-- `pnpm/action-setup` → **`pnpm/setup@v1`**: el proyecto usa pnpm 12 (v11+), y `pnpm/action-setup` ya no es la action recomendada para esas versiones (su propio README remite a `pnpm/setup`). `pnpm/setup` instala pnpm y Node en un solo paso (`runtime: node@24`), así que ya no hace falta `actions/setup-node` por separado en los jobs que usan pnpm.
-- `astral-sh/setup-uv`: v7 → **v8.1.0, pinned a versión exacta**. Desde la v8.0.0 ya no publican tags flotantes `@v8`/`@v8.0` (política de seguridad de releases inmutables), así que hay que fijar el patch exacto y actualizarlo a mano cuando se quiera la siguiente versión.
-- `actions/upload-artifact`: v4 → **v5**.
-- `withastro/action`: v4 → **v6**.
+- `astral-sh/setup-uv`: v7 → **v8.1.0, pinned a versión exacta**. Desde la v8.0.0 ya no publican tags flotantes `@v8`/`@v8.0` (política de seguridad de releases inmutables), así que hay que fijar el patch exacto y actualizarlo a mano cuando se quiera la siguiente versión. **Confirmado funcionando** en el run real (ver más abajo).
+- `actions/upload-artifact`: v4 → **v5** (sin confirmar aún con un run que falle, único caso en que se usa).
+- `withastro/action`: v4 → **v6** (sin confirmar aún con un run real, ver más abajo).
 - `lycheeverse/lychee-action`: se quitó la flag `--exclude-mail` (eliminada en 2.5.0).
 
-**Pendiente de verificar en la primera ejecución real**: no hay forma de probar estos workflows sin pushear a GitHub (no hay `gh` CLI disponible en el entorno de desarrollo de esta sesión para disparar un run de prueba). Si algún input de `pnpm/setup@v1` o `withastro/action@v6` ha cambiado de nombre respecto a lo verificado aquí, el primer run de `ci.yml`/`deploy.yml` lo mostrará como un fallo claro y aislado (un solo step), no como un fallo silencioso.
+**2026-10-07 — `pnpm/setup@v1` falló en el primer run real; revertido a `pnpm/action-setup@v4`.**
+La búsqueda web decía que `pnpm/action-setup` ya no era la action recomendada para pnpm v11+ (este proyecto usa pnpm 12) y que `pnpm/setup` era su sucesora. Se probó, se hizo push, y **el job "Web" de `ci.yml` y el job "build" de `deploy.yml` fallaron los dos en el step `Run pnpm/setup@v1`** (confirmado consultando directamente la API de GitHub — `GET /repos/.../actions/runs/{id}/jobs` — no la UI, que al leerla con un fetch no autenticado dio una lectura de "success" que resultó ser incorrecta/fantasma). No se pudieron obtener los logs exactos del step sin `gh`/token, pero la hipótesis más probable es que `pnpm/setup` no exista como action pública en ese path/tag tal y como lo describió la búsqueda.
+
+Se revirtió a `pnpm/action-setup@v4` (sin `version` explícita: lee `packageManager` de `package.json`, que ya fija `pnpm@12.9.1`) + `actions/setup-node@v6` por separado, que es la combinación probada durante años. **Lección**: una búsqueda web puede confirmar que una action _existe_, pero solo un run real confirma que _funciona tal y como se invoca_; para algo tan crítico como el único paso de instalación de dependencias, preferir la opción establecida y de bajo riesgo sobre la "recomendada" por una fuente que no se puede verificar con una ejecución.
+
+El job "Python" de `ci.yml` (que usa `actions/checkout@v6` y `astral-sh/setup-uv@v8.1.0`) **sí completó con éxito** en ambos runs, confirmando esas dos actualizaciones.
+
+**Pendiente de confirmar con el próximo run**: `actions/setup-node@v6`, `pnpm/action-setup@v4` sin `version` (lee `packageManager`), `actions/upload-artifact@v5` y `withastro/action@v6` — el job "build" de `deploy.yml` nunca llegó a ejecutar el step de `withastro/action` porque falló antes, en `pnpm/setup`.
 
 **2026-10-07 — `validate-content.mjs` no depende de `astro:content`.**
 El script de validación de integridad referencial (quiz → lección, ids únicos, anclas, etc.) parsea `src/content/**` directamente con el paquete `yaml` en vez de usar `astro:content` (que solo existe dentro del runtime/build de Astro). Esto permite ejecutarlo como un paso de CI independiente y rápido. La validación de _tipos_ de frontmatter (Zod) sigue haciéndola `astro check` / `astro build` por separado.
