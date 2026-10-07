@@ -142,6 +142,9 @@ const cases = defineCollection({
     estimatedMinutes: z.number().positive(),
     role: z.enum(['producto', 'marketing', 'finanzas', 'operaciones', 'bi']),
     brief: z.string(),
+    /** Tablas de lumen/ disponibles en los pasos SQL/Python del caso. */
+    datasets: z.array(z.string()).default([]),
+    packages: z.array(z.string()).optional(),
     steps: z.array(caseStepSchema).min(1),
     rubric: z.array(z.string()),
     modelReport: z.string(),

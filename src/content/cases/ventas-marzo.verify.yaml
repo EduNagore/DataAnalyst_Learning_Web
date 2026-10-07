@@ -1,0 +1,42 @@
+# Consultas que RECALCULAN las respuestas numéricas del caso a partir de los datos
+# (las ejecuta tests/labs/test_cases.py; no se publican en la web).
+s1-ingresos: |
+  WITH m AS (
+    SELECT strftime(o.order_date, '%Y-%m') AS mes, SUM(oi.quantity * oi.unit_price) AS ingresos
+    FROM orders o JOIN order_items oi USING (order_id)
+    WHERE o.status <> 'cancelado' AND o.order_date >= DATE '2026-02-01' AND o.order_date < DATE '2026-04-01'
+    GROUP BY 1
+  )
+  SELECT ROUND(100.0 * (MAX(ingresos) FILTER (WHERE mes = '2026-03') / MAX(ingresos) FILTER (WHERE mes = '2026-02') - 1), 2) FROM m
+s2-ticket: |
+  WITH m AS (
+    SELECT strftime(o.order_date, '%Y-%m') AS mes,
+           SUM(oi.quantity * oi.unit_price) / COUNT(DISTINCT o.order_id) AS ticket
+    FROM orders o JOIN order_items oi USING (order_id)
+    WHERE o.status <> 'cancelado' AND o.order_date >= DATE '2026-02-01' AND o.order_date < DATE '2026-04-01'
+    GROUP BY 1
+  )
+  SELECT ROUND(100.0 * (MAX(ticket) FILTER (WHERE mes = '2026-03') / MAX(ticket) FILTER (WHERE mes = '2026-02') - 1), 2) FROM m
+s4-electronica: |
+  WITH m AS (
+    SELECT strftime(o.order_date, '%Y-%m') AS mes, SUM(oi.quantity * oi.unit_price) AS ingresos
+    FROM orders o JOIN order_items oi USING (order_id) JOIN products p USING (product_id)
+    WHERE o.status <> 'cancelado' AND p.category_id LIKE 'cat-00-%'
+      AND o.order_date >= DATE '2026-02-01' AND o.order_date < DATE '2026-04-01'
+    GROUP BY 1
+  )
+  SELECT ROUND(100.0 * (MAX(ingresos) FILTER (WHERE mes = '2026-03') / MAX(ingresos) FILTER (WHERE mes = '2026-02') - 1), 2) FROM m
+s5-stock: |
+  SELECT ROUND(AVG(i.stock_qty), 2)
+  FROM inventory_snapshots i JOIN products p USING (product_id)
+  WHERE p.category_id LIKE 'cat-00-%' AND i.snapshot_date = DATE '2026-03-09'
+s7-perdido: |
+  WITH m AS (
+    SELECT strftime(o.order_date, '%Y-%m') AS mes, SUM(oi.quantity * oi.unit_price) AS ingresos
+    FROM orders o JOIN order_items oi USING (order_id) JOIN products p USING (product_id)
+    WHERE o.status <> 'cancelado' AND p.category_id LIKE 'cat-00-%'
+      AND o.order_date >= DATE '2026-02-01' AND o.order_date < DATE '2026-05-01'
+    GROUP BY 1
+  )
+  SELECT ROUND(((MAX(ingresos) FILTER (WHERE mes = '2026-02') + MAX(ingresos) FILTER (WHERE mes = '2026-04')) / 2
+                - MAX(ingresos) FILTER (WHERE mes = '2026-03')) / 1000000, 2) FROM m

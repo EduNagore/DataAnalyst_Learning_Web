@@ -111,3 +111,10 @@ El script (`data-gen/generate.py` + el paquete `data-gen/lumen/`):
 | shipments           | ~372.000                     |     | experiment_metrics     | 1.074     |
 | inventory_snapshots | ~1,46 M                      |     | subscriptions          | 25.000    |
 | calendar            | 1.277                        |     | support_tickets        | 15.000    |
+
+## 8. Limitaciones conocidas del dataset (a tener en cuenta al escribir contenido)
+
+- `web_sessions`/`events` y `orders` se generan **de forma independiente**: no cuadran entre sí (las sesiones y las compras de `events` no se corresponden con filas de `orders`). Úsalos para analizar el funnel y la conversión dentro de la web, no para reconciliar con ingresos.
+- El negocio crece muy deprisa (pedidos: 2023 ≈ 18 k, 2024 ≈ 77 k, 2025 ≈ 168 k, 2026-H1 ≈ 136 k) porque las altas de clientes siguen una rampa creciente y no se pide antes del alta. Evita comparar años de forma ingenua y avisa del crecimiento en cualquier ejemplo interanual.
+- La paradoja de Simpson (#2) se manifiesta comparando Madrid y Andalucía, no las 16 regiones a la vez.
+- El calendario de festivos regionales es una simplificación ilustrativa.

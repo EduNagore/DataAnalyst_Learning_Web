@@ -1,9 +1,55 @@
 ---
-import ComingSoon from '../../../components/layout/ComingSoon.astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import CaseStatus from '../../../components/case/CaseStatus.tsx';
+import { url } from '../../../lib/url';
+
+const cases = (await getCollection('cases')).sort(
+  (a, b) => a.data.difficulty - b.data.difficulty || a.data.title.localeCompare(b.data.title, 'es'),
+);
+const roleLabels: Record<string, string> = {
+  producto: 'Producto',
+  marketing: 'Marketing',
+  finanzas: 'Finanzas',
+  operaciones: 'Operaciones',
+  bi: 'BI',
+};
 ---
 
-<ComingSoon
+<BaseLayout
   title="Casos de análisis guiados"
-  description="Investigaciones completas estilo entrevista: un email de un stakeholder, pasos guiados con SQL/Python o razonamiento, y un informe final con rúbrica de autoevaluación."
-  phase="Fase 5 · Casos guiados"
-/>
+  description="Investigaciones completas como las de un trabajo real: un mensaje de un stakeholder, pasos guiados con SQL o razonamiento y un informe final."
+>
+  <section class="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Casos de análisis guiados</h1>
+    <p class="mt-2 mb-8 text-[var(--color-text-muted)]">
+      Cada caso empieza con el mensaje de un stakeholder de Lumen. Lo investigas paso a paso con los
+      datos, y al final redactas tu recomendación y la contrastas con el informe de un analista
+      senior.
+    </p>
+    {cases.length === 0 ? (
+      <p class="text-sm text-[var(--color-text-muted)]">Aún no hay casos publicados.</p>
+    ) : (
+      <ul class="space-y-3">
+        {cases.map((c) => (
+          <li>
+            <a
+              href={url(`/practica/casos/${c.id}/`)}
+              class="block rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-4 hover:border-[var(--color-accent)]"
+            >
+              <div class="flex flex-wrap items-baseline justify-between gap-2">
+                <span class="font-medium text-[var(--color-text)]">{c.data.title}</span>
+                <span class="text-xs text-[var(--color-text-muted)]">
+                  {roleLabels[c.data.role]} · {['', 'Fácil', 'Media', 'Difícil'][c.data.difficulty]}{' '}
+                  · {c.data.estimatedMinutes} min ·{' '}
+                  <CaseStatus client:load caseId={c.id} total={c.data.steps.length} />
+                </span>
+              </div>
+              <p class="mt-1 text-sm text-[var(--color-text-muted)]">{c.data.description}</p>
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </section>
+</BaseLayout>

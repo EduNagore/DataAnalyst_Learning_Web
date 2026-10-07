@@ -1,0 +1,58 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import CaseRunner from '../../../components/case/CaseRunner.tsx';
+import { url } from '../../../lib/url';
+import schemaManifest from '../../../../public/data/_schema.json';
+
+export async function getStaticPaths() {
+  const cases = await getCollection('cases');
+  return cases.map((c) => ({ params: { id: c.id }, props: { c } }));
+}
+
+const { c } = Astro.props;
+const d = c.data;
+const { Content } = await render(c);
+
+const tables = schemaManifest.tables as Record<string, { columns: Record<string, string> }>;
+const schema = Object.fromEntries(
+  d.datasets.filter((t) => tables[t]).map((t) => [t, Object.keys(tables[t].columns)]),
+);
+const roleLabels: Record<string, string> = {
+  producto: 'Producto',
+  marketing: 'Marketing',
+  finanzas: 'Finanzas',
+  operaciones: 'Operaciones',
+  bi: 'BI',
+};
+---
+
+<BaseLayout title={`Caso: ${d.title}`} description={d.description}>
+  <section class="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+    <a href={url('/practica/casos/')} class="text-xs text-[var(--color-accent)] hover:underline">
+      ← Todos los casos
+    </a>
+    <h1 class="mt-2 text-3xl font-bold text-[var(--color-text)]">{d.title}</h1>
+    <p class="mt-2 text-xs text-[var(--color-text-muted)]">
+      {roleLabels[d.role]} · {['', 'Fácil', 'Media', 'Difícil'][d.difficulty]} · ~
+      {d.estimatedMinutes} min · Tablas:
+      {d.datasets.join(', ')}
+    </p>
+    <article class="prose prose-neutral dark:prose-invert mt-4 max-w-none text-sm">
+      <Content />
+    </article>
+    <div class="mt-6">
+      <CaseRunner
+        client:load
+        caseId={c.id}
+        brief={d.brief}
+        steps={d.steps}
+        rubric={d.rubric}
+        modelReport={d.modelReport}
+        datasets={d.datasets}
+        packages={d.packages ?? []}
+        schema={schema}
+      />
+    </div>
+  </section>
+</BaseLayout>

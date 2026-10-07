@@ -66,9 +66,19 @@ Pendiente menor: job de CI que regenere el dataset y compare `data-gen/checksums
 
 ---
 
-## Siguiente: F5 — Casos guiados
+## F5 ✅
 
-PLAN §7.6/§6: colección `cases` (Zod ya definida: `title, description, difficulty, estimatedMinutes, role, brief, steps[], rubric[], modelReport`). Motor de casos: `CaseRunner.tsx` (brief del stakeholder → pasos secuenciales; cada paso `tool: sql|python|reasoning` abre un mini-editor SQL/Python o solo pregunta; `answerType: numeric|single|multiple|text-self-assessed` autocorregido; pistas; explicación; informe final con rúbrica de autoevaluación + `modelReport`). Rutas `/practica/casos/` y `/practica/casos/[id]/`; progreso en `progress.cases` (ya existe `saveCaseProgress`). Caso estrella #1 "Las ventas cayeron en marzo" (verdad plantada #10: rotura de stock de Electrónica del 2026-03-01 al 21, `inventory_snapshots` + mix de categoría; ojo: el dataset crece muy deprisa, comparar marzo 2026 con febrero/abril y con la categoría, no con 2025) completo con respuestas numéricas verificadas con DuckDB; después casos 2-3 si hay margen (A/B con lift real; SRM). Test pytest que **recalcule las respuestas numéricas de cada caso** con DuckDB. Tras F5: **PAUSA de revisión** del PLAN (resumen al usuario + URL desplegada); el usuario pidió seguir sin parar, así que continuar con F6 salvo bloqueo.
+- `src/components/case/CaseRunner.tsx`: brief del stakeholder → pasos desbloqueados en orden (`tool` sql/python/reasoning con mini-editor y resultado; `answerType` numeric/single/multiple/text-self-assessed autocorregido con `quiz.checkAnswer` y `parseNumberEs`; pistas; «Ver la respuesta» tras 2 fallos) → informe final con rúbrica de autoevaluación e informe modelo. Progreso en `progress.cases` (se conserva al recargar). Rutas `/practica/casos/` (con estado por caso) y `/practica/casos/[id]/`. La colección `cases` ahora admite `datasets` y `packages`.
+- **Caso estrella** `src/content/cases/ventas-marzo.mdx` (rol operaciones, 8 pasos): caída −11,47 % → ticket medio −10,74 % con pedidos planos → solo Electrónica cae (−54,71 %) → stock ≈ 1 ud. (0,99) el 9-mar frente a 211 → hipótesis (rotura de stock; demanda/precios/tracking descartadas) → pérdida estimada ≈ 1,61 M€ → recomendación. Sidecar `ventas-marzo.verify.yaml` con una consulta por paso numérico; `tests/labs/test_cases.py` **recalcula las respuestas con DuckDB** (si el dataset cambia, el caso falla en CI).
+- e2e (`tests/e2e/casos.spec.ts`): recorrido completo del caso, persistencia tras recargar y ejecución SQL real en un paso.
+- Limitación de datos a tener en cuenta en casos futuros: `web_sessions`/`events` y `orders` se generan de forma **independiente** (no cuadran entre sí; p. ej. las sesiones caen un 23 % en marzo por el fin de rebajas pero los pedidos no). No pedir al alumno que reconcilie conversión entre ambas fuentes.
+- Casos 2-12 del PLAN: se añaden con sus módulos (F7-F8).
+
+---
+
+## Siguiente: F6 — Contenido Partes 0-II (M00-M12)
+
+PLAN §7.1: M00 analista-2026, M01 pensamiento-negocio, M02 estadistica-descriptiva, M03 hojas-de-calculo, (M04 ✅), M05 sql-ii, M06 sql-iii, M07 python-analisis, M08 limpieza-calidad, M09 eda, M10 visualizacion, M11 dashboards-bi, M12 storytelling. Por módulo: 3-5 lecciones (estructura de `docs/CONTENT_GUIDELINES.md`), quizzes (6-10 preguntas/lección), labs (SQL II sobre todo: top-N con QUALIFY, LAG, media móvil, funnel, cohortes, date spine, PIVOT; Python: limpieza de `lumen_raw`, pandas vs Polars), libros Excel (`scripts/build-workbooks.py` con openpyxl), widgets (JoinVisualizer, WindowFrameVisualizer, ChartChooser, DistributionExplorer, SimpsonExplorer...). Contenido `volatility: high` (M03 IA en Excel, M07 pandas 3/Polars 2.0, M11 Power BI/Tableau): **verificar con búsqueda web antes de escribir** y usar `<Snapshot>`. Orden recomendado: M05 → M06 → M07 → M08 → M09 (SQL/Python primero, tienen labs verificables) → M00-M02 → M10-M12 → M03.
 
 ## Notas para retomar
 

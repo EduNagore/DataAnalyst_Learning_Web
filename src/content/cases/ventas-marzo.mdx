@@ -1,0 +1,171 @@
+---
+title: 'Las ventas cayeron en marzo de 2026: ¿qué ha pasado?'
+description: 'Un caso de investigación completo: cuantifica una caída de ingresos, descarta hipótesis con datos, encuentra la causa y redacta la recomendación.'
+difficulty: 2
+estimatedMinutes: 45
+role: operaciones
+datasets: ['orders', 'order_items', 'products', 'categories', 'inventory_snapshots']
+brief: |
+  De: Marta Ruiz (Operaciones)
+  Asunto: Marzo 2026: ¿qué ha pasado con las ventas?
+
+  Hola, mañana en la reunión de dirección me van a preguntar por qué los ingresos de marzo han caído respecto a febrero.
+
+  Necesito saber si es un problema de demanda, de operaciones o de datos, cuánto nos ha costado y qué hacemos. ¿Puedes mirarlo hoy?
+
+  Gracias, Marta
+steps:
+  - id: s1-ingresos
+    tool: sql
+    answerType: numeric
+    answer: -11.47
+    tolerance: 0.1
+    prompt: |
+      Empieza por confirmar el tamaño del problema. Define **ingresos** como la suma de `quantity * unit_price` de las líneas de pedidos con `status <> 'cancelado'`, asignados al mes de `order_date`.
+
+      ¿En qué **porcentaje** varían los ingresos de marzo de 2026 frente a febrero de 2026? (Un número negativo si caen; redondea a dos decimales.)
+    hints:
+      - 'Necesitas unir `orders` con `order_items` (cada pedido tiene varias líneas) y sumar `quantity * unit_price`.'
+      - 'Filtra `order_date` con límites semiabiertos: febrero es `>= 2026-02-01 AND < 2026-03-01`.'
+      - 'Variación porcentual = (marzo / febrero − 1) × 100.'
+    explanation: |
+      Los ingresos pasan de unos 5,45 M€ en febrero a unos 4,82 M€ en marzo: una caída del 11,47 %.
+
+      Antes de buscar causas conviene fijar la definición de ingresos (aquí, sin pedidos cancelados) y comprobar que la cifra de Marta coincide con la tuya: así todo lo que sigue habla del mismo número.
+
+  - id: s2-ticket
+    tool: sql
+    answerType: numeric
+    answer: -10.74
+    tolerance: 0.1
+    prompt: |
+      Los ingresos son pedidos × valor de cada pedido. ¿La caída viene de menos pedidos o de pedidos más pequeños?
+
+      Calcula la variación porcentual del **ticket medio** (ingresos entre número de pedidos distintos, sin cancelados) de marzo frente a febrero de 2026. Mira también cuántos pedidos hubo en cada mes.
+    hints:
+      - 'El denominador es `COUNT(DISTINCT o.order_id)`, no `COUNT(*)` (que cuenta líneas).'
+      - 'Febrero tiene unos 20.000 pedidos; compara con marzo antes de calcular el ticket.'
+    explanation: |
+      El número de pedidos apenas cambia (de 20.034 a 19.869: −0,8 %), mientras que el ticket medio cae un 10,74 % (de unos 272 € a unos 243 €). Es decir: **no vendemos menos veces, vendemos cosas de menos valor**.
+
+      Eso descarta de entrada las explicaciones de "menos demanda" o "menos clientes" y apunta a **qué** se compra. Toca mirar por categorías.
+
+  - id: s3-categoria
+    tool: sql
+    answerType: single
+    answer: [0]
+    options:
+      - 'Electrónica'
+      - 'Hogar'
+      - 'Deporte'
+      - 'Moda'
+    prompt: |
+      Desglosa los ingresos de febrero y marzo de 2026 por **categoría de nivel superior** (usa `products`, `categories` y el `parent_category_id` de la subcategoría).
+
+      ¿Qué categoría **pierde** ingresos de febrero a marzo?
+    hints:
+      - 'Cada producto pertenece a una subcategoría; su categoría superior es `categories.parent_category_id` de esa subcategoría. Necesitas unir `categories` dos veces.'
+      - 'Compara febrero y marzo con `SUM(CASE WHEN ... THEN ... END)` o con dos consultas.'
+    explanation: |
+      Solo **Electrónica** cae (de unos 2,57 M€ a unos 1,17 M€). Las demás categorías suben en marzo.
+
+      Un total que baja un 11 % puede esconder una única categoría que se desploma: por eso se desglosa antes de formular hipótesis.
+
+  - id: s4-electronica
+    tool: sql
+    answerType: numeric
+    answer: -54.71
+    tolerance: 0.2
+    prompt: |
+      Cuantifica la caída de Electrónica: ¿en qué **porcentaje** varían sus ingresos de marzo de 2026 frente a febrero de 2026?
+    hints:
+      - 'Filtra las líneas cuya subcategoría cuelga de `cat-00` (Electrónica) y repite el cálculo de ingresos por mes.'
+    explanation: |
+      Electrónica cae un 54,71 %: más de la mitad de su facturación mensual. Esa categoría representa por sí sola casi toda la caída del total, porque el resto de categorías compensa solo en parte.
+
+      Una caída tan brusca en una sola categoría suele tener una causa operativa concreta (stock, precio, surtido), no un cambio de gustos.
+
+  - id: s5-stock
+    tool: sql
+    answerType: numeric
+    answer: 0.99
+    tolerance: 0.1
+    prompt: |
+      Si no se vende, a lo mejor no había qué vender. `inventory_snapshots` guarda una foto semanal (los lunes) del stock por producto y centro de distribución.
+
+      ¿Cuál es el **stock medio** (`AVG(stock_qty)`) de los productos de Electrónica en la foto del **9 de marzo de 2026**? (Redondea a dos decimales.) Compáralo con la foto del 9 de febrero.
+    hints:
+      - "Une `inventory_snapshots` con `products` y filtra `category_id LIKE 'cat-00-%'` (las subcategorías de Electrónica)."
+      - "Filtra `snapshot_date = DATE '2026-03-09'`. Para comparar, repite con `2026-02-09`."
+    explanation: |
+      El stock medio de Electrónica el 9 de marzo es de **0,99 unidades** por producto y centro, frente a unas **211** el 9 de febrero. Es una rotura de stock casi total, y se repite en las fotos del 2 y del 16 de marzo; el 23 de marzo ya se ha recuperado (~209).
+
+      Tenemos una explicación con respaldo en dos fuentes independientes (ventas e inventario) que además coincide en el tiempo.
+
+  - id: s6-hipotesis
+    tool: reasoning
+    answerType: single
+    answer: [0]
+    options:
+      - 'Rotura de stock de Electrónica durante unas tres semanas de marzo.'
+      - 'Una caída de la demanda general: menos clientes compran en marzo.'
+      - 'Un cambio de precios que ha desanimado la compra de Electrónica.'
+      - 'Un fallo de tracking que no registra todas las compras de Electrónica.'
+    prompt: |
+      Con lo que has visto, ¿cuál es la explicación **más sólida** de la caída de ingresos de marzo?
+    hints:
+      - 'Piensa qué hipótesis ha descartado ya un dato que calculaste (pedidos, categorías) y cuál explica a la vez ventas e inventario.'
+    explanation: |
+      La rotura de stock es la única hipótesis que explica **a la vez** la caída solo en Electrónica, el número de pedidos casi constante y las fotos de inventario con ~1 unidad durante tres semanas.
+
+      - **Demanda general**: descartada, el número de pedidos casi no cambia (−0,8 %) y el resto de categorías sube.
+      - **Cambio de precios**: el precio unitario de Electrónica no cambia en marzo de 2026; además un cambio de precio no explica un stock a cero.
+      - **Fallo de tracking**: los ingresos salen de `orders` / `order_items` (la fuente de verdad), no de eventos de la web, así que un fallo de eventos no los afecta.
+
+  - id: s7-perdido
+    tool: sql
+    answerType: numeric
+    answer: 1.61
+    tolerance: 0.05
+    prompt: |
+      Marta preguntará cuánto nos ha costado. Estima los **ingresos de Electrónica que se perdieron en marzo** suponiendo que, sin la rotura, esa categoría habría facturado la **media de febrero y abril** de 2026.
+
+      Da la diferencia (media febrero-abril menos marzo real) en **millones de euros**, con dos decimales.
+    hints:
+      - 'Necesitas los ingresos de Electrónica de febrero, marzo y abril (mismas reglas que antes).'
+      - 'Pérdida estimada = (feb + abr) / 2 − mar; divídela entre 1.000.000.'
+    explanation: |
+      Pérdida estimada: **unos 1,61 M€** (media de febrero y abril ≈ 2,78 M€ frente a 1,17 M€ reales en marzo).
+
+      Es una estimación, no un dato: asume que marzo habría sido el promedio de sus dos meses vecinos. Febrero tuvo rebajas (suelen empujar la demanda) y abril ya refleja demanda acumulada, así que el rango razonable es algo más ancho que una sola cifra. Dilo así en tu informe.
+
+  - id: s8-recomendacion
+    tool: reasoning
+    answerType: text-self-assessed
+    prompt: |
+      Escribe en 3 o 4 líneas lo que le dirías a Marta: **qué ha pasado, cuánto nos ha costado y qué haría falta hacer**. (Después, en el informe final, podrás desarrollarlo y compararlo con el modelo.)
+    hints:
+      - 'Primero la conclusión, luego la evidencia, luego los límites de lo que sabes y por último la acción.'
+    explanation: |
+      Un buen mensaje empieza por la conclusión ("la caída del 11 % se explica por una rotura de stock de Electrónica de unas tres semanas") y da la cifra con su incertidumbre ("unos 1,6 M€ perdidos, estimación"). Propón una acción concreta con responsable (revisar reposición de Electrónica y crear una alerta de stock bajo) en vez de acabar con "habría que investigar más".
+rubric:
+  - 'Empiezo por la conclusión (qué pasó y cuánto costó), no por el método.'
+  - 'Cuantifico el impacto con cifras concretas y digo con qué base de comparación las calculé.'
+  - 'Descarto explícitamente las hipótesis alternativas (demanda, precios, tracking) con datos.'
+  - 'Señalo los límites: la pérdida es una estimación que asume que marzo habría sido la media de febrero y abril.'
+  - 'Propongo una acción concreta con un responsable (reposición y alertas de stock).'
+modelReport: |
+  **Conclusión.** Los ingresos de marzo de 2026 cayeron un 11,5 % respecto a febrero (de 5,45 M€ a 4,82 M€) por una rotura de stock de Electrónica de unas tres semanas. La pérdida estimada ronda los 1,6 M€.
+
+  **Evidencia.** El número de pedidos apenas varió (−0,8 %): lo que cayó fue el ticket medio (−10,7 %). El desglose por categorías muestra que solo Electrónica baja (−54,7 %, de 2,57 M€ a 1,17 M€) mientras el resto sube. Las fotos de inventario de los lunes 2, 9 y 16 de marzo muestran un stock medio de Electrónica de ~1 unidad por producto y centro (frente a ~211 en febrero); el 23 de marzo se recupera.
+
+  **Hipótesis descartadas.** Una caída de la demanda no encaja con unos pedidos estables y el resto de categorías creciendo; un cambio de precios no explica un stock a cero; y un fallo de tracking no afecta a los ingresos, que salen de los pedidos y no de eventos de la web.
+
+  **Límites.** La pérdida de 1,6 M€ es una estimación que asume que sin la rotura se habría facturado la media de febrero y abril. Febrero incluye rebajas, así que el rango real es algo más amplio. Tampoco sabemos qué parte de la venta perdida se recuperó después ni cuántos clientes compraron una alternativa.
+
+  **Recomendación.** Operaciones debería revisar por qué se agotó el stock de Electrónica en los cuatro centros a la vez (una incidencia con un proveedor o con la reposición) y Datos puede montar una alerta semanal de stock bajo por categoría, para detectar un problema así en días y no al cierre del mes.
+---
+
+Este caso usa las tablas `orders`, `order_items`, `products`, `categories` e `inventory_snapshots` del
+dataset Lumen. Trabaja en cada paso con el editor SQL (**Ctrl/⌘ + Enter** ejecuta) y responde antes de
+avanzar: el caso se desbloquea paso a paso y tu progreso se guarda en tu navegador.
