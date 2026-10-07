@@ -1,0 +1,74 @@
+lesson: sql-iii/02-modelado-dimensional
+questions:
+  - id: sql3-02-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué es el grano (grain) de una tabla de hechos?'
+    options:
+      - 'El número total de filas de la tabla'
+      - 'Lo que representa exactamente una fila (por ejemplo, una línea de pedido)'
+      - 'La clave primaria de la dimensión fecha'
+      - 'El tamaño en disco de la tabla'
+    answer: [1]
+    explanation: 'El grano declara qué es una fila. Se decide antes que las columnas y evita mezclar medidas de niveles distintos, que es la causa del fan-out al unir tablas.'
+    ref: '#primero-el-grano'
+
+  - id: sql3-02-q2
+    type: single
+    difficulty: 2
+    prompt: 'inventory_snapshots guarda el stock de cada producto y centro cada semana. ¿Qué tipo de tabla de hechos es y qué NO debes hacer con stock_qty?'
+    options:
+      - 'Transaccional; se puede sumar en el tiempo sin problema'
+      - 'Foto periódica; no se debe sumar a lo largo del tiempo, porque es un nivel'
+      - 'Acumulativa; se debe sumar por mes'
+      - 'Una dimensión; no tiene medidas'
+    answer: [1]
+    explanation: 'Es una foto periódica: cada fila es el estado en un instante. Sumar el stock de varias semanas no tiene sentido (es un nivel, no un flujo); se toma el último valor, el promedio o el mínimo según la pregunta.'
+    ref: '#tres-tipos-de-tabla-de-hechos'
+
+  - id: sql3-02-q3
+    type: sql-output
+    difficulty: 3
+    prompt: 'El cliente c1 tiene 2 filas en el historial SCD2 (nuevo y habitual) y realiza 2 pedidos. Si unes pedidos con el historial SOLO por cliente (sin condición de fechas), ¿cuántas filas devuelve el join para c1?'
+    code: 'FROM pedidos AS p\nJOIN historial AS h ON h.cliente = p.cliente   -- c1: 2 pedidos x 2 versiones'
+    options: ['2', '3', '4', '1']
+    answer: [2]
+    explanation: 'Cada pedido casa con cada versión: 2 × 2 = 4 filas. Es un fan-out por SCD. Con la condición de intervalo (fecha >= valido_desde AND fecha < valido_hasta), cada pedido casa con una sola versión y salen 2 filas.'
+    ref: '#dimensiones-que-cambian-scd'
+
+  - id: sql3-02-q4
+    type: single
+    difficulty: 2
+    prompt: 'Quieres conservar todo el historial de los cambios de segmento de un cliente. ¿Qué tipo de SCD eliges?'
+    options:
+      [
+        'Tipo 1: sobrescribir',
+        'Tipo 2: añadir una fila por cada cambio con su intervalo de validez',
+        'Tipo 3: una sola columna con el valor anterior',
+        'Ninguno: se guarda solo el valor actual',
+      ]
+    answer: [1]
+    explanation: 'El tipo 2 añade una fila nueva por cada cambio con valido_desde y valido_hasta, conservando todas las versiones. El tipo 1 pierde el historial y el tipo 3 solo recuerda un cambio.'
+    ref: '#dimensiones-que-cambian-scd'
+
+  - id: sql3-02-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las afirmaciones correctas sobre esquemas dimensionales.'
+    options:
+      - 'Una estrella tiene las dimensiones desnormalizadas, con pocas uniones'
+      - 'Un copo de nieve normaliza las dimensiones en varias tablas'
+      - 'Una One Big Table aplana el hecho y sus dimensiones en una sola tabla ancha'
+      - 'Una dimensión conforme tiene un significado distinto en cada tabla de hechos'
+    answer: [0, 1, 2]
+    explanation: 'Estrella, copo de nieve y OBT son tres formas de organizar hecho y dimensiones. Una dimensión conforme, al contrario de la última afirmación, se comparte con el mismo significado entre varias tablas de hechos para poder compararlas.'
+    ref: '#estrella-copo-de-nieve-y-tabla-ancha'
+
+  - id: sql3-02-q6
+    type: numeric
+    difficulty: 3
+    prompt: 'Con el historial SCD2 de la lección, ¿cuántos ingresos (en €) se atribuyen al segmento «nuevo» usando la unión por punto en el tiempo? (p1: c1, 100 € en febrero; p3: c2, 50 € en junio; p2: c1, 200 € en mayo.)'
+    answer: [150]
+    tolerance: 0
+    explanation: 'p1 (febrero) cae en la versión «nuevo» de c1 (hasta el 1 de abril, exclusivo) y p3 es de c2, que sigue «nuevo»: 100 + 50 = 150 €. p2 (mayo) cae en «habitual» (200 €). Sin la condición de intervalo saldría 350 € para «nuevo».'
+    ref: '#dimensiones-que-cambian-scd'

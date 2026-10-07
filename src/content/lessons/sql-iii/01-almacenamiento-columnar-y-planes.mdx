@@ -1,0 +1,193 @@
+---
+title: 'Almacenamiento columnar, planes de ejecución y coste'
+description: 'Por qué pedir solo las columnas necesarias y filtrar pronto ahorra tiempo y dinero, cómo leer un EXPLAIN y qué hace caro a un warehouse.'
+module: sql-iii
+order: 1
+level: avanzado
+estimatedMinutes: 40
+objectives:
+  - 'Explicar qué es el almacenamiento columnar y por qué cambia cómo se escriben las consultas.'
+  - 'Leer un plan EXPLAIN e identificar el escaneo, los filtros empujados y la proyección de columnas.'
+  - 'Aplicar las reglas de ahorro: columnas mínimas, filtros sobre la columna de partición, sin funciones sobre columnas filtradas.'
+  - 'Razonar el coste de una consulta en un almacén cloud (bytes escaneados o cómputo).'
+prerequisites: ['sql-i/01-modelo-relacional-y-primeras-consultas']
+tools: ['duckdb']
+volatility: medium
+lastReviewed: 2026-10-07
+sources:
+  - title: 'Apache Parquet — File format'
+    url: 'https://parquet.apache.org/docs/file-format/'
+    type: spec
+    authors: 'Apache Software Foundation'
+    year: 2026
+  - title: 'DuckDB — Parquet overview (projection and filter pushdown)'
+    url: 'https://duckdb.org/docs/stable/data/parquet/overview'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — EXPLAIN and EXPLAIN ANALYZE'
+    url: 'https://duckdb.org/docs/stable/guides/meta/explain_analyze'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'BigQuery — Estimate and control costs'
+    url: 'https://cloud.google.com/bigquery/docs/best-practices-costs'
+    type: docs
+    authors: 'Google Cloud'
+    year: 2026
+relatedLabs: []
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  El equipo de datos recibe un aviso de finanzas: la factura mensual del almacén de datos se ha
+  triplicado. Mirando el historial, la causa es un dashboard que lanza cada hora una consulta con
+  `SELECT *` sobre la tabla de eventos "para sacar un recuento".
+</BusinessContext>
+
+Un analista que no entiende cómo se almacenan y leen los datos puede escribir consultas
+correctas que cuestan cien veces más de lo necesario. Esta lección da el modelo mental mínimo para
+no hacerlo.
+
+## Intuición
+
+Una base de datos "de filas" (como las que respaldan una aplicación) guarda cada fila entera
+junta: ideal para "dame el pedido 123 completo". Una base **columnar** guarda cada **columna** junta:
+ideal para "suma esta columna de 400 millones de filas". Las consultas analíticas casi nunca necesitan
+todas las columnas, pero sí muchas filas: por eso los almacenes de datos modernos (BigQuery, Snowflake,
+Redshift, DuckDB, formatos como Parquet) son columnares.
+
+La consecuencia práctica es directa: **el coste de una consulta depende de qué columnas lee y cuántos
+bloques de datos tiene que tocar, no de cuántas columnas escribiste en el `SELECT` por comodidad.**
+
+## Cómo funciona
+
+### Un ejemplo con datos reales
+
+El archivo `events.parquet` de Lumen pesa 17,2 MB comprimido. Cuánto ocupa cada columna:
+
+| columna       | MB comprimidos | % del archivo |
+| ------------- | -------------- | ------------- |
+| `occurred_at` | 13,56          | 79 %          |
+| `session_id`  | 1,43           | 8 %           |
+| `event_id`    | 1,11           | 6 %           |
+| `app_version` | 0,54           | 3 %           |
+| `properties`  | 0,27           | 2 %           |
+| `event_type`  | 0,27           | 2 %           |
+
+Una consulta que solo cuenta sesiones por tipo de evento necesita `session_id` y `event_type`:
+**1,7 MB de 17,2 (un 10 %)**. Un `SELECT *` leería los 17,2 MB. Esa es la ventaja columnar: no pagas
+por lo que no lees. (La columna de marca de tiempo pesa tanto porque casi cada valor es distinto:
+los valores repetidos, como `event_type`, se comprimen muchísimo mejor.)
+
+Un archivo Parquet se organiza además en **grupos de filas** con estadísticas por columna (mínimo y
+máximo). Si una consulta filtra por una fecha, el motor puede **saltarse enteros los grupos** cuyo
+rango de fechas no encaja: eso se llama _predicate pushdown_ (empujar el filtro hasta la lectura).
+
+### Leer un plan con EXPLAIN
+
+`EXPLAIN` muestra cómo va a ejecutar el motor tu consulta, sin ejecutarla; `EXPLAIN ANALYZE` la
+ejecuta y añade tiempos y filas reales.
+
+```sql
+EXPLAIN
+SELECT event_type, COUNT(DISTINCT session_id)
+FROM events
+WHERE occurred_at >= TIMESTAMP '2025-01-01'
+GROUP BY event_type;
+```
+
+El plan, de abajo arriba, en DuckDB:
+
+1. **`PARQUET_SCAN`**: lee el archivo. Fíjate en `Projections: session_id, event_type` (solo esas dos
+   columnas) y en `Filters: occurred_at >= '2025-01-01'` (el filtro se aplica **dentro** del escaneo,
+   no después). Estima unas 340.000 filas.
+2. **`PROJECTION`**: se queda con las dos columnas.
+3. **`HASH_GROUP_BY`**: agrupa por `event_type` y cuenta sesiones distintas.
+
+Lo que hay que mirar en un plan: (1) ¿se ven solo las columnas necesarias en `Projections`? (2) ¿los
+filtros aparecen en el escaneo? (3) ¿hay algún `CROSS_PRODUCT` o una estimación de filas
+desproporcionada tras un join (señal de fan-out)? (4) ¿qué operador consume más tiempo en
+`EXPLAIN ANALYZE`?
+
+### Particiones y clustering
+
+En un almacén cloud, las tablas grandes se dividen en **particiones** (típicamente por fecha) y/o se
+**ordenan** (clustering) por columnas de filtro habituales. Una consulta que filtra por la columna de
+partición lee solo las particiones relevantes (_partition pruning_). En BigQuery se factura (en el modo
+bajo demanda) por los **bytes escaneados**; en Snowflake, por el **tiempo de cómputo** del almacén
+virtual. El principio es el mismo: leer menos.
+
+<Snapshot date="2026-10">
+  Los modelos de precio de los almacenes cloud (bytes escaneados frente a créditos de cómputo,
+  capacidad reservada, descuentos por compromiso) cambian con frecuencia. No memorices cifras:
+  consulta la página de precios del proveedor y la vista de metadatos de tu almacén para ver cuánto
+  escanea cada consulta (en BigQuery, el estimador de bytes antes de ejecutar).
+</Snapshot>
+
+## En la práctica: reglas de ahorro
+
+1. **Pide solo las columnas que necesitas.** Nada de `SELECT *` en consultas programadas ni en vistas.
+2. **Filtra pronto y por la columna de partición.** `WHERE order_date >= ... AND order_date < ...`
+   sobre una tabla particionada por fecha.
+3. **No envuelvas la columna filtrada en una función.** `WHERE YEAR(order_date) = 2025` obliga a
+   calcular la función para cada fila e impide usar las estadísticas; `WHERE order_date >= DATE
+'2025-01-01' AND order_date < DATE '2026-01-01'` sí permite saltar bloques. Es el mismo patrón de
+   límites semiabiertos de SQL I, ahora con una razón de rendimiento.
+4. **Agrega antes de unir** tablas grandes (y comprueba el fan-out).
+5. **Usa tablas intermedias** para resultados que se reutilizan, en lugar de recalcular lo mismo en
+   cada dashboard.
+6. **`LIMIT` no siempre reduce el coste.** En algunos motores (por ejemplo, BigQuery) una consulta con
+   `LIMIT 10` sobre `SELECT *` escanea y factura igualmente toda la tabla.
+
+<Callout type="warning">
+  El coste no está solo en el dinero: una consulta lenta se ejecuta menos veces y se revisa menos.
+  Un analista que sabe leer `EXPLAIN` encuentra en minutos por qué un informe tarda horas.
+</Callout>
+
+## Trade-offs y cuándo usarlo
+
+- **Columnar frente a filas**: columnar para analítica (muchas filas, pocas columnas); filas para
+  transacciones (leer y escribir registros enteros). Por eso los datos se copian del sistema
+  transaccional al almacén.
+- **Más particiones no es mejor**: demasiadas particiones pequeñas aumentan la sobrecarga. Se
+  particiona por una columna de filtro frecuente y cardinalidad moderada (la fecha, a nivel de día o mes).
+- **Vistas frente a tablas materializadas**: una vista se recalcula en cada uso; una tabla
+  materializada se calcula una vez y se lee barata, a costa de mantenerla actualizada.
+
+## Errores comunes
+
+- **`SELECT *`** en todo, incluidas las vistas que otros reutilizan.
+- **Filtros con funciones sobre la columna** (`WHERE DATE(ts) = ...`, `WHERE LOWER(col) = ...`).
+- **Ignorar el plan**: "funciona" no significa "es razonable".
+- **Creer que `LIMIT` ahorra**: puede no hacerlo.
+- **Duplicar datos sin control** (copias de tablas enormes "para probar").
+
+## Con IA
+
+Un asistente de IA suele escribir `SELECT *` y funciones sobre columnas filtradas por defecto. Pídele
+explícitamente "solo las columnas necesarias" y "filtros sobre la columna de partición sin
+funciones", y pídele que explique el coste esperado. Si tu almacén te da el coste estimado de la
+consulta antes de ejecutarla, úsalo siempre con SQL generado.
+
+## En una entrevista
+
+- _"¿Por qué una consulta con `SELECT *` es cara en un almacén columnar?"_ — Pista: lee todas las columnas; el coste depende de columnas leídas.
+- _"Tienes que acelerar una consulta lenta. ¿Qué miras primero?"_ — Pista: `EXPLAIN`, columnas leídas, filtros empujados, fan-out, particiones.
+- _"¿Por qué `WHERE YEAR(fecha) = 2025` es peor que un rango?"_ — Pista: no sargable; impide usar estadísticas y particiones.
+
+<KeyTakeaways
+  items={[
+    'En un almacén columnar pagas por las columnas que lees, no por las que escribes: en events.parquet, contar sesiones por tipo lee el 10 % del archivo.',
+    'Predicate pushdown: el filtro se aplica en el escaneo y permite saltar bloques enteros gracias a las estadísticas por columna.',
+    'EXPLAIN muestra proyecciones, filtros empujados y operadores; EXPLAIN ANALYZE añade tiempos y filas reales.',
+    'No envuelvas la columna filtrada en una función; usa rangos semiabiertos sobre la columna de partición.',
+    'LIMIT no siempre reduce el coste, y los modelos de precio de cada proveedor cambian: compruébalos en su documentación.',
+  ]}
+/>

@@ -1,0 +1,75 @@
+lesson: sql-iii/03-estilo-sql-y-arquitectura-medallon
+questions:
+  - id: sql3-03-q1
+    type: multiple
+    difficulty: 1
+    prompt: 'Selecciona TODAS las convenciones que mejoran la legibilidad de una consulta SQL.'
+    options:
+      - 'Un CTE por paso, con un nombre que diga qué contiene'
+      - 'Joins explícitos con INNER JOIN ... ON en lugar de comas en el FROM'
+      - 'Alias de una letra (t1, t2, t3) para escribir menos'
+      - 'Comentarios que explican el porqué de una decisión'
+    answer: [0, 1, 3]
+    explanation: 'Los CTEs con nombre, los joins explícitos y los comentarios sobre el porqué hacen la consulta revisable. Los alias sin significado (t1, t2, t3) obligan a reconstruir de qué tabla viene cada columna.'
+    ref: '#convenciones-que-merecen-la-pena'
+
+  - id: sql3-03-q2
+    type: single
+    difficulty: 2
+    prompt: 'Refactorizas una consulta larga con CTEs. ¿Qué debes comprobar antes de darla por buena?'
+    options:
+      - 'Que el formateador no ha dado errores'
+      - 'Que el resultado es el mismo: mismo número de filas y mismas sumas'
+      - 'Que la nueva consulta tiene más líneas'
+      - 'Nada: reformatear no cambia la lógica'
+    answer: [1]
+    explanation: 'Un formateador solo cambia la forma, pero una reescritura puede cambiar la lógica sin querer (un LEFT por INNER, un filtro movido). La prueba es comparar recuentos y sumas de ambas versiones.'
+    ref: '#antes-y-después'
+
+  - id: sql3-03-q3
+    type: single
+    difficulty: 2
+    prompt: 'En la arquitectura medallón, ¿qué es la capa bronce?'
+    options:
+      - 'Los datos listos para dashboards y directivos'
+      - 'Los datos tal como llegan, sin modificar, que se conservan para poder reprocesar'
+      - 'Los datos limpios y deduplicados'
+      - 'Solo las métricas de negocio'
+    answer: [1]
+    explanation: 'Bronce son los datos crudos. No se modifican: si se descubre un error de limpieza, se reprocesa desde el original. Plata es la capa limpia y coherente, y oro la de consumo de negocio.'
+    ref: '#arquitectura-medallón-bronce-plata-oro'
+
+  - id: sql3-03-q4
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál de estas consultas comprueba la integridad referencial entre pedidos y clientes?'
+    options:
+      - 'SELECT COUNT(*) FROM orders WHERE customer_id IS NULL'
+      - 'SELECT COUNT(*) FROM orders o LEFT JOIN customers c ON c.customer_id = o.customer_id WHERE c.customer_id IS NULL'
+      - 'SELECT order_id, COUNT(*) FROM orders GROUP BY order_id HAVING COUNT(*) > 1'
+      - 'SELECT DISTINCT status FROM orders'
+    answer: [1]
+    explanation: 'Un anti-join (LEFT JOIN ... IS NULL) cuenta los pedidos cuyo cliente no existe en customers. La primera comprueba nulos, la tercera unicidad de la clave y la cuarta los valores aceptados.'
+    ref: '#probar-los-datos-las-cuatro-comprobaciones-básicas'
+
+  - id: sql3-03-q5
+    type: truefalse
+    difficulty: 1
+    prompt: 'Si descubres un error de limpieza, lo correcto es corregir los datos directamente en la capa bronce.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. El bronce se conserva intacto para poder reprocesar; las correcciones se hacen en las capas posteriores (plata y oro) mediante transformaciones reproducibles.'
+    ref: '#arquitectura-medallón-bronce-plata-oro'
+
+  - id: sql3-03-q6
+    type: single
+    difficulty: 3
+    prompt: '¿Por qué agregar las líneas por pedido en un CTE antes de unir con otras tablas es una buena práctica?'
+    options:
+      - 'Porque es más corto'
+      - 'Porque lleva las líneas al grano del pedido y previene el fan-out'
+      - 'Porque evita tener que usar GROUP BY'
+      - 'Porque hace que el motor sea columnar'
+    answer: [1]
+    explanation: 'Agregar antes de unir deja una fila por pedido, de modo que el join posterior no multiplica filas. Es el estilo que previene el fan-out, además de hacer cada paso comprobable por separado.'
+    ref: '#antes-y-después'

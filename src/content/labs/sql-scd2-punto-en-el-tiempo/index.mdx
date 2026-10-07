@@ -1,0 +1,28 @@
+---
+title: 'Ingresos por segmento «de entonces»: unión SCD2 por punto en el tiempo'
+description: 'El segmento de un cliente cambia con el tiempo: une cada pedido con la versión del cliente vigente cuando compró.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: sql-iii
+difficulty: 3
+estimatedMinutes: 20
+concepts: ['SCD tipo 2', 'unión por intervalo', 'fan-out', 'grano']
+datasets: []
+hints:
+  - 'Cada cliente tiene varias filas en `historial`, una por versión. Unir solo por `cliente` multiplica los pedidos.'
+  - 'La versión correcta es la que cumple `p.fecha >= h.valido_desde AND p.fecha < h.valido_hasta` (hasta es exclusivo).'
+  - 'Después agrupa por `h.segmento` y calcula `SUM(p.importe)` y `COUNT(*)`.'
+output: table
+relatedLessons: ['sql-iii/02-modelado-dimensional']
+businessQuestion: '¿Cuántos ingresos generó cada segmento de cliente tal y como era el cliente en el momento de comprar?'
+---
+
+Finanzas quiere los ingresos por **segmento de cliente en el momento de la compra**. Las tablas
+`historial` (una fila por cada versión del segmento de un cliente, con el intervalo en que fue válida) y
+`pedidos` están ya definidas como CTEs con datos de ejemplo en el _starter_.
+
+El _starter_ une solo por cliente y obtiene cifras infladas. Corrígelo con una **unión por punto en el
+tiempo**: `valido_desde` es inclusivo y `valido_hasta` es **exclusivo** (la versión vigente tiene
+`9999-12-31`).
+
+**Formato del resultado:** una fila por segmento con `segmento`, `ingresos` y `pedidos`.

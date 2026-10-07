@@ -1,0 +1,209 @@
+---
+title: 'Estilo SQL legible y arquitectura medallón'
+description: 'Cómo escribir SQL que otros (y tú dentro de seis meses) puedan leer y revisar, y cómo organizar las capas de datos de bronce a oro.'
+module: sql-iii
+order: 3
+level: intermedio
+estimatedMinutes: 35
+objectives:
+  - 'Aplicar convenciones de estilo SQL que facilitan la revisión: CTEs con nombre, una cláusula por línea, joins explícitos.'
+  - 'Reescribir una consulta ilegible sin cambiar su resultado y comprobar la equivalencia.'
+  - 'Describir la arquitectura medallón (bronce, plata, oro) y situar en ella los datos de Lumen.'
+  - 'Escribir comprobaciones básicas de calidad sobre una tabla (unicidad, nulos, relaciones, valores aceptados).'
+prerequisites: ['sql-ii/05-cte-recursivas-deduplicacion-y-dialectos']
+tools: ['duckdb']
+volatility: low
+lastReviewed: 2026-10-07
+sources:
+  - title: 'SQLFluff — documentación (linter y formateador de SQL)'
+    url: 'https://docs.sqlfluff.com/en/stable/'
+    type: docs
+    authors: 'SQLFluff contributors'
+    year: 2026
+  - title: 'Databricks — Medallion architecture'
+    url: 'https://www.databricks.com/glossary/medallion-architecture'
+    type: docs
+    authors: 'Databricks'
+    year: 2026
+  - title: 'dbt — How we structure our dbt projects'
+    url: 'https://docs.getdbt.com/best-practices/how-we-structure/1-guide-overview'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+relatedLabs: []
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Un compañero se va de vacaciones y te deja "la consulta del informe de ingresos": 60 líneas sin
+  sangrías, con alias de una letra, comas en el `FROM` y tres subconsultas anidadas. Hay una cifra
+  que no cuadra y tienes dos horas para encontrar por qué.
+</BusinessContext>
+
+El código de análisis se lee muchas más veces de las que se escribe, y casi todo error de una cifra
+se esconde en una consulta que nadie puede revisar. Escribir SQL legible no es estética: es la
+forma más barata de evitar errores.
+
+## Intuición
+
+Una consulta legible se parece a un informe: tiene pasos con nombre ("pedidos de 2025", "ingresos por
+pedido"), cada paso hace una sola cosa y el último paso cuenta la historia. Los CTEs (`WITH`) son
+justo esa herramienta.
+
+## Cómo funciona
+
+### Convenciones que merecen la pena
+
+1. **Un paso por CTE**, con un nombre que diga qué contiene (`pedidos_2025`, no `t1`).
+2. **Una cláusula por línea** y sangría consistente; las columnas del `SELECT`, una por línea en
+   consultas no triviales.
+3. **Palabras clave en mayúsculas** y identificadores en `snake_case`.
+4. **Joins explícitos** (`INNER JOIN ... ON`) en lugar de comas en el `FROM`: las comas mezclan la
+   condición de unión con los filtros y hacen invisible un producto cartesiano.
+5. **Alias con significado** (`pedidos AS p` vale; `AS a1`, no) y **columnas siempre cualificadas**
+   cuando hay más de una tabla.
+6. **Sin `SELECT *`** salvo exploración.
+7. **Comentarios que explican el porqué**, no el qué: `-- Excluimos cancelados: finanzas no los factura`.
+
+### Antes y después
+
+Antes (un resultado correcto, ilegible):
+
+```sql
+select c.region,year(o.order_date) y,sum(i.quantity*i.unit_price) r from orders o,order_items i,
+customers c where o.order_id=i.order_id and c.customer_id=o.customer_id and o.status<>'cancelado'
+and o.order_date>=date '2025-01-01' and o.order_date<date '2026-01-01' group by 1,2 order by 3 desc limit 3
+```
+
+Después (mismo resultado):
+
+```sql
+WITH pedidos_2025 AS (
+    -- Excluimos cancelados: no generan ingreso
+    SELECT order_id, customer_id, order_date
+    FROM orders
+    WHERE status <> 'cancelado'
+      AND order_date >= DATE '2025-01-01'
+      AND order_date <  DATE '2026-01-01'
+),
+
+ingresos_por_pedido AS (
+    SELECT order_id, SUM(quantity * unit_price) AS ingresos
+    FROM order_items
+    GROUP BY order_id
+)
+
+SELECT
+    c.region,
+    YEAR(p.order_date) AS anio,
+    SUM(i.ingresos)    AS ingresos
+FROM pedidos_2025 AS p
+INNER JOIN ingresos_por_pedido AS i ON i.order_id = p.order_id
+INNER JOIN customers AS c ON c.customer_id = p.customer_id
+GROUP BY c.region, anio
+ORDER BY ingresos DESC
+LIMIT 3;
+```
+
+Las dos devuelven lo mismo (Andalucía, 9,51 M€; Cataluña, 7,66 M€; Madrid, 7,39 M€; salvo el redondeo
+de coma flotante en el último decimal de las sumas). La segunda se puede **revisar paso a paso**:
+cada CTE se ejecuta por separado y se comprueba su recuento. Además, `ingresos_por_pedido` agrega
+las líneas **antes** de unir, que es la defensa natural contra el fan-out.
+
+<Callout type="tip">
+  Al refactorizar, **comprueba la equivalencia**: ejecuta la versión antigua y la nueva y compara el
+  recuento de filas y las sumas. Un formateador cambia solo la forma; una reescritura puede cambiar
+  el resultado sin querer. Las herramientas como **SQLFluff** (linter y formateador con soporte de
+  dialecto DuckDB, PostgreSQL, BigQuery, Snowflake...) automatizan la parte de estilo en CI.
+</Callout>
+
+### Arquitectura medallón: bronce, plata, oro
+
+Es una forma habitual de ordenar los datos en capas, de menos a más elaborados:
+
+| Capa                 | Contenido                                                           | Quién la consume       | En Lumen                                                               |
+| -------------------- | ------------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------- |
+| **Bronce** (_raw_)   | los datos tal como llegan, sin tocar, con su suciedad               | ingeniería de datos    | `lumen_raw/` (CSV con duplicados, fechas mezcladas, importes con coma) |
+| **Plata** (_silver_) | datos limpios, tipados, deduplicados y unidos a un modelo coherente | analistas y modelos    | las tablas de `lumen/`                                                 |
+| **Oro** (_gold_)     | tablas de negocio listas para consumir: métricas, marts por área    | dashboards, directivos | un mart de "ingresos por mes" o la capa semántica                      |
+
+La idea fuerte: **nunca modificas el bronce**. Si descubres un error de limpieza, puedes reprocesar
+desde los datos originales. Cada capa tiene un "contrato" de qué garantiza (tipos, unicidad, sin
+duplicados) y esas garantías se **prueban**.
+
+### Probar los datos: las cuatro comprobaciones básicas
+
+Un modelo de datos sin pruebas es una opinión. Cuatro comprobaciones cubren la mayoría de los fallos,
+y son las que automatiza `dbt` con sus _tests_ (módulo de ingeniería analítica):
+
+```sql
+-- 1. Unicidad de la clave (debe devolver 0 filas)
+SELECT order_id, COUNT(*) FROM orders GROUP BY order_id HAVING COUNT(*) > 1;
+
+-- 2. Sin nulos donde no debe haberlos
+SELECT COUNT(*) FROM orders WHERE customer_id IS NULL;
+
+-- 3. Integridad referencial: pedidos sin cliente (debe devolver 0)
+SELECT COUNT(*) FROM orders AS o
+LEFT JOIN customers AS c ON c.customer_id = o.customer_id
+WHERE c.customer_id IS NULL;
+
+-- 4. Valores aceptados
+SELECT status, COUNT(*) FROM orders
+WHERE status NOT IN ('completado', 'cancelado', 'devuelto_parcial') GROUP BY status;
+```
+
+En las tablas de `lumen/` las cuatro devuelven cero filas; en `lumen_raw/` no: ahí es donde las
+comprobaciones encuentran los duplicados y los huérfanos que los labs de limpieza piden resolver.
+
+## En la práctica
+
+- **Un paso por CTE y un nombre por paso.** Si te cuesta nombrarlo, el paso hace demasiado.
+- **Formatea con una herramienta** (SQLFluff u otro formateador) para no discutir sobre estilo en las
+  revisiones, y revisa el diff de lógica, no de espacios.
+- **Pon las pruebas en el pipeline**, no en tu cabeza: se ejecutan cada vez que se actualizan los datos.
+
+## Trade-offs y cuándo usarlo
+
+- **CTEs frente a subconsultas**: los CTEs ganan en legibilidad; algunos motores antiguos los trataban
+  como barreras de optimización (hoy es raro), así que mide si una consulta crítica empeora.
+- **Muchas capas frente a pocas**: cada capa añade orden y coste de mantenimiento. Tres es un buen
+  equilibrio; más solo si hay un motivo claro.
+- **Estilo estricto frente a velocidad**: en una exploración puntual no hace falta pulir; en cualquier
+  cosa que otro vaya a leer o que se vaya a repetir, sí.
+
+## Errores comunes
+
+- **Nombres sin significado** (`t1`, `x`, `temp2`).
+- **Comas en el `FROM`** y condiciones de unión mezcladas con los filtros.
+- **Refactorizar sin comprobar la equivalencia.**
+- **Corregir datos en la capa bronce**, perdiendo el original.
+- **Probar solo cuando algo falla**, en lugar de en cada actualización.
+
+## Con IA
+
+Un LLM es excelente reformateando SQL y reescribiéndolo con CTEs, pero puede cambiar sin avisar la
+semántica (un `LEFT` por `INNER`, un filtro movido). Pide la reescritura y **verifica la equivalencia
+con recuentos y sumas** antes de aceptarla. También sirve para proponer las pruebas de calidad de una
+tabla: revísalas contra lo que sabes del negocio.
+
+## En una entrevista
+
+- _"¿Cómo harías legible una consulta de 200 líneas?"_ — Pista: CTEs con nombre, un paso por CTE, joins explícitos, comprobar equivalencia.
+- _"¿Qué es la arquitectura medallón?"_ — Pista: bronce/plata/oro; no se toca el bronce; contratos por capa.
+- _"¿Qué pruebas pondrías a una tabla de pedidos?"_ — Pista: unicidad, no nulos, integridad referencial, valores aceptados.
+
+<KeyTakeaways
+  items={[
+    'El SQL legible es una herramienta de calidad: un CTE por paso, nombres con significado, joins explícitos y sin SELECT *.',
+    'Al refactorizar, comprueba que el resultado es el mismo (filas y sumas); el formato no cambia la lógica, una reescritura sí puede.',
+    'Medallón: bronce (datos crudos, intocables), plata (limpios y coherentes), oro (listos para el negocio).',
+    'Cuatro pruebas básicas: unicidad, no nulos, integridad referencial y valores aceptados; automatízalas en el pipeline.',
+    'Agregar antes de unir (como en ingresos_por_pedido) es el estilo que previene el fan-out.',
+  ]}
+/>

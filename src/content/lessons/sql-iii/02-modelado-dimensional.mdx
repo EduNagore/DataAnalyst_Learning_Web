@@ -1,0 +1,222 @@
+---
+title: 'Modelado dimensional: grano, hechos, dimensiones y SCD'
+description: 'Cómo se organiza una tabla para analizar: declarar el grano, separar hechos de dimensiones y conservar el historial de los atributos que cambian.'
+module: sql-iii
+order: 2
+level: avanzado
+estimatedMinutes: 45
+objectives:
+  - 'Declarar el grano de una tabla de hechos antes de decidir qué columnas lleva.'
+  - 'Distinguir hechos transaccionales, de foto periódica y acumulativos, y dimensiones.'
+  - 'Diseñar un esquema en estrella y compararlo con copo de nieve y con una tabla ancha (One Big Table).'
+  - 'Resolver con SQL un historial de atributos (SCD tipo 2) con una unión por punto en el tiempo.'
+prerequisites: ['sql-i/03-joins-y-fan-out']
+tools: ['duckdb']
+volatility: low
+lastReviewed: 2026-10-07
+sources:
+  - title: 'Kimball Group — Dimensional Modeling Techniques'
+    url: 'https://www.kimballgroup.com/data-warehouse-business-intelligence-resources/kimball-techniques/dimensional-modeling-techniques/'
+    type: docs
+    authors: 'Ralph Kimball, Margy Ross'
+    year: 2013
+  - title: 'The Data Warehouse Toolkit (3.ª ed.)'
+    url: 'https://www.kimballgroup.com/data-warehouse-business-intelligence-resources/books/data-warehouse-dw-toolkit/'
+    type: book
+    authors: 'Ralph Kimball, Margy Ross'
+    year: 2013
+  - title: 'dbt — How we structure our dbt projects'
+    url: 'https://docs.getdbt.com/best-practices/how-we-structure/1-guide-overview'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+relatedLabs: ['sql-scd2-punto-en-el-tiempo']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Un cliente de Lumen pasó de ser "nuevo" a "habitual" en abril. Finanzas pregunta cuántos ingresos
+  generaron los clientes "nuevos" durante el primer trimestre. Si en la tabla solo guardamos el
+  segmento **actual** de cada cliente, ese cliente aparece como "habitual" en todo su historial: la
+  cifra de "nuevos" sale mal y nadie lo nota.
+</BusinessContext>
+
+Las preguntas de negocio son siempre sobre hechos (ventas, visitas, tickets) vistos desde distintos
+ángulos (por cliente, por producto, por fecha). El modelado dimensional es la forma de organizar las
+tablas para que ese tipo de preguntas se respondan fácil, rápido y sin errores de grano.
+
+## Intuición
+
+Separa las cosas en dos tipos:
+
+- **Hechos**: lo que **ocurre** y se mide (una línea de pedido, un evento, un envío). Son muchas filas y
+  tienen columnas numéricas que se suman (cantidad, importe).
+- **Dimensiones**: el **contexto** con el que se describe un hecho (quién, qué, dónde, cuándo): cliente,
+  producto, tienda, fecha. Son menos filas y tienen columnas descriptivas por las que se filtra y agrupa.
+
+Un esquema **en estrella** pone una tabla de hechos en el centro y una tabla por cada dimensión
+alrededor, unidas por claves.
+
+<Diagram
+  client:visible
+  chart={`erDiagram
+    order_items }o--|| orders : "order_id"
+    order_items }o--|| products : "product_id"
+    orders }o--|| customers : "customer_id"
+    orders }o--o| stores : "store_id"
+    products }o--|| categories : "category_id"`}
+  alt="Esquema en estrella de Lumen: la tabla de hechos order_items rodeada de las dimensiones orders, products, customers, stores y categories"
+/>
+
+## Cómo funciona
+
+### Primero, el grano
+
+El **grano** (_grain_) de una tabla de hechos es **qué representa exactamente una fila**. Es la decisión
+más importante del diseño y se declara **antes** de elegir columnas. En Lumen:
+
+- `order_items`: una fila por **línea de pedido** (un producto en un pedido). Grano transaccional.
+- `orders`: una fila por **pedido**.
+- `inventory_snapshots`: una fila por **producto, centro y semana**. Es una "foto periódica".
+- `shipments`: una fila por **envío**, con fechas prometida y real: un hecho que se va completando.
+
+Las columnas de importe pertenecen al grano en que tienen sentido: `unit_price` y `quantity` son de la
+línea; `shipping_cost` es del pedido. Unir tablas de granos distintos es la causa del fan-out que
+vimos en SQL I; **declarar el grano es la vacuna contra él**.
+
+### Tres tipos de tabla de hechos
+
+| Tipo               | Una fila es...                   | Ejemplo en Lumen                      | Se puede sumar en el tiempo                            |
+| ------------------ | -------------------------------- | ------------------------------------- | ------------------------------------------------------ |
+| **Transaccional**  | un evento puntual                | `order_items`, `events`               | sí                                                     |
+| **Foto periódica** | el estado en un instante regular | `inventory_snapshots` (stock semanal) | **no**: el stock se promedia o se toma el último valor |
+| **Acumulativa**    | un proceso que avanza por etapas | `shipments` (prometido y real)        | depende de la etapa                                    |
+
+Sumar el stock de varias semanas da un número sin sentido (es un _nivel_, no un flujo): es un error
+clásico con las fotos periódicas.
+
+### Dimensiones y claves
+
+Una dimensión tiene una **clave** (el identificador del negocio, `customer_id`) y muchos atributos
+descriptivos. En los almacenes se suele usar además una **clave sustituta** (_surrogate key_): un
+entero propio del almacén que no cambia aunque el sistema origen reutilice o cambie su identificador, y
+que permite versionar la dimensión.
+
+Una **dimensión conforme** es una que se comparte entre varias tablas de hechos con el mismo
+significado: la dimensión `fecha` (o `calendar`) debe ser la misma para ventas, devoluciones y
+envíos, para poder compararlas.
+
+### Estrella, copo de nieve y tabla ancha
+
+- **Estrella**: las dimensiones están desnormalizadas (la categoría y su categoría padre, en la misma
+  tabla de producto). Pocas uniones, fácil de consultar. Es la recomendación por defecto para analítica.
+- **Copo de nieve**: las dimensiones se normalizan en varias tablas (`products → categories →
+categoría padre`). Menos redundancia, más uniones. `categories` de Lumen es un caso de este tipo.
+- **One Big Table (OBT)**: una sola tabla ancha con el hecho y todas sus dimensiones aplanadas. Muy
+  cómoda para BI y barata en almacenes columnares (leer 5 columnas de 200 cuesta poco), pero
+  pesada de mantener y fácil de inflar si mezclas granos.
+
+### Dimensiones que cambian: SCD
+
+El segmento de un cliente, el plan de una suscripción o la región de un vendedor **cambian con el
+tiempo**. Una _slowly changing dimension_ (SCD) es la técnica para decidir qué hacer con el cambio:
+
+- **Tipo 1**: sobrescribir el valor. Se pierde el historial. Válido para correcciones de errores.
+- **Tipo 2**: **añadir una fila nueva** por cada cambio, con el intervalo en que fue válida. Conserva
+  todo el historial. Es la opción por defecto cuando el análisis histórico importa.
+- **Tipo 3**: guardar el valor anterior en una columna adicional. Solo guarda un cambio.
+
+En una SCD de tipo 2, cada fila lleva `valido_desde` y `valido_hasta` (usa el patrón semiabierto:
+desde inclusivo, hasta **exclusivo**; la fila vigente tiene un `hasta` muy lejano, como `9999-12-31`):
+
+```sql
+WITH historial AS (
+  SELECT * FROM (VALUES
+    ('c1', 'nuevo',    DATE '2025-01-01', DATE '2025-04-01'),
+    ('c1', 'habitual', DATE '2025-04-01', DATE '9999-12-31'),
+    ('c2', 'nuevo',    DATE '2025-01-01', DATE '9999-12-31')
+  ) AS t(cliente, segmento, valido_desde, valido_hasta)
+),
+pedidos AS (
+  SELECT * FROM (VALUES
+    ('p1', 'c1', DATE '2025-02-10', 100),
+    ('p2', 'c1', DATE '2025-05-05', 200),
+    ('p3', 'c2', DATE '2025-06-01',  50)
+  ) AS t(pedido, cliente, fecha, importe)
+)
+SELECT h.segmento, SUM(p.importe) AS ingresos, COUNT(*) AS pedidos
+FROM pedidos AS p
+JOIN historial AS h
+  ON h.cliente = p.cliente
+ AND p.fecha >= h.valido_desde
+ AND p.fecha <  h.valido_hasta      -- unión por punto en el tiempo
+GROUP BY h.segmento
+ORDER BY h.segmento;
+```
+
+El resultado correcto es `habitual 200 (1 pedido)` y `nuevo 150 (2 pedidos)`: el pedido `p1` de febrero
+cuenta como cliente "nuevo" aunque `c1` ya sea "habitual" hoy. Si unieras solo por `cliente` (sin la
+condición de fechas), el cliente `c1` multiplicaría cada pedido por sus dos versiones y obtendrías
+`habitual 300 (2)` y `nuevo 350 (3)`: es un **fan-out por SCD**.
+
+<Callout type="info">
+  En Lumen, `customers.segment` guarda solo el valor actual (una SCD de tipo 1 de facto). Cualquier
+  análisis "cómo era el cliente cuando compró" con ese campo sufrirá el problema del contexto: el
+  segmento de hoy no es el de entonces. En el módulo de ingeniería analítica verás cómo dbt genera
+  _snapshots_ para capturar este historial.
+</Callout>
+
+## En la práctica
+
+1. **Escribe el grano** en una frase antes de crear o consumir una tabla ("una fila por línea de
+   pedido"). Si no puedes, no lo entiendes todavía.
+2. **Mide el grano** de cualquier tabla que uses con `COUNT(*)` frente a `COUNT(DISTINCT clave)`.
+3. **Une siempre por la clave de la dimensión** y, si es una SCD de tipo 2, **por el intervalo**.
+4. **No sumes fotos periódicas** a lo largo del tiempo.
+
+## Trade-offs y cuándo usarlo
+
+- **Estrella frente a OBT**: la estrella es más flexible y limpia; la OBT, más fácil de consumir. Un
+  patrón habitual: modelo en estrella como fuente de verdad y una OBT derivada para el dashboard.
+- **SCD2 frente a guardar el valor en el hecho**: copiar el segmento en la fila del pedido (el valor
+  "congelado" cuando ocurrió) es más simple y barato para consultar, pero obliga a decidir qué atributos
+  congelar de antemano. SCD2 es más general.
+- **Claves naturales frente a sustitutas**: las naturales son legibles; las sustitutas aíslan del
+  sistema origen y permiten versionar.
+
+## Errores comunes
+
+- **No declarar el grano** y mezclar columnas de granos distintos en una misma tabla.
+- **Unir una SCD2 sin la condición de fechas**, duplicando filas.
+- **Sumar un nivel (stock, saldo)** como si fuera un flujo.
+- **Usar `BETWEEN` con intervalos que comparten extremos** y asignar un pedido a dos versiones.
+- **Normalizar de más** una dimensión pequeña (copo de nieve innecesario).
+
+## Con IA
+
+Un LLM que genera un modelo de datos suele omitir el grano y mezclar atributos de pedido y de línea.
+Pide que escriba primero el grano de cada tabla y revisa que las medidas están en el grano correcto.
+Con una capa semántica (módulo de capa semántica), esas decisiones se codifican una vez y la IA solo
+consulta métricas ya definidas.
+
+## En una entrevista
+
+- _"¿Qué es el grano de una tabla de hechos y por qué importa?"_ — Pista: qué representa una fila; evita el fan-out.
+- _"¿Cómo guardarías el historial del plan de un cliente?"_ — Pista: SCD tipo 2 con `valido_desde/hasta`; unión por intervalo.
+- _"Diferencia entre estrella y copo de nieve."_ — Pista: desnormalizar frente a normalizar las dimensiones.
+
+<KeyTakeaways
+  items={[
+    'El grano (qué es una fila) se declara antes que las columnas; unir tablas de granos distintos causa el fan-out.',
+    'Hechos = lo que ocurre y se suma; dimensiones = contexto descriptivo. Un esquema en estrella pone los hechos en el centro.',
+    'Las fotos periódicas (como inventory_snapshots) no se suman en el tiempo: son niveles, no flujos.',
+    'SCD tipo 2 conserva el historial con valido_desde/valido_hasta; se une por intervalo, o cada pedido se multiplica por las versiones del cliente.',
+    'Estrella para modelar, OBT como capa de consumo; documenta siempre el grano de cada tabla.',
+  ]}
+/>

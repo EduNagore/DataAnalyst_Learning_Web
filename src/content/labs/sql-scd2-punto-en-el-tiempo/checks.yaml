@@ -1,0 +1,7 @@
+compare:
+  orderMatters: false
+  columns: [segmento, ingresos, pedidos]
+assertions:
+  - name: 'No usa BETWEEN (los intervalos comparten extremo)'
+    kind: query-text-not-contains
+    value: 'between'

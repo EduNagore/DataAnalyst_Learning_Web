@@ -1,0 +1,71 @@
+lesson: sql-iii/01-almacenamiento-columnar-y-planes
+questions:
+  - id: sql3-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Por qué los almacenes de datos analíticos suelen ser columnares?'
+    options:
+      - 'Porque las consultas analíticas leen pocas columnas de muchas filas, y así solo se lee lo necesario'
+      - 'Porque guardan cada fila entera junta, lo que acelera las actualizaciones'
+      - 'Porque no necesitan comprimir los datos'
+      - 'Porque evitan usar SQL'
+    answer: [0]
+    explanation: 'En analítica se suman o agrupan unas pocas columnas sobre millones de filas. Guardar cada columna por separado permite leer solo las necesarias y comprimirlas muy bien. El almacenamiento por filas es el adecuado para transacciones (leer o escribir un registro entero).'
+    ref: '#intuición'
+
+  - id: sql3-01-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'events.parquet pesa 17,2 MB; las columnas session_id (1,43 MB) y event_type (0,27 MB) son las únicas que lee una consulta. ¿Qué porcentaje del archivo se lee (redondea a un entero)?'
+    answer: [10]
+    tolerance: 0.6
+    explanation: '(1,43 + 0,27) / 17,2 = 1,70 / 17,2 ≈ 0,099, es decir, cerca del 10 %. Un SELECT * leería el 100 %. Esa es la ventaja de la proyección de columnas en un formato columnar.'
+    ref: '#un-ejemplo-con-datos-reales'
+
+  - id: sql3-01-q3
+    type: single
+    difficulty: 2
+    prompt: 'En un plan EXPLAIN de DuckDB ves `PARQUET_SCAN` con `Filters: occurred_at >= ...` dentro del propio escaneo. ¿Qué significa?'
+    options:
+      - 'El filtro se aplica después de leer todas las filas'
+      - 'El filtro se empuja al escaneo (predicate pushdown) y permite saltar bloques que no encajan'
+      - 'La consulta no usa ninguna columna'
+      - 'El motor ha ignorado el filtro'
+    answer: [1]
+    explanation: 'Un filtro dentro del escaneo indica predicate pushdown: el motor usa las estadísticas por grupo de filas (mínimo y máximo) para descartar bloques enteros sin leerlos. Es una señal buena en un plan.'
+    ref: '#leer-un-plan-con-explain'
+
+  - id: sql3-01-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las prácticas que reducen el coste de una consulta en un almacén columnar.'
+    options:
+      - 'Pedir solo las columnas necesarias'
+      - 'Filtrar con un rango sobre la columna de partición'
+      - 'Envolver la columna filtrada en una función, como WHERE YEAR(fecha) = 2025'
+      - 'Agregar las tablas grandes antes de unirlas'
+    answer: [0, 1, 3]
+    explanation: 'Menos columnas, filtros sargables sobre la partición y agregar antes de unir reducen lo que se lee y se mueve. Envolver la columna en una función impide usar las estadísticas y las particiones: obliga a evaluar la función en cada fila.'
+    ref: '#en-la-práctica-reglas-de-ahorro'
+
+  - id: sql3-01-q5
+    type: truefalse
+    difficulty: 2
+    prompt: 'Añadir LIMIT 10 a un SELECT * sobre una tabla enorme garantiza que solo se lee y se factura una fracción pequeña de la tabla.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso: depende del motor. En algunos (por ejemplo, BigQuery) el LIMIT no reduce los bytes escaneados ni facturados. Lo que reduce el coste es leer menos columnas y filtrar sobre la partición.'
+    ref: '#en-la-práctica-reglas-de-ahorro'
+
+  - id: sql3-01-q6
+    type: single
+    difficulty: 3
+    prompt: 'Tras un JOIN, en el plan aparece una estimación de filas mucho mayor que la de las tablas de entrada. ¿Qué sospechas primero?'
+    options:
+      - 'Un fan-out por una relación uno a muchos o un join sin condición adecuada'
+      - 'Que la tabla está particionada'
+      - 'Que la consulta usa un alias'
+      - 'Que el motor es columnar'
+    answer: [0]
+    explanation: 'Un número de filas que crece tras un join suele indicar un fan-out (uno a muchos o muchos a muchos) o un producto cartesiano. Es la primera comprobación al revisar un plan, igual que comparar COUNT(*) antes y después del join.'
+    ref: '#leer-un-plan-con-explain'

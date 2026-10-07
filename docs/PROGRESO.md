@@ -12,7 +12,8 @@ Registro de qué fase del `PLAN.md` está hecha, verificada y pendiente. Se actu
 | F3 — Motor de tests (quiz, examen, Leitner, progreso) | ⬜ Siguiente                                    |
 | F4 — Laboratorios (DuckDB-WASM, Pyodide, `datakit`)   | ⬜                                              |
 | F5 — Casos guiados                                    | ⬜ → luego PAUSA de revisión (la marca el PLAN) |
-| F6-F10                                                | ⬜                                              |
+| F6 (en curso: M04-M06 hechos)                      | 🟡                                              |
+| F7-F10                                                | ⬜                                              |
 
 Repo: `https://github.com/EduNagore/DataAnalyst_Learning_Web` (rama `main`). Sitio: `https://edunagore.github.io/DataAnalyst_Learning_Web/`.
 
@@ -76,9 +77,15 @@ Pendiente menor: job de CI que regenere el dataset y compare `data-gen/checksums
 
 ---
 
-## Siguiente: F6 — Contenido Partes 0-II (M00-M12)
+## F6 — en curso (Contenido Partes 0-II, M00-M12)
 
-PLAN §7.1: M00 analista-2026, M01 pensamiento-negocio, M02 estadistica-descriptiva, M03 hojas-de-calculo, (M04 ✅), M05 sql-ii, M06 sql-iii, M07 python-analisis, M08 limpieza-calidad, M09 eda, M10 visualizacion, M11 dashboards-bi, M12 storytelling. Por módulo: 3-5 lecciones (estructura de `docs/CONTENT_GUIDELINES.md`), quizzes (6-10 preguntas/lección), labs (SQL II sobre todo: top-N con QUALIFY, LAG, media móvil, funnel, cohortes, date spine, PIVOT; Python: limpieza de `lumen_raw`, pandas vs Polars), libros Excel (`scripts/build-workbooks.py` con openpyxl), widgets (JoinVisualizer, WindowFrameVisualizer, ChartChooser, DistributionExplorer, SimpsonExplorer...). Contenido `volatility: high` (M03 IA en Excel, M07 pandas 3/Polars 2.0, M11 Power BI/Tableau): **verificar con búsqueda web antes de escribir** y usar `<Snapshot>`. Orden recomendado: M05 → M06 → M07 → M08 → M09 (SQL/Python primero, tienen labs verificables) → M00-M02 → M10-M12 → M03.
+Estado: **M04 ✅, M05 ✅ (5 lecciones, 8 labs), M06 ✅ (3 lecciones, lab SCD2)**, M07 en curso. Pendientes: M07, M08, M09, M00-M02, M10-M12, M03.
+
+PLAN §7.1. Por módulo: 3-5 lecciones (estructura de `docs/CONTENT_GUIDELINES.md`), quizzes (6+ preguntas/lección), labs, libros Excel (`scripts/build-workbooks.py`, openpyxl), widgets (JoinVisualizer, WindowFrameVisualizer, ChartChooser, DistributionExplorer, SimpsonExplorer...). Contenido `volatility: high` (M03 IA en Excel, M07 pandas 3/Polars 2.0, M11 Power BI/Tableau): **verificar con búsqueda web antes de escribir** y usar `<Snapshot>`. Orden: M07 → M08 → M09 → M00-M02 → M10-M12 → M03.
+
+Hechos verificados para M07 (2026-10): pandas 3.0.2 (str dtype por defecto, Copy-on-Write: la asignación encadenada lanza `ChainedAssignmentError` y no modifica, `pd.col()`, datetime64[us]), Polars 2.0.0 instalado localmente (Pyodide trae 1.33.1), DuckDB 1.5.x.
+
+**Regla de uso (ver `docs/USAGE_GUARD.md`)**: tras cada lección/fase ejecutar `node scripts/usage-guard.mjs status`; al ≥95 % el hook bloquea herramientas: guardar progreso, lanzar `node scripts/usage-guard.mjs wait` en segundo plano y terminar el turno.
 
 ## Notas para retomar
 
