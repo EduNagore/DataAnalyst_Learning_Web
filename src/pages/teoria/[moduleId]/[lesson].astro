@@ -1,0 +1,53 @@
+---
+import { getCollection, render } from 'astro:content';
+import LessonLayout from '../../../layouts/LessonLayout.astro';
+import { url } from '../../../lib/url';
+
+export async function getStaticPaths() {
+  const modules = await getCollection('modules');
+  const lessons = await getCollection('lessons');
+  return lessons.map((lesson) => {
+    const mod = modules.find((m) => m.data.id === lesson.data.module);
+    if (!mod) throw new Error(`Lección ${lesson.id}: módulo "${lesson.data.module}" no existe`);
+    const siblings = lessons
+      .filter((l) => l.data.module === lesson.data.module)
+      .sort((a, b) => a.data.order - b.data.order);
+    const idx = siblings.findIndex((l) => l.id === lesson.id);
+    const slugOf = (l: (typeof lessons)[number]) => l.id.split('/').pop() as string;
+    return {
+      params: { moduleId: mod.data.id, lesson: slugOf(lesson) },
+      props: {
+        lesson,
+        moduleTitle: mod.data.title,
+        siblings: siblings.map((l) => ({
+          slug: slugOf(l),
+          order: l.data.order,
+          title: l.data.title,
+        })),
+        prev:
+          idx > 0 ? { slug: slugOf(siblings[idx - 1]), title: siblings[idx - 1].data.title } : null,
+        next:
+          idx < siblings.length - 1
+            ? { slug: slugOf(siblings[idx + 1]), title: siblings[idx + 1].data.title }
+            : null,
+      },
+    };
+  });
+}
+
+const { lesson, moduleTitle, siblings, prev, next } = Astro.props;
+const { Content, headings } = await render(lesson);
+---
+
+<LessonLayout
+  lesson={lesson}
+  moduleTitle={moduleTitle}
+  moduleId={lesson.data.module}
+  modulePath={url(`/teoria/${lesson.data.module}/`)}
+  siblingLessons={siblings}
+  headings={headings}
+  prevLesson={prev}
+  nextLesson={next}
+>
+  <Content />
+</LessonLayout>

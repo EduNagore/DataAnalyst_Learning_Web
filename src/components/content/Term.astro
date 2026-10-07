@@ -1,0 +1,16 @@
+---
+import { url } from '../../lib/url';
+
+interface Props {
+  /** Id del término en src/content/glossary/terms.yaml. */
+  id: string;
+}
+const { id } = Astro.props;
+---
+
+<a
+  href={url(`/glosario/#${id}`)}
+  class="underline decoration-dotted decoration-[var(--color-text-muted)] underline-offset-2 hover:decoration-[var(--color-accent)]"
+>
+  <slot />
+</a>

@@ -1,0 +1,216 @@
+---
+title: 'NULL, lógica trivaluada y CASE'
+description: 'Por qué un filtro "distinto de" pierde 372.000 filas, cómo COALESCE y NULLIF cambian una media, y cómo clasificar con CASE.'
+module: sql-i
+order: 4
+level: intermedio
+estimatedMinutes: 35
+objectives:
+  - 'Explicar NULL como "valor desconocido" y predecir el resultado de comparaciones y operaciones con NULL.'
+  - 'Usar IS NULL, IS DISTINCT FROM, COALESCE y NULLIF para tratar valores ausentes de forma explícita.'
+  - 'Evitar la trampa de NOT IN con NULL y la de las agregaciones que ignoran NULL.'
+  - 'Clasificar filas con CASE WHEN y agregar sobre las categorías resultantes.'
+prerequisites: ['sql-i/02-agregacion-group-by-having']
+tools: ['duckdb']
+volatility: low
+lastReviewed: 2026-10-07
+sources:
+  - title: 'PostgreSQL — Comparison Functions and Operators (NULL handling)'
+    url: 'https://www.postgresql.org/docs/current/functions-comparison.html'
+    type: docs
+    authors: 'PostgreSQL Global Development Group'
+    year: 2026
+  - title: 'DuckDB — CASE expression'
+    url: 'https://duckdb.org/docs/stable/sql/expressions/case'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — Subqueries'
+    url: 'https://duckdb.org/docs/stable/sql/expressions/subqueries'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+relatedLabs: ['sql-nulls-coalesce', 'sql-case-segmentos']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Un responsable de tiendas te pide "todos los pedidos que no pasaron por la tienda store-01".
+  Escribes `WHERE store_id <> 'store-01'` y obtienes 27.569 filas. Pero la tabla tiene 400.000 pedidos y
+  solo 604 son de esa tienda: deberían salir 399.396. ¿Dónde están los 371.827 pedidos que faltan?
+</BusinessContext>
+
+Los 371.827 que faltan son los pedidos online, que tienen `store_id` nulo. Con `<>` desaparecen sin
+error ni aviso. Entender `NULL` es lo que separa una cifra fiable de una cifra que "parece bien".
+
+## Intuición
+
+`NULL` no es cero, ni una cadena vacía, ni "falso". Es **"valor desconocido o ausente"**. Y de eso se
+derivan todas las reglas raras: si no sabes cuánto vale algo, tampoco sabes si es igual a 5, ni si es
+distinto de 5, ni si es igual a otro valor desconocido. Cualquier comparación con `NULL` devuelve
+`NULL` (desconocido), no verdadero ni falso.
+
+## Cómo funciona
+
+### Lógica trivaluada
+
+SQL no usa lógica de dos valores sino de tres: `TRUE`, `FALSE` y `UNKNOWN` (`NULL`). Las reglas:
+
+| Expresión        | Resultado                                 |
+| ---------------- | ----------------------------------------- |
+| `NULL = NULL`    | `NULL` (no `TRUE`)                        |
+| `NULL <> 5`      | `NULL`                                    |
+| `NULL AND TRUE`  | `NULL`                                    |
+| `NULL AND FALSE` | `FALSE` (falsa sea cual sea el otro lado) |
+| `NULL OR TRUE`   | `TRUE`                                    |
+| `NOT NULL`       | `NULL`                                    |
+
+La clave está en cómo reaccionan las cláusulas: **`WHERE` (y `HAVING`, y la condición `ON` de un join)
+solo conservan las filas cuya condición es `TRUE`**. Las que dan `FALSE` y las que dan `NULL` se
+descartan por igual. Por eso `store_id <> 'store-01'` pierde las filas con `store_id` nulo: para
+ellas, la condición es `NULL`.
+
+### Preguntar por NULL de forma explícita
+
+```sql
+WHERE store_id IS NULL        -- pedidos online
+WHERE store_id IS NOT NULL    -- pedidos en tienda
+```
+
+`= NULL` nunca es verdadero (en Lumen, `WHERE cancelled_at = NULL` sobre `subscriptions` devuelve 0
+filas, aunque 10.870 suscripciones siguen activas). Para comparar tratando `NULL` como un valor más:
+
+```sql
+WHERE store_id IS DISTINCT FROM 'store-01'   -- 399.396 filas: incluye los nulos
+```
+
+`IS DISTINCT FROM` es "distinto de" con lógica de dos valores: dos `NULL` se consideran iguales y un
+`NULL` frente a un valor se considera distinto.
+
+### COALESCE y NULLIF
+
+- **`COALESCE(a, b, c)`** devuelve el primer valor no nulo. Sirve para sustituir un ausente por un
+  valor por defecto: `COALESCE(store_id, 'online')`.
+- **`NULLIF(a, b)`** devuelve `NULL` si `a = b`, y `a` en caso contrario. Sirve para convertir un
+  valor centinela (un 0 que en realidad significa "sin dato") en un ausente real, y para evitar
+  divisiones por cero: `x / NULLIF(y, 0)`.
+
+### Los agregados ignoran NULL
+
+`SUM`, `AVG`, `MIN`, `MAX` y `COUNT(columna)` ignoran los nulos. Solo `COUNT(*)` cuenta filas
+enteras. El efecto en una media es enorme y fácil de pasar por alto:
+
+```sql
+SELECT
+  ROUND(AVG(shipping_cost), 3)             AS media_con_ceros,     -- 2,203
+  ROUND(AVG(NULLIF(shipping_cost, 0)), 3)  AS media_solo_de_pago   -- 3,949
+FROM orders;
+```
+
+Las dos medias son "correctas"; responden a preguntas distintas. La primera es el coste medio de
+envío por pedido; la segunda, el coste medio **cuando se cobra envío**. Decidir cuál es la
+métrica es tarea tuya, y hacerlo explícito con `NULLIF` o `COALESCE` deja constancia de la decisión.
+
+### CASE: clasificar filas
+
+`CASE` es el `if/else` de SQL. Evalúa las condiciones en orden y devuelve el resultado de la primera
+que sea verdadera:
+
+```sql
+SELECT
+  CASE
+    WHEN actual_date <= promised_date                        THEN 'a tiempo'
+    WHEN actual_date <  promised_date + INTERVAL 5 DAY       THEN 'retraso leve'
+    ELSE                                                          'retraso grave'
+  END AS puntualidad,
+  COUNT(*) AS envios
+FROM shipments
+GROUP BY puntualidad
+ORDER BY envios DESC;
+```
+
+En Lumen: 304.894 envíos a tiempo, 27.068 con retraso leve y 39.865 con retraso grave (cinco días o
+más). Sin `ELSE`, las filas que no cumplen ninguna condición devuelven `NULL`: ponlo siempre,
+aunque sea para marcar `'otros'`.
+
+Un `CASE` dentro de un agregado es el patrón para "contar o sumar solo lo que cumple X" sin filtrar
+la tabla entera:
+
+```sql
+SELECT
+  COUNT(*)                                         AS envios,
+  COUNT(*) FILTER (WHERE actual_date > promised_date) AS con_retraso
+FROM shipments;
+```
+
+`FILTER (WHERE ...)` es la sintaxis estándar de DuckDB y PostgreSQL; la forma portable es
+`SUM(CASE WHEN ... THEN 1 ELSE 0 END)`.
+
+## En la práctica
+
+**La trampa de `NOT IN`.** Quieres los clientes que no tienen pedidos. Es tentador escribir:
+
+```sql
+SELECT COUNT(*) FROM customers
+WHERE customer_id NOT IN (SELECT customer_id FROM orders);
+```
+
+Funciona **mientras `orders.customer_id` no contenga ningún `NULL`**. Si la subconsulta devolviera
+aunque fuera un solo `NULL`, `NOT IN` pasaría a ser `NULL` para todas las filas y no devolvería
+nada, sin error. `NOT EXISTS` o `LEFT JOIN ... IS NULL` (lección 3) no tienen este problema, por eso
+son la opción segura.
+
+<Callout type="warning">
+  La regla de oro con valores ausentes: **cada vez que escribas una condición sobre una columna que
+  admita nulos, pregúntate qué quieres que pase con los nulos** y escríbelo explícitamente.
+  `WHERE col <> x`, `NOT IN` y `col NOT LIKE ...` son las tres formas más comunes de perder filas sin
+  darse cuenta.
+</Callout>
+
+## Trade-offs y cuándo usarlo
+
+- **`COALESCE` en la salida vs en el cálculo.** Rellenar un nulo con 0 antes de promediar cambia la
+  media (en las suscripciones de Lumen, los días hasta cancelar: 341 de media ignorando las activas
+  frente a 193 si se las cuenta como 0). Los nulos de "todavía no ha ocurrido" casi nunca deben
+  convertirse en cero.
+- **`NULL` como información.** Un nulo puede ser un dato en sí: `cancelled_at IS NULL` significa
+  "suscripción activa". Antes de limpiarlo, comprueba qué significa.
+- **`CASE` vs una tabla de mapeo.** Para 3-4 categorías, `CASE`. Para decenas o categorías que
+  cambian, una tabla auxiliar y un `JOIN` es más mantenible.
+
+## Errores comunes
+
+- **`= NULL` en vez de `IS NULL`**: devuelve siempre cero filas.
+- **Medias sobre columnas con nulos** sin saber qué significan.
+- **`CASE` sin `ELSE`**, que introduce nulos silenciosos.
+- **Orden de las condiciones en `CASE`**: se evalúa en orden y para en la primera verdadera. Poner
+  `>= 5` después de `>= 0` hace que la segunda nunca se alcance.
+- **Mezclar cadenas vacías con `NULL`**: son cosas distintas, y los datos reales suelen tener las dos.
+
+## Con IA
+
+Los modelos de lenguaje tratan `NULL` de forma correcta en consultas simples y fallan en los
+casos límite: `NOT IN` con subconsultas, `AVG` sobre columnas con ausentes o `LEFT JOIN` con filtros en el
+`WHERE`. Cuando revises SQL generado, busca cada condición sobre una columna que pueda ser nula y
+comprueba cuántas filas se descartan: un recuento `COUNT(*)` antes y después del filtro lo muestra.
+
+## En una entrevista
+
+- _"¿Qué devuelve `SELECT NULL = NULL`?"_ — Pista: `NULL`, no `TRUE`.
+- _"¿Por qué `WHERE col <> 'x'` pierde filas?"_ — Pista: lógica trivaluada, `WHERE` solo conserva `TRUE`.
+- _"¿Qué diferencia hay entre `COALESCE` y `NULLIF`?"_ — Pista: uno sustituye nulos, el otro los crea.
+
+<KeyTakeaways
+  items={[
+    'NULL significa "desconocido": cualquier comparación con NULL devuelve NULL, no TRUE ni FALSE.',
+    'WHERE, HAVING y ON solo conservan las filas cuya condición es TRUE, así que col <> x descarta los nulos.',
+    'Usa IS NULL, IS DISTINCT FROM, COALESCE y NULLIF para decidir explícitamente qué pasa con los ausentes.',
+    'Los agregados ignoran NULL; convertir un nulo en 0 antes de promediar cambia la media (2,203 frente a 3,949 en el envío).',
+    'CASE evalúa en orden, devuelve NULL si no hay ELSE, y NOT IN con nulos devuelve vacío: prefiere NOT EXISTS.',
+  ]}
+/>

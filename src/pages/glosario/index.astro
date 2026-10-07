@@ -27,7 +27,7 @@ const terms = (await getCollection('glossary')).sort((a, b) =>
     ) : (
       <dl class="mt-10 divide-y divide-[var(--color-border)]">
         {terms.map((term) => (
-          <div class="py-4">
+          <div id={term.data.id} class="py-4 target:bg-[var(--color-bg-subtle)]">
             <dt class="font-semibold text-[var(--color-text)]">
               {term.data.termEs}{' '}
               <span class="text-[var(--color-text-muted)]">· {term.data.termEn}</span>

@@ -1,0 +1,13 @@
+id: sql-i
+part: 'Parte I · Herramientas núcleo'
+partOrder: 1
+order: 4
+title: 'SQL I — Fundamentos'
+description: 'Modelo relacional, SELECT, agregaciones, joins (y su trampa del fan-out), NULL, CASE, fechas y subconsultas, con DuckDB sobre el dataset Lumen.'
+objectives:
+  - 'Leer y escribir consultas SELECT con filtros, agregaciones y ordenación, entendiendo el orden lógico en que se ejecutan.'
+  - 'Unir tablas con el tipo de join correcto y detectar el fan-out antes de que infle una métrica.'
+  - 'Razonar con NULL y lógica trivaluada sin perder ni duplicar filas por error.'
+  - 'Trabajar con fechas, zonas horarias, subconsultas y UNION sin trampas.'
+estimatedHours: 9
+volatility: low

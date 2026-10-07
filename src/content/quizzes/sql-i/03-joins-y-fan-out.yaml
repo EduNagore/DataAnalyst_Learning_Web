@@ -1,0 +1,68 @@
+lesson: sql-i/03-joins-y-fan-out
+questions:
+  - id: sql1-03-q1
+    type: single
+    difficulty: 1
+    prompt: 'Unes orders (un pedido por fila) con order_items (una línea por fila) mediante order_id. ¿Qué representa cada fila del resultado?'
+    options:
+      - 'Un pedido'
+      - 'Una línea de pedido'
+      - 'Un cliente'
+      - 'Un producto distinto'
+    answer: [1]
+    explanation: 'El resultado de un join tiene el grano de la tabla más fina: como cada pedido puede tener varias líneas, cada línea genera una fila y los datos del pedido se repiten. Por eso sumar una columna de orders tras este join multiplica el total.'
+    ref: '#intuición'
+
+  - id: sql1-03-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'Un pedido de 3 líneas tiene un shipping_cost de 4,95 €. Tras unir orders con order_items, ¿cuánto suma SUM(shipping_cost) para ese único pedido (en €)?'
+    answer: [14.85]
+    tolerance: 0.01
+    explanation: 'El pedido aparece 3 veces en el resultado (una por línea) y su coste de envío se repite en cada una: 3 × 4,95 = 14,85 €. El importe real es 4,95 €. Es el fan-out en miniatura: la suma se multiplica por el número de líneas.'
+    ref: '#cómo-se-produce-un-fan-out'
+
+  - id: sql1-03-q3
+    type: single
+    difficulty: 2
+    prompt: 'Haces un LEFT JOIN de customers a orders y añades WHERE o.status = "completado". ¿Qué efecto tiene sobre los clientes sin pedidos?'
+    options:
+      - 'Se conservan, con las columnas de orders a NULL'
+      - 'Desaparecen: el WHERE descarta las filas con status NULL, convirtiendo el LEFT JOIN en un INNER JOIN encubierto'
+      - 'Se conservan solo si tienen suscripción'
+      - 'El motor lanza un error'
+    answer: [1]
+    explanation: 'Para un cliente sin pedidos, o.status es NULL, y la condición NULL = "completado" es NULL, que WHERE descarta. Si quieres filtrar por status sin perder clientes, la condición va en el ON del join. Las otras opciones ignoran cómo trata WHERE a los nulos.'
+    ref: '#trade-offs-y-cuándo-usarlo'
+
+  - id: sql1-03-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las estrategias válidas para detectar o evitar un fan-out al sumar una columna de la tabla "uno".'
+    options:
+      - 'Comparar COUNT(*) antes y después del join'
+      - 'Agregar la tabla fina al grano de la gruesa antes de unir'
+      - 'Usar SUM(DISTINCT columna) como parche'
+      - 'Usar EXISTS para filtrar en vez de unir'
+    answer: [0, 1, 3]
+    explanation: 'Comparar los recuentos detecta el fan-out; agregar antes de unir y filtrar con EXISTS lo evitan. SUM(DISTINCT) es una trampa: elimina valores repetidos legítimos (dos pedidos distintos con el mismo coste de envío contarían una sola vez), así que puede dar una cifra errónea que parece correcta.'
+    ref: '#cómo-evitarlo'
+
+  - id: sql1-03-q5
+    type: truefalse
+    difficulty: 2
+    prompt: 'SUM(DISTINCT shipping_cost) es una forma segura de corregir el fan-out.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. DISTINCT descarta valores repetidos, no filas repetidas por el join: dos pedidos distintos con el mismo shipping_cost (muy común, hay pocos valores posibles) contarían una sola vez, subestimando el total. Es un arreglo aparente que sustituye un error por otro.'
+    ref: '#cómo-evitarlo'
+
+  - id: sql1-03-q6
+    type: sql-output
+    difficulty: 3
+    prompt: 'customers tiene los ids A, B, C. orders tiene tres pedidos de los clientes A, A y B. ¿Cuántas filas devuelve esta consulta?'
+    code: 'SELECT c.customer_id\nFROM customers c\nLEFT JOIN orders o ON o.customer_id = c.customer_id\nWHERE o.order_id IS NULL;'
+    options: ['0', '1', '2', '3']
+    answer: [1]
+    explanation: 'Es un anti-join: el LEFT JOIN conserva A (dos veces), B y C; solo C no tiene pedido, así que su columna o.order_id es NULL y es la única fila que pasa el WHERE. Devuelve 1 fila (el cliente C). Un INNER JOIN habría devuelto 3 filas (A, A, B) y descartado a C.'
+    ref: '#anti-join-lo-que-no-tiene-correspondencia'

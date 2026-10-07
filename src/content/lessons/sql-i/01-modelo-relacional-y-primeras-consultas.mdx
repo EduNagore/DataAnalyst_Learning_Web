@@ -1,0 +1,205 @@
+---
+title: 'Modelo relacional y primeras consultas'
+description: 'Qué es una tabla, una clave y una consulta SELECT, y por qué el orden en que escribes SQL no es el orden en que se ejecuta.'
+module: sql-i
+order: 1
+level: básico
+estimatedMinutes: 35
+objectives:
+  - 'Describir una base de datos relacional en términos de tablas, filas, columnas y claves.'
+  - 'Escribir consultas con SELECT, FROM, WHERE, ORDER BY y LIMIT sobre el dataset Lumen.'
+  - 'Explicar el orden lógico de ejecución de una consulta y usarlo para predecir qué errores aparecen.'
+  - 'Evitar los dos errores más caros de un analista novato: SELECT * y una consulta sin límite sobre una tabla grande.'
+tools: ['duckdb']
+volatility: low
+lastReviewed: 2026-10-07
+sources:
+  - title: 'DuckDB — SELECT statement'
+    url: 'https://duckdb.org/docs/stable/sql/statements/select'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — Introduction to SQL'
+    url: 'https://duckdb.org/docs/stable/sql/introduction'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'PostgreSQL — Sorting Rows (ORDER BY, LIMIT)'
+    url: 'https://www.postgresql.org/docs/current/queries-order.html'
+    type: docs
+    authors: 'PostgreSQL Global Development Group'
+    year: 2026
+relatedLabs: ['sql-primeras-consultas']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Marta, de operaciones, te escribe: "¿Cuántos pedidos hicimos el año pasado y cuántos fueron
+  online? Necesito la cifra para la reunión de las 16:00". No hay dashboard para esto. Tienes una
+  base de datos y 20 minutos.
+</BusinessContext>
+
+Casi todo trabajo de análisis empieza así: una pregunta concreta, datos en tablas y la necesidad de
+extraer una cifra fiable sin romper nada. SQL es el idioma en el que se hace esa extracción, y lo
+sigue siendo en 2026: los copilotos de IA generan SQL, los almacenes de datos lo ejecutan y las
+herramientas de BI lo emiten por debajo. Quien lo lee con soltura detecta cuándo una cifra está mal
+antes de que llegue a la reunión.
+
+## Intuición
+
+Una base de datos relacional es un conjunto de **tablas**. Cada tabla describe un tipo de cosa
+(clientes, pedidos, productos) y cada **fila** es una instancia concreta de esa cosa. Las
+**columnas** son los atributos. Lo que hace "relacional" al modelo es que las tablas se conectan
+entre sí mediante **claves**: un identificador único en una tabla (clave primaria) que otra tabla
+guarda como referencia (clave foránea).
+
+En Lumen, la tabla `customers` tiene una fila por cliente, con `customer_id` como clave primaria. La
+tabla `orders` tiene una fila por pedido y una columna `customer_id` que apunta de vuelta al cliente
+que lo hizo. No repetimos el nombre ni la región del cliente en cada pedido: lo guardamos una vez y
+lo consultamos cuando hace falta. Esa separación evita inconsistencias (cambiar la región de un
+cliente es tocar una sola fila) y es el motivo por el que casi todo análisis acaba necesitando unir
+tablas, tema de la lección 3.
+
+Una consulta SQL es una **pregunta declarativa**: describes qué filas y columnas quieres, no cómo
+recorrer los datos. El motor decide el plan de ejecución.
+
+## Cómo funciona
+
+### Las cinco cláusulas básicas
+
+```sql
+SELECT order_id, order_date, channel      -- qué columnas quiero
+FROM orders                               -- de qué tabla
+WHERE order_date >= DATE '2025-01-01'     -- qué filas me interesan
+ORDER BY order_date DESC                  -- en qué orden
+LIMIT 10;                                 -- cuántas, como máximo
+```
+
+- `SELECT` elige y calcula columnas. `SELECT *` las trae todas.
+- `FROM` indica la tabla de origen.
+- `WHERE` descarta filas que no cumplen una condición.
+- `ORDER BY` ordena el resultado. Sin él, **el orden de las filas no está garantizado**, aunque a
+  veces parezca estable.
+- `LIMIT` corta el resultado a N filas.
+
+### El orden en que escribes no es el orden en que se ejecuta
+
+SQL se escribe empezando por `SELECT`, pero el motor lo evalúa en otro orden lógico:
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+    A["FROM / JOIN"] --> B["WHERE"] --> C["GROUP BY"] --> D["HAVING"] --> E["SELECT"] --> F["DISTINCT"] --> G["ORDER BY"] --> H["LIMIT"]`}
+  alt="Orden lógico de ejecución de una consulta SQL: FROM, WHERE, GROUP BY, HAVING, SELECT, DISTINCT, ORDER BY, LIMIT"
+/>
+
+Es un modelo mental, no una descripción literal de lo que hace el motor (el optimizador puede
+reordenar operaciones mientras el resultado sea equivalente), pero explica errores muy comunes:
+
+- **No puedes usar en `WHERE` una columna calculada en el `SELECT`** en la mayoría de motores
+  (PostgreSQL, SQL Server): cuando se evalúa `WHERE`, el `SELECT` todavía no ha ocurrido. DuckDB
+  relaja esta regla como extensión, pero escribir código que dependa de ello lo hace menos portable.
+- **`ORDER BY` sí puede usar alias del `SELECT`**, porque se evalúa después.
+- **`WHERE` filtra filas antes de agrupar; `HAVING` filtra grupos después** (lección 2).
+
+### Expresiones y operadores
+
+Dentro de `SELECT` y `WHERE` puedes usar operadores aritméticos (`+ - * /`), de comparación
+(`= <> < <= > >=`), lógicos (`AND OR NOT`), `IN (...)`, `BETWEEN a AND b` y `LIKE`. Dos detalles que
+muerden al principio:
+
+- La igualdad se escribe con **un solo `=`**, y "distinto de" es `<>` (o `!=` en muchos motores).
+- `BETWEEN a AND b` es **inclusivo en ambos extremos**. Con fechas y marcas de tiempo eso causa
+  errores sutiles (lección 5).
+
+## En la práctica
+
+Pedidos por canal en 2025 (la pregunta de Marta, con el año fijado):
+
+```sql
+SELECT channel, COUNT(*) AS pedidos
+FROM orders
+WHERE order_date >= DATE '2025-01-01'
+  AND order_date <  DATE '2026-01-01'
+GROUP BY channel
+ORDER BY pedidos DESC;
+```
+
+Todavía no hemos visto `GROUP BY` ni `COUNT`, pero la consulta se lee casi en castellano. Fíjate en
+el patrón de fechas, `>=` inicio y `<` fin del periodo siguiente: es la forma robusta de filtrar un
+año y la volveremos a ver.
+
+Otra consulta útil: contar cuántos pedidos tiene la tabla en total y en qué rango de fechas cae.
+
+```sql
+SELECT COUNT(*) AS pedidos, MIN(order_date) AS primero, MAX(order_date) AS ultimo
+FROM orders;
+```
+
+En el dataset Lumen devuelve 400.000 pedidos entre el 7 de enero de 2023 y el 30 de junio de 2026.
+Ese segundo dato importa: **2026 solo tiene seis meses**. Compararlo con un año completo sin avisar
+es uno de los errores clásicos de un informe.
+
+## Trade-offs y cuándo usarlo
+
+- **`SELECT *`**: cómodo para explorar una tabla pequeña, mala idea en producción. En un almacén
+  columnar (BigQuery, Snowflake, DuckDB) pagas y esperas por las columnas que lees, y traerlas todas
+  es el modo más rápido de gastar presupuesto. Pide solo lo que necesitas.
+- **`LIMIT` para explorar**: perfecto para mirar cómo es una tabla. Pero un `LIMIT 100` sin
+  `ORDER BY` devuelve 100 filas _cualesquiera_; no sirve para sacar conclusiones.
+- **Filtrar pronto**: cuanto más restrictivo sea el `WHERE`, menos datos mueve el motor. Es la
+  optimización más barata que existe.
+
+## Errores comunes
+
+- **Olvidar que `NULL` no es igual a nada**, ni siquiera a sí mismo: `WHERE store_id = NULL` no
+  devuelve filas. Se usa `IS NULL` (lección 4).
+- **Un `WHERE` con `OR` sin paréntesis** mezclado con `AND`. `AND` tiene precedencia sobre `OR`, así
+  que `a OR b AND c` significa `a OR (b AND c)`. Pon paréntesis siempre que mezcles.
+- **Confiar en el orden de filas sin `ORDER BY`.** Hoy sale ordenado por casualidad; mañana, con
+  más datos o con otro motor, no.
+- **Comparar periodos de distinta longitud** sin normalizar: en Lumen, 2023 solo tiene 18.325
+  pedidos frente a 168.466 en 2025, en parte porque el negocio aún estaba arrancando y en parte
+  porque los datos empiezan el 7 de enero.
+
+<Callout type="warning">
+  Una consulta que "devuelve algo" no es una consulta correcta. Antes de enviar una cifra, haz una
+  comprobación de cordura independiente: ¿el total cuadra con otra fuente? ¿el rango de fechas es el
+  que crees? ¿hay filas duplicadas? Esa costumbre separa a un analista fiable de uno que solo
+  ejecuta código.
+</Callout>
+
+## Con IA
+
+Pedirle a un LLM que escriba esta consulta funciona bien si le das el **esquema** (nombres de tablas
+y columnas) y las **definiciones de negocio** ("pedido" = una fila de `orders`, año natural, excluir
+cancelados). Sin esa información el modelo inventa nombres de columna o define "pedido" a su manera.
+
+La verificación es la misma que para tu propio código: ejecuta la consulta, comprueba que el número
+de filas es razonable, calcula el mismo dato por otro camino (por ejemplo, con `COUNT(DISTINCT
+order_id)`) y lee el SQL generado buscando filtros que no pediste. Más en el módulo 25.
+
+## En una entrevista
+
+- _"¿Cuál es la diferencia entre `WHERE` y `HAVING`?"_ — Pista: orden lógico de ejecución; uno
+  filtra filas antes de agrupar, el otro grupos después.
+- _"¿Por qué `SELECT *` es mala práctica en un almacén de datos?"_ — Pista: columnar, coste por
+  columnas leídas, y fragilidad si cambia el esquema.
+- _"Una consulta devuelve las filas en el orden que quieres, pero sin `ORDER BY`. ¿Es un problema?"_
+  — Pista: el orden no está garantizado por el estándar.
+
+<KeyTakeaways
+  items={[
+    'Una tabla describe un tipo de cosa; las claves conectan tablas y evitan repetir datos.',
+    'SQL es declarativo: describes el resultado, el motor elige cómo calcularlo.',
+    'El orden lógico es FROM, WHERE, GROUP BY, HAVING, SELECT, ORDER BY, LIMIT — no el orden en que escribes.',
+    'Sin ORDER BY no hay orden garantizado, y NULL requiere IS NULL, no =.',
+    'Pide solo las columnas que necesitas y comprueba siempre el rango de fechas de tus datos.',
+  ]}
+/>

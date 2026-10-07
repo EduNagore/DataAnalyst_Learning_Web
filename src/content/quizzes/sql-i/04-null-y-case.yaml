@@ -1,0 +1,60 @@
+lesson: sql-i/04-null-y-case
+questions:
+  - id: sql1-04-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué devuelve SELECT NULL = NULL en SQL estándar?'
+    options: ['TRUE', 'FALSE', 'NULL', 'Un error']
+    answer: [2]
+    explanation: 'Cualquier comparación con NULL devuelve NULL (desconocido): si no sabes cuánto valen dos cosas, no puedes afirmar que sean iguales ni que sean distintas. Por eso se usa IS NULL y, para comparar tratando los nulos como un valor más, IS NOT DISTINCT FROM.'
+    ref: '#lógica-trivaluada'
+
+  - id: sql1-04-q2
+    type: sql-output
+    difficulty: 2
+    prompt: 'La columna x de una tabla contiene los valores: 1, 2, NULL, 4. ¿Cuántas filas devuelve esta consulta?'
+    code: 'SELECT * FROM t WHERE x <> 2;'
+    options: ['1', '2', '3', '4']
+    answer: [1]
+    explanation: 'Devuelve 2 filas (x = 1 y x = 4). Para la fila con NULL, "NULL <> 2" da NULL y WHERE solo conserva TRUE, así que se descarta en silencio. Para quedarte con tres (incluyendo el nulo) usarías x IS DISTINCT FROM 2.'
+    ref: '#lógica-trivaluada'
+
+  - id: sql1-04-q3
+    type: truefalse
+    difficulty: 3
+    prompt: 'Si la subconsulta de NOT IN devuelve al menos un NULL, la consulta sigue devolviendo las filas esperadas que no están en la lista.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. x NOT IN (1, NULL) equivale a x <> 1 AND x <> NULL, y esa segunda comparación es NULL, con lo que toda la condición nunca es TRUE y no se devuelve ninguna fila. Por eso se prefiere NOT EXISTS o un LEFT JOIN con IS NULL para los anti-joins.'
+    ref: '#en-la-práctica'
+
+  - id: sql1-04-q4
+    type: numeric
+    difficulty: 2
+    prompt: 'Una columna tiene los valores 10, NULL, 20, NULL. ¿Cuánto devuelve AVG(columna)?'
+    answer: [15]
+    tolerance: 0.01
+    explanation: 'AVG ignora los NULL: promedia solo 10 y 20, es decir, 15. Si los nulos se hubieran convertido en 0 con COALESCE antes de promediar, la media sería (10 + 0 + 20 + 0) / 4 = 7,5. Cuál es "correcta" depende de lo que signifique el nulo.'
+    ref: '#los-agregados-ignoran-null'
+
+  - id: sql1-04-q5
+    type: single
+    difficulty: 2
+    prompt: 'Una expresión CASE WHEN ... THEN ... END (sin ELSE) se evalúa para una fila que no cumple ninguna condición WHEN. ¿Qué devuelve?'
+    options: ['0', 'Una cadena vacía', 'NULL', 'Un error']
+    answer: [2]
+    explanation: 'Sin ELSE, las filas que no cumplen ninguna condición devuelven NULL. Es una fuente de nulos silenciosos; por eso conviene escribir siempre un ELSE explícito, aunque sea para marcar "otros".'
+    ref: '#case-clasificar-filas'
+
+  - id: sql1-04-q6
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODAS las expresiones que devuelven NULL para el valor x = 0 (y no fallan).'
+    options:
+      - 'NULLIF(x, 0)'
+      - 'COALESCE(x, 0)'
+      - 'x / NULLIF(x, 0)'
+      - 'x IS NULL'
+    answer: [0, 2]
+    explanation: 'NULLIF(0, 0) devuelve NULL porque ambos argumentos son iguales, y por tanto 0 / NULL también es NULL (así se evita la división por cero). COALESCE(0, 0) devuelve 0, y 0 IS NULL devuelve FALSE (un booleano, no NULL).'
+    ref: '#coalesce-y-nullif'

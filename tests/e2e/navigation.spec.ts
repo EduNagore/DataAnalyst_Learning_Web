@@ -32,3 +32,23 @@ test('las páginas de secciones en construcción no devuelven 404', async ({ pag
     expect(response?.status(), `${path} debería responder 200`).toBe(200);
   }
 });
+
+test('una lección de M04 se renderiza con objetivos, fuentes y navegación', async ({ page }) => {
+  await page.goto('teoria/sql-i/03-joins-y-fan-out/');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Joins');
+  await expect(page.getByText('Objetivos', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Fuentes' })).toBeVisible();
+  await expect(page.getByRole('link', { name: /NULL, lógica trivaluada/ }).last()).toBeVisible();
+});
+
+test('la página de módulo lista sus 5 lecciones', async ({ page }) => {
+  await page.goto('teoria/sql-i/');
+  await expect(
+    page.getByRole('listitem').filter({ hasText: 'Joins y la trampa del fan-out' }),
+  ).toBeVisible();
+});
+
+test('la página de datos muestra el diccionario de Lumen', async ({ page }) => {
+  await page.goto('datos/');
+  await expect(page.getByRole('heading', { name: 'orders', exact: true })).toBeVisible();
+});

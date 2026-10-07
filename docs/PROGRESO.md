@@ -1,65 +1,56 @@
 # Progreso de implementación
 
-Registro de qué fase del `PLAN.md` está hecha, verificada y pendiente. Se actualiza al terminar cada fase (o al quedarse sin margen de contexto a mitad de una) para poder continuar sin releer todo el historial de la conversación.
+Registro de qué fase del `PLAN.md` está hecha, verificada y pendiente. Se actualiza al terminar cada fase para poder retomar sin releer la conversación. Instrucción del usuario (2026-10-07): continuar fase a fase sin parar hasta agotar tokens; no gastar tokens en vano pero sin perder calidad.
 
 ## Resumen rápido
 
-| Fase                    | Estado                            |
-| ----------------------- | --------------------------------- |
-| F0 — Setup y despliegue | ✅ Hecha, desplegada, CI en verde |
-| F1 — Dataset Lumen      | ✅ Hecha y verificada             |
-| F2 — Núcleo de teoría   | ⬜ Siguiente paso                 |
-| F3-F10                  | ⬜ Pendiente                      |
+| Fase                                                  | Estado                                          |
+| ----------------------------------------------------- | ----------------------------------------------- |
+| F0 — Setup y despliegue                               | ✅ Hecha (deploy: ver "Despliegue" abajo)       |
+| F1 — Dataset Lumen (+ página `/datos/`)               | ✅ Hecha y verificada                           |
+| F2 — Núcleo de teoría + módulo M04                    | ✅ Hecha                                        |
+| F3 — Motor de tests (quiz, examen, Leitner, progreso) | ⬜ Siguiente                                    |
+| F4 — Laboratorios (DuckDB-WASM, Pyodide, `datakit`)   | ⬜                                              |
+| F5 — Casos guiados                                    | ⬜ → luego PAUSA de revisión (la marca el PLAN) |
+| F6-F10                                                | ⬜                                              |
 
-Repo: `https://github.com/EduNagore/DataAnalyst_Learning_Web` (rama `main`). Sitio: `https://edunagore.github.io/DataAnalyst_Learning_Web/`. GitHub Pages habilitado por el usuario (2026-10-07).
+Repo: `https://github.com/EduNagore/DataAnalyst_Learning_Web` (rama `main`). Sitio: `https://edunagore.github.io/DataAnalyst_Learning_Web/`.
 
----
+## Despliegue (lo primero a verificar al retomar)
 
-## F0 — Setup, stack y despliegue ✅
-
-Astro 7 + TS strict + Tailwind 4 + React 19 + MDX. Helper `url()`, 12 colecciones de contenido (Zod), librerías de dominio con tests (`progress.ts`, `quiz.ts`, `srs.ts`, `resultCompare.ts`), shell de la web (Header/Footer/ThemeToggle sin FOUC, landing, páginas "en construcción" o que ya leen su colección vacía correctamente). CI (`ci.yml`), despliegue (`deploy.yml`), frescura mensual (`content-freshness.yml`).
-
-**Incidencia real resuelta**: `pnpm/setup@v1` (recomendado por una búsqueda web) falló en el run real de GitHub Actions. Diagnosticado vía API de GitHub (no la UI, que dio una lectura falsa de "success"). Revertido a `pnpm/action-setup@v4` + `actions/setup-node@v6`, que sí funciona — confirmado: el job "Web" de `ci.yml` pasa. El job "build" de `deploy.yml` llegó a fallar en `withastro/action@v6` en un run **anterior a que el usuario habilitara GitHub Pages**; no se ha vuelto a comprobar un deploy end-to-end desde que Pages está habilitado — **primera cosa a verificar** si se retoma esto: mirar `https://github.com/EduNagore/DataAnalyst_Learning_Web/actions` tras el próximo push a `main`.
-
-Detalle completo de todas las decisiones de esta fase: `docs/DECISIONS.md`.
+`deploy.yml` falló con `withastro/action@v6` (dos veces, antes y después de habilitar Pages) y se sustituyó por `pnpm build` + `actions/upload-pages-artifact@v4` + `actions/deploy-pages@v4` (commit `f5030a0`). **Sin confirmar todavía que ese deploy funciona.** Comprobar con la API (sin caché): `https://api.github.com/repos/EduNagore/DataAnalyst_Learning_Web/actions/runs?per_page=4&_cb=N` y, si falla, `.../actions/runs/{id}/jobs`. NO fiarse de la vista HTML de Actions (dio un "success" falso). Detalle en `docs/DECISIONS.md`.
 
 ---
 
-## F1 — Dataset Lumen ✅
+## F0 ✅
 
-Generador completo en `data-gen/` (paquete `lumen/`): `calendar.py`, `reference_data.py`, `dimensions.py`, `transactions.py`, `behavior.py`, `growth.py`, `raw_variant.py`, `extra_datasets.py`, `schema_doc.py`, `io_utils.py`, `build.py`, orquestado por `generate.py`. Config en `data-gen/config.yaml` (semillas, tamaños, parámetros de cada verdad plantada).
+Astro 7 + TS strict + Tailwind 4 + React 19 + MDX; `url()`; 12 colecciones Zod; libs con tests (`progress`, `quiz`, `srs`, `resultCompare`); shell web; CI/CD. Lecciones aprendidas en `docs/DECISIONS.md` (p. ej. `pnpm/setup@v1` falló; `astro check` no soporta TS7).
 
-**Verificado sobre los datos reales generados** (no solo en teoría):
+## F1 ✅
 
-- Determinismo: dos ejecuciones completas dan `checksums.json` byte a byte idéntico.
-- Integridad referencial: 0 huérfanos en `orders↔customers`, `order_items↔orders/products`, `shipments↔orders`; 0 inconsistencias canal/tienda.
-- Tamaño: ~45 MB total (límite 60 MB), ningún archivo > 17 MB (límite 25 MB). Generación completa: ~15 s.
-- **Las 11 verdades plantadas, comprobadas con consultas DuckDB directas sobre el Parquet** (no solo "debería funcionar"): estacionalidad, paradoja de Simpson (Madrid vs Andalucía: agregado mobile 6,2 % > desktop 3,7 %, pero mobile pierde dentro de cada región — reversión real confirmada), lift de experimento (+7,9 % ≈ objetivo 8 %), SRM (44/56 ≈ objetivo), CUPED (se apoya en la persistencia de segmento del cliente, no en un parámetro forzado — ver nota abajo), cambio de precio regional (Andalucía +15,8 % tras la fecha, Madrid sin cambio), rotura de stock (stock medio 212→1 en la ventana), bug de eventos duplicados app 4.2 (confirmado con conteo de sesiones con >1 `purchase`: 42 % dentro de ventana+versión vs 0 % fuera), incrementalidad de campaña (atribuida +22,6 % vs real +5,9 %, ambas ≈ objetivo), y churn por retraso de envío (59,6 % vs 49,5 % de cancelación histórica).
-- `lumen_raw/` y `extra/` revisados a mano: fechas mezcladas, mayúsculas/espacios inconsistentes, importes con coma decimal, huérfanos — todo presente como se documentó. `extra/` son 3 datasets **externos reales** (no inventados): cuarteto de Anscombe, Datasaurus Dozen y la serie de pasajeros aéreos de Box & Jenkins, descargados de fuentes públicas verificadas y guardados en `data-gen/lumen/vendor/` (fuentes citadas en `docs/SOURCES.md`).
+Generador determinista en `data-gen/` (config en `config.yaml`, contrato de columnas en `lumen/schema_doc.py`). Verificado con DuckDB sobre el Parquet real: determinismo byte a byte, 0 huérfanos, 45 MB (límite 60), y las 11 verdades plantadas. Bug corregido: comparación subcategoría vs categoría superior (`top_category_id`). `extra/` = 3 datasets externos reales. `/datos/` lee `public/data/_schema.json` (ERD Mermaid + diccionario). Detalle en `docs/DATASET.md`.
 
-**Bug real encontrado y corregido durante la implementación**: las verdades plantadas de precio regional y rotura de stock comparaban `category_id` (id de SUBcategoría, p.ej. `cat-00-3`) contra el id de categoría SUPERIOR (`cat-00`) con `==`, que nunca coincide. Se corrigió añadiendo una columna `top_category_id` explícita en `products` (ver `dimensions.py` y `transactions.py`). Sin la verificación con DuckDB esto habría pasado inadvertido (el generador no lanzaba ningún error, simplemente las verdades plantadas no se manifestaban).
+Pendiente menor: job de CI que regenere el dataset y compare `data-gen/checksums.json`; la correlación CUPED (#5) se apoya en persistencia de segmento, verificar al escribir el lab 55. Nota de realismo: los pedidos crecen mucho (2023: 18k, 2024: 77k, 2025: 168k, 2026-H1: 136k) por la rampa de altas de clientes.
 
-**Pendiente de F1** (menor, no bloqueante):
+## F2 ✅
 
-- No hay todavía un job de CI que regenere el dataset en un runner limpio y compare `checksums.json` (lo apunta `docs/DATASET.md` §7 como pendiente). Añadir cuando se toque `ci.yml` de nuevo.
-- La verdad plantada #5 (CUPED) no tiene un parámetro de correlación forzado explícitamente verificado con una cifra — se apoya en que el peso de pedido por segmento (`_SEGMENT_ORDER_WEIGHT` en `transactions.py`) es persistente en el tiempo para un mismo cliente, lo cual genera correlación entre periodo pre y periodo del experimento de forma natural. Si al escribir el lab de CUPED (Fase 8, lab 55) la correlación medida resulta demasiado débil, reforzarla ahí (no debería hacer falta tocar el generador).
-- `docs/DATASET.md` ya está actualizado con las cifras reales; si se vuelve a regenerar el dataset con otra configuración, revisar que esas cifras sigan siendo correctas.
-
-**Archivos clave para retomar/extender el generador**: `data-gen/config.yaml` (todos los parámetros), `data-gen/lumen/schema_doc.py` (contrato de columnas por tabla, con el que `build.py` valida en caliente).
+- Layout de lección (`LessonLayout.astro`): sidebar de lecciones del módulo, TOC (h2), migas, prev/next, objetivos, fuentes (`SourceList`). Rutas dinámicas `/teoria/[moduleId]/` y `/teoria/[moduleId]/[lesson]/`.
+- Componentes (`src/components/content/`): `BusinessContext`, `Callout`, `Snapshot`, `Term`, `KeyTakeaways`, `SourceList`, `ExcelFn`, `DialectTabs.tsx`, `VegaChart.tsx`, `Diagram.tsx` (Mermaid lazy).
+- Tailwind typography, KaTeX (`remark-math`+`rehype-katex` vía `unified()` de `@astrojs/markdown-remark` — en Astro 7 los plugins ya no van en `markdown.remarkPlugins`), Shiki doble tema claro/oscuro, Pagefind (`/buscar/`, `data-pagefind-body` en lecciones).
+- **M04 completo** (`src/content/modules/sql-i.yaml`): 5 lecciones (`sql-i/01..05`) con cifras reales de Lumen verificadas con DuckDB (p. ej. fan-out: envío 881.019,35 € real vs 2.275.942,25 € tras join) y 30 preguntas de quiz (`src/content/quizzes/sql-i/`). Fuentes: docs oficiales de DuckDB/PostgreSQL, URLs comprobadas con curl.
+- `validate-content` OK (1 módulo, 5 lecciones, 30 preguntas), `astro check` 0 errores, lint limpio, unit 40/40, e2e 7/7.
+- **Los quizzes aún no se renderizan en la lección** (los construye F3). Los `relatedLabs` de M04 apuntan a ids que crea F4: `sql-primeras-consultas`, `sql-fanout-joins`, `sql-antijoin`, `sql-nulls-coalesce`, `sql-case-segmentos`, `sql-fechas-zonas-horarias`.
+- Decisión: sidebar de lección = lecciones del módulo (no los 30 módulos); `/teoria/` ya muestra el árbol completo.
 
 ---
 
-## F2 — Núcleo de teoría (siguiente paso)
+## Siguiente: F3 — Motor de tests
 
-Según `PLAN.md` §12: Layouts, header, sidebar, TOC, tema oscuro (ya hecho en F0 — revisar si falta sidebar/TOC de lección), componentes de contenido (`Callout`, `Diagram`, `SourceList`, `KeyTakeaways`, `Snapshot`, `Term`, `ExcelFn`, `VegaChart`, `DialectTabs`, `BusinessContext`), búsqueda Pagefind (dependencia ya instalada en F0, falta integrarla), M04 (SQL I — Fundamentos) completo como módulo modelo con sus lecciones, quizzes y labs.
+Según PLAN §12/§7.2: `Quiz.tsx` + `Question*` (tipos single, multiple, truefalse, order, numeric, sql-output, formula-output, chart-critique), `QuizResult`, quiz al final de cada lección (leer la colección `quizzes` por `lesson`), `/practica/tests/` + `/practica/tests/<modulo>/` (aprobado ≥ 80 %), `/practica/examen/`, `/practica/repaso/` (Leitner, `srs.ts` ya existe), `/progreso/` (export/import JSON; `progress.ts` ya existe), barrido de `hydrateProgress`, marcar lección leída. Tests unitarios ya existentes para `quiz.ts`/`srs.ts`; añadir e2e de un quiz.
 
-**Antes de escribir contenido**: releer `docs/CONTENT_GUIDELINES.md` (estructura de lección, estilo, procedimiento de fuentes) y `PLAN.md` §7.1 (temario de M04) y §9.
+## Notas para retomar
 
----
-
-## Notas para retomar en una sesión nueva
-
-1. Verificar si hay cambios sin commitear: `git status` en `C:\dev\Data_Analyst_Web`.
-2. El dataset ya generado vive en `public/data/` (committed). Para regenerarlo: `uv run python data-gen/generate.py` desde la raíz del repo (o `python data-gen/generate.py` si no hay `uv`, con `numpy pandas pyarrow pyyaml duckdb` instalados).
-3. Antes de generar contenido en masa, confirmar que el deploy a GitHub Pages funciona de verdad tras habilitar Pages (ver incidencia de F0 arriba).
-4. El PLAN.md marca una **pausa de revisión explícita tras la Fase 5** (no antes) — hasta entonces, seguir avanzando fase a fase sin pedir permiso salvo bloqueo real.
+1. `git status` en `C:\dev\Data_Analyst_Web`; en Windows la herramienta Bash falla con heredocs largos que mezclan comillas: usar la herramienta Write para ficheros largos.
+2. Regenerar dataset: `python data-gen/generate.py` (necesita `numpy pandas pyarrow pyyaml`; `duckdb` para verificar).
+3. Antes de escribir contenido, releer `docs/CONTENT_GUIDELINES.md`. Verificar toda URL de fuente con `curl -s -o /dev/null -w '%{http_code}'`.
+4. El PLAN marca una pausa de revisión tras F5, no antes.

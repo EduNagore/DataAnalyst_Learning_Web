@@ -1,0 +1,14 @@
+---
+// Nombre de función de hoja de cálculo en inglés y español (ver
+// docs/CONTENT_GUIDELINES.md §3). Verificar el nombre español vigente en
+// Microsoft Learn antes de usarlo (es contenido volatility: medium).
+interface Props {
+  en: string;
+  es: string;
+}
+const { en, es } = Astro.props;
+---
+
+<code class="rounded bg-[var(--color-bg-subtle)] px-1.5 py-0.5 font-mono text-[0.9em]">
+  {en} <span class="text-[var(--color-text-muted)]">/ {es}</span>
+</code>

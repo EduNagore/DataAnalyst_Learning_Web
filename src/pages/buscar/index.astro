@@ -1,0 +1,18 @@
+---
+import Search from 'astro-pagefind/components/Search.astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Buscar" description="Busca en todas las lecciones, labs y recursos del curso.">
+  <section class="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Buscar</h1>
+    <p class="mt-2 text-sm text-[var(--color-text-muted)]">
+      Búsqueda local en el contenido del curso (sin servidor). Solo funciona sobre el sitio
+      construido: en <code>pnpm dev</code> no hay índice; usa{' '}
+      <code>pnpm build &amp;&amp; pnpm preview</code>.
+    </p>
+    <div class="mt-6">
+      <Search />
+    </div>
+  </section>
+</BaseLayout>

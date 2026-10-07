@@ -1,0 +1,216 @@
+---
+title: 'Agregación: GROUP BY, HAVING y las funciones agregadas'
+description: 'Cómo resumir miles de filas en una cifra, la diferencia entre WHERE y HAVING, y las tres formas de contar que dan resultados distintos.'
+module: sql-i
+order: 2
+level: básico
+estimatedMinutes: 35
+objectives:
+  - 'Resumir una tabla con COUNT, SUM, AVG, MIN y MAX, solos y agrupados con GROUP BY.'
+  - 'Elegir entre WHERE y HAVING según se filtren filas o grupos.'
+  - 'Distinguir COUNT(*), COUNT(columna) y COUNT(DISTINCT columna) y saber cuándo da cada uno una cifra distinta.'
+  - 'Calcular métricas de negocio simples (ticket medio, ingresos por categoría) sin dividir mal.'
+prerequisites: ['sql-i/01-modelo-relacional-y-primeras-consultas']
+tools: ['duckdb']
+volatility: low
+lastReviewed: 2026-10-07
+sources:
+  - title: 'DuckDB — GROUP BY clause'
+    url: 'https://duckdb.org/docs/stable/sql/query_syntax/groupby'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — HAVING clause'
+    url: 'https://duckdb.org/docs/stable/sql/query_syntax/having'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — WHERE clause'
+    url: 'https://duckdb.org/docs/stable/sql/query_syntax/where'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+relatedLabs: ['sql-primeras-consultas']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  La directora comercial pregunta: "¿Cuál es nuestro ticket medio y qué categoría aporta más
+  ingresos? Y dime también cuántos clientes han comprado diez veces o más: quiero montarles un
+  programa de fidelización."
+</BusinessContext>
+
+Casi ninguna pregunta de negocio es sobre una fila. Es sobre un **resumen**: un total, una media,
+un recuento por categoría. La agregación es la operación que convierte 1,03 millones de líneas de
+pedido en las tres o cuatro cifras que alguien puede leer en una reunión.
+
+## Intuición
+
+Agregar es **colapsar muchas filas en una**. Una función agregada recibe un conjunto de valores y
+devuelve uno solo: `SUM` los suma, `AVG` los promedia, `COUNT` los cuenta. Sin `GROUP BY`, el
+conjunto es la tabla entera y el resultado, una única fila. Con `GROUP BY`, el motor primero
+reparte las filas en grupos (uno por cada valor distinto de la columna de agrupación) y aplica la
+función agregada dentro de cada grupo.
+
+## Cómo funciona
+
+### Las funciones agregadas básicas
+
+```sql
+SELECT
+  COUNT(*)                  AS pedidos,
+  SUM(shipping_cost)        AS envio_total,
+  AVG(shipping_cost)        AS envio_medio,
+  MIN(order_date)           AS primer_pedido,
+  MAX(order_date)           AS ultimo_pedido
+FROM orders;
+```
+
+Una sola fila, porque no hay `GROUP BY`. Sobre las 400.000 filas de `orders`, el envío medio es de
+unos 2,20 €. Esa media mezcla pedidos online con envío y pedidos en tienda, donde el envío es 0, así
+que probablemente no es la cifra que alguien quiere. Hay que agrupar.
+
+### GROUP BY
+
+```sql
+SELECT channel, COUNT(*) AS pedidos, ROUND(AVG(shipping_cost), 2) AS envio_medio
+FROM orders
+GROUP BY channel;
+```
+
+Regla fundamental: **toda columna del `SELECT` que no sea una función agregada debe aparecer en el
+`GROUP BY`**. Si no, el motor no sabría qué valor mostrar de entre las filas del grupo. DuckDB
+ofrece `GROUP BY ALL` como atajo (agrupa por todo lo no agregado), cómodo pero menos portable.
+
+### WHERE filtra filas; HAVING filtra grupos
+
+Es la confusión más frecuente. Por el orden lógico de ejecución (lección 1), `WHERE` se evalúa
+**antes** de agrupar y `HAVING`, **después**:
+
+```sql
+-- ¿Cuántos clientes han hecho 10 o más pedidos?
+SELECT COUNT(*) AS clientes_fieles
+FROM (
+  SELECT customer_id
+  FROM orders
+  GROUP BY customer_id
+  HAVING COUNT(*) >= 10
+) AS fieles;
+```
+
+No puedes escribir `WHERE COUNT(*) >= 10`: cuando se evalúa `WHERE`, los grupos aún no existen. En
+Lumen, 14.185 clientes cumplen la condición. Esa subconsulta en `FROM` es un patrón que verás
+mucho; las subconsultas se tratan en la lección 5.
+
+La combinación habitual es usar los dos: `WHERE` para descartar filas que no te interesan
+(es más barato, porque reduce lo que hay que agrupar) y `HAVING` solo para condiciones que
+dependen del resultado agregado.
+
+### Contar de tres formas
+
+```sql
+SELECT
+  COUNT(*)                  AS filas,
+  COUNT(store_id)           AS filas_con_tienda,
+  COUNT(DISTINCT store_id)  AS tiendas_distintas
+FROM orders;
+```
+
+En Lumen devuelve **400.000**, **28.173** y **40**:
+
+- `COUNT(*)` cuenta filas, sin mirar su contenido.
+- `COUNT(columna)` cuenta filas donde esa columna **no es `NULL`**. Los 371.827 pedidos online
+  tienen `store_id` nulo, así que no entran.
+- `COUNT(DISTINCT columna)` cuenta valores diferentes, también ignorando `NULL`.
+
+Las demás funciones agregadas (`SUM`, `AVG`, `MIN`, `MAX`) también **ignoran los `NULL`**. Es una
+fuente clásica de medias que no significan lo que crees; la lección 4 lo desarrolla.
+
+## En la práctica
+
+**Ticket medio.** Un pedido tiene varias líneas, así que el ingreso del pedido es la suma de
+`quantity * unit_price` sobre sus líneas. El ticket medio es ingresos totales entre número de
+**pedidos distintos**, no entre número de líneas:
+
+```sql
+SELECT
+  ROUND(SUM(oi.quantity * oi.unit_price) / COUNT(DISTINCT o.order_id), 2) AS ticket_medio
+FROM orders AS o
+JOIN order_items AS oi ON oi.order_id = o.order_id;
+```
+
+Resultado: unos 302 €. Dividir por `COUNT(*)` en lugar de `COUNT(DISTINCT o.order_id)` daría el
+importe medio por **línea**, una cifra distinta y, para esta pregunta, equivocada.
+
+**Ingresos por categoría.**
+
+```sql
+SELECT cat.name AS categoria,
+       ROUND(SUM(oi.quantity * oi.unit_price)) AS ingresos
+FROM order_items AS oi
+JOIN products   AS p   ON p.product_id = oi.product_id
+JOIN categories AS sub ON sub.category_id = p.category_id
+JOIN categories AS cat ON cat.category_id = sub.parent_category_id
+GROUP BY cat.name
+ORDER BY ingresos DESC;
+```
+
+Electrónica lidera con unos 56,5 millones de euros de los 120,8 millones totales, seguida de Hogar
+(22,7 M) y Deporte (13,5 M). Usamos `JOIN` de la lección 3 aquí; de momento, léelo como "une cada
+línea con su producto y su categoría".
+
+<Callout type="info">
+  Esos 120,8 millones incluyen pedidos cancelados y devueltos parcialmente. ¿Es la cifra que quiere
+  la directora? Depende de la definición de "ingresos", y esa conversación hay que tenerla **antes**
+  de escribir la consulta, no después. Definir bien una métrica es la mitad del trabajo.
+</Callout>
+
+## Trade-offs y cuándo usarlo
+
+- **Agregar pierde información.** Una media oculta la distribución. Un ticket medio de 302 € puede
+  venir de pedidos muy parecidos o de muchos pequeños y unos pocos enormes. Complementa la media con
+  la mediana y percentiles (`MEDIAN`, `QUANTILE_CONT` en DuckDB) cuando la cola importe.
+- **Agrega al nivel adecuado.** Agrupar por `customer_id` da una fila por cliente; por `channel`, dos.
+  Cada pregunta de negocio tiene su grano natural: decídelo antes de escribir el `GROUP BY`.
+- **`HAVING` vs subconsulta**: para "clientes con 10+ pedidos" ambos sirven; `HAVING` es más legible
+  cuando el filtro es sobre el propio agregado.
+
+## Errores comunes
+
+- **Dividir por la columna equivocada** (líneas en vez de pedidos, pedidos en vez de clientes). Es la
+  fuente de la mitad de las métricas incorrectas que circulan en las empresas.
+- **Filtrar con `HAVING` lo que debería ir en `WHERE`**: funciona, pero obliga al motor a agrupar
+  todo antes de descartar nada.
+- **Promediar promedios.** La media de las medias por categoría no es la media global salvo que
+  todas las categorías tengan el mismo número de filas. Suma y cuenta, y divide al final.
+- **Olvidar que los agregados ignoran `NULL`**: `AVG(columna)` promedia solo las filas no nulas.
+
+## Con IA
+
+Un LLM suele escribir bien `GROUP BY`, pero falla justo en lo de arriba: elige un denominador
+plausible sin preguntar cuál es el correcto. Cuando revises SQL generado, mira siempre qué se está
+contando y qué se divide por qué. Pídele que explique en una frase la definición de la métrica y
+compárala con la que acordaste con negocio.
+
+## En una entrevista
+
+- _"¿Cuántos clientes han comprado más de una vez?"_ — Pista: subconsulta o `HAVING COUNT(*) > 1`
+  sobre `customer_id`; cuidado con el grano (¿pedidos o líneas?).
+- _"¿Qué diferencia hay entre `COUNT(*)` y `COUNT(col)`?"_ — Pista: tratamiento de `NULL`.
+- _"Tengo la media de gasto por país; ¿puedo obtener la media global promediándolas?"_ — Pista: no,
+  salvo pesos iguales; calcula con sumas y recuentos.
+
+<KeyTakeaways
+  items={[
+    'Una función agregada colapsa muchas filas en una; GROUP BY lo hace una vez por grupo.',
+    'Toda columna no agregada del SELECT debe estar en el GROUP BY.',
+    'WHERE filtra filas antes de agrupar; HAVING filtra grupos después.',
+    'COUNT(*), COUNT(col) y COUNT(DISTINCT col) son tres cifras distintas, y los agregados ignoran NULL.',
+    'La mayoría de métricas erróneas lo son por un denominador mal elegido, no por un fallo de sintaxis.',
+  ]}
+/>

@@ -1,0 +1,156 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import SourceList from '../components/content/SourceList.astro';
+import 'katex/dist/katex.min.css';
+import { url } from '../lib/url';
+import type { CollectionEntry } from 'astro:content';
+
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  lesson: CollectionEntry<'lessons'>;
+  moduleTitle: string;
+  moduleId: string;
+  modulePath: string;
+  siblingLessons: { slug: string; order: number; title: string }[];
+  headings: Heading[];
+  prevLesson?: { slug: string; title: string } | null;
+  nextLesson?: { slug: string; title: string } | null;
+}
+
+const {
+  lesson,
+  moduleTitle,
+  moduleId,
+  modulePath,
+  siblingLessons,
+  headings,
+  prevLesson,
+  nextLesson,
+} = Astro.props;
+const { title, description, level, estimatedMinutes, objectives, sources, volatility } =
+  lesson.data;
+const tocHeadings = headings.filter((h) => h.depth === 2);
+
+const levelLabels = { básico: 'Básico', intermedio: 'Intermedio', avanzado: 'Avanzado' };
+---
+
+<BaseLayout title={title} description={description}>
+  <div class="mx-auto flex max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Sidebar: lecciones del módulo -->
+    <aside class="hidden w-56 flex-none lg:block">
+      <div class="sticky top-20">
+        <a href={modulePath} class="text-xs font-medium text-[var(--color-accent)] hover:underline">
+          ← {moduleTitle}
+        </a>
+        <nav class="mt-3 space-y-1" aria-label="Lecciones del módulo">
+          {siblingLessons
+            .sort((a, b) => a.order - b.order)
+            .map((sibling) => (
+              <a
+                href={url(`/teoria/${moduleId}/${sibling.slug}/`)}
+                aria-current={sibling.slug === lesson.id.split('/').pop() ? 'page' : undefined}
+                class:list={[
+                  'block rounded-md px-2 py-1.5 text-sm',
+                  sibling.slug === lesson.id.split('/').pop()
+                    ? 'bg-[var(--color-accent)]/10 font-medium text-[var(--color-accent)]'
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
+                ]}
+              >
+                {sibling.order}. {sibling.title}
+              </a>
+            ))}
+        </nav>
+      </div>
+    </aside>
+
+    <!-- Contenido -->
+    <main class="min-w-0 flex-1">
+      <nav class="text-xs text-[var(--color-text-muted)]" aria-label="Miga de pan">
+        <a href={url('/teoria/')} class="hover:text-[var(--color-text)]">
+          Teoría
+        </a>
+        <span class="mx-1">/</span>
+        <a href={modulePath} class="hover:text-[var(--color-text)]">
+          {moduleTitle}
+        </a>
+      </nav>
+
+      <h1 class="mt-2 text-3xl font-bold text-[var(--color-text)]">{title}</h1>
+      <div class="mt-2 flex flex-wrap items-center gap-3 text-xs text-[var(--color-text-muted)]">
+        <span class="rounded-full border border-[var(--color-border)] px-2 py-0.5">
+          {levelLabels[level]}
+        </span>
+        <span>{estimatedMinutes} min</span>
+        {volatility === 'high' && (
+          <span class="rounded-full bg-[var(--color-warning)]/15 px-2 py-0.5 text-[var(--color-warning)]">
+            Contenido que cambia rápido
+          </span>
+        )}
+      </div>
+
+      <section class="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-subtle)] p-4">
+        <p class="text-xs font-semibold tracking-wide text-[var(--color-text-muted)] uppercase">
+          Objetivos
+        </p>
+        <ul class="mt-2 list-inside list-disc space-y-1 text-sm text-[var(--color-text)]">
+          {objectives.map((obj: string) => (
+            <li>{obj}</li>
+          ))}
+        </ul>
+      </section>
+
+      <article data-pagefind-body class="prose prose-neutral mt-8 max-w-none dark:prose-invert">
+        <slot />
+      </article>
+
+      <SourceList sources={sources} />
+
+      <nav class="mt-10 flex items-center justify-between border-t border-[var(--color-border)] pt-6 text-sm">
+        {prevLesson ? (
+          <a
+            href={url(`/teoria/${moduleId}/${prevLesson.slug}/`)}
+            class="text-[var(--color-accent)] hover:underline"
+          >
+            ← {prevLesson.title}
+          </a>
+        ) : (
+          <span />
+        )}
+        {nextLesson && (
+          <a
+            href={url(`/teoria/${moduleId}/${nextLesson.slug}/`)}
+            class="text-[var(--color-accent)] hover:underline"
+          >
+            {nextLesson.title} →
+          </a>
+        )}
+      </nav>
+    </main>
+
+    <!-- TOC -->
+    {tocHeadings.length > 0 && (
+      <aside class="hidden w-48 flex-none xl:block">
+        <div class="sticky top-20">
+          <p class="text-xs font-semibold tracking-wide text-[var(--color-text-muted)] uppercase">
+            En esta página
+          </p>
+          <nav class="mt-3 space-y-1.5 text-sm">
+            {tocHeadings.map((h) => (
+              <a
+                href={`#${h.slug}`}
+                class="block text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+              >
+                {h.text}
+              </a>
+            ))}
+          </nav>
+        </div>
+      </aside>
+    )}
+  </div>
+</BaseLayout>

@@ -1,0 +1,252 @@
+---
+title: 'Joins y la trampa del fan-out'
+description: 'Cómo unir tablas con el tipo de join correcto, y cómo un join inocente puede multiplicar tus ingresos por 2,6 sin dar ningún error.'
+module: sql-i
+order: 3
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Elegir entre INNER, LEFT, FULL y CROSS JOIN según qué filas quieres conservar.'
+  - 'Detectar un fan-out comparando recuentos antes y después de un join.'
+  - 'Encontrar filas sin correspondencia con un anti-join (LEFT JOIN ... IS NULL o NOT EXISTS).'
+  - 'Usar un self-join para recorrer una jerarquía como el árbol de categorías.'
+prerequisites: ['sql-i/02-agregacion-group-by-having']
+tools: ['duckdb']
+volatility: low
+lastReviewed: 2026-10-07
+sources:
+  - title: 'DuckDB — FROM and JOIN clauses'
+    url: 'https://duckdb.org/docs/stable/sql/query_syntax/from'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'PostgreSQL — Joined Tables'
+    url: 'https://www.postgresql.org/docs/current/queries-table-expressions.html'
+    type: docs
+    authors: 'PostgreSQL Global Development Group'
+    year: 2026
+  - title: 'DuckDB — Subqueries (EXISTS / NOT EXISTS)'
+    url: 'https://duckdb.org/docs/stable/sql/expressions/subqueries'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+relatedLabs: ['sql-fanout-joins', 'sql-antijoin']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import DialectTabs from '../../../components/content/DialectTabs.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Finanzas te pide el coste total de envíos del periodo. Escribes una consulta que une pedidos con
+  sus líneas para filtrar por categoría, sumas `shipping_cost` y devuelves 2,28 millones de euros.
+  Un compañero que lo calculó directamente sobre `orders` obtuvo 0,88 millones. Los dos "tienen
+  razón" y solo uno puede ser correcto.
+</BusinessContext>
+
+Esta es la historia más repetida del análisis de datos: un `JOIN` que parece inocente y que
+multiplica una métrica sin lanzar un solo error. Conviene entender por qué ocurre antes de aprender
+las variantes.
+
+## Intuición
+
+Un join combina cada fila de la tabla izquierda con las filas de la derecha que cumplen una
+condición. Si para una fila izquierda hay **tres** coincidencias a la derecha, esa fila izquierda
+aparece **tres veces** en el resultado. Eso es correcto y esperado, pero tiene una consecuencia: el
+resultado tiene el **grano** (el nivel de detalle: qué representa una fila) de la tabla más fina.
+
+Un pedido (`orders`) tiene varias líneas (`order_items`). Si unes `orders` con `order_items`, el
+resultado tiene una fila **por línea**, no por pedido. El `shipping_cost` de un pedido de tres
+líneas se repite tres veces, y al sumarlo, se cuenta tres veces. Eso es el **fan-out**.
+
+## Cómo funciona
+
+### Los tipos de join
+
+- **`INNER JOIN`**: solo las filas con correspondencia en ambos lados. Lo que no encaja desaparece.
+- **`LEFT JOIN`**: todas las filas de la izquierda; si no hay coincidencia, las columnas de la
+  derecha son `NULL`. Es el join para "conserva todo lo mío y añade lo que haya".
+- **`RIGHT JOIN`**: lo simétrico. En la práctica se evita: reordena las tablas y usa `LEFT`.
+- **`FULL OUTER JOIN`**: todas las filas de ambos lados; los huecos, a `NULL`. Útil para
+  reconciliar dos fuentes.
+- **`CROSS JOIN`**: el producto cartesiano, cada fila con cada fila. Úsalo a propósito (p. ej.
+  fechas × canales para rellenar huecos), nunca por descuido: 400.000 × 60.000 filas no cabe en
+  ninguna máquina razonable.
+
+```sql
+SELECT o.order_id, c.region
+FROM orders AS o
+INNER JOIN customers AS c ON c.customer_id = o.customer_id;
+```
+
+`ON` define la condición de unión. Si ambas columnas se llaman igual, `USING (customer_id)` es una
+abreviatura que además evita duplicar la columna en el resultado.
+
+### Cómo se produce un fan-out
+
+Relaciones entre tablas:
+
+- **Uno a uno** (1:1): sin riesgo.
+- **Muchos a uno** (N:1, `orders` → `customers`): sin riesgo; cada pedido tiene un solo cliente.
+- **Uno a muchos** (1:N, `orders` → `order_items`): **fan-out**. Cada pedido se repite tantas veces
+  como líneas tenga.
+
+La regla práctica: antes de unir, pregúntate "¿cuántas filas de la derecha puede tener cada fila de
+la izquierda?". Si la respuesta es "más de una" y vas a **sumar una columna de la izquierda**,
+tienes un problema.
+
+## En la práctica
+
+### Medir el fan-out con recuentos
+
+```sql
+SELECT
+  (SELECT COUNT(*) FROM orders)                                   AS filas_orders,
+  (SELECT COUNT(*) FROM orders o JOIN order_items i USING (order_id)) AS filas_tras_join;
+```
+
+En Lumen: 400.000 filas antes y 1.033.042 después. Si un join que no debería cambiar el número de
+filas lo cambia, hay fan-out. Ese contraste es la comprobación más barata y más importante.
+
+### Ver el daño
+
+```sql
+-- Correcto: sobre orders, sin unir
+SELECT ROUND(SUM(shipping_cost), 2) AS envio_total FROM orders;
+-- 881.019,35
+
+-- Con fan-out: tras unir con las líneas
+SELECT ROUND(SUM(o.shipping_cost), 2) AS envio_total
+FROM orders AS o
+JOIN order_items AS i USING (order_id);
+-- 2.275.942,25  (2,58 veces más)
+```
+
+El segundo resultado no es un error de sintaxis ni de datos: es la respuesta correcta a otra
+pregunta ("suma de envío contada una vez por línea"). El analista que no mide el fan-out entrega esa
+cifra convencido de que responde a la primera.
+
+### Cómo evitarlo
+
+Tres estrategias, de más a menos recomendable:
+
+1. **Agregar antes de unir**: reduce la tabla fina al grano de la gruesa antes del join.
+2. **Sumar en el grano correcto**: si necesitas el filtro de categoría, filtra pedidos con
+   `EXISTS` en vez de unir.
+3. **`COUNT(DISTINCT)`/`SUM(DISTINCT)`**: para contar, `COUNT(DISTINCT order_id)` resuelve el
+   problema; para sumar, `SUM(DISTINCT x)` es una **trampa** (descarta valores repetidos legítimos,
+   p. ej. dos pedidos con el mismo coste de envío). No lo uses como parche.
+
+```sql
+-- Envío total de pedidos que contienen al menos un producto de Electrónica,
+-- sin multiplicar nada
+SELECT ROUND(SUM(o.shipping_cost), 2) AS envio_total
+FROM orders AS o
+WHERE EXISTS (
+  SELECT 1
+  FROM order_items AS i
+  JOIN products   AS p   ON p.product_id = i.product_id
+  JOIN categories AS sub ON sub.category_id = p.category_id
+  WHERE i.order_id = o.order_id
+    AND sub.parent_category_id = 'cat-00'
+);
+```
+
+### Anti-join: lo que NO tiene correspondencia
+
+¿Qué clientes no han hecho nunca un pedido?
+
+```sql
+SELECT COUNT(*) AS sin_pedidos
+FROM customers AS c
+LEFT JOIN orders AS o ON o.customer_id = c.customer_id
+WHERE o.order_id IS NULL;
+```
+
+En Lumen, 1.987 de 60.000. El `LEFT JOIN` conserva todos los clientes; los que no tienen pedido
+quedan con las columnas de `orders` a `NULL`, y el `WHERE ... IS NULL` se queda solo con ellos. La
+alternativa equivalente `WHERE NOT EXISTS (...)` es igual de correcta y a menudo más clara.
+
+<Callout type="warning">
+  Cuidado con `NOT IN (subconsulta)` si la subconsulta puede devolver `NULL`: toda la condición pasa
+  a ser desconocida y no devuelve ninguna fila. Se explica en la lección 4. Con anti-joins, prefiere
+  `LEFT JOIN ... IS NULL` o `NOT EXISTS`.
+</Callout>
+
+### Self-join: una tabla consigo misma
+
+La tabla `categories` guarda una jerarquía de dos niveles mediante `parent_category_id`. Para
+mostrar cada subcategoría junto a su categoría padre, se une la tabla consigo misma con dos alias:
+
+```sql
+SELECT sub.name AS subcategoria, cat.name AS categoria
+FROM categories AS sub
+JOIN categories AS cat ON cat.category_id = sub.parent_category_id;
+```
+
+Devuelve 40 filas (las 40 subcategorías); las 8 categorías de nivel superior no tienen padre y
+desaparecen con `INNER JOIN`. Con un `LEFT JOIN` aparecerían, con la categoría a `NULL`.
+
+### Mismo join, distintos motores
+
+La sintaxis de join es casi universal. Lo que cambia entre motores son detalles como `FULL OUTER
+JOIN` (no disponible en MySQL) o el comportamiento de `USING`:
+
+<DialectTabs
+  client:visible
+  dialects={{
+    duckdb: 'SELECT *\nFROM orders\nJOIN customers USING (customer_id);',
+    postgres: 'SELECT *\nFROM orders\nJOIN customers USING (customer_id);',
+    tsql: 'SELECT *\nFROM orders\nJOIN customers ON customers.customer_id = orders.customer_id;',
+  }}
+/>
+
+## Trade-offs y cuándo usarlo
+
+- **`INNER` vs `LEFT`**: si usas `INNER JOIN` y la tabla derecha tiene huecos, pierdes filas **sin
+  aviso**. Cuando quieras conservar toda la tabla izquierda, es `LEFT`. Cambiar de uno a otro
+  cambia el resultado, y deberías saber por qué.
+- **Filtrar en `ON` vs en `WHERE` con `LEFT JOIN`**: una condición sobre la tabla derecha en el
+  `WHERE` convierte el `LEFT JOIN` en un `INNER JOIN` encubierto (descarta las filas con `NULL`).
+  Si quieres filtrar la derecha sin perder filas de la izquierda, la condición va en el `ON`.
+- **Unir muchas tablas grandes** es caro. El optimizador ayuda, pero reducir primero con
+  `WHERE` o agregar antes de unir es siempre buena idea.
+
+## Errores comunes
+
+- **No medir el número de filas tras un join.** La comprobación de 5 segundos que evita la mayoría
+  de los desastres.
+- **Unir por una columna que no es única en ninguno de los dos lados** (muchos a muchos): el
+  resultado explota en tamaño. Verifica la unicidad de tu clave con `COUNT(*)` frente a
+  `COUNT(DISTINCT clave)`.
+- **`SUM(DISTINCT)` como parche** del fan-out: hace desaparecer valores repetidos legítimos.
+- **Olvidar la condición de unión**: algunos motores lo aceptan y devuelven el producto cartesiano.
+
+## Con IA
+
+Los LLM generan joins correctos sintácticamente y son particularmente propensos al fan-out, porque
+no conocen el grano de tus tablas. Si el modelo une `orders` con `order_items` y luego suma una
+columna de `orders`, es una bandera roja. Revisa el grano de cada tabla en la consulta generada y
+pide siempre la comprobación de recuentos antes/después. Con una capa semántica (módulo 23) este
+riesgo se reduce mucho, porque la métrica ya está definida al grano correcto.
+
+## En una entrevista
+
+- _"Unes pedidos con líneas y sumas el importe del pedido. ¿Qué puede ir mal?"_ — Pista: fan-out;
+  explica el grano y cómo lo detectas.
+- _"¿Cuál es la diferencia entre `LEFT JOIN ... WHERE b.id IS NULL` y `NOT IN`?"_ — Pista: manejo de
+  `NULL`; `NOT IN` con nulos devuelve vacío.
+- _"¿Cómo encuentras los clientes sin ningún pedido?"_ — Pista: anti-join.
+
+<KeyTakeaways
+  items={[
+    'El resultado de un join tiene el grano de la tabla más fina: unir con una relación 1:N repite las filas de la izquierda.',
+    'Fan-out: sumar una columna de la tabla "uno" tras unir con la tabla "muchos" multiplica la métrica sin dar error.',
+    'Detéctalo comparando COUNT(*) antes y después del join; en Lumen, 400.000 pedidos pasan a 1.033.042 filas.',
+    'LEFT JOIN conserva la izquierda; INNER descarta sin avisar; un anti-join (IS NULL / NOT EXISTS) encuentra lo que no tiene pareja.',
+    'Una condición sobre la tabla derecha en el WHERE convierte un LEFT JOIN en INNER.',
+  ]}
+/>

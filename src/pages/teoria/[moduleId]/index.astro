@@ -1,0 +1,73 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { url } from '../../../lib/url';
+
+export async function getStaticPaths() {
+  const modules = await getCollection('modules');
+  const lessons = await getCollection('lessons');
+  return modules.map((mod) => ({
+    params: { moduleId: mod.data.id },
+    props: {
+      mod,
+      lessons: lessons
+        .filter((l) => l.data.module === mod.data.id)
+        .sort((a, b) => a.data.order - b.data.order),
+    },
+  }));
+}
+
+const { mod, lessons } = Astro.props;
+---
+
+<BaseLayout title={mod.data.title} description={mod.data.description}>
+  <section class="mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8">
+    <nav class="text-xs text-[var(--color-text-muted)]" aria-label="Miga de pan">
+      <a href={url('/teoria/')} class="hover:text-[var(--color-text)]">
+        Teoría
+      </a>
+      <span class="mx-1">/</span>
+      {mod.data.part}
+    </nav>
+    <h1 class="mt-2 text-3xl font-bold text-[var(--color-text)]">{mod.data.title}</h1>
+    <p class="mt-3 text-[var(--color-text-muted)]">{mod.data.description}</p>
+    <p class="mt-2 text-xs text-[var(--color-text-muted)]">
+      ~{mod.data.estimatedHours} h · {lessons.length} lecciones
+    </p>
+
+    <h2 class="mt-8 text-sm font-semibold tracking-wide text-[var(--color-text)] uppercase">
+      Al terminar sabrás
+    </h2>
+    <ul class="mt-2 list-inside list-disc space-y-1 text-sm text-[var(--color-text-muted)]">
+      {mod.data.objectives.map((o: string) => (
+        <li>{o}</li>
+      ))}
+    </ul>
+
+    <h2 class="mt-8 text-sm font-semibold tracking-wide text-[var(--color-text)] uppercase">
+      Lecciones
+    </h2>
+    <ol class="mt-3 space-y-2">
+      {lessons.map((lesson) => (
+        <li>
+          <a
+            href={url(`/teoria/${mod.data.id}/${lesson.id.split('/').pop()}/`)}
+            class="flex items-baseline justify-between gap-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-4 hover:border-[var(--color-accent)]"
+          >
+            <span>
+              <span class="font-medium text-[var(--color-text)]">
+                {lesson.data.order}. {lesson.data.title}
+              </span>
+              <span class="mt-1 block text-sm text-[var(--color-text-muted)]">
+                {lesson.data.description}
+              </span>
+            </span>
+            <span class="flex-none text-xs text-[var(--color-text-muted)]">
+              {lesson.data.estimatedMinutes} min
+            </span>
+          </a>
+        </li>
+      ))}
+    </ol>
+  </section>
+</BaseLayout>

@@ -1,0 +1,243 @@
+---
+title: 'Fechas, zonas horarias, subconsultas y UNION'
+description: 'Cómo filtrar periodos sin perder el último día, por qué un pedido "de ayer" depende de la zona horaria, y cuándo usar subconsultas y UNION ALL.'
+module: sql-i
+order: 5
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Filtrar rangos de fechas y marcas de tiempo con límites semiabiertos en lugar de BETWEEN.'
+  - 'Convertir una marca de tiempo UTC a la zona horaria de negocio y explicar por qué cambia el día.'
+  - 'Usar subconsultas escalares, en FROM y correlacionadas, y reconocer cuándo un CTE es más claro.'
+  - 'Elegir entre UNION y UNION ALL y explicar el coste y el riesgo de cada uno.'
+prerequisites: ['sql-i/03-joins-y-fan-out', 'sql-i/04-null-y-case']
+tools: ['duckdb']
+volatility: low
+lastReviewed: 2026-10-07
+sources:
+  - title: 'DuckDB — Timestamp types'
+    url: 'https://duckdb.org/docs/stable/sql/data_types/timestamp'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — Date functions'
+    url: 'https://duckdb.org/docs/stable/sql/functions/date'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — Set operations (UNION, INTERSECT, EXCEPT)'
+    url: 'https://duckdb.org/docs/stable/sql/query_syntax/setops'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — Subqueries'
+    url: 'https://duckdb.org/docs/stable/sql/expressions/subqueries'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+relatedLabs: ['sql-fechas-zonas-horarias']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Marketing quiere el número de sesiones web de junio de 2025. Tu consulta devuelve 20.888. Otro
+  analista, con una condición ligeramente distinta, obtiene 21.585. El cierre de mes es mañana y
+  nadie sabe qué cifra es la buena.
+</BusinessContext>
+
+Las fechas son la segunda fuente de errores silenciosos de SQL, detrás de los joins. Casi todo
+análisis de negocio es una serie temporal ("por mes", "frente al año pasado"), y los errores de
+límites y de zona horaria no producen mensajes de error: producen cifras plausibles pero erróneas.
+
+## Intuición
+
+Una fecha (`DATE`) es un día. Una marca de tiempo (`TIMESTAMP`) es un instante con hora. Cuando filtras
+con "hasta el 30 de junio", tu cabeza piensa en el día entero, pero el motor interpreta `'2025-06-30'`
+como las **00:00:00 de ese día**. Todo lo que ocurra el 30 a las 10:15 queda fuera. De ahí la
+diferencia de 697 sesiones entre los dos analistas.
+
+## Cómo funciona
+
+### Límites semiabiertos: la regla de oro
+
+```sql
+-- Mal: BETWEEN es inclusivo en ambos extremos y '2025-06-30' = las 00:00 de ese día
+WHERE started_at BETWEEN '2025-06-01' AND '2025-06-30'      -- 20.888 sesiones
+
+-- Bien: inicio inclusivo (>=), final exclusivo (<) en el periodo SIGUIENTE
+WHERE started_at >= '2025-06-01' AND started_at < '2025-07-01'  -- 21.585 sesiones
+```
+
+El patrón `>= inicio AND < inicio_del_siguiente` funciona para días, meses, años, trimestres,
+con `DATE` o `TIMESTAMP`, y no depende de cuántos días tiene el mes ni de si hay horas en la
+columna. Hazlo siempre así.
+
+### Truncar y extraer
+
+- `DATE_TRUNC('month', started_at)` redondea una fecha al inicio del mes (también `'week'`,
+  `'quarter'`, `'year'`...). Es la forma estándar de agrupar por periodo.
+- `EXTRACT(year FROM fecha)`, `EXTRACT(dow FROM fecha)` sacan un componente (año, día de la semana).
+- Restar fechas: `DATE_DIFF('day', desde, hasta)` en DuckDB; en otros motores varía
+  (`DATEDIFF`, `DATE_PART`...). Es el tipo de función donde más cambian los dialectos.
+
+```sql
+SELECT DATE_TRUNC('month', order_date) AS mes, COUNT(*) AS pedidos
+FROM orders
+WHERE order_date >= DATE '2025-01-01' AND order_date < DATE '2026-01-01'
+GROUP BY mes
+ORDER BY mes;
+```
+
+### Zonas horarias
+
+Un instante es el mismo en todo el mundo, pero **el día en que cae depende de dónde mires**. Los
+eventos de Lumen (`events.occurred_at`, `web_sessions.started_at`) se guardan en **UTC**, y el
+negocio opera en `Europe/Madrid`, que va 1 o 2 horas por delante según el horario de verano. Un
+evento a las 23:30 UTC del 30 de junio ocurrió ya el 1 de julio en Madrid.
+
+En DuckDB, una `TIMESTAMP` sin zona se interpreta como una hora "ingenua". Para convertirla:
+
+```sql
+-- 1. Declarar que el valor está en UTC  2. Convertirlo a hora de Madrid
+SELECT TIMEZONE('Europe/Madrid', TIMEZONE('UTC', occurred_at)) AS hora_madrid
+FROM events;
+```
+
+El efecto es real: el 30 de junio de 2026 hay 33 eventos de compra por fecha UTC y 32 por fecha de
+Madrid. Mínimo en este caso, pero a escala, cada informe diario que mezcle ambas zonas desplaza
+ventas de un día al siguiente. La zona horaria tiene que ser una **decisión de negocio documentada**:
+¿en qué hora medimos "un día"?
+
+<Callout type="info">
+  La conversión de zonas horarias en DuckDB usa la extensión `icu`, incluida en las distribuciones
+  habituales. En DuckDB-WASM (el motor de los labs de esta web) comprueba que está disponible y, si
+  no, trabaja en UTC y avisa en el enunciado.
+</Callout>
+
+### Subconsultas
+
+Una subconsulta es una consulta dentro de otra. Hay tres usos habituales:
+
+**1. Escalar** (devuelve un único valor, se usa en un `WHERE` o `SELECT`):
+
+```sql
+-- Pedidos con un coste de envío superior a la media
+SELECT COUNT(*)
+FROM orders
+WHERE shipping_cost > (SELECT AVG(shipping_cost) FROM orders);   -- 223.073
+```
+
+**2. En `FROM`** (una tabla derivada que se consulta como cualquier otra):
+
+```sql
+SELECT canal, ROUND(AVG(pedidos_por_cliente), 2) AS media
+FROM (
+  SELECT o.channel AS canal, o.customer_id, COUNT(*) AS pedidos_por_cliente
+  FROM orders AS o
+  GROUP BY o.channel, o.customer_id
+) AS por_cliente
+GROUP BY canal;
+```
+
+**3. Correlacionada** (referencia a una fila de la consulta exterior; ya la viste con `EXISTS` en la
+lección 3). Es potente pero puede ser lenta si el motor la ejecuta fila a fila.
+
+### CTE: la alternativa legible
+
+Cuando una subconsulta en `FROM` crece, un `WITH` (_common table expression_) le da nombre y la saca
+del medio:
+
+```sql
+WITH por_cliente AS (
+  SELECT channel, customer_id, COUNT(*) AS pedidos
+  FROM orders
+  GROUP BY channel, customer_id
+)
+SELECT channel, ROUND(AVG(pedidos), 2) AS media
+FROM por_cliente
+GROUP BY channel;
+```
+
+Misma lógica, lectura de arriba abajo. En SQL II verás CTEs encadenados y recursivos.
+
+### UNION y UNION ALL
+
+`UNION` apila los resultados de dos consultas con las mismas columnas. La diferencia:
+
+- **`UNION ALL`**: concatena sin más. Rápido.
+- **`UNION`**: concatena y **elimina duplicados**, lo que obliga a ordenar o comparar todo el
+  resultado. Más lento y a veces no es lo que quieres.
+
+```sql
+SELECT customer_id FROM orders
+UNION                                -- 58.418 clientes distintos
+SELECT customer_id FROM subscriptions;
+
+-- Con UNION ALL: 425.000 filas (400.000 de orders + 25.000 de subscriptions)
+```
+
+Regla práctica: usa **`UNION ALL` por defecto** y `UNION` solo cuando necesites deduplicar y lo
+hayas decidido a propósito. Un `UNION` "por si acaso" oculta duplicados que quizá deberías haber
+investigado, y cuesta más.
+
+## En la práctica
+
+Para el cierre de mes de Marketing, la consulta correcta y su comprobación:
+
+```sql
+SELECT COUNT(*) AS sesiones_junio
+FROM web_sessions
+WHERE started_at >= TIMESTAMP '2025-06-01'
+  AND started_at <  TIMESTAMP '2025-07-01';        -- 21.585
+```
+
+Y la comprobación de cordura: sumar las sesiones de cada día del mes y verificar que da lo mismo. Si el
+total por día y el total del mes no coinciden, hay un problema de límites.
+
+## Trade-offs y cuándo usarlo
+
+- **Subconsulta vs CTE vs join**: el optimizador moderno suele tratarlos igual; elige por
+  legibilidad. Un CTE que se usa más de una vez puede ejecutarse una o varias veces según el motor.
+- **Zona horaria en el origen vs en la consulta**: lo ideal es guardar siempre en UTC y convertir al
+  consultar. Convertir **en cada consulta** exige que todos los analistas usen la misma zona;
+  un campo derivado en una tabla de modelado (`fecha_local`) lo evita (módulo 22).
+- **`DATE_TRUNC` en `WHERE`** puede impedir usar índices o particiones en algunos motores. Para
+  filtrar, prefiere el rango semiabierto; para agrupar, `DATE_TRUNC`.
+
+## Errores comunes
+
+- **`BETWEEN` con marcas de tiempo** (el caso de la sesión: 697 sesiones perdidas).
+- **Mezclar `DATE` y `TIMESTAMP`** sin darse cuenta de que `DATE '2025-06-30'` equivale a las 00:00.
+- **Comparar periodos parciales con completos** (junio hasta el día 15 contra junio completo).
+- **No documentar la zona horaria** del informe.
+- **`UNION` cuando se quería `UNION ALL`**: pierde filas legítimamente repetidas y es más lento.
+
+## Con IA
+
+Los LLM escriben `BETWEEN` con fechas con mucha frecuencia porque es el patrón más común en su
+entrenamiento. Es el primer sitio donde mirar al revisar SQL generado que filtre por periodo. Pide
+también explícitamente la zona horaria: sin ella el modelo asume la del servidor o UTC sin avisarte.
+
+## En una entrevista
+
+- _"¿Por qué `BETWEEN '2025-06-01' AND '2025-06-30'` pierde datos del último día?"_ — Pista: las
+  00:00 del día 30 y la comparación con marcas de tiempo.
+- _"¿Cuándo usarías `UNION` en vez de `UNION ALL`?"_ — Pista: cuando necesitas deduplicar a
+  propósito; coste de ordenación.
+- _"Un informe diario cambia al ejecutarlo desde otro país. ¿Qué ha pasado?"_ — Pista: zona
+  horaria del cliente o del servidor.
+
+<KeyTakeaways
+  items={[
+    'Filtra periodos con >= inicio y < inicio del siguiente; BETWEEN pierde el último día cuando hay horas.',
+    'Un instante es único, pero el día en que cae depende de la zona horaria: decide y documenta la de negocio.',
+    'Una subconsulta puede ser escalar, estar en FROM o ser correlacionada; un CTE suele ser más legible.',
+    'UNION ALL por defecto; UNION solo para deduplicar, con su coste (58.418 clientes distintos frente a 425.000 filas).',
+    'Una comprobación de cordura (suma por día frente a total del mes) detecta errores de límites antes de entregar.',
+  ]}
+/>

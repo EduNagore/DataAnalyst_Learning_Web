@@ -1,0 +1,20 @@
+---
+interface Props {
+  type?: 'warning' | 'info' | 'tip';
+}
+const { type = 'info' } = Astro.props;
+
+const styles = {
+  warning: 'border-[var(--color-warning)] bg-[var(--color-warning)]/10',
+  info: 'border-[var(--color-accent)] bg-[var(--color-accent)]/10',
+  tip: 'border-[var(--color-success)] bg-[var(--color-success)]/10',
+};
+const labels = { warning: 'Atención', info: 'Nota', tip: 'Idea' };
+---
+
+<div class:list={['my-5 rounded-md border-l-4 p-4 text-sm', styles[type]]} role="note">
+  <p class="mb-1 font-semibold text-[var(--color-text)]">{labels[type]}</p>
+  <div class="text-[var(--color-text)]">
+    <slot />
+  </div>
+</div>

@@ -1,0 +1,68 @@
+lesson: sql-i/02-agregacion-group-by-having
+questions:
+  - id: sql1-02-q1
+    type: single
+    difficulty: 1
+    prompt: 'Quieres los clientes con 10 o más pedidos. ¿Dónde va la condición COUNT(*) >= 10?'
+    options:
+      - 'En WHERE, antes del GROUP BY'
+      - 'En HAVING, después del GROUP BY'
+      - 'En ORDER BY'
+      - 'En el SELECT, como columna'
+    answer: [1]
+    explanation: 'HAVING filtra grupos ya formados, y COUNT(*) solo existe una vez agrupado. WHERE se evalúa antes de agrupar, cuando todavía no hay recuentos por cliente, así que no puede usar agregados. ORDER BY ordena, no filtra, y poner el recuento en el SELECT lo muestra pero no descarta filas.'
+    ref: '#where-filtra-filas-having-filtra-grupos'
+
+  - id: sql1-02-q2
+    type: sql-output
+    difficulty: 2
+    prompt: 'La columna store_id de una tabla de 4 pedidos contiene: NULL, "A", "A", "B". ¿Qué devuelve SELECT COUNT(DISTINCT store_id)?'
+    code: 'SELECT COUNT(DISTINCT store_id) FROM pedidos;'
+    options: ['1', '2', '3', '4']
+    answer: [1]
+    explanation: 'COUNT(DISTINCT col) cuenta valores distintos e ignora NULL: los valores distintos no nulos son "A" y "B", es decir, 2. COUNT(*) devolvería 4 (filas) y COUNT(store_id) devolvería 3 (filas no nulas). El 1 y el 3 se obtienen al contar mal los nulos o los duplicados.'
+    ref: '#contar-de-tres-formas'
+
+  - id: sql1-02-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Calculas el ticket medio de Lumen uniendo orders con order_items. Selecciona TODAS las cosas que darían un resultado incorrecto.'
+    options:
+      - 'Dividir los ingresos entre COUNT(*) del join (líneas)'
+      - 'Dividir los ingresos entre COUNT(DISTINCT order_id)'
+      - 'Promediar los ticket medios calculados por categoría'
+      - 'Sumar quantity * unit_price y dividir entre pedidos distintos'
+    answer: [0, 2]
+    explanation: 'Dividir entre las líneas da el importe medio por línea, no por pedido. Promediar promedios por categoría ignora cuántos pedidos hay en cada una. Las otras dos opciones son la fórmula correcta: ingresos totales entre pedidos distintos.'
+    ref: '#en-la-práctica'
+
+  - id: sql1-02-q4
+    type: truefalse
+    difficulty: 1
+    prompt: 'La función AVG ignora los valores NULL de la columna.'
+    options: ['Verdadero', 'Falso']
+    answer: [0]
+    explanation: 'Verdadero. AVG, SUM, MIN y MAX descartan los NULL; AVG divide por el número de valores no nulos, no por el de filas. Por eso la media de una columna con muchos ausentes puede no significar lo que se espera.'
+    ref: '#contar-de-tres-formas'
+
+  - id: sql1-02-q5
+    type: numeric
+    difficulty: 3
+    prompt: 'El grupo A tiene 2 pedidos con ticket medio de 10 €, y el grupo B tiene 8 pedidos con ticket medio de 20 €. ¿Cuál es el ticket medio global (en €)?'
+    answer: [18]
+    tolerance: 0.01
+    explanation: 'Hay que ponderar por número de pedidos: (2·10 + 8·20) / 10 = 180 / 10 = 18 €. La media simple de las medias, (10 + 20) / 2 = 15 €, es incorrecta porque trata igual a un grupo de 2 pedidos que a uno de 8. Es el error de "promediar promedios".'
+    ref: '#errores-comunes'
+
+  - id: sql1-02-q6
+    type: single
+    difficulty: 2
+    prompt: 'Un SELECT con GROUP BY channel incluye también la columna region sin agregar y sin estar en el GROUP BY. ¿Qué ocurre en la mayoría de motores SQL?'
+    options:
+      - 'Devuelve la primera región de cada grupo'
+      - 'Falla con un error, porque no sabe qué región mostrar para cada grupo'
+      - 'Agrupa automáticamente también por region'
+      - 'Devuelve NULL en esa columna'
+    answer: [1]
+    explanation: 'Toda columna del SELECT que no sea un agregado debe aparecer en el GROUP BY; si no, el motor no sabría cuál de los valores del grupo mostrar. DuckDB ofrece GROUP BY ALL como atajo explícito, pero eso es una opción que se pide, no un comportamiento por defecto.'
+    ref: '#group-by'

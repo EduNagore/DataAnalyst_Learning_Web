@@ -1,0 +1,71 @@
+lesson: sql-i/01-modelo-relacional-y-primeras-consultas
+questions:
+  - id: sql1-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué cláusula de una consulta SQL se evalúa lógicamente PRIMERO?'
+    options:
+      - 'SELECT'
+      - 'FROM'
+      - 'WHERE'
+      - 'ORDER BY'
+    answer: [1]
+    explanation: 'FROM (junto con los JOIN) va primero: el motor necesita saber de qué tablas parte antes de filtrar o calcular nada. SELECT, aunque se escribe primero, se evalúa casi al final, después de WHERE, GROUP BY y HAVING. WHERE viene justo después de FROM y ORDER BY está entre las últimas.'
+    ref: '#el-orden-en-que-escribes-no-es-el-orden-en-que-se-ejecuta'
+
+  - id: sql1-01-q2
+    type: truefalse
+    difficulty: 1
+    prompt: 'Si una consulta no tiene ORDER BY, SQL garantiza que las filas salen en el orden en que se insertaron.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Sin ORDER BY el orden de las filas no está garantizado por el estándar: puede parecer estable hoy y cambiar con más datos, con paralelismo o en otro motor. Si el orden importa, hay que pedirlo explícitamente.'
+    ref: '#las-cinco-cláusulas-básicas'
+
+  - id: sql1-01-q3
+    type: single
+    difficulty: 2
+    prompt: 'En la tabla orders de Lumen, los pedidos online tienen store_id nulo. ¿Qué devuelve SELECT COUNT(*) FROM orders WHERE store_id = NULL?'
+    options:
+      - '371.827 (los pedidos online)'
+      - '28.173 (los pedidos en tienda)'
+      - '0, porque NULL = NULL no es verdadero'
+      - 'Un error de sintaxis'
+    answer: [2]
+    explanation: 'La comparación con NULL devuelve NULL (desconocido), y WHERE solo conserva las filas cuya condición es TRUE, así que no pasa ninguna. No es un error de sintaxis, que es lo que lo hace peligroso: la consulta se ejecuta y devuelve un 0 engañoso. Lo correcto es IS NULL.'
+    ref: '#errores-comunes'
+
+  - id: sql1-01-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las afirmaciones correctas sobre SELECT * en un almacén de datos columnar.'
+    options:
+      - 'Lee todas las columnas de la tabla aunque solo necesites dos.'
+      - 'Puede aumentar el coste de la consulta cuando se factura por datos leídos.'
+      - 'Es la opción más eficiente porque evita especificar columnas.'
+      - 'Hace la consulta frágil si el esquema de la tabla cambia.'
+    answer: [0, 1, 3]
+    explanation: 'En un almacén columnar el coste depende de las columnas leídas, y SELECT * lee todas (0 y 1 son ciertas). También acopla tu consulta al esquema: si alguien añade o reordena columnas, el resultado cambia (3). La afirmación 2 es falsa: evitar escribir las columnas ahorra teclear, no cómputo.'
+    ref: '#trade-offs-y-cuándo-usarlo'
+
+  - id: sql1-01-q5
+    type: numeric
+    difficulty: 2
+    prompt: 'La tabla orders tiene 400.000 filas, de las cuales 371.827 son online (store_id nulo). ¿Cuántas filas devuelve SELECT * FROM orders WHERE store_id IS NOT NULL?'
+    answer: [28173]
+    tolerance: 0
+    explanation: '400.000 − 371.827 = 28.173. IS NOT NULL conserva exactamente las filas con tienda asignada, es decir, los pedidos en tienda física. No hay que restar nada más: IS NOT NULL no descarta filas por ningún otro motivo.'
+    ref: '#en-la-práctica'
+
+  - id: sql1-01-q6
+    type: order
+    difficulty: 3
+    prompt: 'Ordena estas cláusulas según el orden lógico en que se evalúan (de la primera a la última).'
+    options:
+      - 'FROM'
+      - 'WHERE'
+      - 'SELECT'
+      - 'ORDER BY'
+    answer: [0, 1, 2, 3]
+    explanation: 'FROM define las filas de partida; WHERE descarta las que no cumplen; SELECT calcula las columnas de salida; ORDER BY ordena el resultado ya calculado (por eso puede usar alias del SELECT). Es un modelo mental: el optimizador puede reordenar mientras el resultado sea equivalente.'
+    ref: '#el-orden-en-que-escribes-no-es-el-orden-en-que-se-ejecuta'

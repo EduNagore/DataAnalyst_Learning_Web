@@ -1,0 +1,68 @@
+lesson: sql-i/05-fechas-subconsultas-y-union
+questions:
+  - id: sql1-05-q1
+    type: single
+    difficulty: 2
+    prompt: 'Filtras started_at BETWEEN "2025-06-01" AND "2025-06-30" sobre una columna TIMESTAMP. ¿Qué pasa con una sesión del 30 de junio a las 10:15?'
+    options:
+      - 'Se incluye, porque BETWEEN es inclusivo'
+      - 'Se excluye, porque "2025-06-30" equivale a las 00:00 de ese día'
+      - 'Falla con un error de tipos'
+      - 'Se incluye solo si hay una zona horaria definida'
+    answer: [1]
+    explanation: 'BETWEEN es inclusivo, pero el límite superior es el instante 2025-06-30 00:00:00, y la sesión de las 10:15 es posterior. Por eso se pierde el último día entero. El patrón correcto es >= 2025-06-01 AND < 2025-07-01.'
+    ref: '#límites-semiabiertos-la-regla-de-oro'
+
+  - id: sql1-05-q2
+    type: single
+    difficulty: 2
+    prompt: 'Un evento ocurre a las 23:30 UTC del 30 de junio. El negocio opera en Europe/Madrid (UTC+2 en verano). ¿En qué fecha cae el evento en hora de Madrid?'
+    options: ['29 de junio', '30 de junio', '1 de julio', 'Depende del motor SQL']
+    answer: [2]
+    explanation: '23:30 + 2 horas = 01:30 del 1 de julio en Madrid. El instante es el mismo, pero el día en que cae depende de la zona horaria. Por eso hay que decidir y documentar en qué zona se mide "un día": mezclar UTC y hora local sin avisar desplaza ventas de un día al siguiente.'
+    ref: '#zonas-horarias'
+
+  - id: sql1-05-q3
+    type: truefalse
+    difficulty: 1
+    prompt: 'UNION ALL elimina las filas duplicadas del resultado.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. UNION ALL concatena sin más (conserva los duplicados) y es la opción rápida. Es UNION (sin ALL) el que elimina duplicados, con el coste extra de ordenar o comparar todas las filas.'
+    ref: '#union-y-union-all'
+
+  - id: sql1-05-q4
+    type: sql-output
+    difficulty: 2
+    prompt: 'La tabla A contiene los valores 1, 2, 2 y la tabla B contiene 2, 3. ¿Cuántas filas devuelve SELECT x FROM A UNION SELECT x FROM B?'
+    code: 'SELECT x FROM A\nUNION\nSELECT x FROM B;'
+    options: ['3', '4', '5', '2']
+    answer: [0]
+    explanation: 'UNION deduplica el resultado combinado: los valores son 1, 2 y 3, es decir, 3 filas. Con UNION ALL serían 5 filas (1, 2, 2, 2, 3). La opción 4 aparecería si solo se deduplicara dentro de A, y la 2 si se contaran solo los valores comunes.'
+    ref: '#union-y-union-all'
+
+  - id: sql1-05-q5
+    type: single
+    difficulty: 2
+    prompt: '¿Qué caracteriza a una subconsulta correlacionada?'
+    options:
+      - 'Devuelve siempre un único valor'
+      - 'Se ejecuta una sola vez, antes que la consulta exterior'
+      - 'Hace referencia a columnas de la consulta exterior, por lo que depende de cada fila'
+      - 'Solo puede usarse en la cláusula FROM'
+    answer: [2]
+    explanation: 'Una subconsulta correlacionada referencia columnas de la consulta exterior (como el o.order_id del EXISTS de la lección 3), así que su resultado depende de la fila que se esté evaluando. Una escalar puede o no ser correlacionada, y las subconsultas no correlacionadas son las que pueden ejecutarse una sola vez.'
+    ref: '#subconsultas'
+
+  - id: sql1-05-q6
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las prácticas recomendadas al trabajar con periodos y fechas.'
+    options:
+      - 'Filtrar con >= inicio y < inicio del periodo siguiente'
+      - 'Usar BETWEEN con marcas de tiempo para incluir el último día'
+      - 'Documentar la zona horaria con la que se mide el día'
+      - 'Comprobar que la suma por día coincide con el total del mes'
+    answer: [0, 2, 3]
+    explanation: 'El límite semiabierto, la zona horaria documentada y la comprobación de cordura (suma por día frente a total) son las tres buenas prácticas. BETWEEN con marcas de tiempo es justo lo que causa perder el último día, así que es la práctica a evitar.'
+    ref: '#límites-semiabiertos-la-regla-de-oro'
