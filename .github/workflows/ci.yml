@@ -14,14 +14,16 @@ jobs:
     name: Web (lint · typecheck · unit · contenido · build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v5
+      # pnpm/setup reemplaza a pnpm/action-setup + actions/setup-node para
+      # pnpm v11+ (este proyecto usa pnpm 12): instala el binario de pnpm y
+      # el runtime de Node en un solo paso.
+      - uses: pnpm/setup@v1
         with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
+          version: 12
+          runtime: node@24
+          cache: true
 
       - name: Instalar dependencias
         run: pnpm install --frozen-lockfile
@@ -52,7 +54,7 @@ jobs:
 
       - name: Subir reporte de Playwright si falla
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: playwright-report
           path: playwright-report/
@@ -62,10 +64,10 @@ jobs:
     name: Python (ruff · pytest de laboratorios)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Instalar uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: true
 

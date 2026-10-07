@@ -25,5 +25,17 @@ El PLAN.md pide `uv` para Python, pero no estaba instalado en la máquina de des
 **2026-10-07 — `resultCompare.ts` como multiconjunto por defecto.**
 Para los checks de labs SQL (`checks.yaml`, `orderMatters`), por defecto (`orderMatters: false`) se compara como multiconjunto (cada fila esperada debe emparejar con una fila real distinta, en cualquier orden) en vez de ordenar ambos lados antes de comparar. Es más robusto ante columnas de tipos mixtos y evita tener que definir un criterio de ordenación canónico para la comparación.
 
+**2026-10-07 — Versiones de las GitHub Actions verificadas por búsqueda web, no de memoria.**
+Antes del primer push se verificó con búsqueda web la versión mayor vigente de cada action usada en los workflows, porque las conocidas de memoria estaban desactualizadas:
+
+- `actions/checkout` y `actions/setup-node`: v5 → **v6**.
+- `pnpm/action-setup` → **`pnpm/setup@v1`**: el proyecto usa pnpm 12 (v11+), y `pnpm/action-setup` ya no es la action recomendada para esas versiones (su propio README remite a `pnpm/setup`). `pnpm/setup` instala pnpm y Node en un solo paso (`runtime: node@24`), así que ya no hace falta `actions/setup-node` por separado en los jobs que usan pnpm.
+- `astral-sh/setup-uv`: v7 → **v8.1.0, pinned a versión exacta**. Desde la v8.0.0 ya no publican tags flotantes `@v8`/`@v8.0` (política de seguridad de releases inmutables), así que hay que fijar el patch exacto y actualizarlo a mano cuando se quiera la siguiente versión.
+- `actions/upload-artifact`: v4 → **v5**.
+- `withastro/action`: v4 → **v6**.
+- `lycheeverse/lychee-action`: se quitó la flag `--exclude-mail` (eliminada en 2.5.0).
+
+**Pendiente de verificar en la primera ejecución real**: no hay forma de probar estos workflows sin pushear a GitHub (no hay `gh` CLI disponible en el entorno de desarrollo de esta sesión para disparar un run de prueba). Si algún input de `pnpm/setup@v1` o `withastro/action@v6` ha cambiado de nombre respecto a lo verificado aquí, el primer run de `ci.yml`/`deploy.yml` lo mostrará como un fallo claro y aislado (un solo step), no como un fallo silencioso.
+
 **2026-10-07 — `validate-content.mjs` no depende de `astro:content`.**
 El script de validación de integridad referencial (quiz → lección, ids únicos, anclas, etc.) parsea `src/content/**` directamente con el paquete `yaml` en vez de usar `astro:content` (que solo existe dentro del runtime/build de Astro). Esto permite ejecutarlo como un paso de CI independiente y rápido. La validación de _tipos_ de frontmatter (Zod) sigue haciéndola `astro check` / `astro build` por separado.

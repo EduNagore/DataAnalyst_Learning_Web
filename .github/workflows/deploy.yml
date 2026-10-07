@@ -18,19 +18,18 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v5
+      - uses: pnpm/setup@v1
         with:
-          node-version-file: '.nvmrc'
-          cache: 'pnpm'
+          version: 12
+          runtime: node@24
+          cache: true
 
       - name: Instalar dependencias
         run: pnpm install --frozen-lockfile
 
-      - uses: withastro/action@v4
+      - uses: withastro/action@v6
         with:
           node-version: 24
           package-manager: pnpm@latest

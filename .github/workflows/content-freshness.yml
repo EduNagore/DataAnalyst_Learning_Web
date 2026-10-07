@@ -14,11 +14,16 @@ jobs:
   freshness:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v5
+      - uses: pnpm/setup@v1
         with:
-          node-version-file: '.nvmrc'
+          version: 12
+          runtime: node@24
+          cache: true
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
 
       - name: Enlaces rotos (lychee)
         id: lychee
@@ -26,7 +31,6 @@ jobs:
         with:
           args: >-
             --no-progress
-            --exclude-mail
             --accept 200,206,429
             'src/content/**/*.{mdx,md,yaml,yml}'
             'docs/**/*.md'
