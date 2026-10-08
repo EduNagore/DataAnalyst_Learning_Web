@@ -1,0 +1,79 @@
+lesson: visualizacion/01-percepcion-y-eleccion-del-grafico
+questions:
+  - id: viz2-01-q1
+    type: order
+    difficulty: 2
+    prompt: 'Ordena estos canales visuales de más a menos precisos para estimar valores (Cleveland y McGill).'
+    options:
+      - 'Área'
+      - 'Posición sobre una escala común'
+      - 'Saturación o sombreado del color'
+      - 'Longitud, dirección y ángulo'
+    answer: [1, 3, 0, 2]
+    explanation: 'La posición sobre una escala común es lo que mejor estimamos; después longitud/ángulo, el área y, por último, el color y el sombreado. Por eso los gráficos de puntos y barras comparan mejor que las tartas o los mapas de calor.'
+    ref: '#la-jerarquía-de-cleveland-y-mcgill'
+
+  - id: viz2-01-q2
+    type: single
+    difficulty: 1
+    prompt: 'Las unidades vendidas por ocho categorías están entre el 11,6 % y el 13,5 %. ¿Qué gráfico permite ordenarlas de un vistazo?'
+    options:
+      - 'Una tarta con ocho porciones'
+      - 'Barras horizontales ordenadas de mayor a menor, con el eje en cero'
+      - 'Un anillo'
+      - 'Un gráfico 3D de barras'
+    answer: [1]
+    explanation: 'Con porciones tan parecidas, el ángulo no permite distinguir un 12,5 % de un 12,4 %. Las barras alineadas desde cero muestran el ranking de forma inmediata.'
+    ref: '#un-ejemplo-con-datos-de-lumen'
+
+  - id: viz2-01-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las recomendaciones de legibilidad correctas.'
+    options:
+      - 'Una pregunta por gráfico'
+      - 'Etiquetar directamente las series en lugar de usar una leyenda de muchos colores'
+      - 'Añadir efectos 3D para que destaque'
+      - 'Ordenar las barras por valor cuando lo importante es el ranking'
+    answer: [0, 1, 3]
+    explanation: 'Los efectos 3D distorsionan la lectura de longitudes y alturas. El resto son principios de legibilidad: una pregunta, etiquetas directas y orden con intención.'
+    ref: '#principios-de-legibilidad'
+
+  - id: viz2-01-q4
+    type: single
+    difficulty: 2
+    prompt: 'Quieres mostrar la evolución mensual de los ingresos durante tres años. ¿Qué gráfico eliges?'
+    options:
+      - 'Una tarta por año'
+      - 'Un gráfico de líneas con el mes en el eje horizontal (o líneas por año superpuestas si importa la estacionalidad)'
+      - 'Un mapa de calor sin ejes'
+      - 'Una tabla con 36 columnas'
+    answer: [1]
+    explanation: 'La pendiente de una línea comunica el cambio y conecta los periodos como una serie continua. Superponer los años sobre el calendario hace visible la estacionalidad.'
+    ref: '#de-la-pregunta-al-gráfico'
+
+  - id: viz2-01-q5
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál de estos títulos de gráfico es mejor?'
+    options:
+      - 'Ventas por categoría'
+      - 'Electrónica aporta el 47 % de los ingresos de 2025, muy por encima del resto de categorías'
+      - 'Gráfico de barras de ingresos'
+      - 'Datos de 2025'
+    answer: [1]
+    explanation: 'Un buen título concluye: dice qué debe entender el lector. Los títulos descriptivos obligan a descubrirlo.'
+    ref: '#en-la-práctica'
+
+  - id: viz2-01-q6
+    type: single
+    difficulty: 3
+    prompt: 'El lector de un informe necesita consultar el importe exacto de 12 filas de datos. ¿Qué es lo más adecuado?'
+    options:
+      - 'Un gráfico de burbujas'
+      - 'Una tabla bien formateada (cifras alineadas a la derecha y pocos decimales)'
+      - 'Una tarta'
+      - 'Un mapa de calor sin números'
+    answer: [1]
+    explanation: 'Cuando importan los números y no la forma, una tabla se lee con más precisión que cualquier gráfico. El gráfico debe ganarse su sitio.'
+    ref: '#de-la-pregunta-al-gráfico'

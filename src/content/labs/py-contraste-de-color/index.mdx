@@ -1,0 +1,39 @@
+---
+title: 'Contraste WCAG de una paleta y banda de ruido de una tasa'
+description: 'Calcula la relación de contraste entre colores, decide si cumplen los umbrales de accesibilidad para texto y gráficos, y construye la banda de ruido binomial de una tasa diaria.'
+language: python
+part: 'Parte II · Visualización y comunicación'
+module: visualizacion
+difficulty: 2
+estimatedMinutes: 30
+concepts:
+  [
+    'luminancia relativa',
+    'contraste WCAG',
+    'accesibilidad',
+    'paleta Okabe-Ito',
+    'banda de ruido binomial',
+  ]
+datasets: []
+packages: []
+output: console
+hints:
+  - 'Pasa cada canal sRGB (0-255) a 0-1 y linealízalo: `c / 12.92` si `c <= 0.03928`, y `((c + 0.055) / 1.055) ** 2.4` en caso contrario.'
+  - 'Luminancia: `L = 0.2126*R + 0.7152*G + 0.0722*B`. Contraste: `(L_claro + 0.05) / (L_oscuro + 0.05)`, donde `L_claro` es la mayor de las dos luminancias.'
+  - 'Umbrales WCAG 2.2: texto normal 4,5; texto grande y elementos gráficos 3. `cumple_wcag(fg, bg, uso)` con `uso` en `"texto"` o `"grafico"`.'
+  - 'Banda binomial: `p ± 1.96 * sqrt(p * (1 - p) / n)` (en puntos porcentuales: multiplica por 100). Un valor está fuera si queda por encima o por debajo.'
+relatedLessons: ['visualizacion/03-color-accesibilidad-e-incertidumbre']
+businessQuestion: '¿Qué colores de la paleta Okabe-Ito son legibles sobre blanco y sobre un fondo oscuro, y cuándo una conversión diaria está fuera de su ruido normal?'
+---
+
+Implementa cuatro funciones sin librerías externas:
+
+1. **`luminancia(hex)`** → luminancia relativa de un color `#RRGGBB` (6 decimales).
+2. **`contraste(hex1, hex2)`** → relación de contraste WCAG entre dos colores, en el rango de 1 a 21 (2 decimales). Es simétrica.
+3. **`cumple_wcag(fg, bg, uso)`** → `True` si el contraste alcanza el umbral de `uso`: 4,5 para `"texto"` y 3 para `"grafico"`. Otro
+   valor de `uso` lanza `ValueError`.
+4. **`fuera_de_banda(p, n, observado)`** → `True` si una tasa `observado` (en %) queda fuera de `p ± 1,96·√(p(1−p)/n)`
+   (con `p` también en %, y `n` el número de observaciones).
+
+En el _starter_ tienes la paleta `OKABE_ITO` y un `FONDO_OSCURO`. Comprueba cuáles de sus colores cumplen 3:1 sobre blanco y
+sobre el fondo oscuro.

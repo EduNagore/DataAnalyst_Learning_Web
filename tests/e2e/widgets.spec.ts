@@ -41,3 +41,30 @@ test('DistributionExplorer: cambia de distribución y muestra media y varianza c
   await expect(stats).toContainText('12,00');
   await expect(stats).toContainText('3,46');
 });
+
+const lessonsWithCharts = [
+  'teoria/eda/01-preguntas-y-analisis-univariante/',
+  'teoria/eda/02-relaciones-correlacion-y-segmentacion/',
+  'teoria/estadistica-descriptiva/04-ley-de-grandes-numeros-y-teorema-central-del-limite/',
+  'teoria/visualizacion/01-percepcion-y-eleccion-del-grafico/',
+  'teoria/visualizacion/02-gramatica-de-graficos-anotaciones-y-titulos/',
+  'teoria/visualizacion/03-color-accesibilidad-e-incertidumbre/',
+  'teoria/visualizacion/04-como-mienten-los-graficos-y-herramientas/',
+];
+
+for (const url of lessonsWithCharts) {
+  test(`gráficos Vega-Lite de ${url} se dibujan sin errores`, async ({ page }) => {
+    const errores: string[] = [];
+    page.on('pageerror', (e) => errores.push(e.message));
+    await page.goto(url);
+    const charts = page.locator('div[role="img"][aria-label]:has(> div)');
+    const n = await charts.count();
+    expect(n).toBeGreaterThan(0);
+    for (let i = 0; i < n; i++) {
+      const chart = charts.nth(i);
+      await chart.scrollIntoViewIfNeeded();
+      await expect(chart.locator('svg').first()).toBeVisible({ timeout: 30_000 });
+    }
+    expect(errores).toEqual([]);
+  });
+}

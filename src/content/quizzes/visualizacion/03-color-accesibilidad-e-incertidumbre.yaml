@@ -1,0 +1,75 @@
+lesson: visualizacion/03-color-accesibilidad-e-incertidumbre
+questions:
+  - id: viz2-03-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué tipo de paleta eliges para representar una variación respecto a un objetivo, con valores por encima y por debajo de cero?'
+    options:
+      - 'Categórica'
+      - 'Secuencial'
+      - 'Divergente, con un neutro en el centro y un matiz distinto para cada dirección'
+      - 'Arcoíris'
+    answer: [2]
+    explanation: 'Los datos con un punto neutro significativo piden una paleta divergente. La secuencial es para valores que crecen en una sola dirección y la categórica, para grupos sin orden.'
+    ref: '#tres-tipos-de-paleta'
+
+  - id: viz2-03-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'La luminancia relativa del blanco es 1 y la de un color es 0,05. ¿Cuál es el contraste WCAG entre ellos? (dos decimales)'
+    answer: [10.5]
+    tolerance: 0.011
+    explanation: '(1 + 0,05) / (0,05 + 0,05) = 1,05 / 0,10 = 10,5:1. La fórmula es (L claro + 0,05) / (L oscuro + 0,05).'
+    ref: '#la-paleta-okabe-ito-y-el-contraste'
+
+  - id: viz2-03-q3
+    type: single
+    difficulty: 2
+    prompt: 'El amarillo de Okabe-Ito (#F0E442) tiene un contraste de 1,32:1 sobre blanco. ¿Puedes usarlo para las líneas de un gráfico sobre fondo blanco?'
+    options:
+      - 'Sí: la paleta es accesible por definición'
+      - 'No: no alcanza el 3:1 que WCAG pide para elementos gráficos; úsalo sobre fondo oscuro o elige otro color y comprueba siempre contra el fondo real'
+      - 'Sí, si es un texto grande'
+      - 'Sí, con una leyenda'
+    answer: [1]
+    explanation: 'Que los colores de una paleta se distingan entre sí no garantiza que contrasten con el fondo. 1,32:1 está por debajo de 3:1 (gráficos) y de 4,5:1 (texto).'
+    ref: '#la-paleta-okabe-ito-y-el-contraste'
+
+  - id: viz2-03-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las formas de que un gráfico no dependa solo del color.'
+    options:
+      - 'Etiquetas directas junto a las líneas o barras'
+      - 'Formas o patrones distintos para cada serie'
+      - 'Resaltar una serie en color y dejar el resto en gris'
+      - 'Usar dos tonos de verde muy parecidos para distinguir dos series'
+    answer: [0, 1, 2]
+    explanation: 'La redundancia (etiquetas, formas, énfasis) hace que el mensaje sobreviva a la falta de color. Dos verdes parecidos se confunden con mucha facilidad.'
+    ref: '#no-dependas-solo-del-color'
+
+  - id: viz2-03-q5
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál es el mejor texto alternativo para el gráfico de ingresos mensuales de 2025?'
+    options:
+      - 'Gráfico'
+      - 'Gráfico de líneas'
+      - 'Gráfico de líneas de los ingresos netos mensuales de Lumen en 2025, que casi se duplican, de 2,94 M€ en enero a 5,48 M€ en diciembre'
+      - 'Imagen de ingresos'
+    answer: [2]
+    explanation: 'La fórmula es tipo de gráfico + qué datos + conclusión. Las demás opciones no dicen nada que ayude a una persona que no ve el gráfico.'
+    ref: '#texto-alternativo-que-comunica'
+
+  - id: viz2-03-q6
+    type: single
+    difficulty: 3
+    prompt: 'Dentro de la banda del 95 % de la conversión diaria hay 57 de los 61 días; 4 días quedan fuera. ¿Cuántos esperarías fuera por puro azar y qué concluyes?'
+    options:
+      - 'Cero; 4 días fuera es una señal clara'
+      - 'Unos 3 (el 5 % de 61); con 4 no hay evidencia de que el proceso haya cambiado'
+      - 'Unos 20; el proceso está en control'
+      - 'Depende del color del gráfico'
+    answer: [1]
+    explanation: 'Una banda al 95 % deja fuera el 5 % por construcción: unos 3 de 61 días. Que 4 queden fuera es compatible con el azar. Interpretar cada pico como una señal es lo que la banda ayuda a evitar.'
+    ref: '#mostrar-la-incertidumbre'

@@ -1,0 +1,237 @@
+---
+title: 'Percepción visual y elección del gráfico'
+description: 'Qué comparaciones hace bien el ojo humano (Cleveland y McGill), por qué una barra supera a una tarta y cómo elegir el gráfico a partir de la pregunta que quieres responder.'
+module: visualizacion
+order: 1
+level: básico
+estimatedMinutes: 35
+objectives:
+  - 'Ordenar los canales visuales (posición, longitud, ángulo, área, color) por la precisión con la que se perciben.'
+  - 'Elegir un tipo de gráfico a partir de la pregunta (comparar, evolución, distribución, relación, composición, valores exactos).'
+  - 'Explicar por qué una tarta con porciones parecidas no permite ordenar y una barra sí, con un ejemplo de Lumen.'
+  - 'Aplicar la regla «una pregunta, un gráfico» y los criterios básicos de legibilidad.'
+prerequisites: ['eda/04-sesgos-regresion-a-la-media-y-tasa-base']
+tools: ['vega-lite']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Fundamentals of Data Visualization (Claus O. Wilke)'
+    url: 'https://clauswilke.com/dataviz/'
+    type: book
+    authors: 'Wilke, C. O.'
+    year: 2019
+  - title: 'Data Visualization: A Practical Introduction (Kieran Healy)'
+    url: 'https://socviz.co/'
+    type: book
+    authors: 'Healy, K.'
+    year: 2019
+  - title: 'Vega-Lite — documentación'
+    url: 'https://vega.github.io/vega-lite/docs/'
+    type: docs
+    authors: 'Vega-Lite contributors'
+    year: 2026
+relatedLabs: ['py-especificacion-vega-lite']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import VegaChart from '../../../components/content/VegaChart.tsx';
+import ChartChooser from '../../../components/content/ChartChooser.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Marketing te pide un gráfico para el comité: "cómo se reparten las unidades vendidas entre las
+  ocho categorías de producto". Alguien ha hecho una tarta de colores con ocho porciones y la
+  directora pregunta: "¿cuál es la categoría que más vende?". Nadie en la sala es capaz de contestar
+  sin mirar los números.
+</BusinessContext>
+
+Un gráfico existe para que **el cerebro haga el trabajo** de comparar sin esfuerzo. Si obliga a leer cada
+etiqueta y a calcular de cabeza, ha fallado. La buena noticia es que la ciencia de la percepción nos dice con
+bastante precisión qué comparaciones salen bien y cuáles no.
+
+## Intuición
+
+El ojo no mide ángulos ni áreas con exactitud, pero compara muy bien **posiciones alineadas** y **longitudes**.
+Por eso los mejores gráficos para comparar valores son los que convierten cada valor en una posición o una
+longitud sobre una escala común (puntos, barras, líneas) y los peores los que lo convierten en un ángulo, un área o un color
+(tartas, burbujas, mapas de calor para comparar valores exactos).
+
+## Cómo funciona
+
+### La jerarquía de Cleveland y McGill
+
+En 1984, Cleveland y McGill midieron la precisión con la que la gente estima valores según el **canal visual** usado. Su
+ordenación, de más a menos precisa, se ha confirmado después una y otra vez:
+
+| Posición | Canal visual                         | Ejemplo                                                          |
+| -------: | ------------------------------------ | ---------------------------------------------------------------- |
+|        1 | Posición sobre una **escala común**  | Puntos en un eje compartido, líneas, barras alineadas desde cero |
+|        2 | Posición en escalas **no alineadas** | Paneles con ejes distintos (múltiplos pequeños)                  |
+|        3 | Longitud, dirección y ángulo         | Barras no alineadas, pendiente de una línea, tarta               |
+|        4 | Área                                 | Burbujas, treemaps                                               |
+|        5 | Volumen y curvatura                  | Barras 3D, gráficos con perspectiva                              |
+|        6 | Sombreado y saturación del color     | Mapas de calor, coropléticos                                     |
+
+La regla práctica: **codifica lo más importante con el canal más alto de la lista**. Si lo importante es comparar
+valores, usa posición o longitud; reserva el color y el área para variables secundarias o para dar contexto.
+
+### Un ejemplo con datos de Lumen
+
+Reparto de las unidades vendidas en 2025 por categoría de producto (pedidos no cancelados):
+
+<VegaChart
+  minHeight={300}
+  alt="Tarta con ocho porciones de unidades vendidas por categoría en 2025: Alimentación 13,5 %, Hogar 13,0 %, Belleza 12,5 %, Papelería y oficina 12,5 %, Deporte 12,4 %, Electrónica 12,3 %, Juguetes y bebé 12,1 % y Moda 11,6 %; las porciones son casi iguales y no permiten ordenar."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    width: 280,
+    height: 260,
+    title: 'Tarta: ¿qué categoría vende más?',
+    data: {
+      values: [
+        { cat: 'Alimentación', pct: 13.5 },
+        { cat: 'Belleza', pct: 12.5 },
+        { cat: 'Deporte', pct: 12.4 },
+        { cat: 'Electrónica', pct: 12.3 },
+        { cat: 'Hogar', pct: 13.0 },
+        { cat: 'Juguetes y bebé', pct: 12.1 },
+        { cat: 'Moda', pct: 11.6 },
+        { cat: 'Papelería y oficina', pct: 12.5 },
+      ],
+    },
+    mark: { type: 'arc', innerRadius: 0 },
+    encoding: {
+      theta: { field: 'pct', type: 'quantitative', stack: true },
+      color: { field: 'cat', type: 'nominal', title: 'Categoría' },
+    },
+  }}
+/>
+
+Con ocho porciones casi idénticas (todas entre el 11,6 % y el 13,5 %), **nadie puede ordenarlas**: el ángulo de un
+12,5 % y el de un 12,4 % son indistinguibles. Los mismos datos como barras ordenadas:
+
+<VegaChart
+  minHeight={280}
+  alt="Barras horizontales ordenadas de mayor a menor de las unidades vendidas por categoría en 2025: Alimentación 13,5 %, Hogar 13,0 %, Belleza 12,5 %, Papelería y oficina 12,5 %, Deporte 12,4 %, Electrónica 12,3 %, Juguetes y bebé 12,1 % y Moda 11,6 %."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    width: 'container',
+    height: 240,
+    title: [
+      'Alimentación vende más unidades (13,5 %) y Moda menos (11,6 %);',
+      'la diferencia entre categorías es pequeña',
+    ],
+    data: {
+      values: [
+        { cat: 'Alimentación', pct: 13.5 },
+        { cat: 'Hogar', pct: 13.0 },
+        { cat: 'Belleza', pct: 12.5 },
+        { cat: 'Papelería y oficina', pct: 12.5 },
+        { cat: 'Deporte', pct: 12.4 },
+        { cat: 'Electrónica', pct: 12.3 },
+        { cat: 'Juguetes y bebé', pct: 12.1 },
+        { cat: 'Moda', pct: 11.6 },
+      ],
+    },
+    mark: { type: 'bar', color: '#4C78A8' },
+    encoding: {
+      y: { field: 'cat', type: 'nominal', sort: '-x', title: null },
+      x: {
+        field: 'pct',
+        type: 'quantitative',
+        title: '% de las unidades vendidas en 2025',
+        scale: { domain: [0, 15] },
+      },
+    },
+  }}
+/>
+
+Las barras permiten leer el ranking de un vistazo y, además, **el título dice la conclusión** (y su
+matiz: la diferencia entre categorías es pequeña). Fíjate también en el eje: empieza en cero. Una barra comunica
+su valor por la **longitud total**, así que recortarla es mentir (lo veremos en la última lección del módulo).
+
+<Callout type="tip">
+  Si el mensaje es «las categorías se reparten casi por igual», la mejor respuesta puede ser una
+  frase y una tabla. El gráfico tiene que ganarse su sitio: ¿cuál es la comparación que el lector
+  debe hacer?
+</Callout>
+
+### De la pregunta al gráfico
+
+Seis preguntas cubren la mayor parte del trabajo diario. Usa el selector para ver la recomendación y lo que
+conviene evitar en cada situación:
+
+<ChartChooser client:visible />
+
+### Principios de legibilidad
+
+1. **Una pregunta, un gráfico.** Si necesitas dos mensajes, haz dos gráficos.
+2. **Ordena con intención**: por valor para comparar categorías, por tiempo para series, nunca alfabéticamente si
+   hay un ranking.
+3. **Etiqueta directamente** (los nombres junto a las líneas o barras) en lugar de obligar a ir y volver a una leyenda.
+4. **Quita lo que no informa**: fondos, rejillas densas, bordes, efectos 3D y decoraciones («_chartjunk_»).
+5. **Eje en cero para las barras** y escalas coherentes entre paneles que se comparan.
+6. **Pocas series**: más de cinco o seis colores no se distinguen; resalta una y atenúa el resto.
+
+## En la práctica
+
+Antes de abrir ninguna herramienta, escribe en una frase **la comparación que el lector debe hacer** y completa esta ficha:
+
+| Pregunta                          | Ejemplo                                                            |
+| --------------------------------- | ------------------------------------------------------------------ |
+| ¿Qué quiero que entienda?         | «La conversión en móvil es menor que en escritorio en cada región» |
+| ¿Qué comparación tiene que hacer? | Móvil frente a escritorio, dentro de cada región                   |
+| ¿Qué canal visual la codifica?    | Posición (puntos o barras en el mismo eje)                         |
+| ¿Qué título dice la conclusión?   | «En las dos regiones, el móvil convierte menos que el escritorio»  |
+
+En el lab de esta lección construyes la especificación de un gráfico de barras ordenado con título y ejes correctos,
+en el formato declarativo Vega-Lite que usa esta propia web.
+
+## Trade-offs y cuándo usarlo
+
+- **Precisión frente a atractivo**: los gráficos menos precisos (burbujas, mapas de calor) pueden ser mejores para dar
+  una impresión general; úsalos cuando no se necesite comparar cifras.
+- **Gráfico frente a tabla**: si el lector necesita valores exactos, una tabla bien formateada gana.
+- **Interactividad frente a claridad**: la interacción ayuda a explorar, pero el mensaje principal debe leerse sin
+  tocar nada.
+- **Estándar frente a original**: los gráficos convencionales se entienden sin explicación; reserva los originales para
+  cuando aporten algo de verdad.
+
+## Errores comunes
+
+- **Tartas y anillos con muchas porciones** o porciones parecidas.
+- **Barras 3D** o con efectos que distorsionan la lectura.
+- **Ordenar alfabéticamente** cuando lo que importa es el ranking.
+- **Usar color para codificar valores precisos** (un mapa de calor para comparar cifras).
+- **Una leyenda de diez colores** en lugar de etiquetas directas.
+- **Títulos que describen** («Ventas por categoría») en lugar de **concluir** («Electrónica aporta el 47 % de los ingresos»).
+
+## Con IA
+
+Un asistente genera gráficos con código en segundos, pero por defecto elige tartas, colores saturados y títulos
+descriptivos. Pídele **la pregunta que responde el gráfico**, el canal visual elegido y un título que concluya, y
+revisa el resultado con esta lección como lista de comprobación. Si le pides «el mejor gráfico» sin dar la pregunta,
+te dará el más habitual, no el más adecuado.
+
+## En una entrevista
+
+- _"¿Por qué una barra es mejor que una tarta para comparar categorías?"_ — Pista: longitud sobre escala común frente a
+  ángulo; Cleveland y McGill; ejemplo con porciones parecidas.
+- _"Te piden un dashboard con diez gráficos. ¿Cómo decides cuáles?"_ — Pista: cada gráfico responde una pregunta con una
+  decisión asociada; quitar lo que no informa.
+- _"¿Cuándo usarías una tabla en lugar de un gráfico?"_ — Pista: valores exactos, pocas filas, consulta.
+
+<KeyTakeaways
+  items={[
+    'La percepción humana compara mejor posiciones y longitudes sobre una escala común que ángulos, áreas o colores: codifica lo importante con el canal más alto de la jerarquía de Cleveland y McGill.',
+    'Con ocho porciones entre el 11,6 % y el 13,5 %, una tarta no permite ordenar; las barras ordenadas sí.',
+    'Elige el gráfico por la pregunta: comparar (barras), evolución (líneas), distribución (histograma), relación (dispersión), composición (barras apiladas al 100 %) y valores exactos (tabla).',
+    'Una pregunta, un gráfico; etiquetas directas; sin decoraciones; y un título que diga la conclusión.',
+    'Las barras se leen por su longitud total: el eje empieza en cero.',
+  ]}
+/>

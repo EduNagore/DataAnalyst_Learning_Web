@@ -1,0 +1,279 @@
+---
+title: 'Gramática de gráficos, anotaciones y títulos que cuentan'
+description: 'Cómo se describe un gráfico como datos, marcas y codificaciones (Vega-Lite y Altair), y cómo pasar de un gráfico por defecto a uno que comunica: título con conclusión, anotación y etiquetas directas.'
+module: visualizacion
+order: 2
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Describir un gráfico con la gramática de gráficos: datos, marca, codificaciones, escalas, guías, capas y facetas.'
+  - 'Leer y escribir una especificación Vega-Lite y su equivalente en Altair.'
+  - 'Mejorar un gráfico por defecto con título que concluye, anotación, etiquetas directas y eliminación de ruido.'
+  - 'Usar capas y múltiplos pequeños (facetas) para comparar sin saturar un gráfico.'
+prerequisites: ['visualizacion/01-percepcion-y-eleccion-del-grafico']
+tools: ['vega-lite', 'altair']
+volatility: medium
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Vega-Lite — Layer (capas)'
+    url: 'https://vega.github.io/vega-lite/docs/layer.html'
+    type: docs
+    authors: 'Vega-Lite contributors'
+    year: 2026
+  - title: 'Vega-Lite — Encoding'
+    url: 'https://vega.github.io/vega-lite/docs/encoding.html'
+    type: docs
+    authors: 'Vega-Lite contributors'
+    year: 2026
+  - title: 'Altair — documentación'
+    url: 'https://altair-viz.github.io/'
+    type: docs
+    authors: 'Altair developers'
+    year: 2026
+  - title: 'A Layered Grammar of Graphics (Hadley Wickham)'
+    url: 'http://vita.had.co.nz/papers/layered-grammar.html'
+    type: paper
+    authors: 'Wickham, H.'
+    year: 2010
+relatedLabs: ['py-linea-anotada']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import VegaChart from '../../../components/content/VegaChart.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Dirección te pide una diapositiva con la evolución de los ingresos de 2025. Con una línea y los
+  ejes por defecto sale un gráfico correcto que nadie recordará. ¿Qué lo separa de uno que, en diez
+  segundos, deja claro que los ingresos casi se han duplicado y por qué hay un salto en marzo?
+</BusinessContext>
+
+Un gráfico bueno es el resultado de **decisiones** (qué se muestra, con qué canal, qué se resalta), no de
+una herramienta. La _gramática de gráficos_ da nombre a esas decisiones y permite escribirlas como una especificación
+que cualquiera puede leer, versionar y reproducir.
+
+## Intuición
+
+Un gráfico no es una imagen: es una **frase**. Tiene un sujeto (los datos), un verbo (la marca: línea, barra, punto) y
+complementos (qué columna va a cada canal visual). Cambiar «línea» por «barra» o «mes» por «categoría» cambia la frase
+sin reescribirlo todo. Esa es la idea de la gramática de gráficos (Wilkinson, 1999; Wickham, 2010) y de los lenguajes
+declarativos que la implementan, como Vega-Lite.
+
+## Cómo funciona
+
+### Los componentes de la gramática
+
+| Componente         | Qué decide                                              | En Vega-Lite             |
+| ------------------ | ------------------------------------------------------- | ------------------------ |
+| **Datos**          | Qué filas y columnas se usan                            | `data`                   |
+| **Transformación** | Filtrar, agregar, calcular antes de dibujar             | `transform`              |
+| **Marca**          | La forma geométrica: punto, línea, barra, área, texto   | `mark`                   |
+| **Codificación**   | Qué columna va a qué canal (x, y, color, tamaño, forma) | `encoding`               |
+| **Escala**         | Cómo se traduce un valor a una posición o color         | `scale`                  |
+| **Guías**          | Ejes y leyendas                                         | `axis`, `legend`         |
+| **Capas**          | Superponer varias marcas en un mismo gráfico            | `layer`                  |
+| **Facetas**        | Repetir el gráfico por subgrupos (múltiplos pequeños)   | `facet`, `row`, `column` |
+
+Una especificación mínima de líneas con los ingresos mensuales de 2025 de Lumen (en millones de euros, pedidos no cancelados):
+
+```json
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+  "data": {
+    "values": [
+      { "mes": "2025-01", "ingresos": 2.94 },
+      { "mes": "2025-02", "ingresos": 2.89 },
+      { "mes": "2025-03", "ingresos": 3.54 }
+    ]
+  },
+  "mark": "line",
+  "encoding": {
+    "x": { "field": "mes", "type": "temporal" },
+    "y": { "field": "ingresos", "type": "quantitative" }
+  }
+}
+```
+
+Cada canal indica el **tipo de dato**: `quantitative`, `temporal`, `ordinal` (categorías con orden) o `nominal`
+(categorías sin orden). El tipo decide la escala y la guía por defecto.
+
+### De Vega-Lite a Altair
+
+Altair es una biblioteca de Python que construye esas mismas especificaciones con una API fluida. El
+resultado se serializa a Vega-Lite, por lo que ambas se corresponden una a una:
+
+```python
+import altair as alt
+
+grafico = (
+    alt.Chart(df)                                             # datos (un DataFrame)
+    .mark_line(point=True)                                    # marca
+    .encode(
+        x=alt.X("mes:T", title=None),                         # :T = temporal
+        y=alt.Y("ingresos_m:Q", title="Ingresos netos (M€)"), # :Q = cuantitativo
+    )
+    .properties(title="Los ingresos casi se duplican en 2025")
+)
+grafico.to_dict()["$schema"]    # 'https://vega.github.io/schema/vega-lite/v6.4.1.json'
+```
+
+<Snapshot date="2026-10">
+  Altair 6.3.0 genera especificaciones de Vega-Lite 6.4. Esta web dibuja sus gráficos con Vega-Lite
+  6 mediante vega-embed. Otras opciones de uso habitual son matplotlib y seaborn (imperativas),
+  Plotly (interactiva) y Observable Plot (JavaScript); la elección depende del entorno (notebook,
+  informe, web) y del equipo.
+</Snapshot>
+
+### Del gráfico por defecto al gráfico que comunica
+
+Se mejora por pasos. Cada paso responde a una pregunta del lector:
+
+1. **¿Qué quiere decirme?** → un título que **concluye** y un subtítulo con el contexto.
+2. **¿Dónde miro?** → una **anotación** sobre el punto importante y la serie resaltada frente al resto.
+3. **¿Qué es cada cosa?** → **etiquetas directas** en lugar de leyendas y unidades en el eje.
+4. **¿Qué sobra?** → quitar rejillas pesadas, bordes y marcas que no informan.
+
+El resultado para los ingresos de 2025 de Lumen:
+
+<VegaChart
+  minHeight={330}
+  alt="Gráfico de líneas de los ingresos netos mensuales de Lumen en 2025, de 2,94 millones en enero a 5,48 en diciembre. Una línea vertical y una nota marcan marzo: los ingresos suben un 22,6 % respecto a febrero tras el fin de las rebajas."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    width: 'container',
+    height: 250,
+    title: {
+      text: 'Los ingresos netos casi se duplican en 2025',
+      subtitle: 'De 2,94 M€ en enero a 5,48 M€ en diciembre (+86 %)',
+      anchor: 'start',
+    },
+    data: {
+      values: [
+        { mes: '2025-01-01', m: 2.94 },
+        { mes: '2025-02-01', m: 2.89 },
+        { mes: '2025-03-01', m: 3.54 },
+        { mes: '2025-04-01', m: 3.52 },
+        { mes: '2025-05-01', m: 3.77 },
+        { mes: '2025-06-01', m: 3.79 },
+        { mes: '2025-07-01', m: 4.17 },
+        { mes: '2025-08-01', m: 4.54 },
+        { mes: '2025-09-01', m: 4.57 },
+        { mes: '2025-10-01', m: 5.16 },
+        { mes: '2025-11-01', m: 5.08 },
+        { mes: '2025-12-01', m: 5.48 },
+      ],
+    },
+    layer: [
+      {
+        mark: { type: 'line', point: true, color: '#4C78A8', strokeWidth: 2.5 },
+        encoding: {
+          x: { field: 'mes', type: 'temporal', title: null, axis: { format: '%b', tickCount: 12 } },
+          y: {
+            field: 'm',
+            type: 'quantitative',
+            title: 'Ingresos netos (M€)',
+            scale: { zero: true },
+          },
+        },
+      },
+      {
+        data: {
+          values: [{ mes: '2025-03-01', texto: 'Fin de las rebajas: +22,6 % sobre febrero' }],
+        },
+        mark: { type: 'rule', strokeDash: [4, 3], color: '#E45756' },
+        encoding: { x: { field: 'mes', type: 'temporal' } },
+      },
+      {
+        data: {
+          values: [{ mes: '2025-03-01', texto: 'Fin de las rebajas: +22,6 % sobre febrero' }],
+        },
+        mark: { type: 'text', align: 'left', dx: 6, dy: -4, color: '#E45756', fontWeight: 'bold' },
+        encoding: {
+          x: { field: 'mes', type: 'temporal' },
+          y: { value: 20 },
+          text: { field: 'texto' },
+        },
+      },
+    ],
+  }}
+/>
+
+Comparado con el gráfico por defecto: el título dice la conclusión, el salto de marzo tiene una explicación
+visible (y se menciona como **contexto**, no como causa demostrada), el eje tiene unidades y empieza en cero
+y no hay leyenda ni rejilla que distraiga. Se lee en diez segundos.
+
+### Capas y múltiplos pequeños
+
+- Las **capas** superponen marcas sobre los mismos ejes: una línea, sus puntos, una regla vertical y un texto, como arriba. Sirven
+  para añadir referencias (objetivo, media, hito) sin saturar.
+- Los **múltiplos pequeños** (_small multiples_, facetas) repiten el mismo gráfico para cada subgrupo con **ejes
+  compartidos**, de modo que la comparación se hace con el canal más preciso (posición). Son la alternativa a una
+  maraña de diez líneas de colores: diez paneles pequeños y ordenados.
+
+<Callout type="tip">
+  Antes de añadir una serie más a un gráfico, pregúntate si no es mejor un panel nuevo. Resaltar
+  **una** serie en color y dejar el resto en gris es la forma más barata de guiar la mirada.
+</Callout>
+
+## En la práctica
+
+Un procedimiento de cinco minutos para cualquier gráfico que vaya a ser visto por otros:
+
+1. Escribe en una línea **el mensaje** («los ingresos casi se duplican en 2025»). Ese es el título.
+2. Elige marca y codificación por la pregunta (lección anterior).
+3. Marca **el punto de interés** con una capa (anotación, regla o color).
+4. Pon **unidades** en los ejes y quita la leyenda si puedes etiquetar directamente.
+5. Prueba el gráfico en **diez segundos** con alguien que no conozca los datos: ¿ve el mensaje?
+
+En el lab de esta lección construyes una especificación de líneas con una anotación como la de arriba y compruebas
+que tiene las capas y el título adecuados.
+
+## Trade-offs y cuándo usarlo
+
+- **Declarativo (Vega-Lite, Altair) frente a imperativo (matplotlib)**: el declarativo es conciso, reproducible y
+  fácil de generar y de revisar (también por una IA); el imperativo da control fino de cada detalle.
+- **Interactivo frente a estático**: la interactividad ayuda a explorar, pero los informes y las diapositivas piden una
+  versión estática que cuente la historia.
+- **Más anotaciones frente a gráfico limpio**: una o dos anotaciones guían; seis saturan.
+- **Consistencia frente a optimización**: usar las mismas escalas y colores en todos los gráficos de un informe ahorra
+  esfuerzo al lector.
+
+## Errores comunes
+
+- **Dejar los valores por defecto**: títulos vacíos, ejes sin unidades, rejillas y bordes pesados.
+- **Títulos descriptivos** («Ingresos mensuales») en lugar de que concluyan.
+- **Anotar causas no demostradas** como hechos («las rebajas provocan el salto»): indica el contexto o la hipótesis.
+- **Demasiadas series** en un gráfico en lugar de facetas o de resaltar una.
+- **Cambiar de escala entre paneles** que se van a comparar.
+- **Confiar en que una leyenda lejana se leerá** en lugar de etiquetar directamente.
+
+## Con IA
+
+Una IA escribe Altair o Vega-Lite con rapidez y es excelente para **traducir** de una a otra. Pídele siempre: título que
+concluye, unidades, eje en cero para barras, anotación del punto clave y etiquetas directas, y comprueba que la
+especificación indica la versión del esquema de Vega-Lite que realmente usas. Cuidado con los modelos que inventan
+parámetros que no existen en tu versión de Altair: ejecuta el código antes de aceptarlo.
+
+## En una entrevista
+
+- _"¿Qué es la gramática de gráficos?"_ — Pista: datos, marcas, codificaciones, escalas, guías, capas y facetas; el gráfico como
+  especificación.
+- _"¿Qué mejorarías en un gráfico de líneas por defecto?"_ — Pista: título que concluye, anotación, etiquetas
+  directas, unidades, quitar ruido.
+- _"¿Cuándo usarías facetas en lugar de varias líneas en un gráfico?"_ — Pista: muchas series, comparación con ejes
+  compartidos, evitar la maraña.
+
+<KeyTakeaways
+  items={[
+    'Un gráfico se describe con datos, marca, codificaciones, escalas, guías, capas y facetas; Vega-Lite lo escribe como JSON y Altair como código Python que genera el mismo JSON.',
+    'Un gráfico que comunica tiene un título con la conclusión, una anotación en el punto de interés, unidades y etiquetas directas, y sin ruido.',
+    'Los ingresos netos de Lumen pasan de 2,94 M€ (enero) a 5,48 M€ (diciembre de 2025), un +86 %; el salto de marzo (+22,6 %) coincide con el fin de las rebajas, y eso se anota como contexto.',
+    'Las capas añaden referencias sin saturar y los múltiplos pequeños con ejes compartidos sustituyen a la maraña de líneas.',
+    'Prueba el gráfico en diez segundos con alguien ajeno a los datos: si no ve el mensaje, no comunica.',
+  ]}
+/>

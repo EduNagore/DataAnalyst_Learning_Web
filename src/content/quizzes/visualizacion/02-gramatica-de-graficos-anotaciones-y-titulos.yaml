@@ -1,0 +1,79 @@
+lesson: visualizacion/02-gramatica-de-graficos-anotaciones-y-titulos
+questions:
+  - id: viz2-02-q1
+    type: single
+    difficulty: 1
+    prompt: 'En la gramática de gráficos, ¿qué componente decide qué columna se asigna a la posición horizontal, al color o al tamaño?'
+    options:
+      - 'La marca'
+      - 'La codificación (encoding)'
+      - 'La faceta'
+      - 'El tema'
+    answer: [1]
+    explanation: 'La codificación conecta columnas de los datos con canales visuales (x, y, color, tamaño, forma). La marca es la forma geométrica (línea, barra, punto).'
+    ref: '#los-componentes-de-la-gramática'
+
+  - id: viz2-02-q2
+    type: single
+    difficulty: 2
+    prompt: 'En Vega-Lite, ¿qué tipo de dato corresponde a una columna de fechas?'
+    options:
+      - 'nominal'
+      - 'temporal'
+      - 'quantitative'
+      - 'ordinal'
+    answer: [1]
+    explanation: 'El tipo temporal hace que el eje se escale y se etiquete como tiempo (meses, años). El tipo determina la escala y la guía por defecto.'
+    ref: '#los-componentes-de-la-gramática'
+
+  - id: viz2-02-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Qué relación hay entre Altair y Vega-Lite?'
+    options:
+      - 'Son librerías sin relación'
+      - 'Altair es una API de Python que construye especificaciones de Vega-Lite y las serializa a JSON'
+      - 'Altair sustituye a Vega-Lite y no genera JSON'
+      - 'Vega-Lite es una versión antigua de Altair'
+    answer: [1]
+    explanation: 'Con Altair se escribe código Python y chart.to_dict() devuelve la especificación Vega-Lite equivalente. Por eso ambas se corresponden una a una.'
+    ref: '#de-vega-lite-a-altair'
+
+  - id: viz2-02-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las mejoras que convierten un gráfico por defecto en uno que comunica.'
+    options:
+      - 'Un título que concluye'
+      - 'Una anotación en el punto de interés'
+      - 'Etiquetas directas y unidades en los ejes'
+      - 'Añadir una leyenda de diez colores y rejillas más marcadas'
+    answer: [0, 1, 2]
+    explanation: 'Se trata de guiar la mirada y quitar ruido. Una leyenda larga y rejillas pesadas añaden carga sin información.'
+    ref: '#del-gráfico-por-defecto-al-gráfico-que-comunica'
+
+  - id: viz2-02-q5
+    type: single
+    difficulty: 3
+    prompt: 'En el gráfico de ingresos de 2025 se anota «Fin de las rebajas: +22,6 % sobre febrero» en marzo. ¿Qué precaución es adecuada con esa anotación?'
+    options:
+      - 'Ninguna: la anotación demuestra la causa'
+      - 'Presentarla como contexto o hipótesis (coincide con el fin de las rebajas), no como causa demostrada, salvo que un análisis lo confirme'
+      - 'Quitarla siempre'
+      - 'Ponerla en un tamaño más grande'
+    answer: [1]
+    explanation: 'Una coincidencia temporal no prueba causalidad. La anotación debe distinguir lo observado (el +22,6 %) de lo supuesto (la explicación).'
+    ref: '#del-gráfico-por-defecto-al-gráfico-que-comunica'
+
+  - id: viz2-02-q6
+    type: single
+    difficulty: 2
+    prompt: 'Tienes diez series de ventas por región y las quieres comparar. ¿Qué enfoque es mejor que diez líneas de colores en un solo gráfico?'
+    options:
+      - 'Una tarta'
+      - 'Múltiplos pequeños (facetas): un panel por región con los ejes compartidos'
+      - 'Un gráfico 3D'
+      - 'Quitar el eje'
+    answer: [1]
+    explanation: 'Los paneles pequeños con ejes compartidos permiten comparar posiciones, el canal más preciso, sin la maraña de líneas y colores.'
+    ref: '#capas-y-múltiplos-pequeños'

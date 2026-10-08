@@ -1,0 +1,254 @@
+---
+title: 'Cómo mienten los gráficos y con qué herramientas hacerlos'
+description: 'Ejes truncados, áreas, dobles ejes, tendencias que simulan relaciones y periodos escogidos a dedo: cómo reconocerlos, cuantificar la exageración y qué herramientas elegir para evitarlos.'
+module: visualizacion
+order: 4
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Reconocer los engaños gráficos más habituales (eje truncado, área, doble eje, periodo escogido, 3D) y cuantificar una exageración con el factor de mentira.'
+  - 'Distinguir una correlación entre tendencias de una relación real comparando niveles y diferencias.'
+  - 'Aplicar una lista de comprobación antes de publicar un gráfico.'
+  - 'Elegir una herramienta de visualización según el entorno y el equipo.'
+prerequisites: ['visualizacion/03-color-accesibilidad-e-incertidumbre']
+tools: ['vega-lite', 'altair']
+volatility: medium
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Fundamentals of Data Visualization — Telling a story (Claus O. Wilke)'
+    url: 'https://clauswilke.com/dataviz/telling-a-story.html'
+    type: book
+    authors: 'Wilke, C. O.'
+    year: 2019
+  - title: 'Altair — documentación'
+    url: 'https://altair-viz.github.io/'
+    type: docs
+    authors: 'Altair developers'
+    year: 2026
+  - title: 'Plotly — Python'
+    url: 'https://plotly.com/python/'
+    type: docs
+    authors: 'Plotly'
+    year: 2026
+relatedLabs: ['py-factor-de-mentira']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import VegaChart from '../../../components/content/VegaChart.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  En el comité, una diapositiva muestra el ticket medio por segmento con barras que parecen decir
+  que los clientes habituales gastan "muchísimo más" que los ocasionales. Otra enseña dos líneas
+  casi paralelas, pedidos y altas, y alguien afirma "claramente una causa la otra". Los números de
+  los dos gráficos son correctos. La impresión que dan, no.
+</BusinessContext>
+
+Casi ningún gráfico engañoso contiene números falsos: engaña por **cómo elige** el eje, el periodo, el área o la
+comparación. Saber reconocer estos trucos protege a quien lee y, sobre todo, a quien los produce sin querer.
+
+## Intuición
+
+Un gráfico es un argumento visual. Igual que una frase puede ser cierta y engañosa («la mitad de las víctimas llevaban
+cinturón»), un gráfico puede dibujar fielmente los datos y exagerar su importancia. Tufte propuso una medida de esa
+exageración, el **factor de mentira** (_lie factor_): cuánto cambia lo que se ve frente a cuánto cambian los datos.
+
+## Cómo funciona
+
+### Eje truncado
+
+Ticket medio por segmento de Lumen (pedidos no cancelados): nuevo 301,9 €, ocasional 301,4 €, habitual 302,0 € y vip 301,5 €.
+La diferencia máxima es de **0,6 €, un 0,2 %**. Con el eje empezando en cero y con el eje recortado en 301 €:
+
+<VegaChart
+  minHeight={520}
+  alt="Dos gráficos de barras del ticket medio por segmento con los mismos datos. Arriba, con el eje desde cero, las cuatro barras son iguales (301 a 302 euros). Abajo, con el eje recortado a partir de 301 euros, la barra de habitual parece 2,5 veces mayor que la de ocasional aunque la diferencia real es del 0,2 %."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    data: {
+      values: [
+        { seg: 'nuevo', v: 301.9 },
+        { seg: 'ocasional', v: 301.4 },
+        { seg: 'habitual', v: 302.0 },
+        { seg: 'vip', v: 301.5 },
+      ],
+    },
+    vconcat: [
+      {
+        title: 'Eje desde cero: las barras son prácticamente iguales',
+        width: 320,
+        height: 90,
+        mark: { type: 'bar', color: '#4C78A8' },
+        encoding: {
+          y: { field: 'seg', type: 'nominal', title: null },
+          x: {
+            field: 'v',
+            type: 'quantitative',
+            title: 'Ticket medio (€)',
+            scale: { domain: [0, 320] },
+          },
+        },
+      },
+      {
+        title: 'Eje recortado desde 301 €: la misma diferencia de 0,2 % parece enorme',
+        width: 320,
+        height: 90,
+        mark: { type: 'bar', color: '#E45756' },
+        encoding: {
+          y: { field: 'seg', type: 'nominal', title: null },
+          x: {
+            field: 'v',
+            type: 'quantitative',
+            title: 'Ticket medio (€)',
+            scale: { domain: [301, 302.2], clamp: true },
+          },
+        },
+      },
+    ],
+  }}
+/>
+
+El **factor de mentira** del segundo gráfico, entre «ocasional» (301,4 €) y «habitual» (302,0 €):
+
+$$
+\text{factor}=\frac{\text{cambio relativo en la altura dibujada}}{\text{cambio relativo en el dato}}
+=\frac{(1{,}0-0{,}4)/0{,}4}{(302{,}0-301{,}4)/301{,}4}=\frac{150\,\%}{0{,}20\,\%}\approx 754
+$$
+
+La barra de «habitual» se dibuja un **150 %** más alta que la de «ocasional» cuando el dato solo es un 0,2 % mayor: una exageración de
+unas 750 veces. Un factor cercano a 1 es honesto; un valor muy por encima o por debajo de 1 miente.
+
+**Regla**: en las **barras**, el eje empieza siempre en cero (la longitud **es** el dato). En puntos y líneas, se puede
+recortar el eje si se avisa y la variación importa, pero hay que indicarlo y no usar barras.
+
+### Área, volumen y 3D
+
+El ojo percibe peor el área que la longitud, y se deja engañar por las **dos dimensiones**: si duplicas el radio de un círculo,
+el área se multiplica por cuatro. Una burbuja con el **diámetro** proporcional al dato exagera el cambio de forma cuadrática. Las
+barras 3D y las tartas en perspectiva añaden distorsión adicional. Si usas tamaño, codifica el **área** proporcional al valor y
+añade las cifras.
+
+### Doble eje y tendencias que se parecen
+
+Dos series con ejes verticales distintos pueden hacerse parecer relacionadas con solo cambiar la escala de uno. Y dos series
+con **tendencia** crecen juntas aunque no tengan nada que ver. En Lumen, los pedidos mensuales y las altas de clientes entre
+febrero de 2023 y mayo de 2026 (40 meses) tienen una correlación de **0,977** en niveles: parece una relación casi perfecta. Pero
+cuando se mira cómo **cambian de un mes a otro** (las diferencias, sin la tendencia común), la correlación baja a **0,30**:
+la relación real existe, pero es mucho más débil de lo que sugería el parecido de las curvas.
+
+| Comparación                                   | Correlación |
+| --------------------------------------------- | ----------: |
+| Pedidos y altas, niveles mensuales (40 meses) |       0,977 |
+| Pedidos y altas, diferencias mensuales        |       0,301 |
+
+Regla: **no dibujes con dos ejes** salvo que haya una razón (unidades distintas de la misma serie) y, al buscar relaciones entre series
+temporales, **quita la tendencia** (diferencias, tasas de crecimiento o desviaciones respecto a una tendencia) antes de comparar.
+
+### Periodos y comparaciones a dedo
+
+Elegir la ventana temporal cambia la historia. Los pedidos de Lumen son 17.597 (2023), 73.981 (2024), 161.706 (2025) y 123.861
+(2026). Un gráfico de barras con esos cuatro años sin aclarar que **2026 es un año parcial (hasta el 30 de junio)** hace creer que
+el negocio cae un 23 % en 2026. Compara periodos equivalentes (primer semestre con primer semestre) o indica «año parcial».
+
+Otras variantes: el **gráfico acumulado** que solo sube, ejes que cambian de escala a mitad de recorrido, **proporciones sin
+el denominador** y **cherry picking** (mostrar solo el periodo en que la tendencia favorece al mensaje).
+
+### Lista de comprobación antes de publicar
+
+1. ¿Las barras empiezan en cero?
+2. ¿El eje y la escala son los mismos en los paneles que se comparan?
+3. ¿El periodo es completo y comparable, y se indica si no?
+4. ¿Hay un denominador claro en las proporciones?
+5. ¿Usa dos ejes? Si sí, ¿es imprescindible?
+6. ¿El título concluye lo que **los datos permiten** concluir (no una causa)?
+7. ¿Se muestra la incertidumbre cuando se compara con una media o entre grupos pequeños?
+8. ¿Funciona sin color, y tiene texto alternativo?
+
+## En la práctica
+
+El factor de mentira se calcula en dos líneas y conviene automatizarlo en revisiones de informes:
+
+```python
+def factor_de_mentira(v1: float, v2: float, eje_min: float) -> float:
+    h1, h2 = v1 - eje_min, v2 - eje_min                  # alturas dibujadas con el eje recortado
+    visual = (h2 - h1) / h1                              # cambio relativo en el dibujo
+    dato = (v2 - v1) / v1                                # cambio relativo en el dato
+    return visual / dato                                 # 1 = honesto
+```
+
+Y para evitar la correlación espuria entre tendencias:
+
+```python
+niveles = df["pedidos"].corr(df["altas"])                          # 0,977 (engañosa)
+cambios = df.diff().dropna()["pedidos"].corr(df.diff().dropna()["altas"])   # 0,301
+```
+
+En el lab de esta lección implementas ambas comprobaciones.
+
+### Herramientas
+
+<Snapshot date="2026-10">
+  Versiones estables a esta fecha: Vega-Lite 6.4, Altair 6.3, Plotly (Python) 7.1, Matplotlib 3.11,
+  seaborn 0.13 y Observable Plot 0.6. La elección importa menos que los principios, pero conviene
+  conocer los puntos fuertes.
+</Snapshot>
+
+| Herramienta                        | Estilo                      | Punto fuerte                                                         | Cuándo elegirla                                   |
+| ---------------------------------- | --------------------------- | -------------------------------------------------------------------- | ------------------------------------------------- |
+| **Altair / Vega-Lite**             | Declarativo                 | Gramática de gráficos, especificación en JSON, interactividad básica | Análisis en notebook y gráficos en la web         |
+| **Matplotlib**                     | Imperativo                  | Control total de cada elemento, base de todo el ecosistema           | Figuras estáticas con control fino; publicaciones |
+| **seaborn**                        | Alto nivel sobre matplotlib | Gráficos estadísticos con pocas líneas                               | Exploración estadística rápida                    |
+| **Plotly**                         | Interactivo                 | Interactividad rica, cuadros de mando                                | Exploración interactiva y aplicaciones            |
+| **Observable Plot**                | Declarativo (JavaScript)    | Gramática concisa para la web                                        | Informes y páginas web en JavaScript              |
+| **BI (Power BI, Tableau, Looker)** | Interfaz gráfica            | Autoservicio y gobierno de métricas                                  | Cuadros de mando corporativos (módulo siguiente)  |
+
+## Trade-offs y cuándo usarlo
+
+- **Eje recortado en líneas o puntos**: legítimo cuando lo que importa es la variación y se señala, ilegítimo en barras.
+- **Doble eje**: solo para una misma magnitud en dos unidades (°C y °F); para dos magnitudes distintas, usa dos paneles
+  alineados.
+- **Simplicidad frente a contexto**: un gráfico con una sola línea es claro, pero sin una referencia (objetivo,
+  año anterior) puede ser engañoso por omisión.
+- **Interactividad frente a control del mensaje**: dejar que el lector filtre es útil, pero cambia lo que ve cada uno; fija
+  una vista por defecto honesta.
+
+## Errores comunes
+
+- **Barras con el eje recortado** para que la diferencia «se vea».
+- **Comparar un año parcial con años completos.**
+- **Buscar relaciones entre tendencias** sin quitarlas.
+- **Dos ejes verticales con escalas elegidas a conveniencia.**
+- **Burbujas con diámetro proporcional al dato.**
+- **Elegir la ventana temporal que favorece al mensaje** sin decirlo.
+- **No mirar el gráfico sin los números**: si el título y la tabla dicen cosas distintas, el gráfico miente.
+
+## Con IA
+
+Una IA, por defecto, **ajusta el eje** para que los datos llenen el gráfico (truncando barras) y añade un segundo eje cuando le
+das dos series. Pídele explícitamente: barras desde cero, un solo eje, periodos comparables y que calcule el factor de mentira de lo
+que genera. Y úsala como **revisora**: pásale tu gráfico (o su especificación) y la lista de comprobación de esta
+lección para que señale posibles engaños, verificando tú sus afirmaciones.
+
+## En una entrevista
+
+- _"Un gráfico de barras tiene el eje y empezando en 95. ¿Qué problema ves?"_ — Pista: la longitud deja de ser proporcional al dato;
+  factor de mentira; usar cero o un gráfico de puntos.
+- _"Dos series crecen juntas. ¿Hay relación?"_ — Pista: tendencia común; mirar diferencias o tasas de crecimiento; correlación
+  espuria; 0,977 frente a 0,30.
+- _"¿Qué revisarías de un gráfico antes de enviarlo al comité?"_ — Pista: lista de comprobación (eje, periodo, denominador, doble
+  eje, título, incertidumbre, accesibilidad).
+
+<KeyTakeaways
+  items={[
+    'Casi ningún gráfico engañoso tiene números falsos: engaña por el eje, el periodo, el área o la comparación elegidos.',
+    'En barras, el eje empieza en cero: recortarlo a 301 € convierte una diferencia del 0,2 % en una barra un 150 % más alta (factor de mentira ≈ 754).',
+    'Dos series con tendencia parecen relacionadas: pedidos y altas dan 0,977 en niveles y 0,30 en diferencias mensuales; quita la tendencia antes de comparar.',
+    'Compara periodos equivalentes: 2026 (hasta junio) no es comparable con un año completo.',
+    'Elige la herramienta por el entorno (Altair/Vega-Lite, Matplotlib, Plotly, BI), pero aplica siempre la lista de comprobación de integridad gráfica.',
+  ]}
+/>

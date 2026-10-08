@@ -1,0 +1,31 @@
+---
+title: 'Factor de mentira y correlación espuria entre tendencias'
+description: 'Cuantifica cuánto exagera un eje recortado y comprueba que la correlación entre dos series con tendencia se desploma cuando se comparan sus cambios.'
+language: python
+part: 'Parte II · Visualización y comunicación'
+module: visualizacion
+difficulty: 2
+estimatedMinutes: 25
+concepts:
+  ['factor de mentira', 'eje truncado', 'correlación espuria', 'diferencias', 'integridad gráfica']
+datasets: ['orders', 'customers']
+packages: []
+output: console
+hints:
+  - 'Con el eje recortado en `eje_min`, la altura dibujada de una barra es `v - eje_min`. El cambio visual es `(h2 - h1) / h1` y el cambio del dato `(v2 - v1) / v1`.'
+  - 'El factor de mentira es el cociente cambio visual / cambio del dato (redondea a 1 decimal). Con el eje en cero es exactamente 1.'
+  - 'Para quitar la tendencia comparte las **diferencias** entre meses consecutivos: `df.diff().dropna()`. Después calcula la correlación entre columnas.'
+  - '`correlaciones_niveles_y_cambios(df, a, b)` devuelve una tupla `(correlación de niveles, correlación de diferencias)` con 3 decimales.'
+relatedLessons: ['visualizacion/04-como-mienten-los-graficos-y-herramientas']
+businessQuestion: '¿Cuánto exagera un eje recortado y cuánto de la relación entre pedidos y altas es solo tendencia común?'
+---
+
+En el _starter_ tienes `mensual`: una fila por mes (febrero de 2023 a mayo de 2026) con `pedidos` (no cancelados) y `altas` (clientes nuevos).
+Implementa:
+
+1. **`factor_de_mentira(v1, v2, eje_min)`** → el factor de mentira de una comparación entre dos barras con el eje
+   recortado en `eje_min` (1 decimal). Con `eje_min = 0` vale 1.
+2. **`correlaciones_niveles_y_cambios(df, a, b)`** → tupla `(corr_niveles, corr_cambios)` entre las columnas `a` y `b`:
+   la correlación de las series originales y la de sus diferencias mensuales (3 decimales).
+
+Después compara: ¿qué relación sugiere cada correlación?

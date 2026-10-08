@@ -1,0 +1,331 @@
+---
+title: 'Color, accesibilidad e incertidumbre'
+description: 'Cómo elegir paletas que se distinguen (también con daltonismo), cumplir los contrastes de accesibilidad, escribir texto alternativo útil y mostrar la incertidumbre en lugar de ocultarla.'
+module: visualizacion
+order: 3
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Elegir entre paletas categóricas, secuenciales y divergentes según el tipo de dato.'
+  - 'Calcular el contraste entre dos colores y comprobar los umbrales de WCAG para texto (4,5:1) y elementos gráficos (3:1).'
+  - 'Diseñar un gráfico que no dependa solo del color y escribir un texto alternativo que comunique la conclusión.'
+  - 'Mostrar la incertidumbre con bandas de ruido esperado y distinguir una señal de la variación aleatoria.'
+prerequisites: ['visualizacion/02-gramatica-de-graficos-anotaciones-y-titulos']
+tools: ['vega-lite']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Fundamentals of Data Visualization — Color pitfalls y paletas (Claus O. Wilke)'
+    url: 'https://clauswilke.com/dataviz/color-pitfalls.html'
+    type: book
+    authors: 'Wilke, C. O.'
+    year: 2019
+  - title: 'Web Content Accessibility Guidelines (WCAG) 2.2'
+    url: 'https://www.w3.org/TR/WCAG22/'
+    type: spec
+    authors: 'W3C'
+    year: 2023
+  - title: 'W3C WAI — Images tutorial (texto alternativo)'
+    url: 'https://www.w3.org/WAI/tutorials/images/'
+    type: docs
+    authors: 'W3C WAI'
+    year: 2026
+  - title: 'Okabe y Ito — Color Universal Design'
+    url: 'https://jfly.uni-koeln.de/color/'
+    type: docs
+    authors: 'Okabe, M. e Ito, K.'
+    year: 2008
+  - title: 'Matplotlib — Choosing colormaps'
+    url: 'https://matplotlib.org/stable/users/explain/colors/colormaps.html'
+    type: docs
+    authors: 'Matplotlib developers'
+    year: 2026
+relatedLabs: ['py-contraste-de-color']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import VegaChart from '../../../components/content/VegaChart.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Un cliente daltónico te escribe: "En vuestro informe no distingo la línea verde de la roja, y el
+  naranja claro sobre fondo blanco no se lee". Y Producto pregunta: "La conversión de ayer fue del
+  2,7 % y la media es del 4,2 %: ¿hay un problema?". El color y la incertidumbre son dos formas de
+  que un gráfico correcto comunique mal.
+</BusinessContext>
+
+El 8 % de los hombres y el 0,5 % de las mujeres tienen alguna forma de daltonismo (deficiencia de visión del color), y
+casi todo el mundo ve mal una proyección con poca luz o una pantalla al sol. Diseñar el color para que **funcione
+para todos** no es un favor: es parte de la calidad del gráfico.
+
+## Intuición
+
+El color es el canal visual **menos preciso** para codificar cantidades (lección 1), pero el mejor para
+**distinguir categorías** y **guiar la atención**. Úsalo para eso y nada más: pocos colores, con una razón, y siempre
+con una pista adicional que no dependa de verlos (etiqueta, forma, posición).
+
+## Cómo funciona
+
+### Tres tipos de paleta
+
+| Tipo           | Cuándo                                                                             | Cómo es                                               | Ejemplos                |
+| -------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------- | ----------------------- |
+| **Categórica** | Categorías sin orden (canales, regiones)                                           | Colores distintos y de luminosidad similar            | Okabe-Ito, Tableau 10   |
+| **Secuencial** | Un valor que crece (de poco a mucho)                                               | Un solo matiz que cambia de claro a oscuro, o viridis | Blues, viridis, cividis |
+| **Divergente** | Valores con un centro significativo (variación, desviación respecto a un objetivo) | Dos matices que parten de un neutro                   | Azul-blanco-rojo (RdBu) |
+
+Reglas prácticas: **no más de seis a ocho colores categóricos** (más allá, el ojo no los distingue); usa
+**secuenciales perceptualmente uniformes** (como _viridis_, diseñada para que cada paso de color se perciba igual y
+para funcionar con daltonismo y en escala de grises) en lugar del arcoíris, que crea falsas fronteras; y
+reserva la paleta divergente para datos con un punto neutro real.
+
+### La paleta Okabe-Ito y el contraste
+
+Okabe e Ito propusieron en 2008 ocho colores que se distinguen para la mayoría de los tipos de daltonismo. Pero distinguirse
+**entre sí** no es lo mismo que **contrastar con el fondo**. La accesibilidad web (WCAG 2.2) exige una relación de
+contraste de al menos **4,5:1** para el texto normal (criterio 1.4.3) y de **3:1** para elementos gráficos y componentes de interfaz
+(criterio 1.4.11). La relación se calcula con la luminancia relativa $L$ de cada color:
+
+$$
+\text{contraste}=\frac{L_{\text{claro}}+0{,}05}{L_{\text{oscuro}}+0{,}05}
+\qquad L = 0{,}2126\,R + 0{,}7152\,G + 0{,}0722\,B
+$$
+
+(con $R$, $G$, $B$ linealizados desde sRGB). Contraste de cada color de Okabe-Ito sobre un fondo blanco y sobre uno oscuro
+(`#0B1220`):
+
+| Color          | Hex       | Sobre blanco | Sobre fondo oscuro | ¿Sirve (≥ 3:1) sobre blanco?  |
+| -------------- | --------- | -----------: | -----------------: | ----------------------------- |
+| Naranja        | `#E69F00` |       2,25:1 |             8,31:1 | No                            |
+| Azul cielo     | `#56B4E9` |       2,31:1 |             8,11:1 | No                            |
+| Verde azulado  | `#009E73` |       3,42:1 |             5,47:1 | Sí                            |
+| Amarillo       | `#F0E442` |   **1,32:1** |            14,16:1 | **No**                        |
+| Azul           | `#0072B2` |       5,19:1 |             3,61:1 | Sí                            |
+| Bermellón      | `#D55E00` |       3,87:1 |             4,84:1 | Sí                            |
+| Púrpura rojizo | `#CC79A7` |       3,06:1 |             6,12:1 | Sí (justo)                    |
+| Negro          | `#000000` |      21,00:1 |             1,12:1 | Sí (pero **no** sobre oscuro) |
+
+Dos lecciones: el **amarillo** y el **azul cielo** de una paleta «accesible» **no se ven** sobre blanco, y el negro
+desaparece sobre un fondo oscuro. Por eso esta web define sus colores como variables que cambian entre tema claro y oscuro. **Comprueba el
+contraste contra el fondo real**, no solo la paleta.
+
+### No dependas solo del color
+
+El criterio WCAG «Uso del color» (1.4.1) exige que el color no sea el **único** medio para transmitir información.
+Para un gráfico, eso se traduce en **redundancia**:
+
+- **Etiquetas directas** junto a las líneas o barras, en lugar de una leyenda de colores.
+- **Formas o patrones** distintos para las series (círculo, cuadrado, triángulo; línea continua o discontinua).
+- **Posición y orden** que cuentan la historia con o sin color (barras ordenadas, paneles separados).
+- **Un solo color de énfasis** frente a un gris neutro: aunque no se distinga el tono, se ve cuál destaca.
+
+### Texto alternativo que comunica
+
+El texto alternativo (_alt text_) lo leen los lectores de pantalla y aparece si la imagen no carga. Para un gráfico, una
+descripción de «Gráfico de barras» no sirve: debe decir **qué es y qué muestra**. Una fórmula que funciona:
+
+> **[Tipo de gráfico] de [qué datos] que muestra [la conclusión o el patrón principal]** (y, si hace falta, un
+> enlace o una tabla con los datos).
+
+Ejemplo del gráfico de la lección anterior: «Gráfico de líneas de los ingresos netos mensuales de Lumen en 2025, que
+casi se duplican, de 2,94 M€ en enero a 5,48 M€ en diciembre, con un salto del 22,6 % en marzo». Los gráficos de esta web
+incluyen siempre ese texto. Los complejos añaden una **tabla de datos** como alternativa accesible.
+
+### Mostrar la incertidumbre
+
+Una cifra sola dice poco: ¿cuánto varía por azar? La conversión diaria de Lumen entre el 1 de abril y el 31 de mayo de
+2025 oscila entre el **2,64 %** y el **6,07 %**, con una media del 4,24 %. ¿Son esos días «malos» y «buenos» o
+ruido? La **banda de ruido esperado** (una binomial: media ± 1,96 desviaciones, según las sesiones de cada día) lo responde:
+
+<VegaChart
+  minHeight={330}
+  alt="Gráfico de la conversión diaria de Lumen en abril y mayo de 2025 con una banda sombreada de ruido esperado alrededor de la media del 4,24 %. Cuatro de los 61 días quedan fuera de la banda, marcados en rojo, que es lo esperable por azar (el 5 %); no hay ninguna señal clara."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    width: 'container',
+    height: 240,
+    title: {
+      text: 'La conversión diaria se mueve dentro de su ruido normal',
+      subtitle: '4 de 61 días fuera de la banda del 95 % (se esperarían unos 3): no hay señal',
+      anchor: 'start',
+    },
+    data: {
+      values: [
+        { d: '2025-04-01', c: 3.49, lo: 2.73, hi: 5.74, f: false },
+        { d: '2025-04-02', c: 3.92, lo: 2.76, hi: 5.72, f: false },
+        { d: '2025-04-03', c: 3.11, lo: 2.72, hi: 5.76, f: false },
+        { d: '2025-04-04', c: 3.4, lo: 2.86, hi: 5.61, f: false },
+        { d: '2025-04-05', c: 4.95, lo: 2.85, hi: 5.63, f: false },
+        { d: '2025-04-06', c: 5.12, lo: 2.68, hi: 5.79, f: false },
+        { d: '2025-04-07', c: 3.88, lo: 2.74, hi: 5.74, f: false },
+        { d: '2025-04-08', c: 4.41, lo: 2.72, hi: 5.75, f: false },
+        { d: '2025-04-09', c: 3.14, lo: 2.71, hi: 5.77, f: false },
+        { d: '2025-04-10', c: 4.12, lo: 2.72, hi: 5.75, f: false },
+        { d: '2025-04-11', c: 3.36, lo: 2.84, hi: 5.63, f: false },
+        { d: '2025-04-12', c: 4.39, lo: 2.84, hi: 5.64, f: false },
+        { d: '2025-04-13', c: 2.64, lo: 2.63, hi: 5.84, f: false },
+        { d: '2025-04-14', c: 2.66, lo: 2.72, hi: 5.76, f: true },
+        { d: '2025-04-15', c: 5.13, lo: 2.79, hi: 5.69, f: false },
+        { d: '2025-04-16', c: 4.11, lo: 2.73, hi: 5.75, f: false },
+        { d: '2025-04-17', c: 3.63, lo: 2.73, hi: 5.74, f: false },
+        { d: '2025-04-18', c: 4.62, lo: 2.63, hi: 5.84, f: false },
+        { d: '2025-04-19', c: 4.16, lo: 2.81, hi: 5.66, f: false },
+        { d: '2025-04-20', c: 4.43, lo: 2.69, hi: 5.78, f: false },
+        { d: '2025-04-21', c: 5.77, lo: 2.72, hi: 5.76, f: true },
+        { d: '2025-04-22', c: 4.37, lo: 2.76, hi: 5.72, f: false },
+        { d: '2025-04-23', c: 3.91, lo: 2.74, hi: 5.74, f: false },
+        { d: '2025-04-24', c: 3.98, lo: 2.72, hi: 5.75, f: false },
+        { d: '2025-04-25', c: 3.9, lo: 2.81, hi: 5.66, f: false },
+        { d: '2025-04-26', c: 4.87, lo: 2.76, hi: 5.71, f: false },
+        { d: '2025-04-27', c: 4.85, lo: 2.65, hi: 5.83, f: false },
+        { d: '2025-04-28', c: 4.08, lo: 2.7, hi: 5.77, f: false },
+        { d: '2025-04-29', c: 4.52, lo: 2.7, hi: 5.77, f: false },
+        { d: '2025-04-30', c: 4.06, lo: 2.73, hi: 5.74, f: false },
+        { d: '2025-05-01', c: 5.5, lo: 2.58, hi: 5.9, f: false },
+        { d: '2025-05-02', c: 5.12, lo: 2.81, hi: 5.67, f: false },
+        { d: '2025-05-03', c: 3.9, lo: 2.86, hi: 5.62, f: false },
+        { d: '2025-05-04', c: 3.62, lo: 2.64, hi: 5.84, f: false },
+        { d: '2025-05-05', c: 4.17, lo: 2.69, hi: 5.79, f: false },
+        { d: '2025-05-06', c: 3.59, lo: 2.71, hi: 5.77, f: false },
+        { d: '2025-05-07', c: 3.97, lo: 2.72, hi: 5.75, f: false },
+        { d: '2025-05-08', c: 4.52, lo: 2.71, hi: 5.77, f: false },
+        { d: '2025-05-09', c: 4.28, lo: 2.88, hi: 5.6, f: false },
+        { d: '2025-05-10', c: 5.82, lo: 2.88, hi: 5.6, f: true },
+        { d: '2025-05-11', c: 4.29, lo: 2.66, hi: 5.81, f: false },
+        { d: '2025-05-12', c: 4.35, lo: 2.68, hi: 5.79, f: false },
+        { d: '2025-05-13', c: 4.2, lo: 2.74, hi: 5.74, f: false },
+        { d: '2025-05-14', c: 4.53, lo: 2.75, hi: 5.72, f: false },
+        { d: '2025-05-15', c: 3.07, lo: 2.76, hi: 5.71, f: false },
+        { d: '2025-05-16', c: 4.92, lo: 2.87, hi: 5.61, f: false },
+        { d: '2025-05-17', c: 4.22, lo: 2.85, hi: 5.63, f: false },
+        { d: '2025-05-18', c: 6.07, lo: 2.68, hi: 5.8, f: true },
+        { d: '2025-05-19', c: 4.52, lo: 2.71, hi: 5.77, f: false },
+        { d: '2025-05-20', c: 5.12, lo: 2.73, hi: 5.75, f: false },
+        { d: '2025-05-21', c: 3.84, lo: 2.75, hi: 5.73, f: false },
+        { d: '2025-05-22', c: 3.47, lo: 2.74, hi: 5.74, f: false },
+        { d: '2025-05-23', c: 3.4, lo: 2.84, hi: 5.64, f: false },
+        { d: '2025-05-24', c: 4.01, lo: 2.84, hi: 5.64, f: false },
+        { d: '2025-05-25', c: 4.57, lo: 2.64, hi: 5.83, f: false },
+        { d: '2025-05-26', c: 4.32, lo: 2.81, hi: 5.67, f: false },
+        { d: '2025-05-27', c: 4.42, lo: 2.75, hi: 5.73, f: false },
+        { d: '2025-05-28', c: 4.54, lo: 2.73, hi: 5.75, f: false },
+        { d: '2025-05-29', c: 4.55, lo: 2.7, hi: 5.78, f: false },
+        { d: '2025-05-30', c: 4.47, lo: 2.85, hi: 5.63, f: false },
+        { d: '2025-05-31', c: 4.21, lo: 2.85, hi: 5.63, f: false },
+      ],
+    },
+    layer: [
+      {
+        mark: { type: 'area', color: '#4C78A8', opacity: 0.18 },
+        encoding: {
+          x: { field: 'd', type: 'temporal', title: null, axis: { format: '%d %b' } },
+          y: {
+            field: 'lo',
+            type: 'quantitative',
+            title: 'Conversión diaria (%)',
+            scale: { zero: false, domain: [2, 7] },
+          },
+          y2: { field: 'hi' },
+        },
+      },
+      {
+        mark: { type: 'line', color: '#4C78A8' },
+        encoding: { x: { field: 'd', type: 'temporal' }, y: { field: 'c', type: 'quantitative' } },
+      },
+      {
+        mark: { type: 'point', filled: true, size: 55 },
+        encoding: {
+          x: { field: 'd', type: 'temporal' },
+          y: { field: 'c', type: 'quantitative' },
+          color: {
+            field: 'f',
+            type: 'nominal',
+            scale: { domain: [false, true], range: ['#4C78A8', '#D55E00'] },
+            legend: null,
+          },
+          shape: {
+            field: 'f',
+            type: 'nominal',
+            scale: { domain: [false, true], range: ['circle', 'diamond'] },
+            legend: null,
+          },
+        },
+      },
+    ],
+  }}
+/>
+
+Cuatro días de 61 (el 6,6 %) quedan fuera de la banda del 95 %, cuando por azar se esperarían unos tres (el 5 %): **no
+hay señal**, solo variación. Observa que los días fuera de la banda se marcan con **color y forma** (rombo), no solo con el
+color. La conversión «baja» del 2,7 % que preocupaba a Producto el 14 de abril es uno de ellos, pero otros tres días
+«buenos» (entre el 5,8 % y el 6,1 %) también lo son: es lo que se espera de un proceso estable. Un gráfico sin banda habría invitado a
+inventar una historia para cada pico.
+
+<Callout type="warning">
+  Una banda de incertidumbre no es decoración: cambia la conclusión. Si el cambio que quieres
+  comunicar cabe dentro de la banda, **no es un cambio**. Y si no calculas la banda, estás dejando
+  al lector que adivine cuánto ruido es normal.
+</Callout>
+
+## En la práctica
+
+Una comprobación rápida de color antes de publicar un gráfico:
+
+1. **Simula el daltonismo** (muchas herramientas y navegadores lo permiten) y comprueba que las series se distinguen.
+2. **Pásalo a escala de grises**: ¿se ve cuál es la serie importante?
+3. **Calcula el contraste** de texto y elementos contra el fondo real (≥ 4,5:1 texto, ≥ 3:1 gráfico).
+4. **Lee el texto alternativo en voz alta**: ¿alguien que no ve el gráfico entiende el mensaje?
+5. **Añade la banda de ruido** si comparas una cifra con su media.
+
+En el lab de esta lección implementas el cálculo del contraste WCAG y la comprobación de los umbrales, y los
+aplicas a la paleta Okabe-Ito.
+
+## Trade-offs y cuándo usarlo
+
+- **Paleta de marca frente a accesible**: los colores corporativos rara vez cumplen los contrastes; define una
+  paleta de datos derivada de la marca que sí los cumpla.
+- **Más categorías frente a legibilidad**: si necesitas más de ocho, agrupa, usa facetas o resalta una y deja el
+  resto en gris.
+- **Banda de incertidumbre frente a limpieza**: una banda añade complejidad visual, pero evita lecturas falsas; sombrearla
+  suavemente la mantiene discreta.
+- **Texto alternativo corto frente a descripción larga**: lo corto para gráficos simples, y una tabla o descripción larga
+  para los complejos.
+
+## Errores comunes
+
+- **Elegir colores solo por estética** (arcoíris, verde y rojo juntos) y no probar el daltonismo.
+- **Texto o líneas claras sobre fondo blanco** (amarillo, azul cielo, naranja claro).
+- **Codificar solo con color** que luego se imprime en blanco y negro.
+- **Texto alternativo vacío o genérico** («imagen», «gráfico»).
+- **Mostrar variaciones diarias sin banda de ruido** y buscar causas a cada pico.
+- **Usar una paleta divergente sin punto neutro real.**
+
+## Con IA
+
+Un asistente propone paletas «bonitas» y asigna colores categóricos sin comprobar el contraste. Pídele los códigos hexadecimales y
+**calcula tú el contraste** (o usa la función del lab). Pídele también el texto alternativo con la fórmula «tipo de gráfico, qué
+datos, qué conclusión» y exige que añada la banda de incertidumbre en comparaciones con una media. Nunca confíes
+en que «es accesible» sin una comprobación numérica.
+
+## En una entrevista
+
+- _"¿Cómo haces accesible un gráfico?"_ — Pista: paleta distinguible con daltonismo, contraste ≥ 3:1, no depender
+  solo del color, texto alternativo, tabla de datos.
+- _"¿Qué diferencia hay entre una paleta secuencial y una divergente?"_ — Pista: un orden de menos a más frente a
+  un punto neutro con dos direcciones.
+- _"La conversión de hoy es un 2,7 % frente al 4,2 % habitual. ¿Lo comunicas como problema?"_ — Pista: banda de ruido
+  binomial con las sesiones del día; ¿está fuera?, ¿cuántos días se esperan fuera por azar?
+
+<KeyTakeaways
+  items={[
+    'Elige la paleta según el dato: categórica (≤ 6-8 colores, Okabe-Ito), secuencial (viridis) o divergente (con centro neutro real); evita el arcoíris.',
+    'El contraste se mide contra el fondo: WCAG pide 4,5:1 para el texto y 3:1 para gráficos; el amarillo (1,32:1) y el azul cielo (2,31:1) de Okabe-Ito no cumplen sobre blanco, y el negro no cumple sobre fondo oscuro.',
+    'El color no puede ser el único canal: añade etiquetas directas, formas y orden; el 8 % de los hombres y el 0,5 % de las mujeres tienen daltonismo.',
+    'El texto alternativo sigue la fórmula «tipo de gráfico, qué datos, qué conclusión».',
+    'Muestra la incertidumbre: la conversión diaria de Lumen (2,64 %-6,07 %) se mueve dentro de su ruido binomial y 4 de 61 días fuera de la banda es lo esperable.',
+  ]}
+/>

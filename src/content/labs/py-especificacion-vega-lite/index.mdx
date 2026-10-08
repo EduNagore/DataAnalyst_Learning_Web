@@ -1,0 +1,51 @@
+---
+title: 'Especifica un gráfico en Vega-Lite: barras ordenadas con título que concluye'
+description: 'Construye la especificación declarativa de un gráfico de barras correcto (ordenado, eje en cero, título con la conclusión) y una función que elige el tipo de gráfico según la pregunta.'
+language: python
+part: 'Parte II · Visualización y comunicación'
+module: visualizacion
+difficulty: 2
+estimatedMinutes: 30
+concepts:
+  [
+    'Vega-Lite',
+    'gramática de gráficos',
+    'canales visuales',
+    'título que concluye',
+    'elección del gráfico',
+  ]
+datasets: ['orders', 'order_items', 'products', 'categories']
+packages: []
+output: console
+hints:
+  - 'Una especificación Vega-Lite es un diccionario de Python con `$schema`, `title`, `data` (`{"values": [...]}`), `mark` y `encoding`.'
+  - 'Barras horizontales ordenadas: `y` es la categoría (`type: nominal`, `sort: "-x"`) y `x` el valor (`type: quantitative`) con `scale: {"domain": [0, ...]}` o `zero: true`.'
+  - 'El título debe **concluir**, no describir: debe contener al menos un número y mencionar la categoría líder. Se pasa como argumento `titulo`.'
+  - 'En `elegir_grafico`, devuelve exactamente los textos de la tabla del enunciado; el test los compara tal cual.'
+relatedLessons: ['visualizacion/01-percepcion-y-eleccion-del-grafico']
+businessQuestion: '¿Qué categoría vende más y cómo la mostramos para que el comité lo lea sin esfuerzo?'
+---
+
+En el _starter_ tienes `cuotas`: un DataFrame con las columnas `categoria` y `pct` (porcentaje de unidades vendidas en 2025 por
+categoría de producto). Implementa:
+
+1. **`espec_barras_ordenadas(df, categoria, valor, titulo)`** → un diccionario Vega-Lite (v6) con:
+   - `$schema` de Vega-Lite v6, `title` igual a `titulo` y los datos en `data.values` (una lista de diccionarios),
+   - `mark` de tipo `bar`,
+   - `encoding.y`: la categoría, nominal, **ordenada de mayor a menor valor** (`sort: "-x"`),
+   - `encoding.x`: el valor, cuantitativo, con el **eje empezando en cero** (`scale.domain[0] == 0` o `scale.zero == True`).
+2. **`elegir_grafico(intencion, n_categorias=0)`** → el texto del gráfico recomendado:
+
+   | `intencion`    | condición           | resultado                       |
+   | -------------- | ------------------- | ------------------------------- |
+   | `comparar`     | `n_categorias` ≤ 12 | `barras horizontales ordenadas` |
+   | `comparar`     | `n_categorias` > 12 | `top N y otras`                 |
+   | `tiempo`       | cualquiera          | `líneas`                        |
+   | `distribucion` | cualquiera          | `histograma`                    |
+   | `relacion`     | cualquiera          | `dispersión`                    |
+   | `composicion`  | `n_categorias` ≤ 3  | `barra apilada al 100 %`        |
+   | `composicion`  | `n_categorias` > 3  | `barras ordenadas`              |
+   | `exacto`       | cualquiera          | `tabla`                         |
+
+Cualquier otra intención debe lanzar `ValueError`. El título de tu gráfico debería concluir algo como
+«Alimentación vende más unidades (13,5 %) y Moda menos (11,6 %)».

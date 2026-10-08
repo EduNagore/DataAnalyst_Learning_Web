@@ -1,0 +1,32 @@
+---
+title: 'Gráfico de líneas con capas: título, anotación y unidades'
+description: 'Construye la especificación Vega-Lite de una serie temporal con tres capas (línea, regla vertical y texto) para destacar un hito, con título que concluye y unidades en el eje.'
+language: python
+part: 'Parte II · Visualización y comunicación'
+module: visualizacion
+difficulty: 2
+estimatedMinutes: 30
+concepts: ['capas', 'anotación', 'codificación temporal', 'título con conclusión', 'unidades']
+datasets: ['orders', 'order_items']
+packages: []
+output: console
+hints:
+  - 'Una especificación con capas lleva una clave `layer` con una lista de capas; cada una tiene su `mark` y su `encoding`.'
+  - 'Capa 1: `mark` de línea con `x` temporal (`type: temporal`) e `y` cuantitativo con el título del eje incluyendo la unidad. Capa 2: `mark: rule` en el valor `x_anotacion`. Capa 3: `mark: text` con el `texto`.'
+  - 'Las capas 2 y 3 pueden llevar su propio `data: {values: [{x: x_anotacion, texto: texto}]}`.'
+  - 'El título puede ser una cadena o un diccionario `{"text": titulo, ...}`; el test acepta ambas formas.'
+relatedLessons: ['visualizacion/02-gramatica-de-graficos-anotaciones-y-titulos']
+businessQuestion: '¿Cómo mostramos que los ingresos casi se duplican en 2025 y que el salto de marzo coincide con el fin de las rebajas?'
+---
+
+En el _starter_ tienes `mensual`: un DataFrame con una fila por mes de 2025 (`mes` como texto `AAAA-MM-DD` y `m`, ingresos netos en millones de
+euros). Implementa **`espec_linea_anotada(df, x, y, titulo, x_anotacion, texto, unidad)`**, que devuelve un diccionario Vega-Lite v6
+con:
+
+- `title` (cadena o `{"text": ...}`) igual a `titulo`,
+- `layer` con **tres capas**: una línea (`line`) con `x` temporal e `y` cuantitativo, una regla vertical (`rule`) en
+  `x_anotacion` y un texto (`text`) con el contenido de `texto`,
+- el eje `y` con un título que **contenga la unidad** (por ejemplo «Ingresos netos (M€)»),
+- los datos de la línea en `data.values` (una lista de diccionarios), uno por mes.
+
+Cambia el hito y el texto para otra serie y comprueba que la función sigue valiendo.

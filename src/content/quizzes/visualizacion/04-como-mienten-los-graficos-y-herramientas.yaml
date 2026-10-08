@@ -1,0 +1,75 @@
+lesson: visualizacion/04-como-mienten-los-graficos-y-herramientas
+questions:
+  - id: viz2-04-q1
+    type: single
+    difficulty: 1
+    prompt: 'Un gráfico de barras tiene el eje vertical empezando en 301 € para comparar tickets de 301,4 € y 302,0 €. ¿Cuál es el problema?'
+    options:
+      - 'Ninguno: es solo un ajuste de escala'
+      - 'La longitud de la barra deja de ser proporcional al dato: una diferencia del 0,2 % parece una barra mucho más alta; en barras el eje debe empezar en cero'
+      - 'Los colores no contrastan'
+      - 'Faltan etiquetas'
+    answer: [1]
+    explanation: 'En una barra, la longitud codifica el valor. Recortar el eje distorsiona esa relación (factor de mentira ≈ 754 en el ejemplo).'
+    ref: '#eje-truncado'
+
+  - id: viz2-04-q2
+    type: numeric
+    difficulty: 3
+    prompt: 'Un eje recortado en 80 muestra barras de 90 y 99 (el dato sube un 10 %). ¿Cuál es el factor de mentira? (un decimal)'
+    answer: [9.0]
+    tolerance: 0.06
+    explanation: 'Alturas dibujadas: 10 y 19, un +90 % visual; el dato cambia un +10 %. Factor = 90 % / 10 % = 9,0: el gráfico exagera 9 veces.'
+    ref: '#eje-truncado'
+
+  - id: viz2-04-q3
+    type: single
+    difficulty: 2
+    prompt: 'Pedidos y altas mensuales de Lumen tienen una correlación de 0,977 en niveles y de 0,30 en diferencias mensuales. ¿Qué indica la diferencia?'
+    options:
+      - 'Que la correlación de niveles es la correcta'
+      - 'Que buena parte del parecido de las curvas es tendencia común; la relación mes a mes es mucho más débil de lo que sugieren los niveles'
+      - 'Que hay un error de cálculo'
+      - 'Que no hay ninguna relación'
+    answer: [1]
+    explanation: 'Dos series que crecen juntas parecen casi idénticas aunque su relación coyuntural sea débil. Hay que quitar la tendencia (diferencias, tasas de crecimiento) antes de buscar relaciones.'
+    ref: '#doble-eje-y-tendencias-que-se-parecen'
+
+  - id: viz2-04-q4
+    type: single
+    difficulty: 2
+    prompt: 'Un gráfico de barras anual muestra 17.597, 73.981, 161.706 y 123.861 pedidos (2023-2026), sin aclarar que 2026 llega hasta junio. ¿Qué impresión errónea da?'
+    options:
+      - 'Que el negocio crece un 23 % en 2026'
+      - 'Que el negocio cae un 23 % en 2026, cuando se está comparando un año parcial con uno completo'
+      - 'Ninguna'
+      - 'Que 2023 es el mejor año'
+    answer: [1]
+    explanation: 'Comparar un periodo parcial con uno completo es un engaño frecuente. Hay que comparar periodos equivalentes (primer semestre con primer semestre) o marcar el año como parcial.'
+    ref: '#periodos-y-comparaciones-a-dedo'
+
+  - id: viz2-04-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las comprobaciones de la lista antes de publicar un gráfico.'
+    options:
+      - '¿Las barras empiezan en cero?'
+      - '¿Es comparable el periodo y se indica si es parcial?'
+      - '¿Se muestra la incertidumbre cuando se compara con una media?'
+      - '¿Usa los colores corporativos aunque no contrasten?'
+    answer: [0, 1, 2]
+    explanation: 'Los colores corporativos no son un criterio de integridad gráfica y a menudo incumplen el contraste. El resto de preguntas pertenecen a la lista de comprobación.'
+    ref: '#lista-de-comprobación-antes-de-publicar'
+
+  - id: viz2-04-q6
+    type: single
+    difficulty: 2
+    prompt: 'Eres analista en un equipo de Python y quieres gráficos reproducibles que también se puedan generar y revisar como especificación en JSON. ¿Qué opción encaja mejor?'
+    options:
+      - 'Altair / Vega-Lite (declarativo)'
+      - 'Hacer capturas de pantalla de una hoja de cálculo'
+      - 'Un gráfico en 3D'
+      - 'Ninguna: no se puede'
+    answer: [0]
+    explanation: 'Altair genera una especificación Vega-Lite en JSON, concisa y versionable, ideal para notebooks y la web. Matplotlib da más control fino, Plotly más interactividad y las herramientas de BI, gobierno de métricas.'
+    ref: '#herramientas'
