@@ -1,0 +1,271 @@
+---
+title: 'Datos ordenados y perfilado'
+description: 'Qué forma debe tener una tabla para analizarla sin sorpresas (tidy data) y cómo hacer un perfilado sistemático antes de tocar nada.'
+module: limpieza-calidad
+order: 1
+level: intermedio
+estimatedMinutes: 35
+objectives:
+  - 'Reconocer si una tabla está ordenada (tidy) y pasarla de formato ancho a largo y viceversa.'
+  - 'Hacer un perfilado sistemático: grano y clave, tipos, vacíos, cardinalidad, duplicados, formatos y rangos.'
+  - 'Detectar en `lumen_raw` los problemas intencionados antes de limpiar: duplicados, categorías inconsistentes, fechas mezcladas, vacíos.'
+  - 'Escribir un registro de hallazgos que separe lo que se ve de lo que se decide.'
+prerequisites: []
+tools: ['pandas', 'duckdb']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Tidy Data (Hadley Wickham, Journal of Statistical Software, 2014)'
+    url: 'https://www.jstatsoft.org/article/view/v059i10'
+    type: paper
+    authors: 'Wickham, H.'
+    year: 2014
+  - title: 'tidyr — Tidy data (viñeta)'
+    url: 'https://cran.r-project.org/web/packages/tidyr/vignettes/tidy-data.html'
+    type: docs
+    authors: 'Posit / tidyverse'
+    year: 2026
+  - title: 'pandas — Reshaping and pivot tables'
+    url: 'https://pandas.pydata.org/docs/user_guide/reshaping.html'
+    type: docs
+    authors: 'pandas development team'
+    year: 2026
+  - title: 'DuckDB — UNPIVOT statement'
+    url: 'https://duckdb.org/docs/stable/sql/statements/unpivot'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+relatedLabs: ['py-limpiar-clientes-raw']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  CRM te entrega un export de clientes de una herramienta antigua y te pide "cuántos clientes
+  tenemos por región". Lo abres: 5.300 filas, pero el sistema dice que hay 5.000 clientes. Hay
+  regiones escritas de cien maneras, fechas de alta en tres formatos y una columna con huecos. Antes
+  de contestar nada, tienes que saber qué tienes delante.
+</BusinessContext>
+
+El mayor ahorro de tiempo en análisis de datos es **mirar bien antes de limpiar**. Limpiar a ciegas
+suele arreglar lo que se ve y estropear lo que no. Esta lección enseña dos cosas: qué forma debe tener
+una tabla para analizarla (_tidy data_) y cómo perfilarla de forma sistemática.
+
+## Intuición
+
+Una hoja de cálculo pensada para que la lea una persona (cabeceras con los meses, totales al final,
+celdas combinadas) es muy distinta de una tabla pensada para que la lea una máquina. Las funciones de
+agrupar, filtrar, graficar y unir esperan siempre lo mismo: **una fila por observación y una columna por
+variable**. Si la tabla no tiene esa forma, cada análisis empieza con un parche distinto.
+
+El perfilado es la visita previa a una casa antes de comprarla: no arreglas nada todavía, pero anotas qué
+funciona, qué no y cuánto va a costar.
+
+## Cómo funciona
+
+### Datos ordenados (tidy data)
+
+Hadley Wickham formuló en 2014 tres reglas para una tabla ordenada:
+
+1. Cada **variable** forma una columna.
+2. Cada **observación** forma una fila.
+3. Cada **tipo de unidad observacional** forma una tabla.
+
+Los desórdenes habituales son cinco: los nombres de columna son **valores** (una columna por trimestre),
+una columna contiene **varias variables** (`"mobile-2025"`), hay variables guardadas **en filas y en
+columnas** a la vez, hay **varios tipos de unidad en una tabla** (pedido y cliente mezclados) o **un mismo
+tipo repartido en varias tablas** (un fichero por mes).
+
+El caso más frecuente es el primero, el formato **ancho** (_wide_). Ingresos de 2025 de Lumen por canal
+y trimestre, tal como los pondría una persona en una hoja:
+
+| channel | T1        | T2         | T3         | T4         |
+| ------- | --------- | ---------- | ---------- | ---------- |
+| online  | 8.727.186 | 10.345.244 | 12.324.585 | 14.623.654 |
+| store   | 644.497   | 737.546    | 958.888    | 1.099.156  |
+
+Las cabeceras T1..T4 son **valores** de la variable «trimestre». Para agrupar, graficar o filtrar por
+trimestre hace falta el formato **largo** (_long_): una fila por canal y trimestre.
+
+```python
+largo = ancho.melt(id_vars="channel", var_name="trimestre", value_name="ingresos")
+ancho_otra_vez = largo.pivot(index="channel", columns="trimestre", values="ingresos").reset_index()
+```
+
+En SQL, la operación equivalente es `UNPIVOT` (y `PIVOT` para el camino inverso):
+
+```sql
+SELECT * FROM ancho
+UNPIVOT (ingresos FOR trimestre IN (T1, T2, T3, T4))
+ORDER BY channel, trimestre;
+```
+
+El resultado largo tiene 8 filas (2 canales × 4 trimestres) con las columnas `channel`, `trimestre` e
+`ingresos`. Comprueba siempre que **la suma no cambia** al reformar: online suma 46.020.669 € y store
+3.440.087 € en ambos formatos.
+
+<Callout type="tip">
+  El formato ancho no es «malo»: es el mejor para **presentar** (una tabla resumen legible). El
+  largo es el mejor para **calcular**. Trabaja en largo y pivota al final, solo para mostrar.
+</Callout>
+
+### Perfilar antes de limpiar
+
+Un _perfil_ de datos (_data profiling_) es un inventario rápido y sistemático. Las diez preguntas que
+conviene hacer a cualquier tabla:
+
+1. **Grano**: ¿qué representa una fila? ¿Cuál es su clave?
+2. **Tamaño**: ¿cuántas filas y columnas? ¿Coincide con lo que esperas?
+3. **Tipos**: ¿cada columna tiene el tipo que debería (fecha como fecha, importe como número)?
+4. **Vacíos**: ¿cuántos hay por columna y son esperables?
+5. **Unicidad**: ¿la clave es única? ¿Hay filas duplicadas exactas o casi?
+6. **Cardinalidad**: ¿cuántos valores distintos tiene cada columna? ¿Cuadra con la realidad?
+7. **Valores**: ¿qué valores toman las columnas categóricas? ¿Hay variantes del mismo valor?
+8. **Formatos**: ¿las fechas, importes y códigos siguen un único formato?
+9. **Rangos**: ¿mínimos, máximos y percentiles son plausibles?
+10. **Relaciones**: ¿las claves foráneas apuntan a algo que existe?
+
+Un perfil mínimo en pandas (leyendo todo como texto para ver los datos tal como vienen, sin que
+pandas los interprete):
+
+```python
+import pandas as pd
+
+c = pd.read_csv("lumen_raw/customers.csv", dtype=str, keep_default_na=False)
+
+def perfil(df, clave):
+    print(f"filas={len(df)}  claves distintas={df[clave].nunique()}  "
+          f"filas duplicadas exactas={df.duplicated().sum()}")
+    return pd.DataFrame({
+        "vacios": df.eq("").sum(),
+        "pct_vacios": (df.eq("").mean() * 100).round(1),
+        "distintos": df.nunique(),
+    })
+
+perfil(c, "customer_id")
+```
+
+La salida sobre `lumen_raw/customers.csv`:
+
+```text
+filas=5300  claves distintas=5000  filas duplicadas exactas=150
+                     vacios  pct_vacios  distintos
+customer_id               0         0.0       5000
+signup_date               0         0.0       2726
+acquisition_channel       0         0.0          6
+region                    0         0.0        111
+province                346         6.5         17
+segment                   0         0.0          4
+marketing_consent         0         0.0          2
+```
+
+Se lee en treinta segundos y ya dice mucho:
+
+- **5.300 filas pero 5.000 clientes**: sobran 300 filas. Solo 150 son duplicados exactos; las otras 150
+  son duplicados «disfrazados» que difieren en el formato (lo veremos en la lección siguiente).
+- **`region` tiene 111 valores distintos** y Lumen opera en 16 regiones: las demás son variantes de
+  mayúsculas y espacios (`"Madrid"`, `"madrid "`, `"MADRID"`).
+- **`province` tiene 346 vacíos (6,5 %)**: hay que averiguar si los huecos son aleatorios o tienen un
+  patrón (lección 3).
+- **`signup_date` tiene 2.726 valores distintos**, un número razonable, pero conviene mirar el formato.
+
+Para los formatos de fecha, un recuento por patrón basta:
+
+```python
+import re
+
+def formato(s):
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", s):        return "AAAA-MM-DD"
+    if re.fullmatch(r"\d{2}/\d{2}/\d{4}", s):        return "DD/MM/AAAA"
+    if re.fullmatch(r"\d{1,2} de \w+ de \d{4}", s):  return "texto largo"
+    return "otro"
+
+c["signup_date"].map(formato).value_counts()
+# DD/MM/AAAA 1.813 · AAAA-MM-DD 1.777 · texto largo 1.710
+```
+
+Tres formatos casi a partes iguales: un `pd.to_datetime` ingenuo fallaría o, peor, interpretaría
+`03/04/2024` como 4 de marzo en lugar de 3 de abril.
+
+### El registro de hallazgos
+
+Anota lo que ves **sin decidir todavía** qué hacer. Una tabla de tres columnas basta:
+
+| Hallazgo                                             | Evidencia               | Decisión pendiente                       |
+| ---------------------------------------------------- | ----------------------- | ---------------------------------------- |
+| 300 filas de más (150 exactas, 150 con otro formato) | 5.300 filas / 5.000 ids | Normalizar y deduplicar; ¿qué fila gana? |
+| Regiones: 111 variantes de 16                        | recuento de `region`    | Normalizar contra la lista oficial       |
+| Fechas en tres formatos                              | recuento por patrón     | Convertir con regla explícita (DD/MM)    |
+| Provincia vacía en 6,5 %                             | 346 vacíos              | Investigar el patrón antes de imputar    |
+
+Este registro es lo que enseñarás a quien revise tu trabajo y lo que convierte la limpieza en algo
+auditable.
+
+## En la práctica
+
+Mismo procedimiento sobre los pedidos de `lumen_raw/orders.csv` (8.160 filas): 8.000 `order_id`
+distintos (160 duplicados exactos), **todos** los importes de envío con coma decimal como texto
+(`"4,95"`), tres formatos de fecha, 143 pedidos cuyo `customer_id` no existe en `customers`
+(identificadores `cust-raw-fake-...`) y 24 pedidos de tienda sin `store_id`.
+
+Dos cosas **no** son errores y un perfil ingenuo las habría marcado:
+
+- `store_id` vacío en los pedidos **online** es correcto: solo los pedidos en tienda tienen tienda.
+- `device = 'n/a'` en los pedidos de tienda es un valor legítimo («no aplica»), distinto de un vacío.
+
+Distinguir lo anómalo de lo esperable exige conocer el negocio: un 93 % de vacíos puede estar bien
+(`store_id` en un canal mayoritariamente online) o muy mal (`customer_id`). Documenta el motivo.
+
+Practica en el lab de limpieza de clientes (en «Ponlo en práctica», al final): parte de este mismo
+perfil y lo convierte en una tabla limpia.
+
+## Trade-offs y cuándo usarlo
+
+- **Perfilar siempre, a mano o con una herramienta** (`ydata-profiling`, `pandas.describe`, el comando
+  `SUMMARIZE` de DuckDB). Las herramientas automáticas dan el inventario; la interpretación es tuya.
+- **Leer como texto** al principio evita que el lector «arregle» en silencio (convertir `n/a` en nulo,
+  fechas ambiguas), pero hay que tipar después.
+- **Formato largo para calcular, ancho para presentar**. Reformar tiene un coste: comprueba totales.
+- **Un perfil no es una validación**: dice cómo son los datos hoy. Las reglas que deben cumplirse
+  siempre se convierten en validaciones automáticas (lección 4).
+
+## Errores comunes
+
+- **Limpiar antes de perfilar**: arreglar lo primero que ves y no enterarte de lo más grave.
+- **Dejar que el lector infiera tipos** y no revisar el resultado (fechas ambiguas, identificadores con
+  ceros a la izquierda convertidos en números, `n/a` convertido en nulo).
+- **Confundir un vacío esperable con un error** (o al revés).
+- **Reformar sin comprobar la suma** antes y después.
+- **No anotar los hallazgos**: dentro de un mes nadie recordará por qué se descartaron 300 filas.
+- **Fiarse del recuento de filas**: 5.300 filas no son 5.300 clientes.
+
+## Con IA
+
+Un asistente puede escribir el código de perfilado en segundos, y es un buen uso. Lo que **no** debes
+delegar es la interpretación: la IA no sabe que `device = 'n/a'` es legítimo en tienda ni que un 93 %
+de vacíos en `store_id` es normal. Pásale el diccionario de datos, pídele que proponga **hipótesis** sobre
+cada anomalía y verifica cada una con una consulta. Nunca le pidas «limpia este fichero» sin un perfil
+previo: te devolverá una tabla con buen aspecto y decisiones que no puedes auditar.
+
+## En una entrevista
+
+- _"Te dan un fichero que no conoces. ¿Qué haces antes de analizarlo?"_ — Pista: grano y clave, tipos,
+  vacíos, duplicados, cardinalidad, formatos y rangos; registro de hallazgos.
+- _"¿Qué es un dato ordenado (tidy)?"_ — Pista: variable = columna, observación = fila, tipo de unidad =
+  tabla; ejemplo de ancho a largo.
+- _"Un campo tiene un 90 % de vacíos. ¿Lo descartas?"_ — Pista: depende del significado de negocio;
+  ¿es estructural (no aplica) o es información perdida?
+
+<KeyTakeaways
+  items={[
+    'Una tabla ordenada tiene una variable por columna, una observación por fila y un tipo de unidad por tabla; el formato largo sirve para calcular y el ancho para presentar.',
+    'Al reformar (melt/pivot, UNPIVOT/PIVOT) comprueba que los totales no cambian.',
+    'Perfila antes de limpiar: grano y clave, tipos, vacíos, unicidad, cardinalidad, formatos, rangos y relaciones.',
+    'En lumen_raw/customers.csv, 5.300 filas son 5.000 clientes (150 duplicados exactos y 150 disfrazados), la región tiene 111 variantes de 16 y la fecha, tres formatos.',
+    'Distingue lo anómalo de lo esperable según el negocio y deja un registro de hallazgos: es lo que hace auditable la limpieza.',
+  ]}
+/>

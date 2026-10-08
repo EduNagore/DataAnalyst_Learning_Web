@@ -1,0 +1,34 @@
+---
+title: 'Ausentes por grupo y atípicos con IQR y MAD'
+description: 'Mide si los huecos de una columna dependen de otras variables y marca atípicos con dos reglas, comprobando cuánto difieren en una variable asimétrica.'
+language: python
+part: 'Parte I · Herramientas núcleo'
+module: limpieza-calidad
+difficulty: 2
+estimatedMinutes: 30
+concepts: ['tasa de ausentes por grupo', 'MCAR', 'regla IQR', 'MAD', 'asimetría']
+datasets: ['orders', 'order_items', 'raw:customers']
+packages: []
+output: console
+hints:
+  - 'Para `tasa_ausentes_por_grupo` agrupa por `por` y calcula, sobre la columna `col`, el número de filas (`size`), de ausentes (`isna().sum()`) y el porcentaje con un decimal. Devuelve las columnas `por`, `filas`, `ausentes`, `pct_ausentes`.'
+  - 'La regla IQR marca como atípico lo que supera `Q3 + k*IQR` o queda por debajo de `Q1 - k*IQR`, con `IQR = Q3 - Q1` (cuantiles 0,25 y 0,75).'
+  - 'MAD: `mediana = x.median()`, `mad = (x - mediana).abs().median()` y `z = 0.6745 * (x - mediana) / mad`; es atípico si `abs(z) > umbral`.'
+  - 'Los nulos nunca son atípicos: las comparaciones con `NaN` ya devuelven `False`, pero comprueba que tu función devuelve una Serie booleana con el mismo índice.'
+relatedLessons: ['limpieza-calidad/03-valores-ausentes-y-outliers']
+businessQuestion: '¿Los huecos de provincia dependen del segmento del cliente, y cuántos pedidos son «atípicos» según cada regla?'
+---
+
+Implementa tres funciones:
+
+1. **`tasa_ausentes_por_grupo(df, col, por)`** → DataFrame con una fila por valor de `por` y las columnas
+   `por` (con el nombre de esa columna), `filas`, `ausentes` y `pct_ausentes` (porcentaje con 1 decimal),
+   ordenado por el valor de `por`.
+2. **`atipicos_iqr(x, k=1.5)`** → Serie booleana (mismo índice que `x`): `True` si el valor queda fuera de
+   `[Q1 - k·IQR, Q3 + k·IQR]`.
+3. **`atipicos_mad(x, umbral=3.5)`** → Serie booleana: `True` si el z-score modificado
+   `0,6745·(x − mediana)/MAD` supera el umbral en valor absoluto.
+
+En el _starter_ tienes `clientes` (los clientes únicos de `lumen_raw`, donde `province` tiene huecos) y
+`importes` (el importe de cada pedido no cancelado de 2025). Compara cuántos pedidos marca cada regla:
+¿por qué son tantos si no hay errores?

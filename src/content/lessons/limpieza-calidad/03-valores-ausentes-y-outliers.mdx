@@ -1,0 +1,263 @@
+---
+title: 'Valores ausentes y outliers'
+description: 'Por qué faltan los datos (MCAR, MAR, MNAR), qué hacer con ellos sin sesgar el resultado y cómo distinguir un valor atípico erróneo de uno que es la noticia.'
+module: limpieza-calidad
+order: 3
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Distinguir los mecanismos de ausencia (MCAR, MAR, MNAR) y contrastar con datos si una ausencia parece aleatoria.'
+  - 'Elegir entre descartar, imputar o marcar un valor ausente y explicar el sesgo que introduce cada opción.'
+  - 'Detectar valores atípicos con la regla del rango intercuartílico (IQR), la desviación absoluta mediana (MAD) y el z-score, y saber cuándo fallan.'
+  - 'Decidir qué hacer con un outlier según su causa: error, caso legítimo o noticia.'
+prerequisites: ['limpieza-calidad/02-texto-fechas-y-duplicados']
+tools: ['pandas', 'scipy']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Flexible Imputation of Missing Data (Stef van Buuren, 2ª ed.)'
+    url: 'https://stefvanbuuren.name/fimd/'
+    type: book
+    authors: 'van Buuren, S.'
+    year: 2018
+  - title: 'scikit-learn — Imputation of missing values'
+    url: 'https://scikit-learn.org/stable/modules/impute.html'
+    type: docs
+    authors: 'scikit-learn developers'
+    year: 2026
+  - title: 'pandas — Working with missing data'
+    url: 'https://pandas.pydata.org/docs/user_guide/missing_data.html'
+    type: docs
+    authors: 'pandas development team'
+    year: 2026
+  - title: 'NIST/SEMATECH e-Handbook of Statistical Methods — Detection of outliers'
+    url: 'https://www.itl.nist.gov/div898/handbook/prc/section1/prc16.htm'
+    type: docs
+    authors: 'NIST'
+    year: 2013
+relatedLabs: ['py-ausentes-y-outliers']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Comercial quiere el importe medio de los pedidos de 2025 a partir de una encuesta de cierre: el 20
+  % de los pedidos no tiene importe registrado. Un compañero propone rellenar los huecos con la
+  media y seguir. Otro dice que hay pedidos de 6.000 € que "son errores" y que hay que quitarlos.
+  ¿Quién tiene razón?
+</BusinessContext>
+
+Ninguno de los dos, hasta que se sepa **por qué** faltan los datos y **por qué** hay valores extremos.
+Rellenar o quitar sin entender la causa cambia el resultado de forma sistemática, y casi siempre en la
+dirección que nadie ha comprobado.
+
+## Intuición
+
+Un hueco en una tabla es una pregunta: ¿por qué falta? Si es por puro azar (un fallo de sistema que
+afecta a cualquier fila), el hueco molesta pero no sesga. Si falta **precisamente porque** el valor es
+alto o bajo (los clientes que más gastan no rellenan el campo), cualquier cifra calculada con los datos
+que sí hay estará desplazada, y ningún truco de relleno lo arregla sin hacer suposiciones.
+
+Con los valores atípicos pasa algo parecido: un número muy grande puede ser un fallo de captura, un
+caso raro pero real o la noticia más importante de la semana. Borrarlo por defecto es esconder el
+hallazgo.
+
+## Cómo funciona
+
+### Tres mecanismos de ausencia
+
+La taxonomía clásica (Rubin) distingue por qué faltan los datos:
+
+| Mecanismo                                 | Qué significa                             | Ejemplo                                            | ¿Sesga?                                       |
+| ----------------------------------------- | ----------------------------------------- | -------------------------------------------------- | --------------------------------------------- |
+| **MCAR** (_missing completely at random_) | La ausencia no depende de nada            | Un fallo de carga borra filas al azar              | No, solo pierdes tamaño de muestra            |
+| **MAR** (_missing at random_)             | Depende de **otras variables observadas** | Los clientes de una región rellenan menos un campo | Sí si ignoras esa variable; se puede corregir |
+| **MNAR** (_missing not at random_)        | Depende **del propio valor** que falta    | Quien más gasta no declara su gasto                | Sí, y no se corrige solo con los datos        |
+
+No se puede demostrar con los datos que una ausencia es MCAR, pero sí **buscar evidencias en contra**:
+compara la tasa de ausentes entre grupos. En el export de clientes de `lumen_raw`, `province` está vacía
+en 326 de los 5.000 clientes (6,5 %). Contrastando la ausencia con otras variables mediante una prueba
+χ² de independencia:
+
+| Variable       |   χ² | grados de libertad | p-valor |
+| -------------- | ---: | -----------------: | ------: |
+| Región         | 16,9 |                 15 |   0,322 |
+| Segmento       |  5,1 |                  3 |   0,167 |
+| Canal de alta  |  5,6 |                  5 |   0,345 |
+| Consentimiento |  0,2 |                  1 |   0,636 |
+
+Ningún p-valor sugiere dependencia: los huecos son **compatibles con MCAR**. Eso no lo prueba (una prueba
+que no encuentra diferencias no demuestra que no existan), pero es una evidencia razonable y lo que
+cualquier revisor te pedirá. Anota la comprobación y su resultado.
+
+En este caso hay además una salida mejor que imputar: en Lumen cada región tiene una única provincia, así
+que `province` es **recuperable** a partir de `region` (lo hiciste en el lab de limpieza de clientes). Antes
+de estimar un valor, comprueba si ya lo tienes en otra columna: una dependencia funcional se aplica,
+no se estima.
+
+### Qué hacer con un ausente
+
+| Opción                                                | Cuándo encaja                                  | Riesgo                                                |
+| ----------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------- |
+| **Dejarlo** (los agregados lo ignoran)                | El análisis tolera nulos y la ausencia es MCAR | Cuidado con medias sobre grupos de tamaños distintos  |
+| **Descartar filas**                                   | Pocas filas y MCAR                             | Pierdes datos; con MAR o MNAR sesgas                  |
+| **Recuperarlo de otra fuente o columna**              | Existe una dependencia exacta                  | Comprobar que la regla es realmente exacta            |
+| **Imputar** (media, mediana, moda, por grupo, modelo) | Necesitas la fila completa para un modelo      | Reduce la varianza y puede crear correlaciones falsas |
+| **Marcar** (columna booleana «faltaba»)               | Cuando la ausencia es informativa              | Complica el modelo, pero conserva la señal            |
+
+Para ver cuánto importa la elección, simulemos con datos reales: el importe de los 161.706 pedidos no
+cancelados de 2025 de Lumen (media 305,87 €, desviación 369,38 €, mediana 181,82 €). Borramos valores de
+dos formas, con una semilla fija:
+
+| Escenario                                                       | Faltan | Media observada | Desviación |
+| --------------------------------------------------------------- | -----: | --------------: | ---------: |
+| Datos completos (verdad)                                        |    0 % |        305,87 € |   369,38 € |
+| MCAR: se borra el 20 % al azar                                  | 20,0 % |        306,41 € |   369,99 € |
+| MCAR + imputación por la media                                  | 20,0 % |        306,41 € |   330,66 € |
+| MNAR: faltan más los importes altos (50 % si > P75, 10 % resto) | 20,1 % |        244,66 € |   306,93 € |
+| MNAR + imputación por la media                                  | 20,1 % |        244,66 € |   274,33 € |
+
+Qué enseña la tabla:
+
+- Con **MCAR**, la media apenas se mueve (306,41 frente a 305,87): quitar filas es casi inocuo.
+- Imputar con la media **no cambia la media** pero **encoge la desviación** (de 369 a 331 €, un 10 % menos):
+  los intervalos de confianza y los contrastes saldrían más estrechos de lo que merecen los datos.
+- Con **MNAR**, la media sale **244,66 € en lugar de 305,87 €: un 20 % por debajo**, y ni descartar
+  ni imputar con la media lo corrigen. Con 20 % de huecos no avisa ninguna alarma; el sesgo es
+  silencioso.
+
+<Callout type="warning">
+  Si sospechas MNAR, el remedio no está en los datos que tienes: está en conseguir los que faltan
+  (volver a la fuente) o en analizar la sensibilidad de la conclusión a distintas suposiciones. Di
+  en el informe que el resultado depende de esa suposición.
+</Callout>
+
+### Valores atípicos: tres reglas y cuándo fallan
+
+Un _outlier_ es un valor que se aleja del patrón general. Tres reglas habituales, aplicadas al importe de
+los pedidos no cancelados de Lumen (377.145 pedidos, mediana 180,2 €, media 301,7 €, asimetría 3,0):
+
+1. **Regla del IQR (Tukey).** Un valor es atípico si supera $Q_3 + 1{,}5\,\mathrm{IQR}$ (o está por debajo de
+   $Q_1 - 1{,}5\,\mathrm{IQR}$). Aquí $Q_1 = 72{,}1$ €, $Q_3 = 394{,}3$ €, el umbral superior es
+   877,4 € y marca **25.019 pedidos (6,6 %)**.
+2. **MAD (desviación absoluta mediana).** Se usa la mediana en lugar de la media, que es robusta. Con
+   $z_i = 0{,}6745\,(x_i - \mathrm{mediana})/\mathrm{MAD}$, se marca $|z_i| > 3{,}5$. Marca 26.030 pedidos (6,9 %).
+3. **z-score.** $z=(x-\bar x)/s$ y se marca $|z|>3$. Marca 7.708 pedidos (2,0 %).
+
+Las tres dan **cifras muy distintas** sobre la misma columna, y ninguna encuentra «errores». ¿Por qué? Porque
+el importe de un pedido es una variable muy asimétrica (cola larga a la derecha): la mayoría de pedidos son
+pequeños y unos pocos son grandes, de forma natural. Las reglas que asumen una distribución simétrica
+marcan como «atípicos» a miles de pedidos perfectamente normales.
+
+Tres lecciones prácticas:
+
+- Un 6,6 % de «outliers» no son outliers: es que **la distribución no es simétrica**. Prueba a trabajar
+  en escala logarítmica o con percentiles.
+- El pedido más grande (`order-0114417`, 6.365,76 €, el 7 de junio de 2026) tiene seis líneas, tres de
+  ellas con productos de 600-880 €: es un pedido **legítimo y grande**. El 1 % de pedidos más grandes suma el
+  7,6 % de los ingresos.
+- Un valor atípico se **investiga**, no se borra de oficio.
+
+### Un outlier que era un bug
+
+Mientras se construía este curso, la serie diaria de pedidos mostró un día con 7.871 pedidos
+(30 de junio de 2026) frente a unos 790 en un día normal: **diez veces más**. Ninguna regla estadística
+dice qué es eso; hay que investigar. La causa no era el negocio, sino el generador de datos: los pedidos
+que habrían caído después del fin del calendario se «recortaban» a la última fecha. Se corrigió (el
+dataset actual ya no tiene ese día anómalo; los detalles están en `docs/DATASET.md`). Con datos reales el
+patrón es el mismo y muy frecuente: **fechas por defecto** (1970-01-01, 9999-12-31), **cargas tardías**
+imputadas a la fecha de extracción, **valores centinela** (-1, 999999).
+
+El proceso para un valor atípico es siempre el mismo:
+
+1. **Verifica** que es real: ¿se puede reproducir en la fuente?
+2. **Busca la causa**: error de captura, de unidad, de carga, o un caso real.
+3. **Decide con una regla escrita**: corregir (si hay dato fiable), marcar, excluir del análisis con
+   justificación, o dejarlo y reportarlo.
+4. **Documenta**: cuántos casos, qué criterio, qué efecto tiene en el resultado.
+
+## En la práctica
+
+Para cada columna numérica relevante, un informe mínimo de ausentes y atípicos que se puede ejecutar siempre:
+
+```python
+def informe(df: pd.DataFrame, col: str) -> dict:
+    x = df[col]
+    q1, q3 = x.quantile([0.25, 0.75])
+    umbral = q3 + 1.5 * (q3 - q1)
+    return {
+        "ausentes": int(x.isna().sum()),
+        "pct_ausentes": round(x.isna().mean() * 100, 1),
+        "mediana": round(float(x.median()), 2),
+        "media": round(float(x.mean()), 2),
+        "atipicos_iqr": int((x > umbral).sum()),
+        "asimetria": round(float(x.skew()), 2),
+    }
+```
+
+Y para decidir si una ausencia es compatible con MCAR, la comparación por grupos y una prueba χ²:
+
+```python
+from scipy.stats import chi2_contingency
+
+tabla = pd.crosstab(clientes["region"], clientes["province"].isna())
+chi2, p, gl, _ = chi2_contingency(tabla)
+```
+
+En el lab de esta lección implementas las dos piezas (informe de ausentes por grupo y detección de
+atípicos con IQR y MAD) y las aplicas al importe de los pedidos.
+
+## Trade-offs y cuándo usarlo
+
+- **Imputar por la media/mediana** es sencillo y válido para dibujar o entrenar modelos tolerantes, pero
+  no para estimar incertidumbre. Para inferencia, la imputación múltiple (varios valores plausibles, con
+  su variabilidad) es la opción rigurosa; las bibliotecas de aprendizaje automático ofrecen imputadores
+  basados en modelos (`IterativeImputer`, `KNNImputer`).
+- **Marcar** la ausencia con una columna booleana cuesta poco y conserva la señal si faltar es informativo.
+- **Excluir outliers** puede ser razonable si son errores demostrados; si son reales, excluirlos
+  cambia la pregunta que respondes. Muestra el resultado con y sin ellos.
+- **Reglas robustas** (mediana, MAD, percentiles) se estropean menos con valores extremos que la media y la
+  desviación.
+
+## Errores comunes
+
+- **Imputar sin preguntar por qué falta** (y no comprobar si el mecanismo es MCAR).
+- **Rellenar con la media y calcular después un intervalo de confianza**: la incertidumbre queda subestimada.
+- **Tratar el cero como ausente** (o al revés): `0` y `NULL` significan cosas distintas.
+- **Usar z-score en variables con cola larga**: marca demasiado y no detecta lo que importa.
+- **Borrar outliers sin investigar**: se pierde el hallazgo, o el bug.
+- **Eliminar todas las filas con algún nulo** (`dropna()` a ciegas): con muchas columnas puede dejarte con
+  una fracción de los datos y sesgar la muestra.
+- **No documentar** cuántos valores se tocaron y con qué regla.
+
+## Con IA
+
+Un asistente suele proponer `df.fillna(df.mean())` y `df[(np.abs(stats.zscore(df)) < 3)]` como solución
+universal: ambas pueden sesgar el resultado como acabas de ver. Pídele que **pregunte primero por el
+mecanismo de ausencia**, que proponga pruebas para contrastarlo y que explique el efecto de cada opción
+sobre la media y la varianza. Para outliers, exígele que muestre los valores marcados y su contexto antes de
+eliminar nada. La decisión sobre qué es «error» y qué es «noticia» requiere conocer el negocio y no se
+delega.
+
+## En una entrevista
+
+- _"Tienes un 20 % de valores ausentes en una columna clave. ¿Qué haces?"_ — Pista: mecanismo (MCAR, MAR,
+  MNAR), comparar la ausencia por grupos, ¿recuperable?, imputar solo con justificación, sensibilidad.
+- _"¿Qué problema tiene rellenar con la media?"_ — Pista: conserva la media pero reduce la varianza y
+  distorsiona correlaciones; subestima la incertidumbre.
+- _"Encuentras pedidos 10 veces mayores que la mediana. ¿Los eliminas?"_ — Pista: investigar la causa
+  antes de decidir; error, caso legítimo o noticia; reportar con y sin ellos.
+
+<KeyTakeaways
+  items={[
+    'Antes de tratar un hueco, pregunta por qué falta: MCAR no sesga, MAR se puede corregir con las variables observadas y MNAR sesga sin que los datos lo muestren.',
+    'Comprueba si el ausente es recuperable de otra columna antes de estimarlo; en Lumen, province se recupera de region.',
+    'Imputar con la media conserva la media pero encoge la desviación (369 a 331 €); con MNAR la media sale un 20 % baja y ninguna imputación simple lo arregla.',
+    'En variables asimétricas, el IQR marca el 6,6 % de los pedidos y el z-score el 2,0 %: ninguna regla sustituye a investigar la causa.',
+    'Un outlier puede ser un error, un caso legítimo o la noticia (o un bug del propio sistema, como un día con 10 veces los pedidos): verifica, busca la causa, decide con una regla escrita y documenta.',
+  ]}
+/>

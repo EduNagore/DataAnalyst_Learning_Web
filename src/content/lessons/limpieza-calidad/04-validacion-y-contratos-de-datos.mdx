@@ -1,0 +1,349 @@
+---
+title: 'Validación automática y contratos de datos'
+description: 'Convierte las reglas de calidad en comprobaciones que se ejecutan solas (pandas, pandera, dbt) y en un contrato de datos que productor y consumidor acuerdan por escrito.'
+module: limpieza-calidad
+order: 4
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Clasificar las comprobaciones de calidad (esquema, nulos, unicidad, valores aceptados, rangos, relaciones, frescura y volumen, conciliación).'
+  - 'Escribir una función de validación que devuelva cuántas filas incumplen cada regla y la use en una tubería.'
+  - 'Expresar las mismas reglas con pandera (Python) y con tests de dbt (SQL) y elegir herramienta según el contexto.'
+  - 'Explicar qué es un contrato de datos y qué debe contener, usando el estándar abierto ODCS como referencia.'
+prerequisites: ['limpieza-calidad/03-valores-ausentes-y-outliers']
+tools: ['pandas', 'pandera', 'dbt']
+volatility: high
+lastReviewed: 2026-10-08
+sources:
+  - title: 'pandera — documentación'
+    url: 'https://pandera.readthedocs.io/en/stable/'
+    type: docs
+    authors: 'pandera contributors'
+    year: 2026
+  - title: 'dbt — Data tests'
+    url: 'https://docs.getdbt.com/docs/build/data-tests'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'Great Expectations (GX Core) — documentación'
+    url: 'https://docs.greatexpectations.io/docs/home/'
+    type: docs
+    authors: 'Great Expectations'
+    year: 2026
+  - title: 'Soda — documentación (data contracts y data testing)'
+    url: 'https://docs.soda.io/'
+    type: docs
+    authors: 'Soda'
+    year: 2026
+  - title: 'Open Data Contract Standard (ODCS) v3.2'
+    url: 'https://bitol-io.github.io/open-data-contract-standard/latest/'
+    type: spec
+    authors: 'Bitol (Linux Foundation AI & Data)'
+    year: 2026
+relatedLabs: ['py-validar-tablas']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  El informe semanal de pedidos lleva tres semanas con una cifra de envío un 2 % más alta de lo que
+  cuadra con Finanzas. Nadie lo notó hasta que alguien comparó. Hoy te toca limpiarlo; mañana
+  volverá a pasar con el siguiente export. ¿Cómo evitas que un error de calidad llegue a un informe
+  sin que lo detecte una persona?
+</BusinessContext>
+
+Limpiar una vez no basta: los datos cambian, las fuentes se rompen y la gente que los produce no sabe que tú
+dependes de ellos. La calidad sostenible se consigue con dos piezas: **comprobaciones automáticas** que
+se ejecutan en cada carga y **acuerdos explícitos** entre quien produce los datos y quien los consume.
+
+## Intuición
+
+Piensa en los datos como en un producto que sale de una fábrica. Un control de calidad no arregla el
+producto: lo **mide contra una especificación** y, si no la cumple, lo aparta antes de que llegue al
+cliente. Las validaciones son ese control; el contrato de datos, la especificación firmada por ambas
+partes.
+
+La regla de oro: **una regla de calidad que solo vive en la cabeza de alguien no existe**. O está escrita
+como código que se ejecuta, o no se aplica.
+
+## Cómo funciona
+
+### Qué comprobar
+
+Ocho familias de comprobaciones cubren casi todo:
+
+| Familia                | Pregunta                                        | Ejemplo en `orders`                                          |
+| ---------------------- | ----------------------------------------------- | ------------------------------------------------------------ |
+| **Esquema**            | ¿Están las columnas y con el tipo esperado?     | `shipping_cost` debe ser numérico, no texto con coma         |
+| **Completitud**        | ¿Hay nulos donde no debe?                       | `customer_id` nunca nulo                                     |
+| **Unicidad**           | ¿La clave es única?                             | `order_id` sin repetidos                                     |
+| **Valores aceptados**  | ¿Los valores están en la lista permitida?       | `status` ∈ `{completado, devuelto_parcial, cancelado}`       |
+| **Rangos**             | ¿Los números son plausibles?                    | `discount_pct` entre 0 y 0,5                                 |
+| **Relaciones**         | ¿Las claves foráneas existen?                   | cada `customer_id` está en `customers`                       |
+| **Frescura y volumen** | ¿Llegan datos nuevos y en la cantidad esperada? | el último pedido es de hoy o ayer; ±30 % del volumen semanal |
+| **Conciliación**       | ¿Cuadra con otra fuente?                        | el envío total coincide con el de Finanzas                   |
+
+Las cinco primeras son **de forma**; las dos últimas, **de contenido**. Las de conciliación son las que más
+errores encuentran y las que menos se hacen, porque exigen una segunda fuente.
+
+### Una validación mínima en pandas
+
+Una función que devuelve **cuántas filas incumplen cada regla** (0 = todo bien) es la base de cualquier
+sistema de calidad:
+
+```python
+def validar(o: pd.DataFrame, clientes: pd.DataFrame) -> dict[str, int]:
+    return {
+        "order_id_unico":      int(o["order_id"].duplicated(keep=False).sum()),
+        "customer_id_no_nulo": int(o["customer_id"].isna().sum()),
+        "status_valido":       int((~o["status"].isin(["completado", "devuelto_parcial", "cancelado"])).sum()),
+        "descuento_en_rango":  int((~o["discount_pct"].between(0, 0.5)).sum()),
+        "cliente_existe":      int((~o["customer_id"].isin(clientes["customer_id"])).sum()),
+        "envio_numerico":      int(pd.to_numeric(o["shipping_cost"], errors="coerce").isna().sum()),
+        "tienda_con_store_id": int(((o["channel"] == "store") & o["store_id"].isna()).sum()),
+    }
+```
+
+Aplicada a `lumen_raw/orders.csv` (8.160 filas), el resultado es un informe en vez de un «a ojo»:
+
+```text
+order_id_unico       320   <- 160 pedidos repetidos, contados las dos veces
+customer_id_no_nulo    0
+status_valido          0
+descuento_en_rango     0
+cliente_existe       143   <- clientes cust-raw-fake-... que no existen
+envio_numerico      8160   <- todas las cifras llegan como texto con coma
+tienda_con_store_id   24   <- pedidos de tienda sin tienda
+```
+
+Cuatro reglas pasan y tres fallan, y cada fallo corresponde a un hallazgo del perfil (lección 1). La
+diferencia es que ahora **lo comprueba una máquina cada vez**. Tras la limpieza de la lección 2,
+`order_id_unico` y `envio_numerico` deben valer 0.
+
+### Reglas como esquema: pandera
+
+Si trabajas en Python, [pandera](https://pandera.readthedocs.io/) permite declarar el esquema de un
+DataFrame y validarlo reportando **todos** los fallos a la vez:
+
+```python
+import pandera.pandas as pa
+from pandera.pandas import Column, DataFrameSchema, Check
+
+esquema = DataFrameSchema({
+    "order_id":     Column(str, unique=True),
+    "status":       Column(str, Check.isin(["completado", "devuelto_parcial", "cancelado"])),
+    "discount_pct": Column(float, Check.in_range(0, 0.5)),
+})
+
+try:
+    esquema.validate(pedidos, lazy=True)       # lazy=True acumula todos los fallos
+except pa.errors.SchemaErrors as e:
+    print(e.failure_cases[["column", "check", "failure_case"]])
+```
+
+Sobre `orders.csv`, pandera informa de 320 casos de `field_uniqueness` en `order_id` (las 160 parejas) y
+ninguno en `status` ni en `discount_pct`. La ventaja frente a una función propia: el esquema es **declarativo**,
+legible por quien no programa, y se integra con pytest y con la tubería.
+
+### Reglas en SQL: tests de dbt
+
+Si tus transformaciones viven en un almacén con dbt, las comprobaciones se declaran junto al modelo y se
+ejecutan con `dbt test`. Los cuatro tests genéricos incorporados son `unique`, `not_null`,
+`accepted_values` y `relationships`:
+
+```yaml
+models:
+  - name: stg_orders
+    columns:
+      - name: order_id
+        data_tests:
+          - unique
+          - not_null
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['completado', 'devuelto_parcial', 'cancelado']
+      - name: customer_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+```
+
+<Snapshot date="2026-10">
+  En dbt, la clave se llama `data_tests` (antes `tests`, aún admitida), y desde la versión 1.10.5
+  los parámetros de cada test se anidan bajo `arguments`. En versiones anteriores se escriben
+  directamente junto al nombre del test. dbt Core está en la serie 1.12. El resto del ecosistema
+  también se mueve: Great Expectations (GX Core 1.24) define «expectativas» en Python, y Soda ha
+  reorientado su producto hacia los contratos de datos (Soda v4). Elige por cómo trabaja tu equipo,
+  no por la moda del momento.
+</Snapshot>
+
+### Dónde ejecutarlas
+
+| Momento                     | Qué se valida                                  | Qué pasa si falla                                  |
+| --------------------------- | ---------------------------------------------- | -------------------------------------------------- |
+| **Al ingerir** (bronce)     | Esquema, volumen y frescura                    | Se rechaza o se avisa; el dato crudo se conserva   |
+| **Al transformar** (plata)  | Unicidad, nulos, valores, relaciones           | La tubería se detiene o los datos van a cuarentena |
+| **Antes del informe** (oro) | Conciliación con totales de control            | No se publica o se publica con aviso               |
+| **En integración continua** | Las reglas sobre una muestra o datos de prueba | El cambio de código no se aprueba                  |
+
+Dos decisiones de diseño:
+
+- **Gravedad**: una regla puede ser un **error** (detiene la tubería) o un **aviso** (se notifica y se
+  sigue). Un nulo en la clave primaria es un error; un 3 % de nulos en un campo opcional, un aviso.
+- **Cuarentena**: en lugar de borrar las filas que incumplen, se mueven a una tabla aparte con el motivo.
+  Así nada se pierde, se puede revisar y se puede reprocesar cuando se corrija el origen.
+
+### Contratos de datos
+
+Un **contrato de datos** (_data contract_) es un acuerdo explícito, versionado y legible por máquinas,
+entre quien produce un conjunto de datos y quienes lo consumen. Responde a lo que hasta ahora se
+descubría por accidente:
+
+- **Qué** hay: esquema (columnas, tipos, claves), significado de cada campo.
+- **Con qué calidad**: las reglas anteriores, con umbral y gravedad.
+- **Cada cuánto** y **con qué retraso**: frescura, volumen y disponibilidad (SLA).
+- **Quién** es responsable, a quién avisar y **cómo se versiona** un cambio que rompe compatibilidad.
+
+El estándar abierto más extendido es **ODCS** (_Open Data Contract Standard_, proyecto Bitol de la Linux
+Foundation), un YAML con campos como `apiVersion`, `kind: DataContract`, `schema`, `properties` y
+`quality`. Un contrato mínimo para los pedidos de Lumen:
+
+```yaml
+apiVersion: v3.2.0
+kind: DataContract
+id: lumen-orders
+version: 1.0.0
+status: active
+name: orders
+description:
+  purpose: Pedidos de Lumen listos para análisis (capa plata).
+schema:
+  - name: orders
+    physicalType: table
+    dataGranularityDescription: Un pedido por fila
+    properties:
+      - name: order_id
+        logicalType: string
+        primaryKey: true
+        required: true
+        quality:
+          - metric: duplicateValues
+            mustBe: 0
+            dimension: uniqueness
+            severity: error
+      - name: customer_id
+        logicalType: string
+        required: true
+        quality:
+          - metric: nullValues
+            mustBe: 0
+            dimension: completeness
+            severity: error
+      - name: status
+        logicalType: string
+        quality:
+          - metric: invalidValues
+            mustBe: 0
+            arguments:
+              validValues: ['completado', 'devuelto_parcial', 'cancelado']
+            dimension: conformity
+            severity: error
+```
+
+<Snapshot date="2026-10">
+  La versión vigente del estándar ODCS es la 3.2.0 (septiembre de 2026). Los contratos son útiles
+  aunque todavía no tengas herramientas que los ejecuten: aun como documento, obligan a poner
+  nombre, dueño y umbral a cada regla.
+</Snapshot>
+
+<Callout type="tip">
+  Un contrato no sustituye a las validaciones: las **organiza**. El contrato dice qué se espera; las
+  validaciones comprueban que se cumple en cada carga. Y, sobre todo, el contrato cambia la
+  conversación: deja de ser «tus datos están mal» para ser «esto es lo que acordamos y esto es lo
+  que ha llegado».
+</Callout>
+
+## En la práctica
+
+Un patrón mínimo y portable para cualquier tubería de análisis: **validar al entrar y al salir**, con
+una función que falle de forma visible.
+
+```python
+def exigir(resultados: dict[str, int], toleradas: set[str] = frozenset()) -> None:
+    fallos = {k: v for k, v in resultados.items() if v > 0 and k not in toleradas}
+    if fallos:
+        raise ValueError(f"Validación fallida: {fallos}")
+
+crudo = pd.read_csv("lumen_raw/orders.csv")
+exigir(validar(crudo, clientes), toleradas={"cliente_existe", "tienda_con_store_id"})   # ¡falla!
+```
+
+Con `toleradas` se documenta qué incumplimientos se aceptan **conscientemente** (por ejemplo, hasta que
+el negocio decida qué hacer con los 143 pedidos de clientes inexistentes), y cualquier fallo nuevo
+detiene el proceso. Tras la limpieza, la misma validación debe pasar con todos los contadores a cero (salvo
+los tolerados), y debe añadirse una **conciliación**: el envío total de la tabla limpia contra el del
+almacén (17.626,10 €).
+
+En el lab de esta lección escribes la validación y la aplicas a la tabla cruda y a la limpia.
+
+## Trade-offs y cuándo usarlo
+
+- **Más reglas no es mejor calidad.** Cada regla tiene un coste de mantenimiento y genera ruido si falla
+  por motivos que a nadie importan. Empieza por las que protegen decisiones: claves, nulos en campos
+  críticos y conciliación con totales.
+- **pandera/pytest** encaja en proyectos de Python; **dbt tests** en transformaciones SQL en un almacén;
+  **GX** y **Soda** cuando quieres plataforma, informes y colaboración entre equipos. Las reglas
+  sencillas se pueden hacer con las tres.
+- **Contrato frente a validación**: el contrato aporta más cuando hay varios equipos y cambios
+  frecuentes; en un análisis de una sola persona, un buen README de datos y unas aserciones bastan.
+- **Validar no es limpiar.** Una validación detecta y avisa; arreglar los datos es otra etapa con
+  sus propias reglas.
+
+## Errores comunes
+
+- **Validar solo al final**, cuando el error ya ha contaminado informes.
+- **Reglas que todos ignoran** porque fallan siempre: o se arreglan o se retiran o se rebajan a aviso.
+- **Borrar las filas que incumplen** en lugar de ponerlas en cuarentena con el motivo.
+- **No conciliar con una segunda fuente**: las validaciones de forma no ven un error de significado.
+- **Contratos que nadie versiona ni cumple**: un contrato sin dueño ni cambios controlados es
+  documentación obsoleta.
+- **Confundir «pasa las pruebas» con «es correcto»**: las reglas solo protegen contra lo que alguien pensó
+  en comprobar.
+
+## Con IA
+
+Un asistente es muy útil para **proponer reglas** a partir de un perfil o de un diccionario de datos, y
+para traducir entre formatos (de una función de pandas a un esquema de pandera, o a tests de dbt, o a un
+contrato ODCS). Revisa siempre las propuestas: los modelos inventan umbrales («el descuento no
+supera el 50 %») sin base en tu negocio, y los nombres de parámetros de dbt o de GX cambian entre versiones.
+Pide siempre que indique la versión de la herramienta para la que escribe y valida la sintaxis
+ejecutándola. Y no utilices un modelo para «decidir» qué filas se descartan: eso es una decisión de
+negocio.
+
+## En una entrevista
+
+- _"¿Qué comprobaciones automáticas pondrías sobre una tabla de pedidos?"_ — Pista: unicidad de la clave,
+  nulos, valores aceptados, rangos, relaciones, volumen/frescura y conciliación con un total.
+- _"¿Qué es un contrato de datos y qué problema resuelve?"_ — Pista: acuerdo productor-consumidor sobre
+  esquema, calidad, SLA y responsables; evita que los cambios se descubran por accidente.
+- _"Una validación falla en producción a las 7:00. ¿Qué haces?"_ — Pista: gravedad, ¿se detiene la
+  tubería?, cuarentena, avisar al dueño del dato, no «arreglar» a mano sin registrarlo.
+
+<KeyTakeaways
+  items={[
+    'Una regla de calidad que no se ejecuta sola no existe: conviértela en código (función, esquema de pandera, test de dbt) que falle de forma visible.',
+    'Ocho familias cubren casi todo: esquema, completitud, unicidad, valores aceptados, rangos, relaciones, frescura y volumen, y conciliación con otra fuente.',
+    'Sobre lumen_raw/orders.csv, la validación da 320 filas en claves repetidas, 143 con cliente inexistente, 24 de tienda sin tienda y 8.160 importes no numéricos; cada una corresponde a un hallazgo del perfil.',
+    'Distingue error (detiene la tubería) de aviso, y pon en cuarentena las filas que incumplen en vez de borrarlas.',
+    'Un contrato de datos (ODCS v3.2) recoge esquema, calidad, SLA y responsables, y organiza las validaciones; cambia el «tus datos están mal» por «esto es lo acordado».',
+  ]}
+/>

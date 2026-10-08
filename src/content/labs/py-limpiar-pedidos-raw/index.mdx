@@ -1,0 +1,41 @@
+---
+title: 'Limpia el export de pedidos y valídalo con una cifra de control'
+description: 'Convierte fechas e importes, elimina duplicados y marca los pedidos con cliente inexistente o tienda sin identificar; comprueba el resultado con el envío total del almacén.'
+language: python
+part: 'Parte I · Herramientas núcleo'
+module: limpieza-calidad
+difficulty: 3
+estimatedMinutes: 35
+concepts:
+  [
+    'importes con coma decimal',
+    'fechas en formatos mezclados',
+    'deduplicación por clave',
+    'banderas de calidad',
+    'cifra de control',
+  ]
+datasets: ['customers', 'orders', 'raw:orders']
+packages: []
+output: console
+hints:
+  - 'Convierte el importe con `shipping_cost.str.replace(",", ".").astype("float64")` y la fecha con una función que reconozca los tres formatos (la misma idea que en el lab de clientes; `DD/MM/AAAA` es día primero).'
+  - 'Los pedidos duplicados son exactos: `drop_duplicates()` y luego `drop_duplicates("order_id")`. Comprueba que `order_id` queda único.'
+  - 'pandas lee el texto «n/a» como nulo. Para los pedidos de tienda (`channel == "store"`) el dispositivo correcto es la cadena `"n/a"`: restáurala con `device.where(channel != "store", "n/a")`.'
+  - '`cliente_valido` es `customer_id.isin(customers.customer_id)`. `tienda_sin_id` es `(channel == "store") & store_id.isna()`. Son banderas: no elimines esas filas, márcalas.'
+relatedLessons: ['limpieza-calidad/02-texto-fechas-y-duplicados']
+businessQuestion: '¿Cuántos pedidos reales hay en el export, cuánto suma su envío y cuáles tienen problemas que debe revisar el negocio?'
+---
+
+Logística te ha dado `lumen_raw/orders.csv` (8.160 filas, ya cargado en `raw`) y quiere el envío total.
+Implementa **`limpiar_pedidos(raw, customers)`**, que devuelve un DataFrame con **una fila por pedido**
+(ordenado por `order_id`) y las columnas:
+
+`order_id`, `customer_id`, `order_date` (fecha), `channel`, `device`, `discount_pct`, `shipping_cost`
+(número), `status`, `store_id`, y dos banderas nuevas:
+
+- **`cliente_valido`**: `True` si el `customer_id` existe en la tabla `customers`,
+- **`tienda_sin_id`**: `True` si es un pedido de tienda sin `store_id`.
+
+No elimines las filas con problemas: **márcalas** (qué hacer con ellas es una decisión de negocio).
+Los tests comprueban la cifra de control (el envío total debe coincidir con el del almacén), la
+fidelidad con la tabla de pedidos limpia y un caso límite oculto.

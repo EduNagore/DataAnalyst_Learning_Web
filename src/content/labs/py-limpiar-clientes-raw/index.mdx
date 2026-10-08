@@ -1,0 +1,41 @@
+---
+title: 'Limpia el export de clientes: texto, fechas, duplicados y huecos'
+description: 'Convierte el fichero sucio lumen_raw/customers.csv en una tabla limpia: regiones normalizadas, fechas unificadas, duplicados fuera y provincia recuperada.'
+language: python
+part: 'Parte I · Herramientas núcleo'
+module: limpieza-calidad
+difficulty: 3
+estimatedMinutes: 35
+concepts:
+  [
+    'normalización de texto',
+    'fechas en formatos mezclados',
+    'deduplicación',
+    'imputación determinista',
+    'pipeline de limpieza',
+  ]
+datasets: ['customers', 'raw:customers']
+packages: []
+output: console
+hints:
+  - 'Normaliza primero y deduplica después: `region.str.strip().str.lower()` y un diccionario `{r.lower(): r for r in REGIONES}` te dan el nombre oficial. Los duplicados «disfrazados» solo son iguales una vez normalizados.'
+  - 'Las fechas vienen como `AAAA-MM-DD`, `DD/MM/AAAA` y «22 de abril de 2026». Escribe una función que reconozca cada patrón con `re.fullmatch` y construya un `pd.Timestamp`; en `DD/MM/AAAA` el primer número es el día.'
+  - 'Cada región tiene una única provincia en Lumen. Construye `region -> provincia` a partir de las filas que sí la tienen (por ejemplo `dropna().drop_duplicates("region")`) y úsala para rellenar los huecos.'
+  - 'Termina con `drop_duplicates("customer_id")`, ordena por `customer_id` y devuelve exactamente las columnas pedidas, con `signup_date` como fecha.'
+relatedLessons: ['limpieza-calidad/01-datos-ordenados-y-perfilado']
+businessQuestion: '¿Cuántos clientes únicos hay y cómo dejamos su tabla lista para analizar por región y fecha de alta?'
+---
+
+CRM te ha dado `lumen_raw/customers.csv` (5.300 filas, ya cargado en la variable `raw`). Implementa
+**`limpiar_clientes(raw)`**, que devuelve un DataFrame con **una fila por cliente** y las columnas
+`customer_id`, `signup_date`, `acquisition_channel`, `region`, `province`, `segment` y
+`marketing_consent`, ordenado por `customer_id`, con:
+
+- `region` con el **nombre oficial** (lista `REGIONES` del _starter_),
+- `signup_date` como fecha real (los tres formatos del perfil de la lección),
+- `province` **sin huecos**: recupérala a partir de la región,
+- sin duplicados (exactos o con otro formato).
+
+No modifiques `raw`. Prueba con `print()` y pulsa «Comprobar»: los tests comparan tu tabla con la
+tabla limpia de Lumen y, además, ejecutan tu función sobre un fichero pequeño con casos límite
+(incluida una fecha ambigua).

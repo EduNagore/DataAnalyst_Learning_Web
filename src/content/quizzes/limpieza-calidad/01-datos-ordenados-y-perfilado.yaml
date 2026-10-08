@@ -1,0 +1,75 @@
+lesson: limpieza-calidad/01-datos-ordenados-y-perfilado
+questions:
+  - id: cal1-01-q1
+    type: single
+    difficulty: 1
+    prompt: 'Una tabla tiene las columnas channel, T1, T2, T3 y T4 con los ingresos de cada trimestre. ¿Por qué no está ordenada (tidy)?'
+    options:
+      - 'Porque tiene demasiadas columnas'
+      - 'Porque los nombres de columna T1..T4 son valores de una variable (trimestre) en lugar de una columna propia'
+      - 'Porque channel debería ser numérico'
+      - 'Sí está ordenada: así se presenta mejor'
+    answer: [1]
+    explanation: 'Cada variable debe formar una columna: «trimestre» es una variable y sus valores están en las cabeceras. El formato ancho es válido para presentar, pero para calcular (agrupar, filtrar, graficar) hace falta el largo.'
+    ref: '#datos-ordenados-tidy-data'
+
+  - id: cal1-01-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las reglas de los datos ordenados (tidy data) según Wickham.'
+    options:
+      - 'Cada variable forma una columna'
+      - 'Cada observación forma una fila'
+      - 'Cada tipo de unidad observacional forma una tabla'
+      - 'Cada tabla debe tener exactamente diez columnas'
+    answer: [0, 1, 2]
+    explanation: 'Son las tres reglas: variable = columna, observación = fila, tipo de unidad = tabla. El número de columnas no importa; depende de cuántas variables tengas.'
+    ref: '#datos-ordenados-tidy-data'
+
+  - id: cal1-01-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'lumen_raw/customers.csv tiene 5.300 filas y 5.000 customer_id distintos. ¿Cuántas filas sobran?'
+    answer: [300]
+    tolerance: 0
+    explanation: '5.300 − 5.000 = 300 filas de más. De ellas, 150 son duplicados exactos y otras 150 duplican un cliente con otro formato (fecha o región distintos), por lo que un drop_duplicates directo solo eliminaría la mitad.'
+    ref: '#perfilar-antes-de-limpiar'
+
+  - id: cal1-01-q4
+    type: single
+    difficulty: 2
+    prompt: 'En el perfil de pedidos, el 93 % de las filas tiene store_id vacío. ¿Qué conclusión es la más razonable?'
+    options:
+      - 'Es un error grave: hay que eliminar la columna'
+      - 'Hay que comprobarlo con el negocio: los pedidos online no pasan por tienda, así que el vacío es esperable; los vacíos en pedidos de tienda sí serían un problema'
+      - 'Hay que rellenarlo con la tienda más frecuente'
+      - 'Hay que descartar los pedidos online'
+    answer: [1]
+    explanation: 'Un vacío puede ser estructural («no aplica»). Rellenarlo o borrarlo destruiría información. Lo anómalo es el vacío en pedidos de tienda (24 de 580 en lumen_raw/orders.csv).'
+    ref: '#en-la-práctica'
+
+  - id: cal1-01-q5
+    type: single
+    difficulty: 2
+    prompt: '¿Por qué conviene leer un CSV «sucio» como texto (dtype=str) en el primer perfilado?'
+    options:
+      - 'Porque es más rápido'
+      - 'Para ver los datos tal como vienen, sin que el lector convierta en silencio fechas ambiguas, ceros a la izquierda o valores como "n/a"'
+      - 'Porque pandas no soporta fechas'
+      - 'Para ahorrar memoria'
+    answer: [1]
+    explanation: 'La inferencia automática puede ocultar problemas (interpretar 03/04/2024 como 4 de marzo, quitar ceros de un código). Se lee todo como texto, se perfila y después se tipa de forma explícita.'
+    ref: '#perfilar-antes-de-limpiar'
+
+  - id: cal1-01-q6
+    type: single
+    difficulty: 3
+    prompt: 'Conviertes una tabla de ingresos de formato ancho a largo con melt. ¿Qué comprobación es imprescindible antes de seguir?'
+    options:
+      - 'Que el número de columnas sea mayor'
+      - 'Que la suma de los ingresos y el número de observaciones cuadran con los de la tabla original (2 canales × 4 trimestres = 8 filas)'
+      - 'Que las filas estén ordenadas alfabéticamente'
+      - 'Ninguna: melt nunca pierde datos'
+    answer: [1]
+    explanation: 'Reformar puede perder o duplicar filas si las claves no identifican bien las observaciones. Comparar totales y recuentos antes y después es la prueba más barata: online suma 46.020.669 € y store 3.440.087 € en ambos formatos.'
+    ref: '#datos-ordenados-tidy-data'

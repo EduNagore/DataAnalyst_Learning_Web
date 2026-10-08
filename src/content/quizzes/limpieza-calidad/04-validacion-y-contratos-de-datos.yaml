@@ -1,0 +1,75 @@
+lesson: limpieza-calidad/04-validacion-y-contratos-de-datos
+questions:
+  - id: cal1-04-q1
+    type: multiple
+    difficulty: 1
+    prompt: 'Selecciona TODAS las comprobaciones que son «de contenido» (necesitan contrastar con otra fuente o con una expectativa externa) y no solo de forma.'
+    options:
+      - 'Que el envío total de la tabla limpia coincida con el total de Finanzas'
+      - 'Que order_id sea único'
+      - 'Que el volumen semanal esté dentro de ±30 % del habitual'
+      - 'Que shipping_cost sea numérico'
+    answer: [0, 2]
+    explanation: 'La conciliación con otra fuente y el volumen/frescura exigen una referencia externa. Unicidad y tipo son comprobaciones de forma que se verifican con la propia tabla. Las de contenido son las que más errores encuentran y las que menos se hacen.'
+    ref: '#qué-comprobar'
+
+  - id: cal1-04-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'La regla order_id_unico cuenta todas las filas implicadas en un duplicado. Si hay 160 pedidos repetidos una vez cada uno, ¿qué valor devuelve la regla?'
+    answer: [320]
+    tolerance: 0
+    explanation: 'duplicated(keep=False) marca las dos filas de cada pareja: 160 × 2 = 320. Por eso el contador de filas implicadas no es lo mismo que el número de filas sobrantes (160).'
+    ref: '#una-validación-mínima-en-pandas'
+
+  - id: cal1-04-q3
+    type: single
+    difficulty: 2
+    prompt: 'Una regla de calidad falla en la carga de esta noche. ¿Qué práctica es mejor?'
+    options:
+      - 'Borrar silenciosamente las filas que incumplen y seguir'
+      - 'Según la gravedad: detener la tubería (error) o avisar y seguir (aviso), y mover las filas que incumplen a una tabla de cuarentena con el motivo'
+      - 'Ignorar la regla para que no moleste'
+      - 'Arreglar los datos a mano en el informe'
+    answer: [1]
+    explanation: 'Detener o avisar según la gravedad y apartar las filas con su motivo permite revisar, reprocesar y no perder nada. Borrar en silencio o arreglar a mano oculta el problema y no deja rastro.'
+    ref: '#dónde-ejecutarlas'
+
+  - id: cal1-04-q4
+    type: single
+    difficulty: 2
+    prompt: 'En dbt, ¿cómo se declara que status solo admite tres valores en el esquema de un modelo?'
+    options:
+      - 'Con el test genérico accepted_values dentro de data_tests de la columna, con los values en arguments (desde dbt 1.10.5)'
+      - 'Con un comentario en el SQL'
+      - 'Con un test no_nulls'
+      - 'No es posible en dbt'
+    answer: [0]
+    explanation: 'dbt incorpora cuatro tests genéricos: unique, not_null, accepted_values y relationships. La clave se llama data_tests y, desde la 1.10.5, los parámetros se anidan bajo arguments (antes iban junto al nombre del test).'
+    ref: '#reglas-en-sql-tests-de-dbt'
+
+  - id: cal1-04-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODO lo que debe recoger un contrato de datos.'
+    options:
+      - 'El esquema: columnas, tipos, claves y significado'
+      - 'Reglas de calidad con umbral y gravedad'
+      - 'Frescura, disponibilidad (SLA) y responsables'
+      - 'La contraseña de la base de datos'
+    answer: [0, 1, 2]
+    explanation: 'Un contrato describe qué datos hay, con qué calidad, cada cuánto y quién responde, y cómo se versionan los cambios incompatibles. Los secretos (contraseñas) nunca van en el contrato.'
+    ref: '#contratos-de-datos'
+
+  - id: cal1-04-q6
+    type: single
+    difficulty: 3
+    prompt: 'Tu tabla limpia pasa todas las validaciones de forma, pero el envío total es un 2 % mayor que el de Finanzas. ¿Qué te dice esto?'
+    options:
+      - 'Que Finanzas se equivoca'
+      - 'Que las validaciones de forma no ven errores de significado (aquí, por ejemplo, filas duplicadas con otra forma o un criterio distinto); hace falta conciliar con la otra fuente e investigar la diferencia'
+      - 'Que el 2 % es normal'
+      - 'Que hay que desactivar las validaciones'
+    answer: [1]
+    explanation: 'Unicidad, tipos y rangos protegen contra errores de forma. Una diferencia con una fuente independiente apunta a un error de significado: duplicados disfrazados, un filtro distinto, una definición diferente. La conciliación es la validación que más valor aporta.'
+    ref: '#qué-comprobar'

@@ -1,0 +1,38 @@
+---
+title: 'Valida una tabla de pedidos: informe de reglas y puerta de calidad'
+description: 'Escribe una validación que cuente cuántas filas incumplen cada regla y una puerta que detenga la tubería ante fallos no tolerados.'
+language: python
+part: 'Parte I · Herramientas núcleo'
+module: limpieza-calidad
+difficulty: 2
+estimatedMinutes: 30
+concepts:
+  ['validación de datos', 'unicidad', 'integridad referencial', 'severidad', 'puerta de calidad']
+datasets: ['customers', 'raw:orders']
+packages: []
+output: console
+hints:
+  - 'Cada valor del diccionario es el **número de filas** que incumplen la regla (0 = todo bien), como entero de Python (`int(...)`).'
+  - 'Unicidad: `o["order_id"].duplicated(keep=False).sum()` cuenta todas las filas implicadas en un duplicado (cada pareja suma 2).'
+  - 'Importe numérico: `pd.to_numeric(o["shipping_cost"], errors="coerce").isna().sum()` cuenta lo que no se puede convertir (los textos con coma decimal).'
+  - '`exigir` debe lanzar `ValueError` si algún contador es mayor que 0 y su regla **no** está en `toleradas`; el mensaje debe nombrar las reglas que fallan.'
+relatedLessons: ['limpieza-calidad/04-validacion-y-contratos-de-datos']
+businessQuestion: '¿Qué reglas de calidad incumple el export de pedidos y se puede dejar pasar o hay que detener la tubería?'
+---
+
+Implementa dos funciones:
+
+1. **`validar_pedidos(o, clientes)`** → diccionario `{regla: nº de filas que la incumplen}` con **exactamente** estas
+   siete reglas:
+   - `order_id_unico`: filas con `order_id` repetido (cuenta todas las filas implicadas),
+   - `customer_id_no_nulo`: filas con `customer_id` nulo,
+   - `status_valido`: filas cuyo `status` no está en `completado`, `devuelto_parcial`, `cancelado`,
+   - `descuento_en_rango`: filas con `discount_pct` fuera de [0, 0,5],
+   - `cliente_existe`: filas cuyo `customer_id` no está en `clientes`,
+   - `envio_numerico`: filas cuyo `shipping_cost` no se puede convertir a número,
+   - `tienda_con_store_id`: filas de `channel == "store"` sin `store_id`.
+2. **`exigir(resultados, toleradas=frozenset())`** → lanza `ValueError` si alguna regla tiene un contador
+   mayor que 0 y **no** está en `toleradas`; si no, no hace nada.
+
+En el _starter_ tienes `crudo` (el export sin limpiar) y `limpio` (una versión ya limpiada con la
+función de la lección anterior) para comparar los dos informes.

@@ -69,6 +69,9 @@ Longitud objetivo: 1.500-3.000 palabras (sin contar código). Si una lección pi
 - Mínimo 4 checks/tests, al menos 1 oculto (`hidden: true` en Python, `hiddenOnVariant: true` en SQL).
 - Mensajes de error de los tests: siempre en español, señalando la causa probable ("¿has comprobado duplicados tras el JOIN?"), nunca solo "assertion failed".
 - `businessQuestion` en el frontmatter: una frase, en lenguaje de negocio, no "calcula X con SQL".
+- `datasets` (labs Python): nombres de tablas de `lumen/` (`orders`), `extra:<nombre>` para `extra/*.csv` y `raw:<nombre>` para los CSV sucios de `lumen_raw/` (se leen con `load_raw`; ojo: pandas lee `n/a` como nulo por defecto). El test oculto de un lab con `raw:` usa un DataFrame pequeño hecho a mano con los casos límite (no hay variante sucia).
+- Verifica los labs Python también en Pyodide (`tests/e2e/all-py-labs.spec.ts`): solo usa API común a las versiones de pandas/Polars/DuckDB que carga Pyodide.
+- Cifras en lecciones y quizzes: recalcúlalas con el dataset **actual** (el generador se corrigió el 2026-10-08; ver DATASET.md §8).
 
 ## 8. Casos guiados (ver PLAN.md §7.6)
 

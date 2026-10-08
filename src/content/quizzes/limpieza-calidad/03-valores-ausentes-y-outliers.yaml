@@ -1,0 +1,75 @@
+lesson: limpieza-calidad/03-valores-ausentes-y-outliers
+questions:
+  - id: cal1-03-q1
+    type: single
+    difficulty: 1
+    prompt: 'Los clientes que más gastan no rellenan el campo «gasto anual». ¿Qué mecanismo de ausencia es?'
+    options:
+      - 'MCAR: la ausencia no depende de nada'
+      - 'MAR: depende de otra variable observada'
+      - 'MNAR: depende del propio valor que falta'
+      - 'Ninguno: es un error de lectura'
+    answer: [2]
+    explanation: 'Falta precisamente porque el valor es alto. Es MNAR, el caso más peligroso: la media calculada con los datos que sí hay queda desplazada y ninguna imputación simple lo corrige. Hay que conseguir los datos que faltan o analizar la sensibilidad.'
+    ref: '#tres-mecanismos-de-ausencia'
+
+  - id: cal1-03-q2
+    type: single
+    difficulty: 2
+    prompt: 'En el export de clientes, province está vacía en el 6,5 % y la prueba χ² contra región, segmento, canal y consentimiento da p-valores de 0,32, 0,17, 0,35 y 0,64. ¿Qué conclusión es razonable?'
+    options:
+      - 'Queda demostrado que los huecos son MCAR'
+      - 'Los huecos son compatibles con MCAR, pero no se demuestra; hay que dejar constancia de la comprobación'
+      - 'Los huecos son MNAR'
+      - 'Hay que eliminar la columna'
+    answer: [1]
+    explanation: 'Una prueba que no encuentra diferencias no demuestra que no existan. Es una evidencia razonable de que la ausencia no depende de esas variables. Además, aquí la provincia se puede recuperar de la región, lo que es mejor que estimarla.'
+    ref: '#tres-mecanismos-de-ausencia'
+
+  - id: cal1-03-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los efectos de rellenar los huecos de una variable con su media.'
+    options:
+      - 'La media de la variable no cambia'
+      - 'La desviación típica se reduce (por ejemplo, de 369 € a 331 € en la simulación con importes de pedidos)'
+      - 'Los intervalos de confianza calculados después salen más estrechos de lo que merecen los datos'
+      - 'Elimina el sesgo si la ausencia era MNAR'
+    answer: [0, 1, 2]
+    explanation: 'La imputación por la media conserva la media (si la ausencia es MCAR) pero reduce la variabilidad, así que subestima la incertidumbre. Con MNAR no corrige el sesgo: la media observada ya estaba desplazada.'
+    ref: '#qué-hacer-con-un-ausente'
+
+  - id: cal1-03-q4
+    type: numeric
+    difficulty: 2
+    prompt: 'En la simulación MNAR, la media observada de los importes es 244,66 € y la verdadera 305,87 €. ¿Qué porcentaje por debajo de la verdadera queda? (redondea a un entero)'
+    answer: [20]
+    tolerance: 0.6
+    explanation: '(305,87 − 244,66) / 305,87 = 0,2001, es decir, un 20 % por debajo. Con un 20 % de huecos y sin ninguna alarma, el resultado queda sistemáticamente sesgado.'
+    ref: '#qué-hacer-con-un-ausente'
+
+  - id: cal1-03-q5
+    type: single
+    difficulty: 2
+    prompt: 'La regla del IQR marca el 6,6 % de los importes de pedido como atípicos y el z-score solo el 2,0 %. ¿Qué explica la diferencia y qué haces?'
+    options:
+      - 'Hay muchos errores de captura; hay que borrar los pedidos marcados'
+      - 'La variable es muy asimétrica (cola larga) y las reglas asumen simetría de formas distintas; se investigan los casos y se considera trabajar en escala logarítmica o con percentiles'
+      - 'El z-score es siempre el correcto'
+      - 'Hay que usar un umbral de 1 en lugar de 3'
+    answer: [1]
+    explanation: 'Los importes de pedido tienen una cola larga natural. Las reglas marcan muchos pedidos perfectamente normales (el mayor, de 6.365,76 €, es legítimo). Un outlier se investiga, no se borra de oficio.'
+    ref: '#valores-atípicos-tres-reglas-y-cuándo-fallan'
+
+  - id: cal1-03-q6
+    type: order
+    difficulty: 2
+    prompt: 'Ordena los pasos para tratar un valor atípico.'
+    options:
+      - 'Decidir con una regla escrita (corregir, marcar, excluir con justificación o dejarlo)'
+      - 'Documentar cuántos casos, con qué criterio y qué efecto tiene en el resultado'
+      - 'Buscar la causa (captura, unidad, carga o caso real)'
+      - 'Verificar que es real y reproducible en la fuente'
+    answer: [3, 2, 0, 1]
+    explanation: 'Primero se verifica el dato en la fuente, después se busca la causa, se decide con una regla escrita y por último se documenta. Saltarse los dos primeros pasos es lo que lleva a borrar bugs que había que arreglar o noticias que había que contar.'
+    ref: '#un-outlier-que-era-un-bug'

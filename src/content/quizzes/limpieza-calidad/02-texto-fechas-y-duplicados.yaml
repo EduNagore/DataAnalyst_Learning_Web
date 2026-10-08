@@ -1,0 +1,74 @@
+lesson: limpieza-calidad/02-texto-fechas-y-duplicados
+questions:
+  - id: cal1-02-q1
+    type: order
+    difficulty: 2
+    prompt: 'Ordena los pasos de un pipeline de limpieza para que los duplicados «disfrazados» se detecten.'
+    options:
+      - 'Validar con aserciones y una cifra de control'
+      - 'Deduplicar'
+      - 'Tipar y normalizar (texto, fechas, importes)'
+    answer: [2, 1, 0]
+    explanation: 'Primero se tipa y normaliza: un cliente con la región en mayúsculas y la fecha en otro formato solo es igual al otro una vez normalizado. Después se deduplica y, al final, se valida.'
+    ref: '#intuición'
+
+  - id: cal1-02-q2
+    type: single
+    difficulty: 2
+    prompt: 'Para normalizar la columna region (111 grafías de 16 regiones), ¿qué estrategia es la más segura?'
+    options:
+      - 'str.title() y dar por buenos los resultados'
+      - 'Recortar espacios, pasar a minúsculas y mapear contra la lista oficial de regiones, de modo que lo desconocido quede como nulo a la vista'
+      - 'Eliminar todas las filas con grafías raras'
+      - 'Mapear contra los valores más frecuentes de los propios datos'
+    answer: [1]
+    explanation: 'Mapear contra una lista oficial hace visibles los valores desconocidos. str.title() convertiría "CASTILLA Y LEÓN" en "Castilla Y León", que no es el nombre oficial; y mapear contra los propios datos aceptaría grafías erróneas frecuentes.'
+    ref: '#texto-espacios-mayúsculas-y-listas-oficiales'
+
+  - id: cal1-02-q3
+    type: single
+    difficulty: 2
+    prompt: 'En un export español encuentras la fecha 03/04/2024. ¿Qué día es y qué precaución tomas?'
+    options:
+      - 'El 4 de marzo; pandas lo lee siempre bien'
+      - 'El 3 de abril (día/mes/año); hay que indicar el formato o dayfirst, porque pandas infiere mes/día sin avisar si todas las fechas tienen día ≤ 12'
+      - 'No se puede saber nunca'
+      - 'El 3 de abril; no hace falta ninguna precaución'
+    answer: [1]
+    explanation: 'En España el orden es día/mes/año. pandas infiere el formato a partir de los primeros valores y puede leer mes/día sin avisar. La regla de lectura debe ser explícita; si el origen es mixto, hay que averiguarlo.'
+    ref: '#fechas-tres-formatos-y-una-trampa'
+
+  - id: cal1-02-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las afirmaciones correctas sobre los duplicados.'
+    options:
+      - 'drop_duplicates() sin normalizar elimina los duplicados exactos pero no los «disfrazados»'
+      - 'Si una clave aparece con dos filas distintas, hay que decidir con una regla cuál se conserva y documentarla'
+      - 'Quitar duplicados siempre es seguro y no necesita comprobación'
+      - 'Tras deduplicar conviene comprobar que la clave es única'
+    answer: [0, 1, 3]
+    explanation: 'La tercera es falsa: quitar duplicados puede descartar la fila buena si no se define qué fila gana. Siempre conviene afirmar la unicidad de la clave después.'
+    ref: '#duplicados-encontrar-decidir-quitar'
+
+  - id: cal1-02-q5
+    type: numeric
+    difficulty: 2
+    prompt: 'El export de pedidos suma 17.972,45 € de envío sin limpiar y 17.626,10 € una vez eliminados los duplicados. ¿Cuántos euros de envío sobraban (redondea a un entero)?'
+    answer: [346]
+    tolerance: 0.6
+    explanation: '17.972,45 − 17.626,10 = 346,35 €, un 2 % del total. Pasa desapercibido si solo se mira que "la suma está bien": el fallo estaba en lo que se sumaba.'
+    ref: '#contexto-de-negocio'
+
+  - id: cal1-02-q6
+    type: single
+    difficulty: 3
+    prompt: 'Has limpiado 8.000 pedidos. ¿Cuál es la mejor prueba de que no has perdido ni inventado datos?'
+    options:
+      - 'Que el código no da errores'
+      - 'Que una cifra de control conocida por otra vía (por ejemplo, el envío total de esos mismos pedidos en el almacén) coincide con la de la tabla limpia'
+      - 'Que la tabla tiene menos filas que antes'
+      - 'Que las fechas tienen buen aspecto'
+    answer: [1]
+    explanation: 'Un código sin errores solo prueba que se ejecuta. Una cifra de control independiente (aquí 17.626,10 € en ambas fuentes) prueba que el resultado es el correcto. Sin ella, la limpieza es una hipótesis.'
+    ref: '#la-cifra-de-control'

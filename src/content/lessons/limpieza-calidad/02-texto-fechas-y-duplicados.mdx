@@ -1,0 +1,289 @@
+---
+title: 'Limpiar texto, fechas, importes y duplicados'
+description: 'Un pipeline de limpieza reproducible: normalizar categorías, convertir fechas en formatos mezclados, arreglar importes y deduplicar en el orden correcto.'
+module: limpieza-calidad
+order: 2
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Normalizar texto (espacios, mayúsculas, acentos, codificación) y mapear variantes a una lista oficial.'
+  - 'Convertir fechas en varios formatos, incluido el español en texto, sin caer en la trampa DD/MM frente a MM/DD.'
+  - 'Convertir importes con coma decimal y comprobar la limpieza con una cifra de control.'
+  - 'Deduplicar en el orden correcto (normalizar, deduplicar, validar) y decidir qué fila conservar.'
+prerequisites: ['limpieza-calidad/01-datos-ordenados-y-perfilado']
+tools: ['pandas', 'duckdb']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'pandas — Working with text data'
+    url: 'https://pandas.pydata.org/docs/user_guide/text.html'
+    type: docs
+    authors: 'pandas development team'
+    year: 2026
+  - title: 'pandas — Time series / date functionality'
+    url: 'https://pandas.pydata.org/docs/user_guide/timeseries.html'
+    type: docs
+    authors: 'pandas development team'
+    year: 2026
+  - title: 'DuckDB — Date format functions (strptime, try_strptime)'
+    url: 'https://duckdb.org/docs/stable/sql/functions/dateformat'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — CSV import (read_csv)'
+    url: 'https://duckdb.org/docs/stable/data/csv/overview'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+relatedLabs: ['py-limpiar-clientes-raw', 'py-limpiar-pedidos-raw']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Logística te manda el export de pedidos y quiere el coste de envío total. Lo sumas: 17.972,45 €.
+  Un compañero lo hace con la tabla limpia del almacén de datos y le sale 17.626,10 €. Ninguno de
+  los dos se ha equivocado al sumar. ¿Cuál es el bueno y por qué difieren?
+</BusinessContext>
+
+Casi nunca falla la suma: falla lo que se suma. La diferencia de 346,35 € (un 2 %) son pedidos
+**duplicados** en el export. Esta lección construye, paso a paso, el pipeline que lleva un fichero
+sucio a una tabla en la que se puede confiar, y cómo comprobar que la limpieza no ha perdido ni
+inventado nada.
+
+## Intuición
+
+Limpiar no es borrar lo feo: es **hacer explícitas las reglas** que convierten lo que llega en lo que
+necesitas. Cada regla debe poder escribirse en una frase («las fechas se leen como día/mes/año», «las
+regiones se comparan sin espacios ni mayúsculas») y aplicarse siempre igual. Si no puedes escribir la
+regla, no estás limpiando: estás adivinando.
+
+Hay un orden que evita casi todos los problemas: **tipar y normalizar primero, deduplicar después,
+validar al final**. Los duplicados «disfrazados» (el mismo cliente con la región en mayúsculas y la
+fecha en otro formato) solo se ven como iguales cuando ya están normalizados.
+
+## Cómo funciona
+
+### Texto: espacios, mayúsculas y listas oficiales
+
+El problema típico es una categoría con muchas grafías. En `lumen_raw/customers.csv` la columna `region`
+tiene 111 valores distintos y Lumen opera en 16 regiones:
+
+```text
+"Madrid"   "madrid "   " MADRID  "   "MADRID"   → una sola región
+```
+
+La solución tiene tres pasos: recortar espacios, igualar mayúsculas y mapear contra la **lista
+oficial** (no contra los propios datos: si una grafía está mal, el mapeo debe fallar, no aceptarla).
+
+```python
+oficial = {r.lower(): r for r in REGIONES}          # "castilla y león" -> "Castilla y León"
+df["region"] = df["region"].str.strip().str.lower().map(oficial)
+df["region"].isna().sum()                            # 0: todo valor desconocido queda a la vista
+```
+
+Cuidado con el atajo `str.title()`: convertiría `"CASTILLA Y LEÓN"` en «Castilla Y León», que no es el
+nombre oficial. Mapear contra la lista evita ese tipo de error.
+
+Otros problemas de texto frecuentes:
+
+- **Acentos**: si hay que comparar texto de dos fuentes, a veces se eliminan para la comparación
+  (`unicodedata.normalize("NFKD", s)` y descartar los signos combinados: «Región de Murcia» pasa a
+  «Region de Murcia»). Se usa solo como clave de comparación; el valor mostrado conserva sus acentos.
+- **Mayúsculas**: `str.lower()` basta casi siempre; `str.casefold()` es más estricto y cubre casos como
+  la «ß» alemana.
+- **Codificación** (_encoding_): si ves «AndalucÃ­a» en lugar de «Andalucía», el fichero está en UTF-8 y se
+  leyó como Latin-1. Se arregla leyendo con la codificación correcta (`pd.read_csv(..., encoding="utf-8")`)
+  y, si ya está estropeado, con `s.encode("latin-1").decode("utf-8")`.
+
+### Fechas: tres formatos y una trampa
+
+En Lumen, las fechas de alta vienen en `AAAA-MM-DD` (ISO), `DD/MM/AAAA` y «22 de abril de 2026». La
+regla de lectura debe ser explícita y no depender de la configuración regional del ordenador:
+
+```python
+MESES = {"enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6, "julio": 7,
+         "agosto": 8, "septiembre": 9, "octubre": 10, "noviembre": 11, "diciembre": 12}
+
+def parsear_fecha(t: str) -> pd.Timestamp:
+    t = t.strip()
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", t):
+        return pd.Timestamp(t)
+    if m := re.fullmatch(r"(\d{1,2})/(\d{1,2})/(\d{4})", t):
+        return pd.Timestamp(int(m[3]), int(m[2]), int(m[1]))     # día/mes/año
+    if m := re.fullmatch(r"(\d{1,2}) de (\w+) de (\d{4})", t):
+        return pd.Timestamp(int(m[3]), MESES[m[2].lower()], int(m[1]))
+    raise ValueError(f"Formato no reconocido: {t!r}")
+```
+
+Dos decisiones importantes:
+
+1. **Falla en voz alta** ante un formato desconocido (`raise`) en lugar de devolver un nulo: una fecha
+   perdida en silencio es peor que un error.
+2. **La trampa DD/MM frente a MM/DD**: `03/04/2024` es el 3 de abril en España y el 4 de marzo en
+   Estados Unidos. Un `pd.to_datetime` sin `dayfirst` ni formato infiere mes/día a partir del primer valor: si
+   todas las fechas tienen día ≤ 12 las lee mal **sin avisar**, y si aparece un `25/03/2024` falla. Si la
+   fuente es española, la regla es día primero; si es mixta, **averigua el origen** o busca un valor
+   revelador (como `25/03/2024`, que solo puede ser día/mes).
+
+El equivalente en DuckDB, útil si el fichero es grande o la limpieza vive en SQL:
+
+```sql
+SELECT order_id,
+  COALESCE(
+    try_strptime(order_date, ['%Y-%m-%d', '%d/%m/%Y'])::DATE,        -- prueba cada formato en orden
+    make_date(                                                        -- «22 de abril de 2026»
+      regexp_extract(order_date, '(\d{4})$', 1)::INT,
+      list_position(['enero','febrero','marzo','abril','mayo','junio','julio','agosto',
+                     'septiembre','octubre','noviembre','diciembre'],
+                    regexp_extract(order_date, ' de (\w+) de ', 1)),
+      regexp_extract(order_date, '^(\d{1,2})', 1)::INT)
+  ) AS fecha
+FROM read_csv('lumen_raw/orders.csv', header = true, all_varchar = true);
+```
+
+`try_strptime` devuelve `NULL` en vez de fallar, lo que permite encadenar formatos con `COALESCE`.
+Después de convertir, **cuenta los nulos**: en los 8.160 pedidos de `lumen_raw` no queda ninguno, y el
+rango (8 de febrero de 2023 a 30 de junio de 2026) es plausible.
+
+### Importes: la coma decimal
+
+Los importes de envío de `lumen_raw/orders.csv` llegan como texto con coma decimal (`"4,95"`). Dos formas
+de arreglarlo:
+
+```python
+pd.read_csv("orders.csv", decimal=",", dtype={"shipping_cost": "float64"})        # al leer
+df["shipping_cost"] = df["shipping_cost"].str.replace(",", ".").astype("float64")  # después
+```
+
+```sql
+replace(shipping_cost, ',', '.')::DOUBLE        -- en SQL
+```
+
+Una advertencia: si hubiera separador de miles (`"1.234,56"`), hay que quitar primero los puntos. Y
+nunca conviertas un importe a `float` sin mirar antes que **no mezcla** formatos (algunos con punto y
+otros con coma).
+
+### Duplicados: encontrar, decidir, quitar
+
+Hay tres tipos y cada uno se trata distinto:
+
+| Tipo                   | Ejemplo en Lumen                                               | Cómo se ve                                | Qué hacer                        |
+| ---------------------- | -------------------------------------------------------------- | ----------------------------------------- | -------------------------------- |
+| Duplicado exacto       | 160 pedidos repetidos en `orders.csv`                          | `df.duplicated()`                         | `drop_duplicates()`              |
+| Duplicado «disfrazado» | 150 clientes repetidos con otro formato de fecha o de región   | `duplicated()` no los ve hasta normalizar | Normalizar, luego deduplicar     |
+| Duplicado lógico       | Misma clave con valores distintos (dos versiones de un pedido) | Clave repetida con filas diferentes       | Decidir cuál es la buena (regla) |
+
+Para el tercer tipo hay que **elegir qué fila gana** y dejar escrita la regla: la más reciente, la más
+completa, la de la fuente más fiable. En SQL se hace con `ROW_NUMBER() ... QUALIFY` (lo viste en la
+lección de deduplicación) y en pandas con `sort_values(...).drop_duplicates(clave, keep="last")`.
+
+```python
+pedidos = (raw.drop_duplicates()                    # exactos
+              .drop_duplicates("order_id"))         # clave: si siguen repetidos, algo es distinto
+assert pedidos["order_id"].is_unique
+```
+
+### La cifra de control
+
+La limpieza se valida con una **cifra que conoces por otra vía**. Aquí tenemos suerte: las 8.000
+filas limpias de `orders.csv` también están en la tabla de pedidos del almacén. Si el pipeline es
+correcto, el envío total debe coincidir:
+
+| Fuente                                    | Pedidos | Envío total |
+| ----------------------------------------- | ------: | ----------: |
+| Export sin limpiar                        |   8.160 | 17.972,45 € |
+| Export tras dedupe y decimales            |   8.000 | 17.626,10 € |
+| Tabla de pedidos del almacén (mismos ids) |   8.000 | 17.626,10 € |
+
+Coinciden al céntimo. Esa es la prueba de que no se perdió ni se inventó nada. En tus propios proyectos,
+busca siempre una cifra de control (un total del sistema origen, un recuento de la contabilidad).
+
+## En la práctica
+
+El pipeline completo es una función **pura** (recibe un DataFrame, devuelve otro, no modifica la
+entrada) que aplica las reglas en orden:
+
+```python
+def limpiar_pedidos(raw: pd.DataFrame) -> pd.DataFrame:
+    return (
+        raw.assign(
+            order_date=raw["order_date"].map(parsear_fecha),
+            shipping_cost=raw["shipping_cost"].str.replace(",", ".").astype("float64"),
+        )
+        .drop_duplicates()
+        .drop_duplicates("order_id")
+        .reset_index(drop=True)
+    )
+```
+
+Y se comprueba con aserciones que se ejecutan siempre, no «a ojo»:
+
+```python
+limpio = limpiar_pedidos(raw)
+assert limpio["order_id"].is_unique
+assert limpio["order_date"].notna().all()
+assert round(limpio["shipping_cost"].sum(), 2) == 17626.10
+```
+
+Quedan por resolver hallazgos que **no** son un problema de formato, sino de significado: 140
+pedidos cuyo cliente no existe en la tabla de clientes (identificadores `cust-raw-fake-...`), 24
+pedidos de tienda sin `store_id` y 8 pedidos asignados a un cliente que sí existe (`cust-000000`)
+pero que es el equivocado: este último error no lo detecta ningún perfil del propio fichero; solo
+se encuentra contrastando con otra fuente. Eliminarlos o corregirlos es una **decisión de negocio**, no de limpieza;
+se anotan en el registro de hallazgos y se consulta con quien conoce el proceso (lección 4).
+
+Practica en el lab «Limpia el export de clientes» (en «Ponlo en práctica», al final de la lección).
+
+## Trade-offs y cuándo usarlo
+
+- **Limpiar en pandas o en SQL**: ambos valen. SQL (DuckDB) escala mejor con ficheros grandes y deja la
+  regla en un lugar que otros equipos leen; pandas es más cómodo para lógica de texto compleja.
+- **Reglas estrictas frente a tolerantes**: fallar ante un formato desconocido te obliga a mirar; ser
+  tolerante (rellenar con nulo) hace que el pipeline siga pero oculta datos perdidos. Para datos que
+  alimentan decisiones, prefiere fallar y contar.
+- **Limpiar una vez, en origen**, es mejor que repetirlo en cada informe: lleva las reglas a la capa
+  «plata» de tu arquitectura de datos (lección de arquitectura medallón) y documéntalas.
+- **No toques el fichero original**: la limpieza se hace en código y produce una tabla nueva.
+
+## Errores comunes
+
+- **Deduplicar antes de normalizar**: los duplicados disfrazados se te escapan.
+- **`str.title()` para normalizar nombres propios**: rompe «Castilla y León», «Illes Balears».
+- **Leer `03/04/2024` sin saber si es día/mes o mes/día**.
+- **Convertir con `errors="coerce"` y no contar los nulos resultantes**: pierdes datos sin saberlo.
+- **Quitar duplicados con `drop_duplicates()` sin mirar qué fila se conserva** cuando las filas difieren.
+- **Dar la limpieza por buena sin una cifra de control.**
+- **Sobrescribir el original** y no poder reconstruir lo que pasó.
+
+## Con IA
+
+Un asistente es excelente escribiendo expresiones regulares y funciones de conversión, y propone buenas
+reglas. Los fallos típicos: asume un orden de fecha por defecto (mes/día), usa `errors="coerce"` sin
+avisar de los nulos que crea y aplica `drop_duplicates()` sin preguntar qué fila debe ganar. Pídele
+siempre que **liste las suposiciones** de cada regla y que genere **aserciones** (únicos, nulos,
+rangos) además del código; y exige una cifra de control antes de aceptar la limpieza. Nunca le pases
+datos personales reales a una herramienta externa sin autorización.
+
+## En una entrevista
+
+- _"Tienes fechas en formatos mezclados. ¿Cómo las conviertes de forma segura?"_ — Pista: formatos
+  explícitos, probar uno a uno, fallar ante el desconocido, contar nulos, cuidado con DD/MM.
+- _"¿Por qué importa el orden: normalizar, deduplicar, validar?"_ — Pista: los duplicados disfrazados solo
+  son iguales una vez normalizados.
+- _"¿Cómo compruebas que tu limpieza no ha perdido datos?"_ — Pista: cifra de control, recuentos antes y
+  después, aserciones.
+
+<KeyTakeaways
+  items={[
+    'Limpiar es escribir reglas explícitas y aplicarlas siempre igual; el orden es normalizar, deduplicar y validar.',
+    'Las categorías se mapean contra una lista oficial: 111 grafías de región pasan a las 16 reales y lo desconocido queda a la vista.',
+    'Una fecha ambigua (03/04/2024) exige conocer el origen; falla en voz alta ante formatos desconocidos y cuenta los nulos.',
+    'En lumen_raw/orders.csv, 8.160 filas son 8.000 pedidos: sin dedupe el envío suma 17.972,45 € y, limpio, 17.626,10 €, que coincide al céntimo con el almacén.',
+    'Qué hacer con huérfanos o vacíos que cambian el significado (140 pedidos de clientes inexistentes) es una decisión de negocio que se documenta, no se esconde.',
+  ]}
+/>
