@@ -1,0 +1,71 @@
+lesson: storytelling/03-stakeholders-priorizacion-y-decir-que-no
+questions:
+  - id: sto1-03-q1
+    type: single
+    difficulty: 1
+    prompt: 'Un directivo te pide «un análisis de clientes» sin más detalles. ¿Cuál es el mejor primer paso?'
+    options:
+      - 'Empezar a explorar toda la base de clientes por si acaso'
+      - 'Preguntar qué decisión quiere tomar, para cuándo y qué precisión necesita, y escribirlo en un documento de petición'
+      - 'Rechazar la petición por ser vaga'
+      - 'Enviar un informe genérico con todas las métricas'
+    answer: [1]
+    explanation: 'Una petición vaga se convierte en un encargo claro con preguntas de contexto: decisión, plazo, precisión y coste de no hacerlo. Empezar sin eso suele acabar en rehacer el trabajo.'
+    ref: '#entender-lo-que-se-necesita-antes-de-aceptar'
+
+  - id: sto1-03-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'Una petición alcanza a 60.000 clientes por trimestre, con impacto 1, confianza del 80 % y esfuerzo de 2 personas-mes. ¿Cuál es su puntuación RICE?'
+    answer: [24000]
+    tolerance: 0
+    explanation: 'RICE = alcance × impacto × confianza ÷ esfuerzo = 60.000 × 1 × 0,8 ÷ 2 = 24.000.'
+    ref: '#priorizar-con-rice'
+
+  - id: sto1-03-q3
+    type: single
+    difficulty: 2
+    prompt: 'Dos peticiones tienen la misma puntuación RICE, pero una cuesta 0,5 personas-mes y la otra 2. ¿Cuál conviene hacer antes con un criterio razonable de desempate?'
+    options:
+      - 'La más cara, porque es más ambiciosa'
+      - 'La más barata, porque libera capacidad y entrega valor antes'
+      - 'La que pida el cargo más alto'
+      - 'Da igual el orden: son idénticas'
+    answer: [1]
+    explanation: 'Con la misma puntuación, el menor esfuerzo entrega antes el mismo valor y deja capacidad libre. Es el desempate que usa el lab. El cargo de quien pide no es un criterio de valor.'
+    ref: '#priorizar-con-rice'
+
+  - id: sto1-03-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las limitaciones de RICE que debes tener presentes.'
+    options:
+      - 'Sus entradas son estimaciones y pueden manipularse o estar sesgadas'
+      - 'El alcance depende de cómo se defina y debe medirse en la misma unidad para todas'
+      - 'No recoge por sí sola urgencias legales, riesgos ni estrategia'
+      - 'Garantiza la decisión óptima sin necesidad de juicio humano'
+    answer: [0, 1, 2]
+    explanation: 'RICE ordena con un criterio explícito, pero no decide: finge precisión si se olvida que son estimaciones. Sirve para abrir la conversación y dejar rastro del criterio.'
+    ref: '#priorizar-con-rice'
+
+  - id: sto1-03-q5
+    type: order
+    difficulty: 2
+    prompt: 'Ordena los cuatro pasos de un «no» que mantiene la relación.'
+    options:
+      - 'Ofrecer una alternativa'
+      - 'Cerrar con un siguiente paso y una fecha'
+      - 'Reconocer la necesidad'
+      - 'Explicar la razón con el criterio acordado'
+    answer: [2, 3, 0, 1]
+    explanation: 'Reconoces, razonas con el criterio (no con tu opinión), ofreces una alternativa y fijas un siguiente paso con fecha. La pregunta «¿qué retrasamos?» devuelve la decisión a quien corresponde.'
+    ref: '#decir-no-o-ahora-no-sin-perder-la-relación'
+
+  - id: sto1-03-q6
+    type: truefalse
+    difficulty: 1
+    prompt: 'Las malas noticias sobre un retraso deben comunicarse lo antes posible, no el día de la entrega.'
+    options: ['Verdadero', 'Falso']
+    answer: [0]
+    explanation: 'Verdadero. Avisar pronto permite renegociar alcance o plazo. Nadie se enfada con quien avisa a tiempo; casi todos, con quien avisa el día de la entrega.'
+    ref: '#fijar-y-gestionar-expectativas'

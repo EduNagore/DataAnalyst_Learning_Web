@@ -1,0 +1,39 @@
+---
+title: 'Comunicar cifras: redondeo, formato español, cambios y rangos'
+description: 'Programa las utilidades que convierten un resultado en una frase clara: redondeo a cifras significativas, formato español, descripción de un cambio con sus extremos y texto de un rango de incertidumbre.'
+language: python
+part: 'Parte II · Visualización y comunicación'
+module: storytelling
+difficulty: 2
+estimatedMinutes: 30
+concepts:
+  [
+    'cifras significativas',
+    'formato numérico español',
+    'puntos porcentuales',
+    'intervalo de confianza',
+    'comunicación de la incertidumbre',
+  ]
+datasets: []
+packages: []
+output: console
+hints:
+  - 'Cifras significativas: `round(valor, cifras - 1 - floor(log10(abs(valor))))` redondea a `cifras` cifras (usa `math.floor` y `math.log10`; el valor 0 se devuelve tal cual).'
+  - 'Formato español: formatea con `f"{valor:,.{decimales}f}"` (coma de miles y punto decimal) y cambia los separadores con tres `replace` (usa un carácter temporal para no pisarlos).'
+  - 'Millones: `valor / 1e6` con un decimal y el sufijo ` M€`. `describir_cambio` usa millones si el valor absoluto es al menos 1.000.000 y euros enteros si no.'
+  - 'Cambio de una tasa (`tipo="tasa"`): diferencia en pp con 2 decimales y los valores como `4,29 %`. Cambio en euros (`tipo="euros"`): variación relativa con 1 decimal. El signo `+` o `-` va siempre delante.'
+relatedLessons: ['storytelling/02-publico-cifras-incertidumbre-y-recomendaciones']
+businessQuestion: '¿Cómo escribimos las cifras del análisis para que las entienda quien decide?'
+---
+
+Implementa cinco funciones sin librerías externas (solo `math`):
+
+1. **`redondear_significativo(valor, cifras=3)`** → `49460756.64` con 3 cifras da `49500000.0`; `0.004567` con 2 da `0.0046`. El 0 devuelve 0.
+2. **`formatear_es(valor, decimales=1)`** → texto en formato español: `1234.56` con 1 decimal es `"1.234,6"`.
+3. **`en_millones(valor, decimales=1)`** → `49460756.64` es `"49,5 M€"`.
+4. **`describir_cambio(nombre, actual, anterior, tipo)`** → una línea con el cambio:
+   - `tipo="euros"`: `"Ingresos: +120,4 % (de 22,4 M€ a 49,5 M€)"`,
+   - `tipo="tasa"`: `"Conversión: -0,12 pp (del 4,29 % al 4,17 %)"`.
+5. **`rango_texto(media, se, unidad="€", confianza="95 %")`** → `"entre 172 y 432 € (95 % de confianza)"` para `media ± 1,96·se`, con enteros.
+
+Comprueba con las cifras de la lección: ingresos de 22.441.854 € a 49.460.757 € y conversión del 4,29 % al 4,17 %.

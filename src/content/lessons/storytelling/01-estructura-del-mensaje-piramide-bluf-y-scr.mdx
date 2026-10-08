@@ -1,0 +1,183 @@
+---
+title: 'Estructura del mensaje: pirámide, BLUF y SCR'
+description: 'Cómo ordenar un análisis para que se entienda y se actúe: la recomendación primero (principio de la pirámide y BLUF), el contexto con situación-complicación-resolución y un resumen ejecutivo de menos de 120 palabras.'
+module: storytelling
+order: 1
+level: básico
+estimatedMinutes: 35
+objectives:
+  - 'Reordenar un mensaje con el principio de la pirámide: conclusión primero, argumentos agrupados y datos al final.'
+  - 'Escribir un resumen ejecutivo con BLUF (recomendación al principio), tres evidencias, un límite y un siguiente paso.'
+  - 'Aplicar situación, complicación y resolución (SCR) para presentar un análisis que parte de un contexto.'
+  - 'Elegir entre memo escrito y presentación según el propósito.'
+prerequisites: ['visualizacion/04-como-mienten-los-graficos-y-herramientas']
+tools: []
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Barbara Minto — The Pyramid Principle'
+    url: 'https://www.barbaraminto.com/'
+    type: book
+    authors: 'Minto, B.'
+    year: 1987
+  - title: 'Nielsen Norman Group — Inverted Pyramid: Writing for Comprehension'
+    url: 'https://www.nngroup.com/articles/inverted-pyramid/'
+    type: docs
+    authors: 'Nielsen Norman Group'
+    year: 2026
+  - title: 'Fundamentals of Data Visualization — Telling a story and making a point (Claus O. Wilke)'
+    url: 'https://clauswilke.com/dataviz/telling-a-story.html'
+    type: book
+    authors: 'Wilke, C. O.'
+    year: 2019
+  - title: 'storytelling with data (Cole Nussbaumer Knaflic)'
+    url: 'https://www.storytellingwithdata.com/'
+    type: book
+    authors: 'Knaflic, C.'
+    year: 2015
+relatedLabs: ['py-revisar-resumen-ejecutivo']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Has terminado el análisis del crecimiento de Lumen de 2025. Tienes 40 gráficos y un informe de 18
+  páginas. La directora te da tres minutos en el pasillo: "¿Qué hacemos?". Si empiezas por «Primero,
+  cargué los datos de pedidos…», habrás perdido la atención antes de llegar a la conclusión.
+</BusinessContext>
+
+El trabajo de un analista no acaba cuando sale el número: acaba cuando **alguien decide algo distinto** gracias a él. Eso depende
+menos de la técnica que de cómo **se ordena** el mensaje. La buena noticia es que hay estructuras probadas.
+
+## Intuición
+
+Quien decide tiene poco tiempo y mucha atención repartida. Lee el principio y, si le interesa, sigue. Un mensaje bien estructurado es una
+**pirámide invertida**: arriba, lo que necesita saber y hacer; debajo, por qué (los argumentos); abajo del todo, los datos para
+quien quiera comprobarlo. Quien solo lea el principio ya se lleva lo esencial; quien lea hasta el final puede auditar el razonamiento.
+
+## Cómo funciona
+
+### El principio de la pirámide
+
+Barbara Minto formuló una regla para escribir con claridad: **empieza por la conclusión** y sostenla con argumentos agrupados, cada uno apoyado en
+datos. Tiene tres reglas:
+
+1. **Una idea principal arriba**: la respuesta a la pregunta del lector («recomiendo X»).
+2. **Argumentos agrupados** (de dos a cuatro), cada uno resumible en una frase y MECE (lección de pensamiento analítico).
+3. **Datos y detalle debajo**, ordenados por argumento.
+
+El orden **cronológico** («primero hice A, luego B») es natural para quien trabaja, pero **malo para quien decide**: le obliga a esperar al final para
+saber qué debe hacer. Tu proceso es la historia del analista; la pirámide es la historia del lector.
+
+### BLUF: la conclusión por delante
+
+**BLUF** (_bottom line up front_, «la conclusión, primero»; la expresión procede del ámbito militar y se usa mucho en la comunicación empresarial) es
+la versión corta de la pirámide para correos y resúmenes. Un resumen ejecutivo BLUF tiene cinco partes y cabe en menos de 120 palabras:
+
+| Parte              | Contenido                                     |
+| ------------------ | --------------------------------------------- |
+| **Recomendación**  | Qué hacer, en una frase y en la primera línea |
+| **Evidencia**      | Tres hechos con cifra que la sostienen        |
+| **Guardrails**     | Lo que se ha comprobado que no empeora        |
+| **Límite**         | Lo que el análisis no prueba                  |
+| **Siguiente paso** | La acción concreta, con responsable o plazo   |
+
+Antes y después con el análisis del crecimiento de Lumen:
+
+> **Antes.** «Hola, te paso el análisis de 2025. He mirado los pedidos, los clientes y los tickets, y hay varias cosas interesantes. Los ingresos han subido bastante y hay
+> más clientes. También he visto que la frecuencia ha subido un poco. Si quieres lo vemos con calma y te enseño los gráficos.»
+
+> **Después.** «**Recomendación:** priorizar la captación de clientes nuevos en 2027 antes que una subida de precios. Los ingresos netos de Lumen crecieron un 120 % en 2025
+> (49,5 M€ frente a 22,4 M€) y el 75 % de ese crecimiento viene de tener más clientes activos (+81 %); la frecuencia de compra aporta el 24 % y el ticket medio, el 1 %. Los
+> guardrails están estables (margen del 35,7 %; devoluciones del 6,3 %). **Límite:** la descomposición describe el pasado y no prueba que invertir más en captación repita ese
+> resultado. **Siguiente paso:** medir la incrementalidad del gasto de afiliación, el canal con el CAC más alto (163,6 €).»
+
+La segunda versión tiene unas 100 palabras, empieza por la acción, da cifras verificables (las de las lecciones de pensamiento analítico), declara un
+límite y propone un paso. Se puede leer en veinte segundos y se puede discutir.
+
+### Situación, complicación y resolución (SCR)
+
+Para el **contexto** de un análisis o para abrir una presentación, la estructura **SCR** cuenta una historia mínima:
+
+| Elemento         | Pregunta que responde              | Ejemplo con Lumen                                                                                                        |
+| ---------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| **Situación**    | ¿Qué sabe ya todo el mundo?        | Lumen duplicó sus ingresos en 2025.                                                                                      |
+| **Complicación** | ¿Qué cambia, qué problema aparece? | El gasto de marketing es plano y el CAC mixto baja: no sabemos si marketing es más eficiente o si el negocio crece solo. |
+| **Resolución**   | ¿Qué proponemos hacer?             | Medir la incrementalidad por canal antes de asignar el presupuesto de 2027.                                              |
+
+SCR convierte un análisis en una **historia con un porqué**: el lector entiende por qué le interesa antes de ver los números. Combina bien con la
+pirámide: la situación y la complicación preparan la pregunta; la resolución es la conclusión.
+
+### Memo escrito o presentación
+
+| Formato                  | Cuándo                                                | Ventaja                                     | Riesgo                                         |
+| ------------------------ | ----------------------------------------------------- | ------------------------------------------- | ---------------------------------------------- |
+| **Memo / documento**     | Decisiones con matices, para leer y consultar después | Razonamiento completo, auditable, asíncrono | Que nadie lo lea si no tiene un buen principio |
+| **Presentación**         | Alinear a un grupo, decidir en la reunión             | Interacción, enfoque compartido             | Diapositivas con texto que nadie escucha       |
+| **Resumen en un correo** | Información de estado o una recomendación corta       | Rápido y de bajo coste                      | Perder el detalle si no se enlaza              |
+
+Un patrón eficaz es **memo primero, reunión después**: se envía el documento para leerlo antes y la reunión se dedica a decidir, no a presentar. En las
+presentaciones, un mensaje por diapositiva, con título que **concluye** (como los títulos de gráfico de la lección de visualización) y un gráfico por mensaje.
+
+<Callout type="tip">
+  Prueba rápida: pídele a alguien que lea solo la primera frase de tu mensaje y te diga qué tiene
+  que hacer. Si no sabe responder, vuelve a escribir la primera frase.
+</Callout>
+
+## En la práctica
+
+Un procedimiento para ordenar cualquier análisis en diez minutos:
+
+1. **Una frase**: ¿qué quieres que haga el lector? (La recomendación.)
+2. **Tres razones** que la sostienen, cada una con su cifra.
+3. **Un límite**: lo que no sabes o no prueba tu análisis.
+4. **Un siguiente paso** concreto.
+5. **Reordena**: recomendación, evidencias, límite y paso; el resto va a un anexo.
+6. **Revisa**: ≤ 120 palabras, números con contexto, sin jerga que no entienda quien decide.
+
+En el lab de esta lección escribes un revisor automático de resúmenes ejecutivos que comprueba estas reglas (longitud, cifras, recomendación al principio,
+límite y siguiente paso).
+
+## Trade-offs y cuándo usarlo
+
+- **Conclusión primero frente a suspense**: en trabajo analítico, la conclusión primero casi siempre; el suspense es para presentaciones en las que
+  quieres que el público razone contigo (y aun así, adelanta el «por qué importa»).
+- **Brevedad frente a matiz**: lo breve se lee y lo largo se consulta; ofrece ambos (resumen y anexo).
+- **Recomendar frente a describir**: recomendar te expone, pero es lo que se espera de un analista; describe cuando aún no hay base para recomendar y dilo.
+- **Una conclusión frente a varias opciones**: presenta una recomendación y alternativas descartadas con su motivo; dar solo opciones traslada el trabajo al lector.
+
+## Errores comunes
+
+- **Empezar por el método** («cargué los datos…») o por la historia cronológica.
+- **Una lista de hallazgos sin jerarquía** y sin recomendación.
+- **Esconder el límite** al final o no ponerlo; la confianza viene de declararlo.
+- **Diapositivas como documentos** (párrafos enteros) y documentos como diapositivas (viñetas sin razonamiento).
+- **Cifras sin comparación ni contexto** («creció un 120 %», ¿frente a qué?).
+- **Terminar con «¿Alguna pregunta?»** en lugar de con el siguiente paso.
+
+## Con IA
+
+Un asistente resume con rapidez y es útil para **reescribir** un borrador con estructura BLUF o para recortar palabras, pero tiende a producir resúmenes
+fluidos y **sin límite ni siguiente paso**, y a redondear cifras sin avisar. Pídele explícitamente las cinco partes del resumen, que no cambie ninguna cifra y que
+marque lo que no está respaldado por los datos que le das; y compara las cifras del resultado con tu análisis antes de enviarlo.
+
+## En una entrevista
+
+- _"Tienes dos minutos con el director. ¿Cómo presentas un análisis?"_ — Pista: recomendación primero, tres evidencias con cifra, un límite, un siguiente
+  paso.
+- _"¿Qué es el principio de la pirámide?"_ — Pista: conclusión arriba, argumentos agrupados y MECE debajo, datos al final.
+- _"¿Cuándo preferirías un documento a una presentación?"_ — Pista: decisiones con matices y lectura asíncrona; memo primero, reunión para decidir.
+
+<KeyTakeaways
+  items={[
+    'Tu proceso es la historia del analista; la pirámide es la historia del lector: conclusión primero, argumentos agrupados y MECE, datos al final.',
+    'Un resumen ejecutivo BLUF lleva recomendación, tres evidencias con cifra, guardrails, un límite y un siguiente paso, en menos de 120 palabras.',
+    'SCR (situación, complicación, resolución) da contexto a un análisis y prepara la pregunta que responde la recomendación.',
+    'Memo primero y reunión para decidir; en presentaciones, un mensaje por diapositiva con título que concluye.',
+    'Prueba de la primera frase: si quien lee solo ella no sabe qué debe hacer, reescríbela.',
+  ]}
+/>

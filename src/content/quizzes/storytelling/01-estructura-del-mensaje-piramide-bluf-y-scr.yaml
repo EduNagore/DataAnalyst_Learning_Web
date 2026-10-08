@@ -1,0 +1,75 @@
+lesson: storytelling/01-estructura-del-mensaje-piramide-bluf-y-scr
+questions:
+  - id: sto1-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué establece el principio de la pirámide de Minto?'
+    options:
+      - 'Contar el análisis en el orden cronológico en que se hizo'
+      - 'Empezar por la conclusión y sostenerla con argumentos agrupados, cada uno apoyado en datos'
+      - 'Poner todos los datos al principio'
+      - 'Usar siempre una tabla'
+    answer: [1]
+    explanation: 'La pirámide invierte el orden del trabajo: arriba la respuesta, debajo los argumentos MECE y al final los datos. Quien decide lee el principio y se lleva lo esencial.'
+    ref: '#el-principio-de-la-pirámide'
+
+  - id: sto1-01-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las partes de un resumen ejecutivo BLUF.'
+    options:
+      - 'Recomendación en la primera línea'
+      - 'Tres evidencias con cifra'
+      - 'Un límite: lo que el análisis no prueba'
+      - 'Una descripción del código usado'
+    answer: [0, 1, 2]
+    explanation: 'Recomendación, evidencia, guardrails, límite y siguiente paso. El código y el método van al anexo, no al resumen.'
+    ref: '#bluf-la-conclusión-por-delante'
+
+  - id: sto1-01-q3
+    type: single
+    difficulty: 2
+    prompt: 'En la estructura SCR, ¿qué aporta la «complicación»?'
+    options:
+      - 'Los datos del anexo'
+      - 'El cambio o problema que hace necesario el análisis y prepara la pregunta que responde la resolución'
+      - 'La metodología'
+      - 'Los agradecimientos'
+    answer: [1]
+    explanation: 'Situación: lo que todos saben. Complicación: lo que cambia o no encaja. Resolución: lo que se propone. La complicación da al lector el porqué de leer el análisis.'
+    ref: '#situación-complicación-y-resolución-scr'
+
+  - id: sto1-01-q4
+    type: numeric
+    difficulty: 2
+    prompt: 'Un resumen ejecutivo debe tener como máximo 120 palabras y el borrador tiene 175. ¿Cuántas palabras hay que recortar como mínimo?'
+    answer: [55]
+    tolerance: 0
+    explanation: '175 − 120 = 55 palabras como mínimo. Lo que se recorta es el método y los adornos, no la recomendación ni el límite.'
+    ref: '#bluf-la-conclusión-por-delante'
+
+  - id: sto1-01-q5
+    type: single
+    difficulty: 2
+    prompt: 'Una decisión con muchos matices que la dirección consultará más adelante, ¿cómo se comunica mejor?'
+    options:
+      - 'Solo con una presentación de 40 diapositivas'
+      - 'Con un memo escrito (razonamiento completo y auditable) enviado antes y una reunión dedicada a decidir'
+      - 'Con un mensaje de chat'
+      - 'Sin documento'
+    answer: [1]
+    explanation: 'El memo permite lectura asíncrona y consulta posterior; la reunión se dedica a decidir y no a presentar. Las presentaciones largas con texto rara vez se escuchan.'
+    ref: '#memo-escrito-o-presentación'
+
+  - id: sto1-01-q6
+    type: single
+    difficulty: 3
+    prompt: 'Un correo dice: «Te paso el análisis: los ingresos han subido bastante y hay más clientes; si quieres lo vemos con calma». ¿Qué le falta?'
+    options:
+      - 'Más adjetivos'
+      - 'Una recomendación al principio, cifras con comparación, un límite y un siguiente paso'
+      - 'Un saludo más formal'
+      - 'Más gráficos'
+    answer: [1]
+    explanation: 'Describe sin recomendar y sin cifras; no dice qué debe hacer el lector ni qué no se sabe. El resumen BLUF cubre esas cuatro carencias.'
+    ref: '#bluf-la-conclusión-por-delante'

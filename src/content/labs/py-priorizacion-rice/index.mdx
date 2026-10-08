@@ -1,0 +1,29 @@
+---
+title: 'Priorizar peticiones con RICE: puntuación, orden y capacidad'
+description: 'Programa la puntuación RICE de una cola de peticiones de datos, ordénala con desempates claros y selecciona las que caben en la capacidad del periodo.'
+language: python
+part: 'Parte II · Visualización y comunicación'
+module: storytelling
+difficulty: 2
+estimatedMinutes: 25
+concepts:
+  ['RICE', 'priorización', 'capacidad', 'validación de entradas', 'ordenación con desempate']
+datasets: []
+packages: []
+output: console
+hints:
+  - 'RICE = alcance × impacto × confianza ÷ esfuerzo. La confianza llega como fracción (0,8 = 80 %). Redondea a 1 decimal.'
+  - 'Valida las entradas: el impacto debe estar en {3, 2, 1, 0.5, 0.25}, la confianza en (0, 1] y el esfuerzo debe ser mayor que 0; si no, lanza `ValueError`.'
+  - 'Ordena con `sorted(..., key=lambda p: (-p["rice"], p["esfuerzo"], p["nombre"]))`: primero la puntuación, luego la petición más barata y por último el nombre.'
+  - 'Para la capacidad recorre la lista ordenada y añade cada petición solo si cabe en el esfuerzo restante (algoritmo voraz); las que no caben se saltan, pero se sigue mirando las siguientes.'
+relatedLessons: ['storytelling/03-stakeholders-priorizacion-y-decir-que-no']
+businessQuestion: '¿Qué peticiones de datos atendemos este ciclo con la capacidad que tenemos?'
+---
+
+Implementa tres funciones sin librerías externas. Cada petición es un diccionario con las claves `nombre`, `alcance`, `impacto`, `confianza` (fracción) y `esfuerzo` (personas-mes).
+
+1. **`puntuacion_rice(alcance, impacto, confianza, esfuerzo)`** → número redondeado a 1 decimal. Lanza `ValueError` si el impacto no es 3, 2, 1, 0,5 o 0,25, si la confianza no está en (0, 1] o si el esfuerzo no es positivo.
+2. **`priorizar(peticiones)`** → lista nueva de las mismas peticiones con la clave `rice` añadida, ordenada de mayor a menor puntuación; los empates se resuelven por menor esfuerzo y después por nombre. No modifica la lista original.
+3. **`seleccionar(peticiones, capacidad)`** → lista de **nombres** de las peticiones que caben en la capacidad (personas-mes), recorriendo la lista priorizada y saltando las que no caben.
+
+Prueba con las cinco peticiones de la lección: con capacidad 3,5 deben entrar la limpieza de clientes y el análisis de retrasos.

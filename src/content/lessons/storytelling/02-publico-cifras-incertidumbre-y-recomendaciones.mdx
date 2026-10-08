@@ -1,0 +1,186 @@
+---
+title: 'Público, cifras, incertidumbre y recomendaciones accionables'
+description: 'Cómo adaptar un análisis a quien lo lee, escribir cifras que se entiendan (redondeo, formato y comparación), comunicar la incertidumbre sin ocultarla ni asustar y convertir hallazgos en recomendaciones que alguien pueda ejecutar.'
+module: storytelling
+order: 2
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Adaptar contenido, nivel de detalle y lenguaje a distintos públicos (dirección, responsables, técnicos).'
+  - 'Redondear y formatear cifras en español, y expresar un cambio con valor, comparación y unidad correctos.'
+  - 'Comunicar la incertidumbre con rangos, escenarios y condiciones que cambiarían la recomendación.'
+  - 'Redactar una recomendación accionable (qué, quién, cuándo, coste, riesgo y cómo se medirá).'
+prerequisites: ['storytelling/01-estructura-del-mensaje-piramide-bluf-y-scr']
+tools: []
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Plain Language Guidelines (plainlanguage.gov)'
+    url: 'https://www.plainlanguage.gov/guidelines/'
+    type: docs
+    authors: 'Plain Language Action and Information Network'
+    year: 2026
+  - title: 'Nielsen Norman Group — How Users Read on the Web'
+    url: 'https://www.nngroup.com/articles/how-users-read-on-the-web/'
+    type: docs
+    authors: 'Nielsen, J.'
+    year: 1997
+  - title: 'Fundamentals of Data Visualization — Figure titles and captions (Claus O. Wilke)'
+    url: 'https://clauswilke.com/dataviz/figure-titles-captions.html'
+    type: book
+    authors: 'Wilke, C. O.'
+    year: 2019
+relatedLabs: ['py-comunicar-cifras']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Tu análisis es correcto. Al comité le llega esto: "La conversión web cayó 0,12 puntos con un
+  intervalo de confianza que incluye cero (p = 0,31)". La directora comercial pregunta: "¿Eso es
+  bueno o malo?". El responsable técnico pregunta: "¿Qué test has usado?". Con la misma información
+  necesitas dos mensajes distintos.
+</BusinessContext>
+
+Un análisis no se comunica una vez: se **traduce** para cada público. Esa traducción es la mitad del trabajo y la parte en la que más se
+diferencia un analista excelente de uno correcto.
+
+## Intuición
+
+Cada lector hace una pregunta distinta. La dirección: «¿qué decido?». Quien ejecuta: «¿qué hago y para cuándo?». Quien audita: «¿cómo lo has
+calculado?». El contenido es el mismo; el **orden, el detalle y el lenguaje** cambian. Y como la gente **escanea** más que lee (los estudios de
+usabilidad web lo muestran desde hace décadas), lo importante debe verse sin esfuerzo.
+
+## Cómo funciona
+
+### Tres públicos, tres versiones
+
+| Público                    | Quiere saber                         | Necesita                                             | Formato                    |
+| -------------------------- | ------------------------------------ | ---------------------------------------------------- | -------------------------- |
+| **Dirección**              | Qué decidir y qué riesgo             | Recomendación, impacto en euros, riesgo, plazo       | Resumen de media página    |
+| **Responsables / equipos** | Qué cambia para ellos y qué hacer    | Hallazgos por área, acciones, responsables, métricas | Memo de una a tres páginas |
+| **Técnicos / revisión**    | Cómo se ha calculado y si es robusto | Definiciones, código, supuestos, comprobaciones      | Anexo reproducible         |
+
+Con el ejemplo del contexto, el mismo hallazgo en tres versiones:
+
+- **Dirección:** «La conversión web se mantiene estable (4,2 %): no hay motivo de alarma ni de inversión urgente en la web.»
+- **Responsables:** «La conversión diaria se mueve entre el 2,6 % y el 6,1 % por azar; una caída de menos de 1,5 puntos en un día no es una señal. Revisad la alerta del cuadro de mando para que
+  salte solo fuera de esa banda.»
+- **Técnicos:** «Diferencia 2025 frente a 2024: −0,12 pp; ruido binomial diario ≈ 0,76 pp con 707 sesiones; 4 de 61 días fuera de la banda del 95 % (esperados: 3). Detalle y código en el anexo.»
+
+### Lenguaje claro
+
+Las guías de lenguaje claro coinciden en reglas simples: **frases cortas**, **voz activa**, **palabras corrientes** antes que jerga, **un término = un
+significado** y **definir** lo que no se pueda evitar. Traducciones habituales:
+
+| Jerga                            | Lenguaje claro                                                                           |
+| -------------------------------- | ---------------------------------------------------------------------------------------- |
+| «p-valor de 0,03»                | «Si no hubiera efecto, un resultado así saldría por azar el 3 % de las veces»            |
+| «IC al 95 % [2,1; 5,3]»          | «Lo más probable es que esté entre 2,1 y 5,3»                                            |
+| «correlación de 0,8»             | «Suben y bajan casi a la vez, pero no sabemos si una causa la otra»                      |
+| «heterocedasticidad»             | (Quítalo del resumen; va al anexo)                                                       |
+| «el modelo tiene un AUC de 0,86» | «El modelo acierta bastante más que el azar al ordenar clientes de más a menos riesgoso» |
+
+### Cifras que se entienden
+
+Cuatro reglas para escribir números:
+
+1. **Redondea al nivel que la decisión necesita.** «49,5 M€» comunica; «49.460.756,64 €» distrae y sugiere una precisión que no existe. Usa entre dos y
+   tres cifras significativas.
+2. **Formato local y unidades siempre**: `1.234,5` en español de España, «M€» o «miles de euros», «%» frente a «pp».
+3. **Compara siempre**: una cifra sola no dice nada. «Crecieron un 120 % (de 22,4 a 49,5 M€)» incluye los dos extremos y la dirección.
+4. **Valor absoluto y relativo juntos** cuando los dos importan: «la conversión pasa del 4,29 % al 4,17 % (−0,12 pp, −2,8 % en relativo)». Un salto «del 1 % al 2 %»
+   es un +100 % relativo y +1 pp absoluto: di cuál es cuál.
+
+<Callout type="warning">
+  La falsa precisión engaña. Si una estimación tiene un margen de ±130 €, escribir «301,48 €»
+  insinúa una exactitud que no hay. Redondea hasta donde llegue tu incertidumbre.
+</Callout>
+
+### Comunicar la incertidumbre
+
+Ocultar la incertidumbre destruye la confianza cuando se descubre; exagerarla paraliza. El equilibrio: **di cuánta hay, qué la causa y qué cambiaría
+la recomendación.** Cuatro herramientas:
+
+1. **Rangos en lugar de cifras sueltas.** Una muestra de 30 pedidos de Lumen da un ticket medio de unos 301 € con un margen de ±130 € (95 % de confianza):
+   «entre 170 y 430 €». Con 750 pedidos el margen baja a ±26 €.
+2. **Escenarios** (pesimista, base, optimista), con los supuestos de cada uno.
+3. **Lenguaje calibrado y coherente**: «casi seguro», «probable», «posible», «improbable», con un significado acordado (por ejemplo, probable = más del 70 %). Evita
+   «quizá» sin cifra.
+4. **Sensibilidad y condiciones de cambio**: «la recomendación se mantiene mientras el coste de captación sea inferior a 120 €; por encima, habría que revisar».
+
+Ejemplo de redacción: «Estimamos que reducir los retrasos graves (10,7 % de los envíos) a la mitad mejoraría la retención entre 2 y 5 puntos (confianza media: hay una
+asociación clara entre retraso y cancelación, pero no está demostrado que sea causal). Recomendamos un piloto en dos transportistas antes de generalizar».
+
+### Recomendaciones accionables
+
+Una recomendación sirve si alguien puede **ejecutarla el lunes**. Seis elementos:
+
+| Elemento             | Pregunta                    | Ejemplo                                                 |
+| -------------------- | --------------------------- | ------------------------------------------------------- |
+| **Qué**              | ¿Qué cambia exactamente?    | Pilotar un seguimiento de envíos con alerta a 3 días    |
+| **Quién**            | ¿Quién es responsable?      | Operaciones, con apoyo de Datos                         |
+| **Cuándo**           | ¿Para cuándo?               | Piloto de 6 semanas desde el 1 de noviembre             |
+| **Coste y esfuerzo** | ¿Qué cuesta?                | 2 personas-mes y 15.000 €                               |
+| **Riesgo**           | ¿Qué puede salir mal?       | Falsas alertas que saturen al equipo                    |
+| **Medición**         | ¿Cómo sabremos si funcionó? | Cancelaciones de clientes con retraso: del 63 % al 55 % |
+
+Compara una recomendación débil («Mejorar la logística») con una fuerte («Pilotar durante 6 semanas con dos transportistas una alerta a los 3 días de retraso; coste de 15.000 €; si las
+cancelaciones de clientes con retraso grave bajan del 63 % al 55 %, extenderlo»). La segunda se puede aprobar, rechazar o ajustar; la primera, no.
+
+## En la práctica
+
+Un procedimiento antes de enviar:
+
+1. Identifica **el público** y su pregunta; escribe una versión por público (aunque sea de una línea).
+2. **Redondea y formatea** todas las cifras (formato español, unidades, comparación).
+3. Sustituye la **jerga** por su traducción; lo técnico, al anexo.
+4. Declara la **incertidumbre** con un rango, escenarios o una condición de cambio.
+5. Convierte los hallazgos en **recomendaciones** con los seis elementos.
+6. Pide a una persona del público que lea el resumen y diga qué haría.
+
+En el lab de esta lección programas las utilidades de comunicación de cifras: redondeo significativo, formato en español, descripción de un cambio y texto de
+un rango.
+
+## Trade-offs y cuándo usarlo
+
+- **Simplificar frente a ser exacto**: lo que simplificas debe seguir siendo cierto; si no puedes simplificar sin falsear, enlaza al detalle.
+- **Rangos frente a cifras únicas**: los rangos son honestos pero cuestan de leer; usa un punto central con su margen en una frase.
+- **Un mensaje para todos frente a versiones por público**: más trabajo, mucho menos malentendido.
+- **Confianza frente a cautela**: demasiadas salvedades diluyen el mensaje; da una recomendación y una o dos condiciones relevantes.
+
+## Errores comunes
+
+- **Cifras con ocho dígitos y cuatro decimales.**
+- **Jerga estadística en el resumen para la dirección.**
+- **Dar solo un porcentaje relativo** que exagera («+100 %» de 1 a 2 casos).
+- **Ocultar la incertidumbre** (o presentarla como un muro de «pero»).
+- **Recomendaciones sin responsable, plazo ni medida.**
+- **Mezclar «puntos porcentuales» y «porcentaje».**
+- **No probar el texto con alguien del público.**
+
+## Con IA
+
+Un asistente es excelente **traduciendo** el mismo contenido a distintos públicos y simplificando la jerga, pero puede **cambiar las cifras al redondear**, convertir
+una asociación en causa («los retrasos provocan») y eliminar los matices que protegen tu mensaje. Dale el texto con las cifras exactas, pídele que no cambie ningún
+número ni afirme causalidad y compara después cada cifra con el análisis. Para la incertidumbre, exige que mantenga el rango y las condiciones.
+
+## En una entrevista
+
+- _"Explícale a un director qué es un intervalo de confianza, sin jerga."_ — Pista: «lo más probable es que esté entre X e Y»; qué ocurre si la muestra es mayor.
+- _"¿Cómo comunicas un resultado incierto sin que parezca que no sabes nada?"_ — Pista: rangos, escenarios, condiciones de cambio y una recomendación.
+- _"Tu recomendación es «mejorar la logística». ¿Qué le falta?"_ — Pista: qué, quién, cuándo, coste, riesgo y cómo se medirá.
+
+<KeyTakeaways
+  items={[
+    'Un mismo hallazgo se escribe en tres versiones (dirección, responsables y técnicos) que cambian el orden, el detalle y el lenguaje, no las cifras.',
+    'Redondea a dos o tres cifras significativas, usa formato español y unidades, compara siempre y no confundas puntos porcentuales con porcentaje.',
+    'La incertidumbre se comunica con rangos, escenarios, lenguaje calibrado y condiciones que cambiarían la recomendación; con 30 pedidos el ticket medio es «entre 170 y 430 €».',
+    'Una recomendación accionable dice qué, quién, cuándo, coste, riesgo y cómo se medirá.',
+    'Prueba el mensaje con una persona del público: si no sabe qué haría, reescríbelo.',
+  ]}
+/>

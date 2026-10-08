@@ -1,0 +1,194 @@
+---
+title: 'Stakeholders, priorización de peticiones y cómo decir «no»'
+description: 'Cómo gestionar una cola de peticiones de datos: entender lo que se necesita de verdad, priorizar con RICE, decir «no» con alternativas, fijar expectativas y trabajar de forma asíncrona.'
+module: storytelling
+order: 3
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Convertir una petición vaga en un encargo claro con una conversación estructurada.'
+  - 'Priorizar una cola de peticiones con la puntuación RICE y entender sus límites.'
+  - 'Decir «no» o «ahora no» manteniendo la relación con una alternativa y una razón.'
+  - 'Fijar expectativas (plazos, alcance, precisión) y comunicar de forma asíncrona con un documento de petición y seguimiento.'
+prerequisites: ['storytelling/02-publico-cifras-incertidumbre-y-recomendaciones']
+tools: []
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Intercom — RICE: Simple prioritization for product managers'
+    url: 'https://www.intercom.com/blog/rice-simple-prioritization-for-product-managers/'
+    type: blog
+    authors: 'McBride, S.'
+    year: 2016
+  - title: 'Plain Language Guidelines (plainlanguage.gov)'
+    url: 'https://www.plainlanguage.gov/guidelines/'
+    type: docs
+    authors: 'Plain Language Action and Information Network'
+    year: 2026
+  - title: 'Thinking with Data (Max Shron)'
+    url: 'https://thinkingwithdata.com/'
+    type: book
+    authors: 'Shron, M.'
+    year: 2014
+relatedLabs: ['py-priorizacion-rice']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  En una semana te llegan cinco peticiones: un análisis de por qué cancelan los clientes con
+  retrasos, la limpieza de la base de clientes, un informe de incrementalidad de afiliación, un
+  cuadro de mando de tiendas y "un listado rápido de clientes VIP por región" que el jefe de ventas
+  quiere para hoy. Tienes capacidad para tres y todo el mundo dice que lo suyo es urgente.
+</BusinessContext>
+
+Casi ningún equipo de datos tiene el problema de **no tener trabajo**. El problema es **elegir** y **explicarlo**. Un analista que dice «sí» a todo
+no entrega nada bien y se quema; uno que dice «no» sin explicar pierde a sus aliados. Hay un oficio entre los dos extremos.
+
+## Intuición
+
+Cada petición es un **pedido de un cliente interno**. Un buen camarero no trae lo que le piden sin más: pregunta cómo quieres la carne, avisa de
+que la cocina tarda veinte minutos y sugiere otra cosa si se ha acabado. Con las peticiones de datos pasa lo mismo: entender, estimar, priorizar,
+negociar y avisar.
+
+## Cómo funciona
+
+### Entender lo que se necesita (antes de aceptar)
+
+Las cinco preguntas de contexto del módulo de rol del analista siguen siendo el punto de partida: ¿qué decisión?, ¿para cuándo?, ¿qué sospechas?, ¿qué cambiaría tu
+opinión?, ¿qué sería una sorpresa? Añade tres para **dimensionar**:
+
+- **¿Quién lo va a usar y con qué frecuencia?** (una vez, o cada semana: cambia el diseño y el coste de mantenerlo).
+- **¿Qué precisión necesita?** (una aproximación hoy o un número auditado el viernes).
+- **¿Qué pasa si no se hace?** (el coste de oportunidad real; muchas «urgencias» se desinflan con esta pregunta).
+
+Y escribe el resultado en un **documento de petición** corto: pregunta, decisión, público, plazo, definición de las métricas, fuente de datos y criterio de
+éxito. Es el equivalente a un contrato informal: evita el «eso no era lo que pedí».
+
+### Priorizar con RICE
+
+**RICE** es una fórmula sencilla para ordenar una cola de trabajo con criterios explícitos:
+
+$$
+\text{RICE}=\frac{\text{Alcance (R)}\times\text{Impacto (I)}\times\text{Confianza (C)}}{\text{Esfuerzo (E)}}
+$$
+
+| Factor                | Qué mide                                                                    | Escala                                                     |
+| --------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| **Alcance** (_reach_) | A cuántas personas o clientes afecta, en un periodo (misma unidad en todas) | Número (por ejemplo, clientes por trimestre)               |
+| **Impacto**           | Cuánto cambia la vida de cada persona alcanzada                             | 3 = enorme, 2 = alto, 1 = medio, 0,5 = bajo, 0,25 = mínimo |
+| **Confianza**         | Cuánta seguridad hay en las estimaciones anteriores                         | 100 % = alta, 80 % = media, 50 % = baja                    |
+| **Esfuerzo**          | Trabajo necesario, en personas-mes                                          | Enteros o 0,5 para menos de un mes                         |
+
+Aplicado a las cinco peticiones de Lumen (alcance en clientes afectados por trimestre, con los datos de las lecciones anteriores):
+
+| Petición                                     | Alcance | Impacto | Confianza | Esfuerzo |   **RICE** |
+| -------------------------------------------- | ------: | ------: | --------: | -------: | ---------: |
+| Limpieza y validación de la base de clientes |  60.000 |       1 |      80 % |        2 | **24.000** |
+| Análisis de retrasos y cancelaciones         |  13.347 |       2 |      80 % |      1,5 | **14.237** |
+| Listado de clientes VIP por región           |   5.868 |    0,25 |     100 % |      0,5 |  **2.934** |
+| Cuadro de mando de tiendas                   |   5.000 |     0,5 |     100 % |        1 |  **2.500** |
+| Informe de incrementalidad de afiliación     |   1.763 |       1 |      50 % |        2 |    **441** |
+
+Con capacidad para 3,5 personas-mes entran las dos primeras (2 + 1,5 = 3,5); el listado VIP (0,5) y el cuadro de tiendas ya no caben, y la incrementalidad de afiliación queda para el
+siguiente ciclo. Fíjate en que la petición «para hoy» del jefe de ventas es la tercera en prioridad y la más barata: se puede **ofrecer una versión rápida** (la
+consulta en el almacén, no un informe) sin sacrificar lo importante.
+
+<Callout type="warning">
+  RICE ordena, **no decide**. Sus números son estimaciones (la confianza existe por eso), el alcance
+  depende de cómo lo definas y no recoge urgencia legal, riesgos ni estrategia. Úsalo para **abrir
+  la conversación** con las áreas y para dejar rastro del criterio, no como un algoritmo que
+  sustituye al juicio.
+</Callout>
+
+### Decir «no» (o «ahora no») sin perder la relación
+
+La mayoría de los «no» eficaces no se dicen como «no»: son **«sí, si…»** o **«sí, pero después»**. Una estructura de cuatro pasos:
+
+1. **Reconoce** la necesidad («entiendo que necesitas saber esto antes del comité»).
+2. **Explica la razón** con el criterio acordado, no con tu opinión («con la capacidad actual, el análisis de retrasos afecta a 13.000 clientes y este listado, a 5.900»).
+3. **Ofrece una alternativa**: una versión reducida, un plazo diferente, una herramienta de autoservicio o una persona que pueda ayudar.
+4. **Cierra con un siguiente paso y una fecha** («te lo entrego el jueves; si es urgente de verdad, dime qué otra cosa se retrasa»).
+
+La última frase es la más poderosa: convierte «no» en una **elección de negocio** («¿qué retrasamos?») y devuelve la decisión a quien debe tomarla.
+
+### Fijar y gestionar expectativas
+
+La mayoría de los conflictos con los interesados vienen de **expectativas no dichas**. Lo que hay que acordar al principio y recordar durante el trabajo:
+
+| Qué              | Cómo                                                          |
+| ---------------- | ------------------------------------------------------------- |
+| **Alcance**      | Qué entra y qué no (por escrito); cualquier cambio se negocia |
+| **Plazo**        | Fecha realista con colchón; avisar pronto si se retrasa       |
+| **Precisión**    | Aproximación o cifra auditada; los datos que faltan           |
+| **Definiciones** | Qué significa cada métrica (ficha de métrica)                 |
+| **Seguimiento**  | Cuándo y cómo se informa del avance y de los riesgos          |
+
+Un **informe de estado** corto (tres líneas: qué se ha hecho, qué viene, qué te bloquea) evita reuniones y muestra control. Y las malas noticias, **cuanto antes**: nadie
+se enfada con quien avisa a tiempo; casi todos con quien avisa el día de la entrega.
+
+### Trabajar de forma asíncrona
+
+Gran parte del trabajo analítico se coordina por escrito (tickets, documentos, mensajes). Para que funcione:
+
+- **Un lugar único** para las peticiones (un tablero o un formulario), no mensajes sueltos por canales distintos.
+- **Mensajes autocontenidos**: quien los lea dentro de una semana debe entenderlos sin contexto (qué, por qué, qué se espera y para cuándo).
+- **Decisiones escritas**: tras una reunión, un resumen de tres líneas con lo acordado y los responsables.
+- **Documentar el análisis** (pregunta, datos, definiciones, resultado y enlace al código) para que otro pueda continuarlo o auditarlo.
+
+## En la práctica
+
+Un flujo de trabajo para una cola de peticiones:
+
+1. **Recibe** todo en un único punto y responde en un día laborable con un acuse y las preguntas de contexto.
+2. **Aclara** y escribe el documento de petición; dimensiona esfuerzo y alcance.
+3. **Puntúa** con RICE (o tu criterio acordado) y ordena; decide la capacidad del periodo.
+4. **Comunica** lo que entra, lo que no y cuándo, con alternativas.
+5. **Informa** del avance y de los riesgos; entrega con el resumen BLUF y el seguimiento.
+6. **Cierra** el ciclo: ¿se usó?, ¿cambió una decisión? Retira lo que nadie usa.
+
+En el lab de esta lección implementas la puntuación RICE (con validación de escalas), la ordenación de la cola y la selección de peticiones que caben en una capacidad dada.
+
+## Trade-offs y cuándo usarlo
+
+- **Criterio explícito frente a intuición**: RICE da transparencia, pero finge precisión; combínalo con juicio y con las prioridades estratégicas.
+- **Autoservicio frente a petición**: si muchas peticiones son consultas repetidas, un cuadro de mando o una tabla gobernada ahorra más que cualquier priorización.
+- **Reactivo frente a proactivo**: dedicar una parte fija de la capacidad (por ejemplo, el 20 %) a trabajo propio (calidad de datos, métricas) evita vivir apagando fuegos.
+- **Decir «no» frente a mantener la relación**: lo segundo suele ser un buen argumento para un «sí, si…» con alternativa.
+
+## Errores comunes
+
+- **Aceptarlo todo** y entregar tarde y mal.
+- **Priorizar por quien grita más** o por jerarquía y no por criterio.
+- **Empezar a trabajar sin definir el encargo** (y rehacerlo tres veces).
+- **Mezclar unidades de alcance** en RICE (clientes en una, equipos en otra).
+- **Un «no» sin razón ni alternativa.**
+- **Avisar del retraso el día de la entrega.**
+- **No cerrar el ciclo**: no saber si el trabajo se usó.
+
+## Con IA
+
+Un asistente puede ayudar a **redactar** el documento de petición, a proponer preguntas de contexto y a ordenar una cola con una fórmula, pero no conoce las prioridades estratégicas
+ni las relaciones entre personas. Dale los criterios y las capacidades, revisa los alcances que estima (los inventa con facilidad) y utilízalo para
+**redactar un «no» con alternativa** que luego ajustas con tu tono. Las decisiones de prioridad, con las personas que deben tomarlas.
+
+## En una entrevista
+
+- _"Dos directores te piden cosas incompatibles, las dos «urgentes». ¿Qué haces?"_ — Pista: criterio explícito (RICE o impacto/esfuerzo), pregunta qué se retrasa, escala la
+  decisión con los datos delante.
+- _"¿Cómo dices «no» a una petición sin dañar la relación?"_ — Pista: reconocer, razón con criterio, alternativa, siguiente paso con fecha.
+- _"¿Qué incluye una buena petición de datos?"_ — Pista: pregunta, decisión, público, plazo, definiciones, fuente, criterio de éxito.
+
+<KeyTakeaways
+  items={[
+    'Antes de aceptar una petición, entiende la decisión, el público, la frecuencia, la precisión necesaria y el coste de no hacerla; escríbelo en un documento de petición.',
+    'RICE = alcance × impacto × confianza ÷ esfuerzo: ordena con un criterio explícito y deja rastro, pero estima con incertidumbre y no sustituye al juicio ni a la estrategia.',
+    'Con 3,5 personas-mes, la cola de Lumen deja entrar la limpieza de clientes (24.000) y el análisis de retrasos (14.237); el listado «urgente» se resuelve con una versión rápida.',
+    'Un «no» eficaz reconoce, razona con el criterio, ofrece una alternativa y fija un siguiente paso; la frase «¿qué retrasamos?» devuelve la decisión a quien corresponde.',
+    'Fija alcance, plazo, precisión y definiciones por escrito, avisa pronto de los problemas y cierra el ciclo midiendo si el trabajo se usó.',
+  ]}
+/>

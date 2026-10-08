@@ -1,0 +1,75 @@
+lesson: storytelling/02-publico-cifras-incertidumbre-y-recomendaciones
+questions:
+  - id: sto1-02-q1
+    type: single
+    difficulty: 1
+    prompt: 'Tienes que comunicar el mismo resultado a la dirección, a un responsable de equipo y a un revisor técnico. ¿Qué cambia entre las tres versiones?'
+    options:
+      - 'Las cifras'
+      - 'El orden, el nivel de detalle y el lenguaje; las cifras y las conclusiones no cambian'
+      - 'Solo el tamaño de la letra'
+      - 'Nada: un único mensaje vale para todos'
+    answer: [1]
+    explanation: 'Cada público hace una pregunta distinta (decidir, ejecutar, auditar). El contenido es el mismo, pero se traduce: la dirección recibe la recomendación; el técnico, el anexo reproducible.'
+    ref: '#tres-públicos-tres-versiones'
+
+  - id: sto1-02-q2
+    type: single
+    difficulty: 2
+    prompt: 'La media de un cálculo es 49.460.756,64 €. ¿Cómo la escribes en un resumen para la dirección?'
+    options:
+      - '49.460.756,64 €'
+      - '49,5 M€'
+      - '49460756.64'
+      - 'Unos 50 millones y pico'
+    answer: [1]
+    explanation: '49,5 M€ comunica con dos o tres cifras significativas y usa formato y unidad. Los decimales de más sugieren una precisión que no existe y distraen; «y pico» es vago.'
+    ref: '#cifras-que-se-entienden'
+
+  - id: sto1-02-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'La conversión pasa del 4,29 % al 4,17 %. ¿Cuál es el cambio relativo, en %? (un decimal)'
+    answer: [-2.8]
+    tolerance: 0.06
+    explanation: '(4,17 − 4,29) / 4,29 = −0,028, es decir, −2,8 % en relativo, que corresponde a −0,12 puntos porcentuales en absoluto. Hay que decir cuál de los dos se usa.'
+    ref: '#cifras-que-se-entienden'
+
+  - id: sto1-02-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las formas adecuadas de comunicar la incertidumbre de una estimación.'
+    options:
+      - 'Un rango en lugar de una cifra suelta («entre 170 y 430 €»)'
+      - 'Escenarios pesimista, base y optimista con sus supuestos'
+      - 'Decir qué condición cambiaría la recomendación'
+      - 'Omitirla para que el mensaje parezca más seguro'
+    answer: [0, 1, 2]
+    explanation: 'Ocultar la incertidumbre destruye la confianza cuando se descubre. Se declara cuánta hay, qué la causa y qué cambiaría la decisión.'
+    ref: '#comunicar-la-incertidumbre'
+
+  - id: sto1-02-q5
+    type: single
+    difficulty: 2
+    prompt: 'Sustituye la jerga: «el p-valor es 0,03». ¿Qué versión en lenguaje claro es correcta?'
+    options:
+      - 'Hay un 97 % de probabilidad de que el efecto sea real'
+      - 'Si no hubiera ningún efecto, un resultado así saldría por azar el 3 % de las veces'
+      - 'El resultado es importante'
+      - 'El efecto es del 3 %'
+    answer: [1]
+    explanation: 'El p-valor es la probabilidad de un resultado tan extremo si no hubiera efecto; no es la probabilidad de que el efecto sea real (error muy frecuente) ni su tamaño.'
+    ref: '#lenguaje-claro'
+
+  - id: sto1-02-q6
+    type: single
+    difficulty: 3
+    prompt: '¿Cuál de estas recomendaciones es accionable?'
+    options:
+      - 'Mejorar la logística'
+      - 'Pilotar 6 semanas con dos transportistas una alerta a los 3 días de retraso (Operaciones, 15.000 €); si las cancelaciones de clientes con retraso grave bajan del 63 % al 55 %, extenderlo'
+      - 'Hay que hacer algo con los envíos'
+      - 'Estudiar el problema más a fondo'
+    answer: [1]
+    explanation: 'Dice qué, quién, cuándo, coste y cómo se medirá el éxito: puede aprobarse, rechazarse o ajustarse. Las demás no se pueden ejecutar ni evaluar.'
+    ref: '#recomendaciones-accionables'

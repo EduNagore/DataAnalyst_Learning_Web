@@ -1,0 +1,35 @@
+---
+title: 'Revisor automático de resúmenes ejecutivos'
+description: 'Programa una lista de comprobación que revisa un resumen ejecutivo: longitud, cifras, recomendación al principio, límite declarado y siguiente paso.'
+language: python
+part: 'Parte II · Visualización y comunicación'
+module: storytelling
+difficulty: 2
+estimatedMinutes: 30
+concepts:
+  ['BLUF', 'resumen ejecutivo', 'expresiones regulares', 'lista de comprobación', 'comunicación']
+datasets: []
+packages: []
+output: console
+hints:
+  - 'Quita los asteriscos de Markdown (`**`) antes de analizar. Las palabras se cuentan con `texto.split()`.'
+  - 'Cifras: cuenta los números con una expresión regular como `re.findall(r"\d[\d.,]*", texto)`; un resumen necesita al menos 3.'
+  - 'La primera frase es el texto hasta el primer punto final, interrogación, exclamación o salto de línea (un punto seguido de un dígito no cuenta como final). Contiene una recomendación si algún verbo de `VERBOS_ACCION` aparece (como prefijo de palabra) en esa frase, sin distinguir mayúsculas.'
+  - 'Límite: busca «límite», «limitación», «no prueba», «no demuestra» o «incertidumbre». Siguiente paso: «siguiente paso» o «próximo paso». Usa `texto.lower()`.'
+relatedLessons: ['storytelling/01-estructura-del-mensaje-piramide-bluf-y-scr']
+businessQuestion: '¿Cumple este resumen las reglas de un buen mensaje ejecutivo, y qué le falta?'
+---
+
+Implementa **`revisar_resumen(texto, max_palabras=120)`**, que devuelve un diccionario con:
+
+- `palabras`: número de palabras (sin contar los `**` de Markdown),
+- `cifras`: cuántos números aparecen,
+- `empieza_con_recomendacion`: `True` si la **primera frase** contiene un verbo de acción de `VERBOS_ACCION`,
+- `tiene_limite` y `tiene_siguiente_paso`: `True` si aparecen las expresiones indicadas en las pistas,
+- `problemas`: lista de textos (en español) con lo que falla, entre estos exactos:
+  `"Supera las 120 palabras"` (usa `max_palabras`), `"No empieza por una recomendación"`, `"Faltan cifras (mínimo 3)"`,
+  `"No declara ningún límite"` y `"No propone un siguiente paso"`,
+- `valido`: `True` solo si no hay problemas.
+
+En el _starter_ tienes un resumen «antes» y otro «después» (el de la lección). Compruébalos y escribe una tercera versión
+propia.
