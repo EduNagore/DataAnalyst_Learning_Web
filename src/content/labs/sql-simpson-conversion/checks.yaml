@@ -1,0 +1,4 @@
+compare:
+  orderMatters: false
+  columns: [region, device, sesiones, compras, conversion_pct]
+hiddenOnVariant: true

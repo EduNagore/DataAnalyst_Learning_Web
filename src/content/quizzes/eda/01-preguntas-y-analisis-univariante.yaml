@@ -1,0 +1,75 @@
+lesson: eda/01-preguntas-y-analisis-univariante
+questions:
+  - id: eda1-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Cuál es el objetivo principal de un análisis exploratorio de datos (EDA)?'
+    options:
+      - 'Demostrar una hipótesis con un p-valor'
+      - 'Entender los datos y generar hipótesis y preguntas, que luego se contrastan con otros datos o con un diseño apropiado'
+      - 'Producir cuantos más gráficos mejor'
+      - 'Limpiar los datos'
+    answer: [1]
+    explanation: 'El EDA genera hipótesis, no las confirma. Tras mirar muchos gráficos siempre aparece algo que parece un patrón; confirmarlo exige datos nuevos o un contraste.'
+    ref: '#contexto-de-negocio'
+
+  - id: eda1-01-q2
+    type: single
+    difficulty: 2
+    prompt: 'La media del importe de pedido es 301,7 € y la mediana 180,2 €. ¿Qué indica?'
+    options:
+      - 'Que los datos están mal'
+      - 'Una cola larga a la derecha (asimetría positiva): unos pocos pedidos grandes elevan la media'
+      - 'Que la distribución es simétrica'
+      - 'Que la mediana está mal calculada'
+    answer: [1]
+    explanation: 'Con una media bastante mayor que la mediana, la distribución tiene cola larga a la derecha. La mediana describe al pedido típico; la media sirve para sumar (ingresos totales).'
+    ref: '#una-variable-numérica-forma-centro-y-dispersión'
+
+  - id: eda1-01-q3
+    type: numeric
+    difficulty: 2
+    prompt: '¿Cuántas veces mayor es la media (301,7 €) que la mediana (180,2 €)? Redondea a un decimal.'
+    answer: [1.7]
+    tolerance: 0.06
+    explanation: '301,7 / 180,2 ≈ 1,67, es decir, la media es un 67 % mayor que la mediana, lo que delata la cola larga.'
+    ref: '#una-variable-numérica-forma-centro-y-dispersión'
+
+  - id: eda1-01-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las afirmaciones correctas sobre la curva de Pareto de clientes en Lumen (57.439 clientes con compra).'
+    options:
+      - 'El 20 % de clientes que más gasta aporta aproximadamente la mitad de los ingresos (51,9 %)'
+      - 'El 1 % que más gasta aporta el 5,0 %'
+      - 'La regla 80/20 se cumple exactamente'
+      - 'Hay concentración, pero menos extrema que la regla 80/20; se comprueba con los datos'
+    answer: [0, 1, 3]
+    explanation: 'Hay concentración (20 % → 51,9 %), pero está lejos del 80/20 de la leyenda. La regla es una hipótesis que se verifica, no una ley.'
+    ref: '#una-variable-categórica-frecuencias-y-pareto'
+
+  - id: eda1-01-q5
+    type: single
+    difficulty: 2
+    prompt: 'Una serie de pedidos crece muy deprisa y el último mes es «el mejor de la historia». ¿Cuál es la lectura más prudente?'
+    options:
+      - 'Celebrarlo: es un récord'
+      - 'Comprobar si el récord es solo crecimiento, comparando con un periodo equivalente (mismo mes del año anterior) o con la tendencia esperada'
+      - 'Ignorarlo'
+      - 'Concluir que hay estacionalidad'
+    answer: [1]
+    explanation: 'En una serie con tendencia fuerte, casi cualquier último mes es un récord. Hay que comparar contra periodos equivalentes y contra la tendencia para saber si hay algo más.'
+    ref: '#una-variable-temporal-tendencia-y-estacionalidad'
+
+  - id: eda1-01-q6
+    type: single
+    difficulty: 3
+    prompt: 'Tu informe de EDA dice «el ingreso medio por pedido es 302 €». Un compañero obtiene 310 € con los mismos datos. ¿Cuál es la causa más probable?'
+    options:
+      - 'Hay un error de Python'
+      - 'Se han aplicado filtros de filas distintos (por ejemplo, incluir o no los pedidos cancelados) que no se han documentado'
+      - 'La media no es determinista'
+      - 'Han usado otra mediana'
+    answer: [1]
+    explanation: 'Casi todas las discrepancias entre dos EDA con los mismos datos vienen de filtros distintos no documentados (cancelados, devoluciones, periodo). Por eso el checklist exige escribir el grano y los filtros antes de dar una cifra.'
+    ref: '#un-checklist-de-eda-reproducible'

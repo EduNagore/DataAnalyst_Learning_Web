@@ -1,0 +1,243 @@
+---
+title: 'La paradoja de Simpson'
+description: 'Por qué una comparación puede invertirse al separar por una tercera variable, cómo detectarla con los datos de Lumen y cómo decidir qué cifra es la buena.'
+module: eda
+order: 3
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Explicar la paradoja de Simpson como un efecto de la composición (mezcla) de los grupos y reproducirla con datos reales.'
+  - 'Calcular tasas por estrato y agregadas con SQL y verificar que una comparación se invierte.'
+  - 'Estandarizar tasas con una mezcla común para comparar grupos de forma justa.'
+  - 'Decidir con un argumento causal, y no con una regla estadística, si hay que mirar el agregado o los estratos.'
+prerequisites: ['eda/02-relaciones-correlacion-y-segmentacion']
+tools: ['duckdb', 'pandas']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: "Stanford Encyclopedia of Philosophy — Simpson's Paradox"
+    url: 'https://plato.stanford.edu/entries/paradox-simpson/'
+    type: docs
+    authors: 'Sprenger, J. y Weinberger, N.'
+    year: 2021
+  - title: "Understanding Simpson's Paradox (Judea Pearl)"
+    url: 'https://ftp.cs.ucla.edu/pub/stat_ser/r414.pdf'
+    type: paper
+    authors: 'Pearl, J.'
+    year: 2013
+  - title: 'DuckDB — GROUPING SETS, CUBE y ROLLUP'
+    url: 'https://duckdb.org/docs/stable/sql/query_syntax/grouping_sets'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+relatedLabs: ['sql-simpson-conversion']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import SimpsonExplorer from '../../../components/content/SimpsonExplorer.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Producto quiere priorizar el desarrollo de la web móvil: "El móvil convierte mejor que el
+  escritorio — un 6,2 % frente a un 3,8 %". Un diseñador responde: "En cada región que he mirado, el
+  escritorio convierte mejor". Los dos tienen los datos delante y los dos tienen razón. ¿Cómo es
+  posible?
+</BusinessContext>
+
+La paradoja de Simpson es uno de los errores más caros del análisis de datos porque **no es un error de
+cálculo**: todas las cifras están bien. Lo que falla es la pregunta que se cree estar contestando.
+
+## Intuición
+
+Imagina dos equipos de fútbol. El equipo A gana más partidos que el B en la liga fácil y también en la
+liga difícil. Pero A juega casi todos sus partidos en la liga difícil y B en la fácil. En el total,
+B puede tener mejor porcentaje de victorias pese a ser peor en cada liga.
+
+Con la conversión web pasa lo mismo. El móvil convierte peor que el escritorio **dentro de cada región**,
+pero el móvil se usa sobre todo en la región donde todo el mundo convierte bien (Madrid) y el escritorio
+en la región donde se convierte poco (Andalucía). La **composición** de cada grupo (de dónde viene su
+tráfico) decide el resultado agregado.
+
+## Cómo funciona
+
+### El caso de Lumen
+
+Sesiones web de Madrid y Andalucía, móvil y escritorio. «Convierte» = la sesión tiene un evento de compra.
+
+| Grupo                    | Sesiones | Compras | Conversión |
+| ------------------------ | -------: | ------: | ---------: |
+| **Móvil, agregado**      |  154.450 |   9.630 |  **6,2 %** |
+| **Escritorio, agregado** |  149.306 |   5.599 |  **3,8 %** |
+| Móvil · Madrid           |  127.579 |   9.175 |      7,2 % |
+| Escritorio · Madrid      |   19.010 |   2.280 | **12,0 %** |
+| Móvil · Andalucía        |   26.871 |     455 |      1,7 % |
+| Escritorio · Andalucía   |  130.296 |   3.319 |  **2,5 %** |
+
+En el agregado gana el móvil (6,2 % frente a 3,8 %). En Madrid gana el escritorio (12,0 % frente a 7,2 %)
+y en Andalucía también (2,5 % frente a 1,7 %). La comparación **se invierte** al separar por región.
+
+### Por qué ocurre: la mezcla
+
+La tasa agregada de un grupo es un promedio **ponderado** de sus tasas por estrato, y los pesos son la
+proporción del grupo que cae en cada estrato:
+
+$$
+\text{tasa}_g = \sum_{s} w_{g,s}\,\text{tasa}_{g,s}\qquad\text{con } w_{g,s} = \frac{n_{g,s}}{n_g}
+$$
+
+Los pesos de cada dispositivo son muy distintos:
+
+| Dispositivo | % de sus sesiones en Madrid | % en Andalucía |
+| ----------- | --------------------------: | -------------: |
+| Móvil       |                      82,6 % |         17,4 % |
+| Escritorio  |                      12,7 % |         87,3 % |
+
+El móvil: $0{,}826\times 7{,}2 + 0{,}174\times 1{,}7 \approx 6{,}2\,\%$. El escritorio:
+$0{,}127\times 12{,}0 + 0{,}873\times 2{,}5 \approx 3{,}8\,\%$. El móvil «gana» solo porque
+tiene muchas más sesiones en la región donde convierte todo bien. **Región** es una variable de confusión
+(_confounder_): influye a la vez en el dispositivo que se usa y en la conversión.
+
+Pruébalo tú: mueve los deslizadores y mira cuándo se invierte el orden aunque las tasas por región no cambien.
+
+<SimpsonExplorer
+  client:visible
+  groups={['Móvil', 'Escritorio']}
+  strata={['Madrid', 'Andalucía']}
+  rates={[
+    [7.19, 1.69],
+    [11.99, 2.55],
+  ]}
+  initialShare={[82.6, 12.7]}
+  metric="conversión de sesiones (%)"
+/>
+
+### Una comparación justa: estandarizar
+
+Para comparar dispositivos «a igualdad de región» se **estandariza**: se calcula cada tasa con la
+**misma mezcla** para ambos grupos. Usando como referencia el reparto de todas las sesiones de móvil y
+escritorio de las dos regiones (48,3 % Madrid, 51,7 % Andalucía):
+
+| Dispositivo | Conversión agregada | Conversión estandarizada |
+| ----------- | ------------------: | -----------------------: |
+| Móvil       |               6,2 % |                    4,3 % |
+| Escritorio  |               3,8 % |                    7,1 % |
+
+Con la misma mezcla, el escritorio convierte unos **2,8 puntos más** que el móvil. La estandarización
+quita el efecto de la región y deja la diferencia entre dispositivos.
+
+### ¿Qué cifra es la buena?
+
+Aquí está la parte que la estadística sola no resuelve. A veces conviene mirar el agregado y a veces los
+estratos, y **la decisión depende de la historia causal**, no de los números:
+
+- Si la variable que separa los estratos (la región) **causa** tanto el grupo como el resultado
+  (confusión), la comparación **por estratos** es la correcta para saber «¿qué dispositivo convierte
+  mejor, a igualdad de cliente?».
+- Si la variable que separa los estratos es una **consecuencia** del grupo (un mediador: por ejemplo, el
+  tipo de página que se visita por usar móvil), separar por ella **elimina parte del efecto que quieres
+  medir** y el agregado puede ser el correcto.
+
+El ejemplo clásico es la admisión en la Universidad de Berkeley en 1973 (Bickel, Hammel y O'Connell,
+1975): globalmente se admitía a más hombres que mujeres, pero en la mayoría de los departamentos la tasa de
+las mujeres era igual o mayor. Las mujeres solicitaban más a departamentos muy selectivos. Si el objetivo
+es saber si **un departamento** discrimina, se mira por departamento; si el objetivo es describir el
+resultado global del proceso, el agregado también cuenta, con su explicación.
+
+<Callout type="warning">
+  No existe una regla estadística que diga «siempre separa». Hay que preguntarse **cómo se generan
+  los datos** y qué decisión se va a tomar. Es uno de los motivos por los que el módulo de
+  causalidad dibuja diagramas de causas antes de calcular nada.
+</Callout>
+
+### Cómo detectarla
+
+1. **Desglosa las comparaciones clave** por las variables que plausiblemente influyen en el grupo y en
+   el resultado (región, canal de captación, cohorte, periodo).
+2. **Mira la composición**: tamaño de cada grupo en cada estrato. Mezclas muy diferentes son la señal de
+   alarma.
+3. **Compara el agregado con los estratos**: si el orden cambia, tienes un Simpson.
+4. **Estandariza** o ajusta (un modelo con la variable de confusión) para una comparación justa.
+5. Si puedes, **experimenta**: asignar el dispositivo al azar rompería la relación con la región.
+
+## En la práctica
+
+Con SQL, los estratos y el agregado salen en una sola consulta con `GROUPING SETS`:
+
+```sql
+WITH compradores AS (
+  SELECT DISTINCT session_id FROM events WHERE event_type = 'purchase'
+),
+sesiones AS (
+  SELECT ws.region, ws.device, (c.session_id IS NOT NULL)::INT AS compra
+  FROM web_sessions AS ws
+  LEFT JOIN compradores AS c ON c.session_id = ws.session_id
+  WHERE ws.region IN ('Madrid', 'Andalucía') AND ws.device IN ('mobile', 'desktop')
+)
+SELECT COALESCE(region, 'Ambas') AS region, device, COUNT(*) AS sesiones, SUM(compra) AS compras,
+       ROUND(100.0 * SUM(compra) / COUNT(*), 1) AS conversion_pct
+FROM sesiones
+GROUP BY GROUPING SETS ((region, device), (device))
+ORDER BY region, device;
+```
+
+Fíjate en dos detalles: la unidad de análisis es la **sesión** (se cuenta quién compra, no cuántos eventos de
+compra hay, por los eventos duplicados de la app) y la fila `Ambas` es el agregado. En el lab de esta lección
+reproduces la tabla y verificas la inversión.
+
+La estandarización en pandas es una media ponderada con pesos comunes:
+
+```python
+pesos = sesiones.groupby("region").size() / len(sesiones)          # mezcla de referencia
+tasas = sesiones.groupby(["device", "region"])["compra"].mean()    # tasa por estrato
+estandarizada = (tasas.unstack() * pesos).sum(axis=1) * 100        # por dispositivo
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Mirar siempre los estratos** es costoso si hay muchas variables posibles: prioriza las que la
+  experiencia de negocio marca como candidatas.
+- **Demasiados estratos** dejan grupos pequeños y ruidosos: una paradoja aparente puede ser solo ruido.
+- **La estandarización** exige elegir una mezcla de referencia (la de la población total, la del grupo de
+  control...); distintas referencias dan cifras distintas, pero la dirección de la comparación suele ser
+  estable.
+- **Un modelo** (regresión, ajuste por covariables) generaliza la estandarización cuando hay varias
+  variables de confusión.
+
+## Errores comunes
+
+- **Comparar tasas agregadas de grupos con composiciones distintas** sin mirar los estratos.
+- **Dar por buena siempre la tabla más desglosada** (o siempre la agregada): depende de la causalidad.
+- **Confundir la paradoja con un error de cálculo**: las dos tablas están bien; responden preguntas distintas.
+- **Estratificar por una consecuencia** del grupo (mediador) y eliminar el efecto que se quería medir.
+- **Olvidar el tamaño de los estratos**: un estrato diminuto no debería mandar en la conclusión.
+- **Tomar decisiones de inversión con una sola tasa** («el móvil convierte más») sin desglosar.
+
+## Con IA
+
+Un asistente, ante un «¿qué dispositivo convierte mejor?», suele devolver la tasa agregada y redactar una
+conclusión categórica. Pídele siempre que **desglose por las variables que podrían confundir** y que
+diga explícitamente si el orden cambia. Y no le dejes decidir «qué cifra es la buena»: pídele que
+proponga los argumentos causales para cada opción y decide tú con el conocimiento del negocio. Nunca
+aceptes una recomendación de inversión basada en una sola comparación sin estratificar.
+
+## En una entrevista
+
+- _"¿Qué es la paradoja de Simpson? Pon un ejemplo."_ — Pista: una tendencia de los grupos se invierte al
+  agregar; la causa es la composición; ejemplo de conversión por dispositivo y región o admisiones de Berkeley.
+- _"Tu análisis agregado dice que A supera a B, pero por segmentos B gana en todos. ¿Qué haces?"_ — Pista:
+  mirar la mezcla, la historia causal, estandarizar y decidir según la pregunta.
+- _"¿Siempre hay que mirar los estratos?"_ — Pista: no; si el estratificador es un mediador o un colisionador,
+  separar sesga; depende del diagrama causal.
+
+<KeyTakeaways
+  items={[
+    'La paradoja de Simpson no es un error de cálculo: una comparación se invierte al separar por una variable de confusión porque los grupos tienen composiciones distintas.',
+    'En Lumen, el móvil convierte más en agregado (6,2 % frente a 3,8 %) pero menos que el escritorio en Madrid (7,2 % frente a 12,0 %) y en Andalucía (1,7 % frente a 2,5 %).',
+    'La tasa agregada es una media ponderada de las tasas por estrato; el 82,6 % de las sesiones móviles viene de Madrid frente al 12,7 % de las de escritorio.',
+    'Estandarizar con una mezcla común da una comparación justa (móvil 4,3 % frente a escritorio 7,1 %).',
+    'Qué cifra es la buena depende de la historia causal, no de la estadística: confusor → estratos; mediador → agregado. Desglosa siempre las comparaciones clave.',
+  ]}
+/>

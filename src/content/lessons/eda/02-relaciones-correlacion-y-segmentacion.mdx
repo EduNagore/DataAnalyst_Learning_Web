@@ -1,0 +1,340 @@
+---
+title: 'Relaciones entre variables: correlación y segmentación'
+description: 'Cómo comparar dos variables según su tipo, medir una relación con Pearson y Spearman, segmentar para entender y no confundir una relación mecánica con una causal.'
+module: eda
+order: 2
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Elegir la herramienta de análisis bivariante según el tipo de las dos variables (numérica, categórica).'
+  - 'Calcular e interpretar correlaciones de Pearson y Spearman, y explicar por qué un coeficiente nunca sustituye al gráfico (cuarteto de Anscombe).'
+  - 'Comparar grupos con estadísticos por segmento y tablas cruzadas con porcentajes por fila.'
+  - 'Reconocer una relación mecánica o espuria y distinguirla de un efecto causal.'
+prerequisites: ['eda/01-preguntas-y-analisis-univariante']
+tools: ['pandas', 'scipy']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Same Stats, Different Graphs (Matejka y Fitzmaurice, CHI 2017)'
+    url: 'https://www.research.autodesk.com/publications/same-stats-different-graphs/'
+    type: paper
+    authors: 'Matejka, J. y Fitzmaurice, G.'
+    year: 2017
+  - title: 'scipy.stats.spearmanr'
+    url: 'https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.spearmanr.html'
+    type: docs
+    authors: 'SciPy developers'
+    year: 2026
+  - title: 'scipy.stats.chi2_contingency'
+    url: 'https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.chi2_contingency.html'
+    type: docs
+    authors: 'SciPy developers'
+    year: 2026
+  - title: 'pandas — DataFrame.corr'
+    url: 'https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.corr.html'
+    type: docs
+    authors: 'pandas development team'
+    year: 2026
+relatedLabs: ['py-correlacion-y-grupos']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import VegaChart from '../../../components/content/VegaChart.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Marketing pregunta: "Los pedidos con descuento, ¿son más grandes o más pequeños? ¿Y qué segmento
+  de cliente vale más?". Tú tienes los datos de 377.145 pedidos y cuatro segmentos. Cualquier
+  respuesta rápida ("los descuentos reducen el pedido", "los VIP gastan más") puede ser cierta,
+  falsa o cierta por una razón distinta de la que se imagina.
+</BusinessContext>
+
+Después de mirar cada variable por separado, la pregunta natural es **cómo se relacionan**. Esta lección
+cubre las herramientas básicas y, sobre todo, las trampas: un número de relación nunca se interpreta sin
+saber cómo se han generado los datos.
+
+## Intuición
+
+Relacionar dos variables es preguntar: «si sé el valor de una, ¿sé algo de la otra?». La respuesta
+depende del tipo de cada variable, y la herramienta correcta cambia con él:
+
+| Variable A | Variable B | Pregunta típica                    | Herramienta                                 |
+| ---------- | ---------- | ---------------------------------- | ------------------------------------------- |
+| Numérica   | Numérica   | ¿Suben o bajan juntas?             | Dispersión, correlación (Pearson, Spearman) |
+| Categórica | Numérica   | ¿Difieren los grupos en la medida? | Estadísticos por grupo, cajas               |
+| Categórica | Categórica | ¿Se reparten igual los grupos?     | Tabla cruzada con porcentajes, χ²           |
+
+Y una regla de oro: **dibuja antes de calcular**. Los coeficientes resumen una relación en un número;
+los gráficos enseñan si ese número tiene sentido.
+
+## Cómo funciona
+
+### Numérica con numérica: correlación
+
+La **correlación de Pearson** ($r$) mide la fuerza de la relación **lineal**, entre −1 y 1. La de
+**Spearman** ($\rho$) mide la relación **monótona** (si una sube, la otra tiende a subir, aunque no en
+línea recta): es la de Pearson aplicada a los rangos, y es robusta frente a valores extremos.
+
+Con los pedidos de Lumen, la relación entre el número de líneas de un pedido y su importe:
+
+| Medida   | Líneas vs importe |
+| -------- | ----------------: |
+| Pearson  |             0,473 |
+| Spearman |             0,625 |
+
+Spearman es bastante mayor: la relación es claramente creciente pero **no lineal** (y el importe tiene
+cola larga, que penaliza a Pearson). Un solo coeficiente no cuenta toda la historia. El caso extremo es el
+cuarteto de Anscombe (1973): cuatro conjuntos de 11 puntos con **exactamente** la misma media de $x$ (9,0),
+media de $y$ (7,5), varianza de $x$ (11,0), correlación (0,816) y recta de regresión ($y = 3{,}0 + 0{,}5x$):
+
+<VegaChart
+  minHeight={380}
+  alt="Cuatro diagramas de dispersión del cuarteto de Anscombe con la misma recta de regresión. El conjunto I es una nube lineal con ruido; el II es una curva; el III es una recta casi perfecta con un valor atípico; el IV tiene todos los valores de x iguales a 8 salvo uno en 19 que determina la recta."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    background: 'transparent',
+    data: {
+      values: [
+        { d: 'I', x: 10.0, y: 8.04 },
+        { d: 'I', x: 8.0, y: 6.95 },
+        { d: 'I', x: 13.0, y: 7.58 },
+        { d: 'I', x: 9.0, y: 8.81 },
+        { d: 'I', x: 11.0, y: 8.33 },
+        { d: 'I', x: 14.0, y: 9.96 },
+        { d: 'I', x: 6.0, y: 7.24 },
+        { d: 'I', x: 4.0, y: 4.26 },
+        { d: 'I', x: 12.0, y: 10.84 },
+        { d: 'I', x: 7.0, y: 4.82 },
+        { d: 'I', x: 5.0, y: 5.68 },
+        { d: 'II', x: 10.0, y: 9.14 },
+        { d: 'II', x: 8.0, y: 8.14 },
+        { d: 'II', x: 13.0, y: 8.74 },
+        { d: 'II', x: 9.0, y: 8.77 },
+        { d: 'II', x: 11.0, y: 9.26 },
+        { d: 'II', x: 14.0, y: 8.1 },
+        { d: 'II', x: 6.0, y: 6.13 },
+        { d: 'II', x: 4.0, y: 3.1 },
+        { d: 'II', x: 12.0, y: 9.13 },
+        { d: 'II', x: 7.0, y: 7.26 },
+        { d: 'II', x: 5.0, y: 4.74 },
+        { d: 'III', x: 10.0, y: 7.46 },
+        { d: 'III', x: 8.0, y: 6.77 },
+        { d: 'III', x: 13.0, y: 12.74 },
+        { d: 'III', x: 9.0, y: 7.11 },
+        { d: 'III', x: 11.0, y: 7.81 },
+        { d: 'III', x: 14.0, y: 8.84 },
+        { d: 'III', x: 6.0, y: 6.08 },
+        { d: 'III', x: 4.0, y: 5.39 },
+        { d: 'III', x: 12.0, y: 8.15 },
+        { d: 'III', x: 7.0, y: 6.42 },
+        { d: 'III', x: 5.0, y: 5.73 },
+        { d: 'IV', x: 8.0, y: 6.58 },
+        { d: 'IV', x: 8.0, y: 5.76 },
+        { d: 'IV', x: 8.0, y: 7.71 },
+        { d: 'IV', x: 8.0, y: 8.84 },
+        { d: 'IV', x: 8.0, y: 8.47 },
+        { d: 'IV', x: 8.0, y: 7.04 },
+        { d: 'IV', x: 8.0, y: 5.25 },
+        { d: 'IV', x: 19.0, y: 12.5 },
+        { d: 'IV', x: 8.0, y: 5.56 },
+        { d: 'IV', x: 8.0, y: 7.91 },
+        { d: 'IV', x: 8.0, y: 6.89 },
+      ],
+    },
+    facet: { field: 'd', type: 'nominal', title: 'Conjunto' },
+    columns: 2,
+    spec: {
+      width: 150,
+      height: 120,
+      layer: [
+        {
+          mark: { type: 'point', filled: true, color: '#4C78A8', size: 60 },
+          encoding: {
+            x: { field: 'x', type: 'quantitative', scale: { domain: [2, 20] } },
+            y: { field: 'y', type: 'quantitative', scale: { domain: [2, 14] } },
+          },
+        },
+        {
+          mark: { type: 'line', color: '#E45756' },
+          transform: [{ regression: 'y', on: 'x' }],
+          encoding: {
+            x: { field: 'x', type: 'quantitative' },
+            y: { field: 'y', type: 'quantitative' },
+          },
+        },
+      ],
+    },
+  }}
+/>
+
+La misma recta y la misma correlación describen una nube lineal (I), una curva (II), una recta casi perfecta
+con un valor atípico (III) y una recta dictada por **un solo punto** (IV). Matejka y Fitzmaurice llevaron la
+idea más lejos con el _Datasaurus Dozen_: doce conjuntos con las mismas medias, desviaciones y correlación
+(hasta dos decimales) y formas tan distintas como un dinosaurio o una estrella. Ambos están en el apartado
+de datos del curso.
+
+<Callout type="tip">
+  Resume con números, pero **dibuja siempre**: tres estadísticos idénticos pueden esconder cuatro
+  historias distintas. Y si una relación depende de un solo punto, mira ese punto.
+</Callout>
+
+### Categórica con numérica: comparar grupos
+
+Se calculan los estadísticos de la medida **por grupo** (media, mediana, dispersión y tamaño de cada
+grupo) y se comparan. Un error típico es descartar «no hay diferencia» como si no fuera un resultado. Lo es.
+
+Ticket medio por segmento de cliente en Lumen (pedidos no cancelados):
+
+| Segmento  | Ticket medio | Pedidos por cliente |
+| --------- | -----------: | ------------------: |
+| nuevo     |      301,9 € |                2,36 |
+| ocasional |      301,4 € |                4,24 |
+| habitual  |      302,0 € |                9,36 |
+| vip       |      301,5 € |               18,69 |
+
+El **ticket medio es prácticamente idéntico** en los cuatro segmentos (301-302 €), pero los clientes VIP
+compran **ocho veces más pedidos** que los nuevos. Lo que distingue a los segmentos no es cuánto gastan por
+pedido, sino **con qué frecuencia compran**. Es un hallazgo útil: si Marketing quiere subir el valor de un
+cliente, la palanca es la frecuencia, no el importe por pedido.
+
+Dos precauciones al comparar grupos: mira el **tamaño** de cada grupo (una media sobre 20 clientes es
+frágil) y la **dispersión** (dos grupos con la misma media pueden ser muy distintos por dentro).
+
+### Categórica con categórica: tablas cruzadas
+
+Con dos categorías se cuenta cuántos casos hay en cada combinación y se expresa como **porcentaje por
+fila** (o por columna, según la pregunta). Reparto de sesiones web por dispositivo en dos regiones de Lumen:
+
+| Región    |  Móvil | Escritorio | Tableta | Sesiones |
+| --------- | -----: | ---------: | ------: | -------: |
+| Madrid    | 85,1 % |     12,7 % |   2,2 % |  149.907 |
+| Andalucía | 14,9 % |     72,3 % |  12,8 % |  180.170 |
+
+Las regiones tienen perfiles de dispositivo **muy distintos**: Madrid es sobre todo móvil y Andalucía,
+escritorio. Una prueba χ² de independencia lo confirma de forma abrumadora, pero con cientos de miles de
+sesiones cualquier diferencia diminuta saldría «significativa»; lo que importa es la **magnitud** (85 % frente
+a 15 %). Esta diferencia de composición es la semilla de un problema serio que verás en la lección
+siguiente: la paradoja de Simpson.
+
+### Segmentar para entender
+
+Una **segmentación** divide a los clientes (o productos, sesiones) en grupos para ver diferencias que el
+promedio esconde. Buenas segmentaciones son:
+
+- **Accionables**: cada segmento sugiere una acción distinta.
+- **Estables**: un cliente no cambia de segmento cada semana.
+- **Comprensibles**: se explican en una frase («compra más de ocho veces al año»).
+- **Pocas**: entre 3 y 6; más no se pueden gestionar.
+
+Se pueden definir por **atributos** (región, canal de alta), por **valor** (gasto acumulado), por
+**comportamiento** (recencia, frecuencia, importe: el clásico RFM) o por **ciclo de vida** (nuevo, activo,
+en riesgo, perdido). Lumen trae una segmentación ya hecha (`nuevo`, `ocasional`, `habitual`, `vip`) que,
+como acabas de ver, se corresponde con la frecuencia de compra.
+
+### Relaciones mecánicas: cuando el dato está construido así
+
+Pregunta de Marketing: ¿los descuentos hacen pedidos más pequeños? Importe medio por nivel de descuento:
+
+| Descuento | Importe medio | Importe medio ÷ (1 − descuento) |
+| --------: | ------------: | ------------------------------: |
+|       0 % |       334,3 € |                         334,3 € |
+|       5 % |       317,8 € |                         334,5 € |
+|      10 % |       303,5 € |                         337,3 € |
+|      15 % |       284,5 € |                         334,7 € |
+|      20 % |       271,4 € |                         339,3 € |
+|      30 % |       240,4 € |                         343,4 € |
+
+La correlación entre descuento e importe del pedido es −0,09: negativa y débil. Leída a la ligera dice
+«los descuentos reducen el pedido». Pero la tercera columna muestra otra cosa: si deshacemos el descuento,
+el importe es **casi constante** (334-343 €), y las líneas por pedido también (2,6 en todos los niveles). Lo que
+ocurre es mecánico: `unit_price` ya viene **con el descuento aplicado**, así que a más descuento, menos
+importe neto _por construcción_. No hay ningún comportamiento detrás. Si quieres saber si los descuentos
+**aumentan la cesta**, esta relación no responde a esa pregunta.
+
+Esto se llama relación **mecánica** (o por definición), y es un primo de la **espuria** (dos variables que
+se mueven juntas por una tercera) y de la **causal** (una cambia la otra). Antes de interpretar, pregunta:
+
+1. ¿Cómo se ha construido cada variable? ¿Una incluye a la otra?
+2. ¿Hay una tercera variable que mueva a ambas (tiempo, región, estacionalidad)?
+3. ¿Puede ser al revés (la causa está en B y el efecto en A)?
+4. ¿Es casualidad (pocos datos o muchas comparaciones)?
+
+Correlación no es causalidad, pero tampoco la descarta: es un indicio que hay que contrastar con un
+diseño adecuado (experimento, modelo causal), cosa de los módulos de experimentación y causalidad.
+
+## En la práctica
+
+Las tres piezas del análisis bivariante en pandas:
+
+```python
+# 1. Dos numéricas
+v["lineas"].corr(v["total"])                       # Pearson: 0.473
+v["lineas"].corr(v["total"], method="spearman")    # Spearman: 0.625
+
+# 2. Categórica con numérica
+v.groupby("segment")["total"].agg(["size", "mean", "median"]).round(1)
+
+# 3. Categórica con categórica (porcentajes por fila)
+pd.crosstab(ses["region"], ses["device"], normalize="index").round(3)
+```
+
+Y para contrastar la independencia en la tabla cruzada:
+
+```python
+from scipy.stats import chi2_contingency
+
+chi2, p, gl, esperado = chi2_contingency(pd.crosstab(ses["region"], ses["device"]))
+```
+
+En el lab de esta lección calculas correlaciones y estadísticos por grupo y detectas la relación mecánica
+descuento-importe.
+
+## Trade-offs y cuándo usarlo
+
+- **Pearson o Spearman**: Pearson si la relación es lineal y no hay extremos; Spearman si es monótona o hay
+  extremos. En la duda, calcula las dos: si difieren mucho, mira el gráfico.
+- **Media o mediana por grupo**: con colas largas, la mediana; y siempre el tamaño del grupo.
+- **χ² y tamaño de muestra**: con muestras enormes todo es «significativo»; fíjate en la magnitud del
+  efecto y en la composición, no solo en el p-valor.
+- **Segmentos propios o estándar**: reutilizar la segmentación de la empresa facilita la comunicación;
+  crear una propia aporta si responde a la pregunta.
+
+## Errores comunes
+
+- **Calcular la correlación sin dibujar** la dispersión (Anscombe).
+- **Interpretar una correlación como causa** sin pensar en terceras variables ni en cómo se construyen los datos.
+- **Comparar medias de grupos con tamaños muy distintos** sin mostrarlos.
+- **Concluir «no hay diferencia» demasiado pronto**, o no reconocer que «no hay diferencia» también es un hallazgo.
+- **Crear demasiados segmentos** que nadie puede gestionar.
+- **Mirar solo el promedio global** (esto lleva directo a la paradoja de Simpson).
+
+## Con IA
+
+Un asistente calcula correlaciones y tablas en segundos y redacta interpretaciones plausibles que a menudo
+son demasiado causales («el descuento reduce el importe»). Pídele que liste, para cada relación,
+**explicaciones alternativas** (mecánica, tercera variable, causalidad inversa, azar) y que diga qué datos
+las distinguirían. No aceptes un coeficiente sin el gráfico que lo acompaña ni una afirmación sin su cifra y su
+código.
+
+## En una entrevista
+
+- _"Dos variables tienen correlación 0,9. ¿Puedes decir que una causa la otra?"_ — Pista: no; terceras
+  variables, causalidad inversa, relación mecánica, azar; hace falta un diseño causal.
+- _"¿Qué diferencia hay entre Pearson y Spearman y cuándo usas cada una?"_ — Pista: lineal frente a
+  monótona; rangos; robustez a extremos.
+- _"Los clientes VIP tienen el mismo ticket medio que los nuevos. ¿Es un resultado inútil?"_ — Pista: no;
+  la diferencia está en la frecuencia, y eso orienta las acciones.
+
+<KeyTakeaways
+  items={[
+    'La herramienta bivariante depende del tipo de cada variable: correlación (num-num), estadísticos por grupo (cat-num) y tablas cruzadas con porcentajes (cat-cat).',
+    'Pearson mide relación lineal y Spearman monótona; en líneas vs importe valen 0,47 y 0,63. Un coeficiente nunca sustituye al gráfico: el cuarteto de Anscombe tiene el mismo r = 0,816 en cuatro historias distintas.',
+    'En Lumen el ticket medio es igual en todos los segmentos (≈ 301-302 €) y lo que cambia es la frecuencia (2,4 a 18,7 pedidos por cliente): «no hay diferencia» también es un hallazgo.',
+    'Descuento e importe correlacionan −0,09 por construcción (el precio ya incluye el descuento): antes de interpretar una relación, pregunta cómo se ha construido cada variable.',
+    'Correlación no es causalidad: descarta relación mecánica, tercera variable, causalidad inversa y azar antes de hablar de efecto.',
+  ]}
+/>

@@ -79,9 +79,9 @@ Pendiente menor: job de CI que regenere el dataset y compare `data-gen/checksums
 
 ## F6 — en curso (Contenido Partes 0-II, M00-M12)
 
-Estado: **M04 ✅, M05 ✅ (5 lecciones, 8 labs), M06 ✅ (3 lecciones, lab SCD2), M07 ✅ (4 lecciones, 3 labs nuevos), M08 ✅ (4 lecciones, 4 labs sobre `lumen_raw`)**. Pendientes: M09, M00-M02, M10-M12, M03.
+Estado: **M04 ✅, M05 ✅ (5 lecciones, 8 labs), M06 ✅ (3 lecciones, lab SCD2), M07 ✅ (4 lecciones, 3 labs nuevos), M08 ✅ (4 lecciones, 4 labs sobre `lumen_raw`), M09 ✅ (4 lecciones, 3 labs Python + 1 SQL, widget `SimpsonExplorer`, primer uso de `VegaChart` con tema claro/oscuro)**. Pendientes: M00-M02, M10-M12, M03.
 
-PLAN §7.1. Por módulo: 3-5 lecciones (estructura de `docs/CONTENT_GUIDELINES.md`), quizzes (6+ preguntas/lección), labs, libros Excel (`scripts/build-workbooks.py`, openpyxl), widgets (JoinVisualizer, WindowFrameVisualizer, ChartChooser, DistributionExplorer, SimpsonExplorer...). Contenido `volatility: high` (M03 IA en Excel, M07 pandas 3/Polars 2.0, M11 Power BI/Tableau): **verificar con búsqueda web antes de escribir** y usar `<Snapshot>`. Orden: M09 → M00-M02 → M10-M12 → M03.
+PLAN §7.1. Por módulo: 3-5 lecciones (estructura de `docs/CONTENT_GUIDELINES.md`), quizzes (6+ preguntas/lección), labs, libros Excel (`scripts/build-workbooks.py`, openpyxl), widgets (JoinVisualizer, WindowFrameVisualizer, ChartChooser, DistributionExplorer, SimpsonExplorer...). Contenido `volatility: high` (M03 IA en Excel, M07 pandas 3/Polars 2.0, M11 Power BI/Tableau): **verificar con búsqueda web antes de escribir** y usar `<Snapshot>`. Orden: M00-M02 → M10-M12 → M03.
 
 **Corrección del dataset (2026-10-08)**: detectado un artefacto del generador (7.094 pedidos apilados el 30-jun-2026, 10× un día normal, por recortar con `np.minimum` los pedidos relocalizados tras el alta). Ahora se descartan al final de `build_lumen` (con líneas, envíos y devoluciones) sin alterar el resto del azar: solo cambia junio-2026. `orders` pasa de 400.000 a **392.906** filas, `order_items` 1.014.555, `shipments` 365.198. Se actualizaron las cifras de SQL I/II y M07, `docs/DATASET.md` y `data-gen/checksums.json`. Los CSV se escriben ahora con `
 ` (checksums idénticos en Windows y Linux). **Al escribir contenido nuevo, usar siempre cifras recalculadas con el dataset actual.**

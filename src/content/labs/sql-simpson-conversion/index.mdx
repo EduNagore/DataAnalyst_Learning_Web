@@ -1,0 +1,28 @@
+---
+title: 'Conversión por dispositivo: ¿móvil o escritorio? (paradoja de Simpson)'
+description: 'Compara la conversión de móvil y escritorio en dos regiones, primero en agregado y después por región, y comprueba que el orden se invierte.'
+language: sql
+part: 'Parte I · Herramientas núcleo'
+module: eda
+difficulty: 3
+estimatedMinutes: 25
+concepts: ['paradoja de Simpson', 'GROUPING SETS', 'tasa de conversión', 'variable de confusión']
+datasets: ['web_sessions', 'events']
+hints:
+  - "Una sesión «convierte» si tiene algún evento `purchase`. Obtén los compradores con `SELECT DISTINCT session_id FROM events WHERE event_type = 'purchase'` y únelos a las sesiones con un `LEFT JOIN`: así no cuentas eventos duplicados."
+  - "Filtra `region IN ('Madrid', 'Andalucía')` y `device IN ('mobile', 'desktop')`."
+  - "Con `GROUP BY GROUPING SETS ((region, device), (device))` obtienes en una sola consulta el desglose por región y el agregado; en las filas agregadas `region` es `NULL`: usa `COALESCE(region, 'Ambas')`."
+  - 'La conversión es `ROUND(100.0 * SUM(compra) / COUNT(*), 1)`.'
+output: table
+relatedLessons: ['eda/03-paradoja-de-simpson']
+businessQuestion: '¿Qué dispositivo convierte mejor: móvil o escritorio, y cambia la respuesta según miremos el total o cada región?'
+---
+
+Producto afirma: «El móvil convierte mejor que el escritorio». Compruébalo en las dos regiones con más
+contraste de Lumen, **Madrid** y **Andalucía**, solo para móvil (`mobile`) y escritorio (`desktop`).
+
+El _starter_ calcula la conversión **agregada** de las dos regiones. Amplíalo para obtener también el
+desglose por región.
+
+**Formato del resultado:** una fila por región y dispositivo con `region` (`Madrid`, `Andalucía` y `Ambas`
+para el agregado), `device`, `sesiones`, `compras` (sesiones con compra) y `conversion_pct` (1 decimal).

@@ -1,0 +1,75 @@
+lesson: eda/03-paradoja-de-simpson
+questions:
+  - id: eda1-03-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué es la paradoja de Simpson?'
+    options:
+      - 'Un error de cálculo al sumar tasas'
+      - 'Una comparación entre grupos que se invierte al separar (o agregar) por una tercera variable, porque los grupos tienen composiciones distintas'
+      - 'Que las medias siempre son mayores que las medianas'
+      - 'Un tipo de sesgo de supervivencia'
+    answer: [1]
+    explanation: 'Todas las cifras son correctas: lo que cambia es la pregunta que responde cada tabla. La causa es que los grupos se reparten de forma distinta entre los estratos (la composición).'
+    ref: '#intuición'
+
+  - id: eda1-03-q2
+    type: single
+    difficulty: 2
+    prompt: 'En Lumen, el móvil convierte un 6,2 % frente al 3,8 % del escritorio (Madrid + Andalucía). En Madrid, 7,2 % frente a 12,0 %; en Andalucía, 1,7 % frente a 2,5 %. ¿Qué explica la inversión?'
+    options:
+      - 'El escritorio es mejor en agregado'
+      - 'El 82,6 % de las sesiones móviles viene de Madrid (donde se convierte mucho), frente al 12,7 % de las de escritorio: la región confunde la comparación'
+      - 'Hay un error en los datos de Andalucía'
+      - 'El móvil tiene más sesiones'
+    answer: [1]
+    explanation: 'La tasa agregada es una media ponderada por la mezcla de regiones de cada dispositivo. El móvil se concentra en la región de alta conversión y por eso su media sale mayor aunque pierda en cada región.'
+    ref: '#por-qué-ocurre-la-mezcla'
+
+  - id: eda1-03-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'Calcula la conversión agregada del móvil con sus pesos: 82,6 % de sesiones en Madrid (conversión 7,2 %) y 17,4 % en Andalucía (1,7 %). Redondea a un decimal.'
+    answer: [6.2]
+    tolerance: 0.06
+    explanation: '0,826 × 7,2 + 0,174 × 1,7 = 5,947 + 0,296 = 6,24 %, es decir, 6,2 %. Es el promedio ponderado por la mezcla de cada grupo.'
+    ref: '#por-qué-ocurre-la-mezcla'
+
+  - id: eda1-03-q4
+    type: single
+    difficulty: 2
+    prompt: '¿Qué hace la estandarización?'
+    options:
+      - 'Elimina los estratos pequeños'
+      - 'Calcula las tasas de todos los grupos con la misma mezcla de estratos para quitar el efecto de la composición'
+      - 'Convierte las tasas en porcentajes'
+      - 'Resta la media a cada tasa'
+    answer: [1]
+    explanation: 'Se aplica una mezcla común (por ejemplo, la de la población total) a las tasas de cada grupo. Así la diferencia que queda no se debe a que los grupos se reparten de forma distinta entre los estratos.'
+    ref: '#una-comparación-justa-estandarizar'
+
+  - id: eda1-03-q5
+    type: single
+    difficulty: 3
+    prompt: 'Quieres saber si un nuevo diseño de la página de pago aumenta la compra. La variable «nº de páginas vistas antes de pagar» cambia por el propio diseño. Si separas por esa variable, ¿qué ocurre?'
+    options:
+      - 'Siempre es lo correcto: más desglose, más verdad'
+      - 'Puedes eliminar parte del efecto que quieres medir, porque esa variable es una consecuencia del diseño (mediador), no un confusor'
+      - 'No cambia nada'
+      - 'Se arregla con más datos'
+    answer: [1]
+    explanation: 'Separar por una consecuencia del tratamiento sesga la estimación del efecto total. Decidir si hay que mirar el agregado o los estratos depende de la historia causal, no de una regla estadística.'
+    ref: '#qué-cifra-es-la-buena'
+
+  - id: eda1-03-q6
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las prácticas que ayudan a detectar o evitar un error por la paradoja de Simpson.'
+    options:
+      - 'Desglosar las comparaciones clave por variables que puedan confundir (región, canal, cohorte)'
+      - 'Mirar el tamaño de cada grupo en cada estrato (la composición)'
+      - 'Comparar solo tasas agregadas porque son más sencillas'
+      - 'Asignar el grupo al azar (experimento) cuando sea posible'
+    answer: [0, 1, 3]
+    explanation: 'Desglosar, revisar la composición y, si se puede, aleatorizar son las defensas. Quedarse solo con la tasa agregada es justo lo que permite que el error pase inadvertido.'
+    ref: '#cómo-detectarla'

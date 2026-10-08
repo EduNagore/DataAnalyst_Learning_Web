@@ -1,0 +1,37 @@
+---
+title: 'EDA univariante: resumen numérico, Pareto y semana'
+description: 'Construye las tres herramientas básicas de un EDA: un resumen de una variable numérica, una curva de concentración (Pareto) y el patrón semanal de una serie.'
+language: python
+part: 'Parte I · Herramientas núcleo'
+module: eda
+difficulty: 2
+estimatedMinutes: 30
+concepts: ['mediana y percentiles', 'asimetría', 'curva de Pareto', 'estacionalidad semanal']
+datasets: ['orders', 'order_items']
+packages: []
+output: console
+hints:
+  - 'Para `resumen_numerico`, `x.quantile(0.10)` da el percentil 10 y `x.skew()` la asimetría. Redondea las medidas a 1 decimal y la asimetría a 2.'
+  - 'Pareto: ordena de mayor a menor (`sort_values(ascending=False)`), toma las primeras `int(len(x) * f)` filas y divide su suma entre la suma total; el resultado es un porcentaje con 1 decimal.'
+  - 'Patrón semanal: `fechas.dt.dayofweek` va de 0 (lunes) a 6 (domingo). Cuenta pedidos por día de la semana y divide entre el número de **fechas distintas** de ese día de la semana.'
+  - 'Devuelve exactamente las claves y los índices que se piden; los tests comparan con tolerancia pequeña.'
+relatedLessons: ['eda/01-preguntas-y-analisis-univariante']
+businessQuestion: '¿Cómo es un pedido típico, cuánto se concentra el ingreso en pocos clientes y qué días de la semana se vende más?'
+---
+
+En el _starter_ tienes tres series de Lumen (pedidos no cancelados):
+
+- `importes`: el importe de cada pedido,
+- `gasto_por_cliente`: el gasto total de cada cliente con alguna compra,
+- `fechas_2025`: la fecha de cada pedido de 2025.
+
+Implementa tres funciones:
+
+1. **`resumen_numerico(x)`** → diccionario con `n`, `media`, `mediana`, `p10`, `p90`, `p99` (a 1 decimal) y
+   `asimetria` (a 2 decimales).
+2. **`concentracion_pareto(x, fracciones=(0.01, 0.10, 0.20))`** → diccionario `{fracción: % del total que suma
+esa fracción de mayores valores}`, con 1 decimal.
+3. **`pedidos_por_dia_semana(fechas)`** → Serie con índice 0-6 (lunes-domingo) y el **número medio de pedidos
+   por día** de cada día de la semana, redondeado al entero.
+
+Compara luego `media` y `mediana` del importe: ¿qué te dice la diferencia?

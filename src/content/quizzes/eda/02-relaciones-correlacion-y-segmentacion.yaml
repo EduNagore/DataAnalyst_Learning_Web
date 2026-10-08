@@ -1,0 +1,80 @@
+lesson: eda/02-relaciones-correlacion-y-segmentacion
+questions:
+  - id: eda1-02-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué herramienta es la más adecuada para comparar una variable categórica (segmento) con una numérica (importe del pedido)?'
+    options:
+      - 'Una correlación de Pearson'
+      - 'Estadísticos de la medida por grupo (tamaño, media, mediana, dispersión)'
+      - 'Una tabla cruzada con porcentajes'
+      - 'Un χ² de independencia'
+    answer: [1]
+    explanation: 'Con una categórica y una numérica se comparan los estadísticos de la medida en cada grupo. Pearson es para dos numéricas y la tabla cruzada con χ² para dos categóricas.'
+    ref: '#intuición'
+
+  - id: eda1-02-q2
+    type: single
+    difficulty: 2
+    prompt: 'Líneas por pedido e importe tienen Pearson 0,473 y Spearman 0,625. ¿Qué indica que Spearman sea mayor?'
+    options:
+      - 'Que hay un error de cálculo'
+      - 'Que la relación es creciente pero no lineal (y/o hay extremos que penalizan a Pearson)'
+      - 'Que no hay relación'
+      - 'Que la relación es causal'
+    answer: [1]
+    explanation: 'Spearman mide relación monótona (con rangos) y es robusta a extremos. Si es mayor que Pearson, la relación crece pero no en línea recta. Conviene mirar el gráfico.'
+    ref: '#numérica-con-numérica-correlación'
+
+  - id: eda1-02-q3
+    type: single
+    difficulty: 2
+    prompt: 'El cuarteto de Anscombe tiene cuatro conjuntos con la misma media, varianza, correlación (0,816) y recta de regresión. ¿Qué enseña?'
+    options:
+      - 'Que los estadísticos resumen siempre bien los datos'
+      - 'Que conjuntos con los mismos estadísticos pueden tener formas muy distintas: hay que dibujar antes de fiarse del resumen'
+      - 'Que la correlación 0,816 es la correcta'
+      - 'Que hay que usar siempre Spearman'
+    answer: [1]
+    explanation: 'Una línea recta, una curva, un valor atípico y un punto dominante producen el mismo r. Los resúmenes numéricos ocultan la forma; el gráfico la enseña.'
+    ref: '#numérica-con-numérica-correlación'
+
+  - id: eda1-02-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'En Lumen el ticket medio es ≈ 301-302 € en los cuatro segmentos, pero los VIP compran 18,7 pedidos por cliente frente a 2,4 de los nuevos. Selecciona TODAS las conclusiones correctas.'
+    options:
+      - 'Los segmentos se distinguen por la frecuencia de compra, no por el importe por pedido'
+      - '«No hay diferencia en el ticket medio» también es un hallazgo útil'
+      - 'Para aumentar el valor de un cliente nuevo, la palanca principal es que compre con más frecuencia'
+      - 'Los VIP gastan más en cada pedido'
+    answer: [0, 1, 2]
+    explanation: 'El valor por cliente de cada segmento viene de la frecuencia, no del importe por pedido. La última afirmación es falsa: el ticket medio es prácticamente el mismo.'
+    ref: '#categórica-con-numérica-comparar-grupos'
+
+  - id: eda1-02-q5
+    type: single
+    difficulty: 3
+    prompt: 'La correlación entre descuento e importe del pedido es −0,09. Al dividir el importe medio entre (1 − descuento) sale casi constante (334-343 €). ¿Cómo se interpreta?'
+    options:
+      - 'Los descuentos reducen el tamaño de la cesta'
+      - 'La relación es mecánica: unit_price ya incluye el descuento, así que el importe neto baja por construcción; no dice nada sobre si los descuentos cambian el comportamiento'
+      - 'Los descuentos aumentan las ventas'
+      - 'La correlación está mal calculada'
+    answer: [1]
+    explanation: 'Si el precio ya viene con descuento, el importe neto baja con él por definición. El importe bruto constante (y las ~2,6 líneas por pedido en todos los niveles) muestra que la cesta no cambia. Para saber si un descuento aumenta las compras hay que diseñar un experimento.'
+    ref: '#relaciones-mecánicas-cuando-el-dato-está-construido-así'
+
+  - id: eda1-02-q6
+    type: multiple
+    difficulty: 2
+    prompt: 'Antes de interpretar una correlación como efecto causal, ¿qué alternativas hay que considerar? Selecciona TODAS.'
+    options:
+      - 'Una relación mecánica o por definición entre las variables'
+      - 'Una tercera variable que mueve a las dos'
+      - 'Causalidad inversa (B causa A)'
+      - 'Casualidad, por pocos datos o muchas comparaciones'
+      - 'Que el coeficiente de correlación sea mayor que 0,5, porque eso ya prueba la causalidad'
+    answer: [0, 1, 2, 3]
+    explanation: 'Las cuatro primeras son explicaciones alternativas habituales; la última es falsa, porque ningún valor de r prueba causalidad. Correlación no es causalidad, pero tampoco la descarta: es un indicio que se contrasta con un diseño adecuado (experimento o modelo causal).'
+    ref: '#relaciones-mecánicas-cuando-el-dato-está-construido-así'

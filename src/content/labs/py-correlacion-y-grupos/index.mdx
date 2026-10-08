@@ -1,0 +1,32 @@
+---
+title: 'Correlación, grupos y una relación mecánica'
+description: 'Calcula Pearson y Spearman, compara el ticket por segmento y descubre que la relación entre descuento e importe es una consecuencia de cómo se construye el precio.'
+language: python
+part: 'Parte I · Herramientas núcleo'
+module: eda
+difficulty: 2
+estimatedMinutes: 30
+concepts: ['Pearson y Spearman', 'estadísticos por grupo', 'relación mecánica', 'tercera variable']
+datasets: ['orders', 'order_items', 'customers']
+packages: ['scipy']
+output: console
+hints:
+  - 'Pearson es `a.corr(b)` y Spearman `a.corr(b, method="spearman")`; redondea a 3 decimales.'
+  - 'Para `resumen_por_grupo`, agrupa por la columna de grupo y calcula `n` (tamaño), `media` y `mediana` de la medida; redondea a 1 decimal y devuelve una fila por grupo con la columna del grupo, ordenada por ella.'
+  - 'Para el descuento: agrupa los pedidos por `discount_pct`, calcula el importe medio y el «importe bruto» dividiendo por `(1 - descuento)`. Si el bruto es casi constante, la relación es mecánica.'
+  - 'El importe de un pedido es la suma de `quantity * unit_price` de sus líneas (`unit_price` ya tiene el descuento aplicado). Excluye los pedidos cancelados.'
+relatedLessons: ['eda/02-relaciones-correlacion-y-segmentacion']
+businessQuestion: '¿Los descuentos hacen pedidos más pequeños, o solo lo parece porque el precio ya incluye el descuento?'
+---
+
+En el _starter_ tienes `pedidos`: una fila por pedido no cancelado con `order_id`, `customer_id`, `segment`,
+`discount_pct`, `lineas` (nº de líneas) e `importe` (suma neta de sus líneas). Implementa:
+
+1. **`correlaciones(df, a, b)`** → `{"pearson": ..., "spearman": ...}` entre dos columnas, con 3 decimales.
+2. **`resumen_por_grupo(df, grupo, medida)`** → DataFrame con las columnas `grupo` (con el nombre de esa
+   columna), `n`, `media` y `mediana` (1 decimal), ordenado por el grupo.
+3. **`importe_bruto_por_descuento(df)`** → DataFrame con `discount_pct`, `pedidos`, `importe_medio` y
+   `importe_bruto_medio` (importe medio ÷ (1 − descuento)), ambos con 1 decimal, ordenado por descuento.
+
+Después responde: ¿el importe bruto cambia con el descuento? ¿Qué dice eso de la relación negativa
+(−0,09) entre descuento e importe?

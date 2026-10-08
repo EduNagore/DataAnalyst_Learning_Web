@@ -1,0 +1,236 @@
+---
+title: 'Sesgos, regresión a la media y tasa base'
+description: 'Cuatro trampas que hacen que un EDA correcto cuente una historia equivocada: supervivencia, selección, regresión a la media y tasa base.'
+module: eda
+order: 4
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Reconocer sesgos de supervivencia y de selección y estimar cuánto distorsionan una cifra.'
+  - 'Explicar la regresión a la media y evitar atribuir a una intervención lo que habría pasado igualmente.'
+  - 'Razonar con tasas base y calcular la precisión real de una alerta (valor predictivo positivo).'
+  - 'Cerrar un EDA con un informe reproducible que separa hallazgos, límites y siguientes pasos.'
+prerequisites: ['eda/03-paradoja-de-simpson']
+tools: ['pandas']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Regression Towards Mediocrity in Hereditary Stature (Francis Galton, 1886)'
+    url: 'https://galton.org/essays/1880-1889/galton-1886-jaigi-regression-stature.pdf'
+    type: paper
+    authors: 'Galton, F.'
+    year: 1886
+  - title: "Stanford Encyclopedia of Philosophy — Bayes' Theorem"
+    url: 'https://plato.stanford.edu/entries/bayes-theorem/'
+    type: docs
+    authors: 'Joyce, J.'
+    year: 2019
+  - title: 'Survivorship bias (Wikipedia)'
+    url: 'https://en.wikipedia.org/wiki/Survivorship_bias'
+    type: docs
+    authors: 'Wikipedia contributors'
+    year: 2026
+relatedLabs: ['py-sesgos-y-tasa-base']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  CRM propone una campaña de fidelización para el 10 % de clientes que más gastó el primer semestre
+  de 2025. Seis meses después, ese grupo gasta mucho menos y alguien concluye que la campaña "no
+  funciona". Otro analista dice que sus clientes con más de dos años son "los más valiosos" y quiere
+  captar más clientes con su perfil. Los dos están pisando el mismo tipo de trampa.
+</BusinessContext>
+
+Hasta ahora hemos visto problemas de **cálculo** (calidad de datos) y de **comparación** (Simpson). Esta
+lección trata de problemas de **selección**: qué datos llegan a tu análisis y por qué. Son los más
+traicioneros porque la cifra está bien calculada; lo que está mal es **a quién se ha medido**.
+
+## Intuición
+
+Un análisis responde solo por los datos que tiene. Si esos datos son un subconjunto con una
+característica oculta (los que sobreviven, los que responden, los que destacaron), la conclusión
+describe al subconjunto, no a la población. La pregunta antes de interpretar cualquier cifra es:
+**«¿cómo ha llegado cada fila a esta tabla?»**.
+
+## Cómo funciona
+
+### Sesgo de supervivencia
+
+El **sesgo de supervivencia** (_survivorship bias_) aparece cuando analizas solo lo que «sobrevivió» a un
+filtro y olvidas lo que se perdió. El ejemplo clásico: en la Segunda Guerra Mundial se pensó en reforzar las
+zonas de los aviones con más impactos de bala, hasta que Abraham Wald señaló que esos eran los aviones
+que **volvieron**: los impactos en otras zonas eran los de los que no regresaron.
+
+En Lumen: ¿cuánto vale un cliente captado en 2023 o 2024? Gasto en 2025 de los 26.859 clientes dados de
+alta en esos dos años:
+
+| Cohorte de alta | Clientes captados | Compraron en 2025 | Gasto por cliente activo | Gasto por cliente captado |
+| --------------- | ----------------: | ----------------: | -----------------------: | ------------------------: |
+| 2023            |            11.039 |             8.083 |                    792 € |                     580 € |
+| 2024            |            15.820 |            11.798 |                    853 € |                     636 € |
+| **Total**       |        **26.859** |        **19.881** |                **828 €** |                 **613 €** |
+
+Mirar solo a los **activos** da 828 € por cliente; el valor real de un cliente captado es **613 €**: un
+26 % menos (dicho al revés, la cifra de activos lo sobrestima un 35 %). Los 6.978 clientes que no volvieron a comprar en 2025 (el 26 %) no aparecen en la
+«media de los clientes activos». Si usas 828 € para calcular cuánto puedes pagar por captar un cliente,
+pagarás de más.
+
+Regla práctica: cuando calcules una media «por cliente», pregunta **por cuál denominador**: ¿todos los captados o
+solo los que siguen activos? Las cohortes evitan el sesgo porque fijan el denominador al principio.
+
+### Sesgo de selección
+
+El **sesgo de selección** ocurre cuando los datos disponibles no son una muestra representativa de lo que
+quieres estudiar porque algo decidió quién entra. Casos típicos en una empresa:
+
+- **Encuestas de satisfacción**: responden los muy contentos y los muy enfadados.
+- **Clientes que contactan con soporte**: no representan a todos los clientes, solo a los que tuvieron un
+  problema (y se atrevieron a contarlo).
+- **Quien acepta el consentimiento de marketing**: puede diferir del resto en comportamiento.
+- **Un experimento donde los participantes se autoseleccionan**: la diferencia entre grupos puede venir de
+  quién eligió cada rama y no del tratamiento.
+
+Es el primo del mecanismo de ausencia MNAR de la lección de calidad: cuando **entrar en los datos** depende de
+lo que quieres medir, la cifra se desplaza y no se arregla con más filas. La defensa es preguntar por el proceso
+que genera los datos, comparar con una fuente que no tenga ese filtro y, mejor, **aleatorizar**.
+
+### Regresión a la media
+
+La **regresión a la media** (Galton, 1886) es un fenómeno estadístico: si seleccionas a los que tuvieron un
+valor extremo en una medición y los vuelves a medir, su segundo valor tiende a estar **más cerca de la
+media**, aunque no hayas hecho nada. Ocurre siempre que la relación entre las dos mediciones es imperfecta
+(correlación menor que 1): parte del valor extremo era suerte.
+
+En Lumen, clientes con alguna compra en el primer semestre de 2025 (22.804):
+
+| Grupo                              | Clientes | Gasto 1.er semestre | Gasto 2.º semestre |
+| ---------------------------------- | -------: | ------------------: | -----------------: |
+| 10 % que más gastó en el 1.er sem. |    2.281 |             3.577 € |              633 € |
+| Resto                              |   20.523 |               599 € |              370 € |
+
+Los «mejores» clientes del primer semestre gastan en el segundo un **82 % menos**, y el resto un 38 % menos.
+La correlación entre el gasto de los dos semestres es solo **0,15**: el gasto de un cliente en un periodo
+predice poco el del siguiente. No hace falta imaginar que el cliente se desencanta; basta con que gran parte de
+la «magnitud» del primer semestre fuera azar.
+
+<Callout type="warning">
+  En Lumen (datos sintéticos) el comportamiento por cliente es poco persistente, lo que exagera el
+  efecto. En un negocio real la correlación entre periodos suele ser mayor y la regresión más suave,
+  pero **existe siempre que la correlación sea menor que 1**.
+</Callout>
+
+Esto afecta directamente a las **intervenciones**: si lanzas una campaña al 10 % que más gastó y comparas su
+gasto antes y después, verás una caída incluso si la campaña funciona. Y al revés: si eliges a los peores
+(tiendas con menos ventas, clientes con peor satisfacción) y los «mejoras», mejorarán un poco por pura
+regresión. La defensa es siempre un **grupo de control** seleccionado igual (por ejemplo, dividir al azar
+el 10 % más gastador en dos mitades, una con campaña y otra sin).
+
+### Tasa base
+
+La **tasa base** (_base rate_) es la frecuencia de un suceso en la población. Ignorarla lleva a sobrestimar
+la fiabilidad de una alerta cuando el suceso es poco frecuente.
+
+En Lumen, el 6,26 % de los pedidos no cancelados termina con una devolución parcial. Un modelo detecta
+el 80 % de los pedidos que se devolverán (_sensibilidad_) y acierta el 90 % de los que no (_especificidad_). Sobre
+10.000 pedidos:
+
+| Resultado                          | Pedidos |
+| ---------------------------------- | ------: |
+| Se devolverán (6,26 %)             |     626 |
+| ...y la alerta salta (80 %)        |     501 |
+| No se devolverán                   |   9.374 |
+| ...y la alerta salta (10 % falsos) |     937 |
+
+La alerta salta en 1.438 pedidos y solo 501 son devoluciones reales: **precisión del 34,8 %**. Por cada alerta
+acertada hay 1,87 falsas. El modelo parece bueno (80 % y 90 %) pero **dos de cada tres alertas son falsas**
+porque el suceso es poco frecuente. Fórmula (teorema de Bayes):
+
+$$
+\text{precisión} = \frac{s\cdot p}{s\cdot p + (1-e)(1-p)}
+$$
+
+con $s$ sensibilidad, $e$ especificidad y $p$ tasa base. Si el coste de una falsa alarma es alto (llamar a
+un cliente, bloquear un pedido), esta cifra decide si el modelo sirve, no la sensibilidad.
+
+## En la práctica
+
+Cierra un EDA con un informe que cualquiera pueda reejecutar. Estructura mínima:
+
+1. **Pregunta y decisión** que motivan el análisis.
+2. **Datos**: fuente, grano, periodo, filtros y **cómo llegó cada fila** (¿quién queda fuera?).
+3. **Calidad**: qué se encontró y qué se hizo (con la cifra de control).
+4. **Hallazgos**: lista corta, cada uno con su cifra, su gráfico y el código que la produce.
+5. **Límites**: sesgos posibles (supervivencia, selección, confusión, regresión) y qué no se puede concluir.
+6. **Siguientes pasos**: análisis formal, experimento o dato adicional que haría falta.
+
+Las tres comprobaciones de esta lección, en pandas:
+
+```python
+# Supervivencia: denominador captados frente a activos
+cohortes.groupby("anio").apply(lambda g: pd.Series({
+    "por_activo": g["gasto"].sum() / g["activo"].sum(),
+    "por_captado": g["gasto"].sum() / len(g),
+}))
+
+# Regresión a la media: ¿qué hace el 10 % superior en el periodo siguiente?
+top = h1 >= h1.quantile(0.9)
+h2[top].mean() / h1[top].mean()          # 0.18 en Lumen
+
+# Tasa base: precisión de una alerta
+s, e, p = 0.80, 0.90, 0.0626
+precision = s * p / (s * p + (1 - e) * (1 - p))     # 0.348
+```
+
+En el lab de esta lección implementas las tres y comparas los resultados con los de la lección.
+
+## Trade-offs y cuándo usarlo
+
+- **Cohortes frente a «clientes activos»**: las cohortes miden mejor el valor, pero tardan en madurar;
+  los clientes activos son inmediatos y sesgados. Usa cohortes para decisiones de inversión.
+- **Grupo de control**: la única defensa limpia frente a regresión a la media y selección. Cuesta
+  tiempo y a veces dinero, pero evita conclusiones falsas.
+- **Tasas base** cambian con el tiempo y el segmento: recalcula la precisión de un modelo con la tasa base del
+  momento y del grupo donde se va a usar.
+- **Más datos no arreglan el sesgo**: un millón de filas seleccionadas con el mismo criterio dan una
+  cifra muy precisa y equivocada.
+
+## Errores comunes
+
+- **Calcular valor por cliente solo sobre los activos.**
+- **Medir una intervención antes y después sobre un grupo elegido por ser extremo** y atribuir el cambio al tratamiento.
+- **Ignorar quién respondió / quién contactó / quién consintió.**
+- **Juzgar un modelo por su sensibilidad y su especificidad** sin la tasa base.
+- **Creer que más datos corrigen un sesgo de selección.**
+- **Dejar los límites del análisis para «luego»**: los sesgos posibles son parte del resultado.
+
+## Con IA
+
+Un asistente genera con fluidez comparaciones «antes y después» y medias «por cliente» sin preguntar cómo se
+formó el grupo. Cuando le pidas un análisis, dile **cómo se seleccionó cada grupo** y pídele que liste
+los sesgos posibles y proponga un grupo de control. Para modelos de alerta, pídele siempre la
+**precisión con la tasa base real**, no solo la sensibilidad. Un texto muy convincente sobre «por qué
+mejoraron los peores clientes» merece la sospecha de que sea regresión a la media.
+
+## En una entrevista
+
+- _"Lanzamos una campaña a los clientes que más gastaron y su gasto bajó. ¿La campaña no funciona?"_ —
+  Pista: regresión a la media; hace falta un grupo de control seleccionado igual.
+- _"Tu modelo de detección de fraude tiene un 95 % de sensibilidad y un 95 % de especificidad. ¿Es bueno?"_ —
+  Pista: depende de la tasa base; calcular la precisión con Bayes.
+- _"Calculas el valor medio de los clientes con más de dos años de antigüedad: 828 €. ¿Qué problema ve un revisor?"_ —
+  Pista: sesgo de supervivencia; denominador de captados.
+
+<KeyTakeaways
+  items={[
+    'Pregunta siempre cómo ha llegado cada fila a tu tabla: supervivencia y selección son errores de quién se mide, no de cómo se calcula.',
+    'Gasto por cliente activo (828 €) frente a por cliente captado (613 €): ignorar a los que se fueron sobrestima el valor un 35 %.',
+    'Regresión a la media: el 10 % que más gastó en el 1.er semestre gasta un 82 % menos en el 2.º con una correlación entre periodos de solo 0,15. Evalúa intervenciones con grupo de control.',
+    'Con una tasa base del 6,26 % de devoluciones, una alerta con 80 % de sensibilidad y 90 % de especificidad acierta solo el 34,8 % de las veces.',
+    'Un EDA termina con hallazgos, límites (sesgos posibles) y siguientes pasos, en un informe reproducible.',
+  ]}
+/>

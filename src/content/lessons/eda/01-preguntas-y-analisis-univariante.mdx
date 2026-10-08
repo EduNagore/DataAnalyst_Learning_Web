@@ -1,0 +1,294 @@
+---
+title: 'EDA: preguntas primero y análisis univariante'
+description: 'Cómo plantear un análisis exploratorio con preguntas, y cómo mirar una variable sola (numérica, categórica y temporal) antes de relacionarla con nada.'
+module: eda
+order: 1
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Formular preguntas de EDA descriptivas, comparativas y relacionales, con un «¿y entonces qué?» asociado.'
+  - 'Describir una variable numérica con forma, centro y dispersión, y elegir entre media y mediana según su asimetría.'
+  - 'Analizar una variable categórica con frecuencias y una curva de Pareto, y una temporal con tendencia y estacionalidad.'
+  - 'Montar un resumen univariante reproducible y un checklist de EDA que se pueda ejecutar siempre.'
+prerequisites: ['limpieza-calidad/04-validacion-y-contratos-de-datos']
+tools: ['pandas', 'duckdb']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'NIST/SEMATECH e-Handbook of Statistical Methods — Exploratory Data Analysis'
+    url: 'https://www.itl.nist.gov/div898/handbook/eda/eda.htm'
+    type: docs
+    authors: 'NIST'
+    year: 2013
+  - title: 'R for Data Science (2e) — Exploratory data analysis'
+    url: 'https://r4ds.hadley.nz/EDA.html'
+    type: book
+    authors: 'Wickham, Çetinkaya-Rundel y Grolemund'
+    year: 2023
+  - title: 'DuckDB — SUMMARIZE'
+    url: 'https://duckdb.org/docs/stable/guides/meta/summarize'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'pandas — DataFrame.describe'
+    url: 'https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.describe.html'
+    type: docs
+    authors: 'pandas development team'
+    year: 2026
+relatedLabs: ['py-eda-univariante']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import VegaChart from '../../../components/content/VegaChart.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Dirección te dice: "Mira los pedidos y cuéntame qué ves". Sin más. Tienes 377.145 pedidos no
+  cancelados y mil formas de empezar. Si abres un gráfico al azar, perderás la tarde; si empiezas
+  por una pregunta, tendrás algo que decir antes de comer.
+</BusinessContext>
+
+El análisis exploratorio de datos (_exploratory data analysis_, EDA) no es «hacer gráficos»: es una
+conversación estructurada con los datos para entenderlos, encontrar lo inesperado y decidir qué merece
+un análisis serio. Se trata de **generar hipótesis**, no de confirmarlas: lo que descubres explorando
+debe contrastarse después, en datos nuevos o con un diseño apropiado.
+
+## Intuición
+
+Un detective no examina todo el edificio: parte de una pregunta («¿quién tenía acceso a la sala?») y
+cada pista abre la siguiente. En EDA, cada gráfico o tabla debería responder una pregunta o generar la
+siguiente. Si no sabes qué pregunta responde, probablemente sobra.
+
+Y un detective empieza por lo básico antes de sospechar de nadie: cómo son los **datos por separado**
+(qué valores toma cada variable) antes de relacionarlos. Eso es el análisis **univariante**.
+
+## Cómo funciona
+
+### Empieza por las preguntas
+
+Tres tipos de pregunta cubren casi todo el EDA:
+
+| Tipo            | Ejemplo con Lumen                                       | Herramienta típica            |
+| --------------- | ------------------------------------------------------- | ----------------------------- |
+| **Descriptiva** | ¿Cuánto gasta un pedido típico y cuánto varía?          | Resumen numérico, histograma  |
+| **Comparativa** | ¿Gastan más los pedidos de móvil que los de escritorio? | Estadísticos por grupo, cajas |
+| **Relacional**  | ¿Se asocian descuentos altos con pedidos más pequeños?  | Correlación, dispersión       |
+
+Cada pregunta lleva pegada su pregunta hermana: **«¿y entonces qué?»**. Si el pedido típico es de 180 €,
+¿qué decisión cambia? Una pregunta sin decisión asociada es curiosidad (válida, pero con prioridad baja).
+Escribe las preguntas **antes** de abrir los datos y revisa al final cuáles has contestado.
+
+### Una variable numérica: forma, centro y dispersión
+
+Tres cosas hay que decir de cualquier variable numérica:
+
+1. **Forma**: ¿simétrica, con cola larga, con varias jorobas?
+2. **Centro**: media y mediana.
+3. **Dispersión**: desviación típica, rango intercuartílico, percentiles.
+
+El importe de los 377.145 pedidos no cancelados de Lumen:
+
+| Estadístico       |       Valor |
+| ----------------- | ----------: |
+| Mínimo            |       0,9 € |
+| P10               |      28,0 € |
+| Q1 (P25)          |      72,1 € |
+| **Mediana**       | **180,2 €** |
+| Q3 (P75)          |     394,2 € |
+| P90               |     717,6 € |
+| P99               |   1.766,4 € |
+| Máximo            |   6.365,8 € |
+| **Media**         | **301,7 €** |
+| Desviación típica |     363,8 € |
+| Asimetría         |        3,02 |
+
+La media (301,7 €) es **un 67 % mayor** que la mediana (180,2 €) y la desviación (363,8 €) supera a la media:
+huele a cola larga a la derecha, que confirma la asimetría positiva de 3,02. Un histograma con tramos de ancho
+doble lo hace evidente:
+
+<VegaChart
+  minHeight={300}
+  alt="Histograma del importe de los pedidos de Lumen: 18 % hasta 50 euros, 14,8 % entre 50 y 100, 20,5 % entre 100 y 200, 22,1 % entre 200 y 400, 16,5 % entre 400 y 800, 6,7 % entre 800 y 1.600 y 1,4 % por encima de 1.600; la distribución tiene una cola larga a la derecha."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    width: 'container',
+    height: 220,
+    background: 'transparent',
+    data: {
+      values: [
+        { tramo: '≤ 50', orden: 1, pct: 18.0 },
+        { tramo: '50–100', orden: 2, pct: 14.8 },
+        { tramo: '100–200', orden: 3, pct: 20.5 },
+        { tramo: '200–400', orden: 4, pct: 22.1 },
+        { tramo: '400–800', orden: 5, pct: 16.5 },
+        { tramo: '800–1.600', orden: 6, pct: 6.7 },
+        { tramo: '> 1.600', orden: 7, pct: 1.4 },
+      ],
+    },
+    mark: { type: 'bar', color: '#4C78A8' },
+    encoding: {
+      x: {
+        field: 'tramo',
+        type: 'ordinal',
+        sort: { field: 'orden' },
+        title: 'Importe del pedido (€)',
+        axis: { labelAngle: 0 },
+      },
+      y: { field: 'pct', type: 'quantitative', title: '% de pedidos' },
+    },
+  }}
+/>
+
+Los tramos están en **escala duplicativa** (cada uno el doble que el anterior): así se ve la forma
+completa. Con tramos de ancho fijo, casi todos los pedidos quedarían apretados en el primer cuarto del eje.
+
+Conclusiones prácticas:
+
+- Con colas largas, **resume con la mediana y los percentiles**, no solo con la media. La media sirve para
+  sumar (ingresos totales = pedidos × media), la mediana para describir al pedido típico.
+- Si vas a modelar o comparar medias, considera la **transformación logarítmica**: la asimetría del
+  logaritmo del importe es −0,56, mucho más moderada que la original (3,02).
+- Antes de dar un número, comprueba **qué filas cuentan**: aquí, los no cancelados. Cambiar ese filtro
+  cambia todas las cifras.
+
+### Una variable categórica: frecuencias y Pareto
+
+Para una categoría, la herramienta es la tabla de frecuencias, y la pregunta es si la distribución está
+**concentrada**. Ingresos por categoría de producto (pedidos no cancelados):
+
+| Categoría           | % de ingresos |
+| ------------------- | ------------: |
+| Electrónica         |        46,7 % |
+| Hogar               |        18,8 % |
+| Deporte             |        11,2 % |
+| Moda                |         7,9 % |
+| Juguetes y bebé     |         6,7 % |
+| Papelería y oficina |         4,2 % |
+| Belleza             |         3,4 % |
+| Alimentación        |         1,1 % |
+
+Una sola categoría aporta casi la mitad del negocio. Eso es un hallazgo con consecuencias: cualquier
+problema en Electrónica (una rotura de stock, un cambio de precio) mueve la cifra global, como verás
+en el caso «Caída de ventas en marzo».
+
+La misma idea aplicada a clientes es la **curva de Pareto** (la «regla 80/20»): ¿qué fracción del
+ingreso proviene de qué fracción de clientes? De los 57.439 clientes con alguna compra, el 1 % que más
+gasta aporta el **5,0 %** de los ingresos, el 10 % aporta el **32,4 %** y el 20 % el **51,9 %**. Hay
+concentración, pero mucho menos extrema que el «80/20» de la leyenda. Compruébalo siempre: la regla es
+una hipótesis, no una ley.
+
+### Una variable temporal: tendencia y estacionalidad
+
+Para una serie temporal se miran **tres cosas** separadas: la tendencia (hacia dónde va), la estacionalidad
+(patrones que se repiten por semana, mes o año) y los eventos puntuales.
+
+En Lumen, los pedidos crecen año a año (18 k en 2023, 77 k en 2024, 168 k en 2025) y hay patrón semanal. Pedidos
+diarios medios por día de la semana en 2025:
+
+| Lun | Mar | Mié | Jue | Vie | Sáb | Dom |
+| --: | --: | --: | --: | --: | --: | --: |
+| 437 | 443 | 437 | 434 | 464 | 462 | 423 |
+
+Viernes y sábado superan en torno a un 6 % a los días de entre semana, y el domingo es el más flojo. Es
+un efecto pequeño: sirve para ajustar previsiones, no para cambiar la estrategia. Con una tendencia
+tan marcada, compara siempre **contra un periodo equivalente** (mismo mes, mismo día de la semana), no
+contra «el mes anterior» a secas.
+
+<Callout type="warning">
+  Si una serie crece muy deprisa, casi todo «récord» es solo crecimiento. Antes de celebrar el mejor
+  mes de la historia, pregunta si el mejor mes no es simplemente el último.
+</Callout>
+
+### Un checklist de EDA reproducible
+
+Un EDA serio deja un rastro que otra persona pueda repetir. Este checklist cabe en un cuaderno:
+
+1. **Preguntas** escritas antes de empezar, con su «¿y entonces qué?».
+2. **Contexto**: grano de la tabla, periodo, filtros aplicados (por ejemplo, excluir cancelados).
+3. **Calidad** (módulo anterior): nulos, duplicados, rangos, relaciones.
+4. **Univariante**: forma, centro y dispersión; frecuencias; tendencia y estacionalidad.
+5. **Bivariante y por segmentos**: comparaciones y relaciones (lección siguiente).
+6. **Hallazgos** en una lista corta, con la cifra y el gráfico que los sostiene.
+7. **Siguientes pasos**: qué análisis formal (contraste, modelo, experimento) haría falta.
+8. **Reproducibilidad**: código ejecutable de principio a fin, semillas y versiones fijas.
+
+## En la práctica
+
+Una función de resumen numérico que puedes reutilizar en cualquier variable:
+
+```python
+def resumen_numerico(x: pd.Series) -> dict:
+    return {
+        "n": int(x.notna().sum()),
+        "media": round(float(x.mean()), 1),
+        "mediana": round(float(x.median()), 1),
+        "p10": round(float(x.quantile(0.10)), 1),
+        "p90": round(float(x.quantile(0.90)), 1),
+        "p99": round(float(x.quantile(0.99)), 1),
+        "asimetria": round(float(x.skew()), 2),
+    }
+```
+
+Y su equivalente en una línea con DuckDB, útil para una primera ojeada a una tabla entera (devuelve mínimo,
+máximo, nº aproximado de valores distintos, media, desviación, cuartiles, recuento y % de nulos por
+columna):
+
+```sql
+SUMMARIZE SELECT discount_pct, shipping_cost FROM orders;
+```
+
+Para la curva de Pareto, ordena los valores de mayor a menor y calcula qué fracción del total suma el
+primer 1 %, 10 % o 20 %. Practica las dos piezas en el lab de esta lección.
+
+## Trade-offs y cuándo usarlo
+
+- **Resumen numérico frente a gráfico**: los números son exactos y reproducibles; los gráficos revelan
+  formas que los números ocultan (jorobas, huecos). Usa ambos.
+- **Mediana frente a media**: la mediana es robusta pero no suma; la media suma pero se distorsiona con
+  colas. Di cuál usas y por qué.
+- **EDA amplio frente a dirigido**: una exploración abierta encuentra sorpresas pero se pierde; una dirigida
+  por preguntas es eficiente pero solo encuentra lo que busca. Empieza dirigido y deja un tiempo acotado
+  para explorar.
+- **Hipótesis generadas, no confirmadas**: tras mirar muchos gráficos siempre aparecerá algo que parece
+  un patrón. Confírmalo con otros datos o un contraste antes de actuar.
+
+## Errores comunes
+
+- **Empezar por los gráficos** sin una pregunta.
+- **Dar solo la media** de una variable con cola larga.
+- **No decir qué filas entran** en la cifra (cancelados, devoluciones, periodo).
+- **Leer «récord» donde solo hay crecimiento.**
+- **Quedarse en el promedio**: una media oculta la distribución y los segmentos (lección siguiente).
+- **Confundir un patrón explorado con un hallazgo confirmado.**
+- **No dejar rastro**: un EDA en celdas sueltas que nadie puede repetir.
+
+## Con IA
+
+Un asistente puede generar en segundos un informe de EDA automático. Úsalo como **primer borrador**:
+ahorra el código repetitivo, pero no sabe qué decisión te importa. Pídele que proponga **preguntas**
+antes de gráficos y que justifique cada resumen («¿por qué mediana y no media?»). Desconfía de
+los textos fluidos que describen patrones sin cifras: exige siempre el número y el código que lo
+produce, y comprueba que el filtro de filas es el que quieres.
+
+## En una entrevista
+
+- _"Te dan una tabla nueva. ¿Cómo empiezas el análisis exploratorio?"_ — Pista: preguntas primero, grano y
+  filtros, calidad, univariante, bivariante, hallazgos y siguientes pasos.
+- _"La media del importe es 302 € y la mediana 180 €. ¿Qué te dice?"_ — Pista: cola larga a la derecha;
+  qué resumen usar según el objetivo (suma frente a pedido típico).
+- _"¿Qué es un análisis de Pareto y cuándo te fiarías de la regla 80/20?"_ — Pista: concentración
+  acumulada; se comprueba con los datos, aquí es 52 % para el 20 % de clientes.
+
+<KeyTakeaways
+  items={[
+    'EDA es generar hipótesis con preguntas: cada pregunta lleva su «¿y entonces qué?» y se escribe antes de abrir los datos.',
+    'De una variable numérica di forma, centro y dispersión: en los pedidos de Lumen, media 301,7 € frente a mediana 180,2 € delatan una cola larga (asimetría 3,02).',
+    'Con colas largas resume con mediana y percentiles, y considera el logaritmo; la media sirve para sumar.',
+    'Una categoría (Electrónica) aporta el 46,7 % de los ingresos, y el 20 % de los clientes aporta el 51,9 %: la regla 80/20 se comprueba, no se asume.',
+    'En series con mucho crecimiento, compara contra periodos equivalentes y deja un EDA reproducible con hallazgos y siguientes pasos.',
+  ]}
+/>

@@ -1,0 +1,36 @@
+---
+title: 'Sesgos del EDA: supervivencia, regresión a la media y tasa base'
+description: 'Mide cuánto sobrestima el valor de un cliente mirar solo a los activos, cuánto «regresa» el 10 % que más gastó y cuántas alertas falsas genera un buen modelo con una tasa base baja.'
+language: python
+part: 'Parte I · Herramientas núcleo'
+module: eda
+difficulty: 2
+estimatedMinutes: 30
+concepts:
+  ['sesgo de supervivencia', 'regresión a la media', 'tasa base', 'valor predictivo positivo']
+datasets: ['orders', 'order_items', 'customers']
+packages: []
+output: console
+hints:
+  - 'Valor por cliente: por cohorte de alta, gasto por **activo** = gasto total / nº de clientes con gasto > 0; gasto por **captado** = gasto total / nº de clientes captados (todos).'
+  - 'Regresión a la media: selecciona el 10 % con mayor gasto en el primer semestre (`h1 >= h1.quantile(0.9)`) y compara su gasto medio en el segundo semestre (`h2`) con el del primero. El ratio es `h2_medio / h1_medio`.'
+  - 'Precisión de una alerta (teorema de Bayes): `s*p / (s*p + (1-e)*(1-p))`, con sensibilidad `s`, especificidad `e` y tasa base `p`. Los falsos por cada verdadero son `(1-e)*(1-p) / (s*p)`.'
+  - 'Devuelve exactamente las claves pedidas y redondea como se indica.'
+relatedLessons: ['eda/04-sesgos-regresion-a-la-media-y-tasa-base']
+businessQuestion: '¿Cuánto nos engañan el sesgo de supervivencia, la regresión a la media y una tasa base baja al valorar clientes y alertas?'
+---
+
+En el _starter_ tienes:
+
+- `cohortes`: una fila por cliente captado en 2023-2024, con `anio` de alta, `activo` (compró en 2025) y
+  `gasto` (gasto en 2025),
+- `h1` y `h2`: gasto de cada cliente con compra en el primer semestre de 2025 en el primer y en el segundo semestre.
+
+Implementa:
+
+1. **`valor_por_cliente(cohortes)`** → DataFrame con `anio`, `clientes`, `activos`, `gasto_por_activo` y
+   `gasto_por_captado` (euros, redondeados a 0 decimales), ordenado por año.
+2. **`regresion_a_la_media(h1, h2, q=0.9)`** → diccionario con `n` (clientes del grupo superior), `h1_medio`,
+   `h2_medio` (0 decimales), `ratio` (2 decimales) y `correlacion` entre `h1` y `h2` de todos los clientes (3 decimales).
+3. **`precision_alerta(sensibilidad, especificidad, tasa_base)`** → diccionario con `precision_pct` (1 decimal)
+   y `falsos_por_verdadero` (2 decimales).
