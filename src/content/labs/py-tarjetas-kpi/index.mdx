@@ -1,0 +1,31 @@
+---
+title: 'Tarjetas de KPI: variación, puntos porcentuales y estado'
+description: 'Calcula la tarjeta de cada KPI de un cuadro de mando (variación relativa o en puntos porcentuales y estado según «más es mejor» o «menos es mejor») y el cuadro ejecutivo de Lumen 2025 frente a 2024.'
+language: python
+part: 'Parte II · Visualización y comunicación'
+module: dashboards-bi
+difficulty: 2
+estimatedMinutes: 30
+concepts: ['KPI', 'variación relativa', 'puntos porcentuales', 'umbral', 'guardrail']
+datasets: ['orders', 'order_items', 'products', 'shipments']
+packages: []
+output: console
+hints:
+  - 'Para `tipo == "cantidad"` (importes, recuentos) la variación es relativa: `(actual - anterior) / anterior * 100`. Para `tipo == "tasa"` (valores que ya son %) es la diferencia en puntos porcentuales: `actual - anterior`.'
+  - 'Una variación es **favorable** si va en la dirección de `mejor`: `"mas"` (más es mejor) o `"menos"` (menos es mejor). `verde` = favorable y `abs(variacion) > umbral`; `rojo` = desfavorable y `abs(variacion) > umbral`; en otro caso `ambar`.'
+  - 'Si `anterior` es 0 en una cantidad, la variación relativa no existe: devuelve `variacion = None` y `estado = "sin dato"`.'
+  - 'Redondea la variación a 1 decimal (cantidad) o a 2 (tasa). El diccionario debe llevar exactamente `nombre`, `actual`, `anterior`, `variacion`, `unidad` (`"%"` o `"pp"`) y `estado`.'
+relatedLessons: ['dashboards-bi/01-diseno-de-dashboards']
+businessQuestion: '¿Qué KPI de Lumen mejoran, empeoran o se mantienen en 2025 frente a 2024?'
+---
+
+Implementa **`tarjeta_kpi(nombre, actual, anterior, tipo, mejor="mas", umbral=2.0)`** y devuelve un diccionario con:
+
+- `nombre`, `actual`, `anterior` tal cual,
+- `variacion`: relativa en % si `tipo == "cantidad"`, en **puntos porcentuales** si `tipo == "tasa"`,
+- `unidad`: `"%"` o `"pp"`,
+- `estado`: `"verde"`, `"ambar"`, `"rojo"` o `"sin dato"` según la regla del enunciado de las pistas.
+
+En el _starter_ se calculan los valores de 2024 y 2025 de ocho KPI de Lumen; al final se construye el cuadro ejecutivo
+con tu función (umbral de 2 % para cantidades y de 0,5 pp para tasas). Interpreta el resultado: ¿qué parte del cuadro es
+buena noticia y qué guardrails hay que vigilar?

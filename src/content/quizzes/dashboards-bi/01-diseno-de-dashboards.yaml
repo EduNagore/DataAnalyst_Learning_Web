@@ -1,0 +1,75 @@
+lesson: dashboards-bi/01-diseno-de-dashboards
+questions:
+  - id: bi1-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué debe definirse antes de dibujar un dashboard?'
+    options:
+      - 'Los colores y el logo'
+      - 'Quién lo mira, con qué frecuencia y qué decisión toma con él'
+      - 'El número máximo de gráficos'
+      - 'La herramienta de BI'
+    answer: [1]
+    explanation: 'Audiencia, frecuencia y decisión determinan el tipo de dashboard (estratégico, operativo o analítico) y su contenido. Sin ellas se acaba con un gráfico de todo para nadie.'
+    ref: '#tres-tipos-de-dashboard'
+
+  - id: bi1-01-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los elementos de una buena tarjeta de KPI.'
+    options:
+      - 'Valor actual con unidad y formato legible'
+      - 'Comparación con un periodo de referencia'
+      - 'Objetivo y estado frente a él, y un guardrail'
+      - 'Un gráfico de 3D decorativo'
+    answer: [0, 1, 2]
+    explanation: 'Valor, comparación, tendencia, objetivo y guardrail. Un adorno 3D no aporta información.'
+    ref: '#la-tarjeta-de-kpi-valor-comparación-y-contexto'
+
+  - id: bi1-01-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'El margen de Lumen sobre ingresos pasó del 35,05 % (2024) al 35,71 % (2025). ¿Cuánto varía, en puntos porcentuales? (dos decimales)'
+    answer: [0.66]
+    tolerance: 0.011
+    explanation: '35,71 − 35,05 = 0,66 pp. Las variaciones de una tasa se expresan en puntos porcentuales; la variación relativa (+1,9 %) es otra cifra distinta y no debe mezclarse con ella.'
+    ref: '#la-tarjeta-de-kpi-valor-comparación-y-contexto'
+
+  - id: bi1-01-q4
+    type: single
+    difficulty: 2
+    prompt: 'Las devoluciones suben de 6,21 % a 6,33 % (+0,12 pp) y el umbral del semáforo es 0,5 pp. «Menos es mejor». ¿Qué estado corresponde?'
+    options:
+      - 'Verde'
+      - 'Ámbar: la variación no supera el umbral'
+      - 'Rojo'
+      - 'Sin dato'
+    answer: [1]
+    explanation: 'Dentro de ±umbral, el KPI está estable (ámbar). Sería rojo si empeorase más de 0,5 pp y verde si mejorase más de 0,5 pp.'
+    ref: '#la-tarjeta-de-kpi-valor-comparación-y-contexto'
+
+  - id: bi1-01-q5
+    type: single
+    difficulty: 2
+    prompt: '¿En qué consiste la prueba de los cinco segundos?'
+    options:
+      - 'Cargar el dashboard en menos de cinco segundos'
+      - 'Enseñar el dashboard cinco segundos a alguien que no lo conoce y comprobar si puede decir si las cosas van bien o mal y dónde mirar'
+      - 'Poner cinco filtros por página'
+      - 'Actualizar los datos cada cinco segundos'
+    answer: [1]
+    explanation: 'Es una prueba de comprensión: si en cinco segundos no se entiende el mensaje principal, hay que simplificar la jerarquía visual.'
+    ref: '#jerarquía-visual-y-los-cinco-segundos'
+
+  - id: bi1-01-q6
+    type: single
+    difficulty: 3
+    prompt: 'Un dashboard tiene 14 filtros globales y 30 visuales por página, y tarda 20 s en cargar. ¿Qué cambio es más acertado?'
+    options:
+      - 'Añadir más filtros para que cada usuario encuentre lo suyo'
+      - 'Reducir a pocos filtros globales (periodo y uno o dos segmentos), 6-9 visuales por página y mover los desgloses a páginas analíticas; precalcular en el modelo'
+      - 'Quitar la fecha de actualización'
+      - 'Cambiar todos los colores'
+    answer: [1]
+    explanation: 'Menos visuales y filtros mejoran la lectura y el rendimiento (menos consultas). El detalle exploratorio va a páginas analíticas y los cálculos pesados al modelo.'
+    ref: '#filtros-e-interacciones'

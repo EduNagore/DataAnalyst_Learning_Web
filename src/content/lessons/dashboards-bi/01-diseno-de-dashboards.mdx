@@ -1,0 +1,204 @@
+---
+title: 'Diseño de dashboards: jerarquía, KPI con contexto y filtros'
+description: 'Cómo diseñar un cuadro de mando que se entienda en cinco segundos: KPI con comparación y contexto, jerarquía visual, dashboards estratégicos frente a operativos, filtros y rendimiento.'
+module: dashboards-bi
+order: 1
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Distinguir dashboards estratégicos, operativos y analíticos y definir para cada uno audiencia, frecuencia y decisión.'
+  - 'Diseñar una tarjeta de KPI con valor, comparación, tendencia, objetivo y guardrail, y calcular su estado.'
+  - 'Organizar un dashboard con jerarquía visual (resumen, tendencia, detalle) y aplicar la prueba de los cinco segundos.'
+  - 'Decidir qué filtros, interacciones y límites de densidad mantienen un dashboard rápido y legible.'
+prerequisites: ['visualizacion/04-como-mienten-los-graficos-y-herramientas']
+tools: ['power-bi', 'tableau', 'looker']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Microsoft — Tips for designing a great Power BI dashboard'
+    url: 'https://learn.microsoft.com/en-us/power-bi/create-reports/service-dashboards-design-tips'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft — Power BI report design guidance'
+    url: 'https://learn.microsoft.com/en-us/power-bi/guidance/power-bi-optimization'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Fundamentals of Data Visualization — Multi-panel figures (Claus O. Wilke)'
+    url: 'https://clauswilke.com/dataviz/multi-panel-figures.html'
+    type: book
+    authors: 'Wilke, C. O.'
+    year: 2019
+relatedLabs: ['py-tarjetas-kpi']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  La dirección de Lumen quiere un cuadro de mando mensual. El primer borrador tiene 24 gráficos, 11
+  filtros y tres colores por métrica. La directora lo abre, lo mira diez segundos y pregunta:
+  "¿Vamos bien o mal?". Nadie sabe contestar sin leer las etiquetas una a una.
+</BusinessContext>
+
+Un dashboard es una **interfaz para tomar decisiones**, no un almacén de gráficos. Su calidad se mide por lo que
+tarda alguien en saber si debe preocuparse y por dónde mirar a continuación.
+
+## Intuición
+
+Piensa en el salpicadero de un avión frente a un manual técnico. El salpicadero muestra **pocas cosas, siempre en
+el mismo sitio**, con alertas cuando algo se sale de rango. El manual contiene toda la información, pero se
+consulta cuando hace falta. Un buen dashboard es lo primero; los informes exploratorios, lo segundo. Confundirlos produce
+cuadros de mando que no se miran o que no se entienden.
+
+## Cómo funciona
+
+### Tres tipos de dashboard
+
+| Tipo            | Audiencia                 | Pregunta                    | Frecuencia           | Diseño                                 |
+| --------------- | ------------------------- | --------------------------- | -------------------- | -------------------------------------- |
+| **Estratégico** | Dirección                 | ¿Vamos bien? ¿Hacia dónde?  | Mensual o semanal    | Pocos KPI, tendencias, objetivos       |
+| **Operativo**   | Equipos que actúan        | ¿Qué requiere acción ahora? | Tiempo real o diaria | Alertas, listas de excepciones, estado |
+| **Analítico**   | Analistas y especialistas | ¿Por qué ha pasado esto?    | Bajo demanda         | Filtros, desgloses, exploración        |
+
+Antes de dibujar nada, escribe para cada dashboard **quién lo mira, cuándo y qué decisión toma**. Un solo dashboard no puede ser
+estratégico, operativo y analítico a la vez: se convierte en un gráfico de todo para nadie.
+
+### La tarjeta de KPI: valor, comparación y contexto
+
+Un número solo no dice si es bueno o malo. Una buena tarjeta de KPI tiene cinco elementos:
+
+1. **Valor** actual, con unidad y formato legible.
+2. **Comparación** con un periodo de referencia (periodo anterior o mismo periodo del año anterior).
+3. **Tendencia** reciente (una minilínea o _sparkline_).
+4. **Objetivo** (si existe) y estado frente a él.
+5. **Contexto o guardrail**: qué no debe empeorar a la vez.
+
+Cuadro de mando ejecutivo de Lumen para 2025 frente a 2024 (pedidos no cancelados):
+
+| KPI                                    |     2025 |      vs 2024 | Lectura                                               |
+| -------------------------------------- | -------: | -----------: | ----------------------------------------------------- |
+| Ingresos netos                         | 49,46 M€ | **+120,4 %** | Crecimiento muy fuerte                                |
+| Pedidos                                |  161.706 |     +118,6 % | Volumen, no precio                                    |
+| Clientes activos                       |   39.190 |      +81,4 % | Principal motor del crecimiento                       |
+| Ticket medio                           | 305,87 € |       +0,8 % | Estable                                               |
+| Margen sobre ingresos                  |   35,7 % |      +0,7 pp | Ligera mejora                                         |
+| Conversión web                         |   4,17 % |     −0,12 pp | Dentro del ruido normal (lección de visualización)    |
+| Devoluciones (guardrail)               |   6,33 % |     +0,12 pp | Estable                                               |
+| Entregas con retraso grave (guardrail) |  10,73 % |     +0,07 pp | Estable, pero 1 de cada 10 envíos llega 5+ días tarde |
+
+Esta tabla es el **resumen** del dashboard: de un vistazo se ve que el negocio crece por **volumen** y que los guardrails están
+estables. Fíjate en que las variaciones de porcentajes se expresan en **puntos porcentuales (pp)** y las de importes o recuentos en
+**porcentaje**; mezclarlas es un error muy frecuente.
+
+El estado de una tarjeta se calcula con reglas simples y explícitas (sin colores arbitrarios): por ejemplo, **verde** si la variación
+es favorable y supera el umbral, **ámbar** si está entre ±umbral, **rojo** si empeora más del umbral. La regla debe estar escrita
+(y ser la misma en todos los KPI) y tener en cuenta si «más es mejor» (ingresos) o «menos es mejor» (devoluciones, retrasos).
+
+### Jerarquía visual y los cinco segundos
+
+Un dashboard se lee como una página: de arriba abajo y de izquierda a derecha. Una estructura probada tiene tres zonas:
+
+<Diagram
+  client:visible
+  chart={`flowchart TB
+    A["1. Resumen: 4 a 6 tarjetas de KPI<br/>(valor, comparación, estado)"] --> B["2. Tendencia y comparación<br/>(1 a 3 gráficos que explican el KPI principal)"]
+    B --> C["3. Detalle y desglose<br/>(tablas, segmentos, excepciones)"]`}
+  alt="Estructura de un dashboard en tres zonas de arriba abajo: resumen con cuatro a seis tarjetas de KPI, tendencia y comparación con uno a tres gráficos, y detalle con tablas, segmentos y excepciones."
+/>
+
+**Prueba de los cinco segundos**: enseña el dashboard durante cinco segundos a alguien que no lo conoce y pregúntale «¿qué ha
+entendido?». Si no puede decir si las cosas van bien o mal, y dónde mirar, hay que simplificar.
+
+Criterios de diseño:
+
+- **Pocos elementos**: 6 a 9 visuales por página; más es otro informe.
+- **Lo más importante, arriba a la izquierda** y más grande.
+- **Coherencia**: mismas escalas, colores y formatos para el mismo concepto en todo el dashboard.
+- **Color con significado**: el rojo y el verde solo para estado; el resto, neutro.
+- **Títulos que dicen algo** («Los ingresos crecen un 120 %») y no etiquetas de campo.
+- **Accesibilidad**: contraste, no depender del color (lección anterior).
+
+### Filtros e interacciones
+
+Los filtros son la forma más fácil de convertir un dashboard en un laberinto. Reglas prácticas:
+
+- **Filtros globales mínimos**: periodo y, como mucho, uno o dos segmentos clave. Los demás, en páginas analíticas.
+- **Estado visible**: muestra siempre qué filtros están activos (un resumen: «Periodo: 2025 · Región: Todas»).
+- **Valores por defecto sensatos**: el periodo más relevante (el último mes completo), no «todo».
+- **Cuidado con la interacción cruzada** (hacer clic en un gráfico filtra los demás): potente, pero desorienta si no se explica.
+- **Drill-through y detalle bajo demanda** en lugar de mostrar todo a la vez.
+
+### Rendimiento y fiabilidad
+
+Un dashboard lento no se usa. Los problemas habituales y sus remedios: demasiados visuales por página (más consultas), cálculos pesados
+en el momento de ver (precalcular en el modelo), datos a nivel de fila cuando basta el agregado y filtros que obligan a recalcular todo.
+Y la fiabilidad: indica **cuándo se actualizaron** los datos, define cada KPI (ficha de métrica) y enlaza la definición.
+
+<Callout type="warning">
+  Un dashboard con una cifra mal calculada hace más daño que ninguno, porque la gente decide con él.
+  Valida cada KPI contra una segunda fuente (cifra de control) antes de publicarlo y deja visible la
+  fecha de actualización.
+</Callout>
+
+## En la práctica
+
+Un procedimiento para construir un dashboard estratégico:
+
+1. **Define** audiencia, frecuencia y decisiones (una frase cada una).
+2. **Elige** de cuatro a seis KPI con su ficha de métrica y sus guardrails.
+3. **Calcula** valor, comparación y estado con reglas escritas; **valida** con una cifra de control.
+4. **Dibuja** el resumen, una tendencia por KPI principal y un desglose.
+5. **Prueba** con cinco segundos y con un usuario real; **recorta** lo que no se use.
+6. **Mide** el uso (¿quién lo abre?, ¿qué páginas?) y retira lo que nadie mira.
+
+En el lab de esta lección calculas la tarjeta de KPI (variación, puntos porcentuales y estado) con las reglas de más-es-mejor y menos-es-mejor.
+
+## Trade-offs y cuándo usarlo
+
+- **Un dashboard para todos frente a uno por audiencia**: uno solo reduce el mantenimiento y confunde a todos; uno por audiencia cuesta más y se
+  entiende mejor.
+- **Tiempo real frente a diario**: el tiempo real solo compensa cuando alguien actúa en minutos; si no, complica el sistema.
+- **Autoservicio frente a controlado**: el autoservicio da agilidad pero dispersa definiciones; combina un modelo gobernado con libertad
+  de visualización.
+- **Interactividad frente a claridad**: cada filtro añadido es una pregunta que el lector debe hacerse.
+
+## Errores comunes
+
+- **Dashboards «de todo»** sin audiencia ni decisión.
+- **KPI sin comparación ni objetivo**: un número aislado no dice nada.
+- **Mezclar puntos porcentuales y porcentajes** en las variaciones.
+- **Semáforos sin regla escrita** (o con la misma regla para métricas de «más es mejor» y «menos es mejor»).
+- **Demasiados filtros y visuales** y sin valores por defecto.
+- **No indicar la fecha de actualización ni la definición** de las métricas.
+- **No medir el uso** y mantener para siempre paneles que nadie abre.
+
+## Con IA
+
+Muchas herramientas de BI incluyen asistentes que generan visuales o páginas completas a partir de una petición. Son útiles para el
+primer borrador, pero tienden a **llenar la página**. Pídele el resumen de KPI con su comparación y estado, pocos visuales y la lista de
+métricas que usa (con definición); revisa cada cifra con una consulta propia. Y no uses un dashboard generado por IA sin la prueba
+de los cinco segundos y la validación con una cifra de control.
+
+## En una entrevista
+
+- _"¿Qué diferencia hay entre un dashboard estratégico y uno operativo?"_ — Pista: audiencia, frecuencia, decisión;
+  KPI y tendencias frente a alertas y excepciones.
+- _"Te piden un dashboard con 30 métricas. ¿Qué haces?"_ — Pista: preguntar la decisión y la audiencia; 4 a 6 KPI con guardrails;
+  el resto, páginas analíticas.
+- _"¿Cómo compruebas que un dashboard funciona?"_ — Pista: prueba de cinco segundos, uso medido, validación de cifras.
+
+<KeyTakeaways
+  items={[
+    'Un dashboard es una interfaz para decidir: escribe audiencia, frecuencia y decisión antes de dibujar; estratégico, operativo y analítico no se mezclan.',
+    'Una tarjeta de KPI lleva valor, comparación, tendencia, objetivo y guardrail; las variaciones de porcentajes van en puntos porcentuales.',
+    'Lumen 2025 frente a 2024: ingresos +120,4 %, pedidos +118,6 %, ticket +0,8 %, margen 35,7 % (+0,7 pp) y guardrails estables: el crecimiento es de volumen.',
+    'Estructura de tres zonas (resumen, tendencia, detalle), pocos visuales por página y prueba de los cinco segundos.',
+    'Pocos filtros globales con valores por defecto, fecha de actualización visible y cifras validadas contra una segunda fuente.',
+  ]}
+/>

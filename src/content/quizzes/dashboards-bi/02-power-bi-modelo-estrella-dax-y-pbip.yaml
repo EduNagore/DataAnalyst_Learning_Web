@@ -1,0 +1,79 @@
+lesson: dashboards-bi/02-power-bi-modelo-estrella-dax-y-pbip
+questions:
+  - id: bi1-02-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué caracteriza a un modelo en estrella?'
+    options:
+      - 'Una sola tabla plana con todas las columnas'
+      - 'Una tabla de hechos con el grano declarado, rodeada de dimensiones relacionadas con ella en uno a muchos'
+      - 'Muchas relaciones bidireccionales entre todas las tablas'
+      - 'Tablas sin claves'
+    answer: [1]
+    explanation: 'Hechos (eventos medibles) y dimensiones (los «por» del análisis) en relaciones uno a muchos dan filtros predecibles, medidas sencillas y buen rendimiento.'
+    ref: '#el-modelo-en-estrella'
+
+  - id: bi1-02-q2
+    type: single
+    difficulty: 2
+    prompt: 'Unes pedidos y líneas en una sola tabla plana y sumas el coste de envío (que es por pedido). ¿Qué ocurre?'
+    options:
+      - 'Nada: el total es correcto'
+      - 'El envío se repite en cada línea del pedido y el total se infla (en Lumen, 2,24 M€ en lugar de 0,87 M€): es el fan-out'
+      - 'El total se reduce'
+      - 'Power BI lo corrige automáticamente'
+    answer: [1]
+    explanation: 'Un atributo del pedido repetido en cada línea se suma varias veces. La solución es respetar el grano: dejar el envío en una tabla a nivel de pedido o medirlo con la granularidad correcta.'
+    ref: '#el-modelo-en-estrella'
+
+  - id: bi1-02-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Qué diferencia hay entre una columna calculada y una medida en DAX?'
+    options:
+      - 'Son lo mismo'
+      - 'La columna se evalúa fila a fila (contexto de fila) y se guarda; la medida se calcula al vuelo según el contexto de filtro y no ocupa espacio'
+      - 'La medida se guarda en cada fila'
+      - 'La columna calculada reacciona a las segmentaciones y la medida no'
+    answer: [1]
+    explanation: 'Lo que se agrega debe ser una medida (reacciona al filtro). Las columnas calculadas sirven para propiedades de la fila (importe de una línea) o para segmentar y relacionar.'
+    ref: '#dax-contexto-de-fila-y-contexto-de-filtro'
+
+  - id: bi1-02-q4
+    type: single
+    difficulty: 3
+    prompt: '¿Qué hace CALCULATE ( [Ingresos], Productos[categoria] = "Electrónica" )?'
+    options:
+      - 'Calcula los ingresos de todos los productos y filtra después'
+      - 'Evalúa [Ingresos] modificando el contexto de filtro para que solo cuente la categoría Electrónica (manteniendo los demás filtros activos)'
+      - 'Crea una columna nueva'
+      - 'Borra todos los filtros del informe'
+    answer: [1]
+    explanation: 'CALCULATE cambia el contexto de filtro con el que se evalúa la expresión. REMOVEFILTERS (o ALL) se usa para quitarlos. En Lumen 2025 el resultado equivalente en SQL es 23,80 M€.'
+    ref: '#dax-contexto-de-fila-y-contexto-de-filtro'
+
+  - id: bi1-02-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las ventajas de guardar un informe de Power BI como proyecto PBIP con TMDL y PBIR.'
+    options:
+      - 'Los cambios se pueden revisar como texto en Git (diffs legibles)'
+      - 'Cada página y visual es un archivo, lo que facilita resolver conflictos de fusión'
+      - 'Los archivos tienen un esquema JSON público que permite validar y automatizar ediciones'
+      - 'El informe deja de necesitar un modelo semántico'
+    answer: [0, 1, 2]
+    explanation: 'PBIP convierte el binario en carpetas de texto versionables. El informe sigue necesitando un modelo semántico (se referencia en definition.pbir).'
+    ref: '#proyectos-pbip-tmdl-y-pbir-power-bi-como-código'
+
+  - id: bi1-02-q6
+    type: single
+    difficulty: 3
+    prompt: 'Un modelo con tablas Delta en un lakehouse de Fabric necesita actualizarse con frecuencia sin copiar todos los datos. ¿Qué modo de almacenamiento encaja y qué hace su «actualización»?'
+    options:
+      - 'Import; copia todos los datos cada vez'
+      - 'Direct Lake; la actualización (framing) solo copia metadatos y las consultas las procesa el motor VertiPaq cargando columnas bajo demanda'
+      - 'DirectQuery; copia los datos al modelo'
+      - 'Ninguno'
+    answer: [1]
+    explanation: 'Direct Lake, disponible con capacidad de Fabric, lee Delta de OneLake y su actualización es una operación de metadatos de pocos segundos. Import sigue siendo la opción general y la más flexible.'
+    ref: '#modos-de-almacenamiento-import-directquery-y-direct-lake'

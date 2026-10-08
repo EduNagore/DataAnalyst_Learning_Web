@@ -1,0 +1,38 @@
+---
+title: 'Construye un modelo en estrella y comprueba su integridad'
+description: 'Monta la tabla de hechos de ventas (una fila por línea de pedido) y la dimensión de fechas a partir de las tablas de Lumen, y verifica grano, integridad referencial y cifra de control como en Power BI.'
+language: python
+part: 'Parte II · Visualización y comunicación'
+module: dashboards-bi
+difficulty: 3
+estimatedMinutes: 35
+concepts:
+  [
+    'modelo en estrella',
+    'tabla de hechos',
+    'dimensión de fechas',
+    'integridad referencial',
+    'cifra de control',
+  ]
+datasets: ['orders', 'order_items', 'customers', 'products']
+packages: []
+output: console
+hints:
+  - 'El hecho tiene una fila por línea de pedido: une `order_items` con `orders` por `order_id` (muchos a uno, usa `validate="many_to_one"`) y trae `customer_id`, `order_date` y `status`.'
+  - '`fecha_id` es un entero `AAAAMMDD` (`order_date.dt.year * 10000 + month * 100 + day`); `importe = quantity * unit_price`.'
+  - 'La dimensión de fechas debe contener **todos los días consecutivos** entre el mínimo y el máximo (`pd.date_range`), con `fecha_id` único, `anio`, `mes`, `trimestre` y `dia_semana` (0 = lunes).'
+  - '`comprobar_integridad` cuenta cuántas filas del hecho tienen una clave (`customer_id`, `product_id`, `fecha_id`) que no existe en su dimensión; con un modelo sano todas valen 0.'
+relatedLessons: ['dashboards-bi/02-power-bi-modelo-estrella-dax-y-pbip']
+businessQuestion: '¿Está nuestro modelo de ventas bien formado (grano, claves y totales) antes de construir el cuadro de mando?'
+---
+
+Implementa tres funciones que construyen y validan un modelo en estrella de ventas:
+
+1. **`construir_hechos(order_items, orders)`** → DataFrame con **una fila por línea de pedido** y las columnas `order_item_id`, `order_id`,
+   `customer_id`, `product_id`, `fecha_id` (entero `AAAAMMDD`), `cantidad`, `importe` (`quantity * unit_price`) y `estado`.
+2. **`dim_fecha(fecha_min, fecha_max)`** → dimensión con un día por fila, **sin huecos**, y las columnas `fecha_id`, `fecha`, `anio`, `mes`,
+   `trimestre` y `dia_semana` (0 = lunes).
+3. **`comprobar_integridad(hechos, dim_clientes, dim_productos, dim_fechas)`** → diccionario con el número de filas del hecho que no
+   encuentran su clave en cada dimensión: `clientes_huerfanos`, `productos_huerfanos` y `fechas_huerfanas`.
+
+Después compara la **cifra de control**: la suma de `importe` del hecho debe ser igual a la de `order_items` (118,57 M€).

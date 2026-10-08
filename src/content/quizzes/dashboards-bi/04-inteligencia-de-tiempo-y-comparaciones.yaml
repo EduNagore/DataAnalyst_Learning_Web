@@ -1,0 +1,75 @@
+lesson: dashboards-bi/04-inteligencia-de-tiempo-y-comparaciones
+questions:
+  - id: bi1-04-q1
+    type: single
+    difficulty: 1
+    prompt: 'A 30 de junio de 2026, un dashboard muestra los ingresos de 2026 (36,6 M€) frente a los de 2025 completo (49,5 M€) y marca −26 %. ¿Cuál es el error?'
+    options:
+      - 'Ninguno'
+      - 'Compara un periodo parcial (seis meses) con uno completo; la comparación justa es YTD frente a YTD del año anterior (+78,9 %)'
+      - 'Los ingresos de 2025 están mal'
+      - 'Hay que usar medias móviles'
+    answer: [1]
+    explanation: 'Dos periodos solo son comparables si cubren el mismo tramo del calendario. YTD de junio de 2026 (36,59 M€) frente a YTD de junio de 2025 (20,45 M€) da +78,9 %.'
+    ref: '#lumen-en-2026'
+
+  - id: bi1-04-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Por qué se usa la variación interanual (frente al mismo mes del año anterior) y no frente al mes anterior para ver el crecimiento de una serie estacional?'
+    options:
+      - 'Porque es más fácil de calcular'
+      - 'Porque elimina el efecto estacional: se compara un mes con el mismo mes del año anterior, y no diciembre con noviembre'
+      - 'Porque da siempre números más altos'
+      - 'Porque no necesita tabla de fechas'
+    answer: [1]
+    explanation: 'La comparación con el periodo inmediatamente anterior mezcla estacionalidad con tendencia. La interanual aísla la tendencia, aunque tarda un año en estar disponible.'
+    ref: '#los-patrones-básicos'
+
+  - id: bi1-04-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'Los ingresos de marzo de 2026 son 4,82 M€ y los de marzo de 2025, 3,54 M€. ¿Cuál es el crecimiento interanual? (un decimal, en %)'
+    answer: [36.3]
+    tolerance: 0.3
+    explanation: '4,824 / 3,540 − 1 = 0,363, es decir, +36,3 %: muy por debajo del +88,7 % de febrero y del +81,1 % de abril, un bache aislado que merece explicación.'
+    ref: '#lumen-en-2026'
+
+  - id: bi1-04-q4
+    type: single
+    difficulty: 3
+    prompt: 'Calculas el «mismo mes del año anterior» con LAG(ingresos, 12) en SQL o shift(12) en pandas, pero faltan dos meses sin ventas en la serie. ¿Qué ocurre?'
+    options:
+      - 'Nada, el resultado es correcto'
+      - 'La serie queda desalineada: el mes 12 filas atrás ya no es el mismo mes del año anterior; hay que completar la serie con una tabla de fechas (meses ausentes con 0)'
+      - 'Las funciones fallan con un error'
+      - 'Las medias móviles mejoran'
+    answer: [1]
+    explanation: 'LAG y shift cuentan filas, no meses. Con huecos, el desplazamiento apunta al mes equivocado. Una dimensión de fechas completa (o reindexar la serie) lo evita.'
+    ref: '#en-sql-y-en-pandas'
+
+  - id: bi1-04-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las funciones de DAX de inteligencia de tiempo mencionadas en la lección.'
+    options:
+      - 'TOTALYTD'
+      - 'SAMEPERIODLASTYEAR'
+      - 'DATESINPERIOD'
+      - 'MERGEJOINS'
+    answer: [0, 1, 2]
+    explanation: 'MERGEJOINS no existe. TOTALYTD acumula desde el inicio del año, SAMEPERIODLASTYEAR desplaza al mismo periodo del año anterior y DATESINPERIOD define ventanas móviles; todas exigen una tabla de fechas marcada.'
+    ref: '#en-dax'
+
+  - id: bi1-04-q6
+    type: single
+    difficulty: 2
+    prompt: '¿Qué patrón es el más adecuado para ver la tendencia del negocio sin estacionalidad y sin reiniciarse cada enero?'
+    options:
+      - 'MTD'
+      - 'YTD'
+      - 'Doce meses móviles (LTM)'
+      - 'El mes anterior'
+    answer: [2]
+    explanation: 'La suma de los últimos 12 meses cubre siempre un ciclo estacional completo. Es estable, aunque esconde incidencias puntuales como el bache de marzo de 2026.'
+    ref: '#los-patrones-básicos'

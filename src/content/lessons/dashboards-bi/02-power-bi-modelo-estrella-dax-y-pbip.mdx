@@ -1,0 +1,314 @@
+---
+title: 'Power BI: modelo en estrella, DAX y proyectos PBIP'
+description: 'Los cimientos de Power BI: modelo en estrella, Power Query, DAX (contexto de fila y de filtro, CALCULATE), seguridad por filas, formato de proyecto PBIP con TMDL y PBIR, funciones DAX de usuario y Direct Lake.'
+module: dashboards-bi
+order: 2
+level: intermedio
+estimatedMinutes: 45
+objectives:
+  - 'Diseñar un modelo en estrella a partir de tablas transaccionales y comprobar su integridad.'
+  - 'Distinguir contexto de fila y contexto de filtro en DAX y usar CALCULATE para modificar el segundo.'
+  - 'Explicar cómo se versiona un proyecto de Power BI (PBIP) con TMDL y PBIR y qué aportan las funciones DAX definidas por el usuario.'
+  - 'Elegir entre modos de almacenamiento (Import, DirectQuery y Direct Lake) y describir cómo se aplica la seguridad por filas.'
+prerequisites: ['dashboards-bi/01-diseno-de-dashboards']
+tools: ['power-bi', 'dax']
+volatility: high
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Microsoft Learn — Understand star schema and the importance for Power BI'
+    url: 'https://learn.microsoft.com/en-us/power-bi/guidance/star-schema'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft Learn — CALCULATE (DAX)'
+    url: 'https://learn.microsoft.com/en-us/dax/calculate-function-dax'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft Learn — Power BI Desktop projects (PBIP)'
+    url: 'https://learn.microsoft.com/en-us/power-bi/developer/projects/projects-overview'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft Learn — Power BI Desktop project report folder (PBIR)'
+    url: 'https://learn.microsoft.com/en-us/power-bi/developer/projects/projects-report'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft Learn — DAX user-defined functions'
+    url: 'https://learn.microsoft.com/en-us/dax/best-practices/dax-user-defined-functions'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft Learn — Direct Lake overview'
+    url: 'https://learn.microsoft.com/en-us/fabric/fundamentals/direct-lake-overview'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft Learn — Row-level security (RLS) with Power BI'
+    url: 'https://learn.microsoft.com/en-us/power-bi/enterprise/service-admin-rls'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+relatedLabs: ['py-modelo-estrella']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Finanzas de Lumen quiere pasar de las hojas de cálculo a un cuadro de mando en Power BI. Un
+  compañero ha importado las tablas tal cual y ha unido todo con relaciones en todas direcciones: el
+  total de ingresos sale distinto según el gráfico, y al filtrar por región los importes se
+  multiplican. ¿Qué cimientos faltan?
+</BusinessContext>
+
+Power BI es hoy la herramienta de BI más extendida en muchas empresas, y casi todos sus problemas de fiabilidad (cifras que no cuadran, informes
+lentos, medidas incomprensibles) vienen de **un mal modelo de datos** y de **no entender el contexto de DAX**. El diseño del
+cuadro de mando (lección anterior) importa menos si el modelo que lo alimenta no es sólido.
+
+## Intuición
+
+El modelo de Power BI es el **motor** y el informe, el **salpicadero**. El modelo guarda las tablas, sus relaciones y las
+medidas (cálculos reutilizables); el informe solo las muestra. Cuando alguien dice «el dashboard da otra cifra», casi siempre
+el problema está en el modelo (relaciones, grano, definición de la medida), no en el gráfico.
+
+## Cómo funciona
+
+### El modelo en estrella
+
+Un **modelo en estrella** separa las tablas en dos tipos: una **tabla de hechos** (eventos medibles, una fila por cada uno) y varias **tablas de
+dimensiones** (los «por» del análisis: por cliente, por producto, por fecha). Las dimensiones se relacionan con el hecho en **uno a muchos**
+(una fila de dimensión, muchas de hechos), con filtro de la dimensión hacia el hecho:
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+    C["Clientes<br/>(dimensión)"] -->|"1 a *"| V["Ventas<br/>(hechos: una fila por línea de pedido)"]
+    P["Productos<br/>(dimensión)"] -->|"1 a *"| V
+    F["Fecha<br/>(dimensión)"] -->|"1 a *"| V
+    T["Tiendas<br/>(dimensión)"] -->|"1 a *"| V`}
+  alt="Modelo en estrella de Lumen: la tabla de hechos Ventas, con una fila por línea de pedido, rodeada de las dimensiones Clientes, Productos, Fecha y Tiendas, cada una relacionada con Ventas en uno a muchos."
+/>
+
+Lo que se gana: filtros predecibles (filtrar una dimensión filtra el hecho), medidas sencillas y rendimiento (las columnas de texto
+repetidas viven en las dimensiones y no en cada fila del hecho). Reglas del modelo:
+
+1. **Declara el grano** del hecho (aquí, una línea de pedido) y no mezcles granos en una misma tabla.
+2. **Una dimensión de fecha** completa y marcada como tabla de fechas (días consecutivos, sin huecos).
+3. **Relaciones uno a muchos** con filtro en una sola dirección; evita las bidireccionales salvo que haya una razón.
+4. **Claves enteras** en las relaciones cuando puedas (más rápidas que el texto).
+5. **Oculta** las columnas de clave y de hechos que no deben arrastrarse a un informe; expón solo medidas.
+
+En Lumen, el hecho tiene 1.014.555 líneas con cantidad e importe; las dimensiones de cliente (60.000) y producto (2.000) son
+pequeñas. Si en lugar de eso uniéramos `orders` con `order_items` en una sola tabla plana, el `shipping_cost` (que es **por pedido**) se repetiría en
+cada línea: sumarlo daría 2,24 M€ en lugar de 0,87 M€ (el fan-out de SQL, ahora disfrazado de modelo).
+
+### Power Query: preparar los datos antes del modelo
+
+**Power Query** (lenguaje M) es el motor de transformación de Power BI. Aplica pasos reproducibles (tipos, limpieza, uniones,
+columnas calculadas) antes de cargar el modelo. Un ejemplo para el CSV sucio de pedidos de la lección de limpieza, que trae los importes con
+coma decimal:
+
+```m
+let
+    Origen = Csv.Document(File.Contents("lumen_raw/orders.csv"), [Delimiter = ",", Encoding = 65001]),
+    Cabeceras = Table.PromoteHeaders(Origen, [PromoteAllScalars = true]),
+    Tipos = Table.TransformColumnTypes(
+        Cabeceras,
+        {{"shipping_cost", type number}, {"discount_pct", type number}},
+        "es-ES"                                    // cultura: interpreta "4,95" como 4.95
+    ),
+    SinDuplicados = Table.Distinct(Tipos)
+in
+    SinDuplicados
+```
+
+La limpieza se hace **aguas arriba** siempre que se pueda (en el almacén o en el pipeline); Power Query es la opción cuando el
+analista no controla el origen. Una cuestión técnica que importa: el **_query folding_** (el motor traduce los pasos a SQL y los
+ejecuta en el origen). Con él, filtrar o agrupar es barato; sin él, se descarga todo y se transforma en local.
+
+### DAX: contexto de fila y contexto de filtro
+
+**DAX** es el lenguaje de las medidas. Casi todo se entiende con dos contextos:
+
+| Contexto      | Qué es                                           | Dónde aparece                                                |
+| ------------- | ------------------------------------------------ | ------------------------------------------------------------ |
+| **De fila**   | «Estoy en esta fila de la tabla»                 | Columnas calculadas e iteradores (`SUMX`, `FILTER`)          |
+| **De filtro** | «Estas son las filas visibles según los filtros» | Medidas: lo fijan los visuales, segmentaciones y `CALCULATE` |
+
+Una **columna calculada** se evalúa fila a fila al cargar (contexto de fila) y se guarda; una **medida** se calcula al vuelo según el filtro
+del visual y no ocupa espacio. Reglas: calcula **por fila** lo que es propio de la fila (importe de una línea) y **como medida** lo que
+se agrega.
+
+```dax
+Importe línea = Ventas[cantidad] * Ventas[precio_unitario]     -- columna calculada (contexto de fila)
+
+Ingresos = SUM ( Ventas[Importe línea] )                       -- medida (contexto de filtro)
+
+Pedidos = DISTINCTCOUNT ( Ventas[order_id] )
+
+Ticket medio = DIVIDE ( [Ingresos], [Pedidos] )                -- DIVIDE evita errores de división por cero
+```
+
+La función clave es **`CALCULATE`**: evalúa una expresión **modificando el contexto de filtro**.
+
+```dax
+Ingresos no cancelados =
+    CALCULATE ( [Ingresos], Pedidos[estado] <> "cancelado" )
+
+Ingresos Electrónica =
+    CALCULATE ( [Ingresos], Productos[categoria] = "Electrónica" )
+
+Ingresos todas las regiones =
+    CALCULATE ( [Ingresos], REMOVEFILTERS ( Clientes[region] ) )   -- ignora la segmentación de región
+```
+
+Con los datos de Lumen (resultados equivalentes en SQL, verificados con DuckDB): en 2025, `Ingresos no cancelados` es **49,46 M€**,
+`Pedidos` (no cancelados) **161.706** y `Ticket medio` **305,87 €**; `Ingresos Electrónica` es **23,80 M€** (el 48,1 %). Y si la página tiene una
+segmentación de región = Madrid, los ingresos de esa región (7,39 M€) se obtienen solos por el contexto de filtro; con `REMOVEFILTERS` se
+recuperaría el total.
+
+<Callout type="warning">
+  Los dos errores clásicos de DAX son **medir con una columna calculada algo que debería ser una
+  medida** (ocupa memoria y no reacciona al filtro) y **no saber qué contexto está activo** al
+  evaluar una expresión. Ante una cifra inesperada, pregunta: ¿qué filtros llegan? ¿Qué hace
+  `CALCULATE` con ellos?
+</Callout>
+
+Un patrón de buenas prácticas: **medidas base** sencillas (`Ingresos`, `Pedidos`) y medidas derivadas que las reutilizan (`Ticket medio`),
+en lugar de repetir lógica. Y una **tabla de medidas** (o carpeta de visualización) por área para que se encuentren.
+
+### Seguridad por filas (RLS)
+
+La seguridad por filas (_row-level security_) restringe qué filas ve cada persona. Se define con **roles** y un **filtro DAX** por tabla; se
+asigna a usuarios o grupos en el servicio. Un rol estático para la responsable de Madrid:
+
+```dax
+Clientes[region] = "Madrid"
+```
+
+Y uno dinámico, con una tabla de seguridad que relaciona usuarios y regiones:
+
+```dax
+Seguridad[email] = USERPRINCIPALNAME ()
+```
+
+El filtro se propaga por las relaciones desde la dimensión al hecho, de modo que **las dimensiones y su seguridad son la base**: un buen modelo
+en estrella hace la RLS sencilla y un modelo caótico la hace frágil. Se **prueba** siempre con «Ver como» antes de publicar.
+
+### Proyectos PBIP, TMDL y PBIR: Power BI como código
+
+Un archivo `.pbix` es un binario difícil de versionar. El formato **proyecto de Power BI Desktop (PBIP)** guarda el modelo y el informe como
+**carpetas de texto**, aptas para Git:
+
+```text
+Lumen.pbip
+├── Lumen.SemanticModel/        ← el modelo semántico
+│   └── definition/             ← en formato TMDL (tablas, relaciones, medidas, funciones)
+└── Lumen.Report/               ← el informe
+    ├── definition.pbir         ← referencia al modelo
+    └── definition/             ← formato PBIR: pages/, visuals/, bookmarks/ (un JSON por página y visual)
+```
+
+**TMDL** (_Tabular Model Definition Language_) describe el modelo semántico como texto legible; **PBIR** (_Power BI enhanced report format_)
+descompone el informe en un archivo JSON por página, visual y marcador, con **esquema JSON público**, lo que permite revisar cambios
+(_diffs_), resolver conflictos de fusión y automatizar ediciones con scripts. Es la base de la integración con Git y de los flujos de
+despliegue (CI/CD) en Fabric.
+
+<Snapshot date="2026-10">
+  Según la documentación de Microsoft (actualizada en septiembre de 2026), **PBIR es el formato de
+  informe por defecto y está en disponibilidad general**: los informes en el formato antiguo
+  (PBIR-Legacy, un único `report.json`) se convierten automáticamente al editarlos y guardarlos, con
+  una copia de respaldo. Las **funciones DAX definidas por el usuario** (palabra clave `FUNCTION`,
+  nivel de compatibilidad 1702 o superior) están **disponibles de forma general desde la versión de
+  junio de 2026** de Power BI Desktop y del servicio. Y el **modo de almacenamiento Direct Lake**
+  tiene dos variantes (sobre OneLake y sobre el punto de conexión SQL) y requiere capacidad de
+  Fabric. Las funciones de Power BI cambian cada mes: confirma el estado en la documentación antes
+  de depender de una de ellas.
+</Snapshot>
+
+**Funciones DAX definidas por el usuario**: permiten empaquetar lógica reutilizable (una variación porcentual, un cálculo de impuestos) y
+usarla en medidas, columnas calculadas y cálculos visuales. Ejemplo con la sintaxis de la documentación:
+
+```dax
+DEFINE
+    /// Variación relativa entre dos valores; BLANK si el anterior es 0
+    FUNCTION VariacionPct = ( actual : NUMERIC, anterior : NUMERIC ) =>
+        DIVIDE ( actual - anterior, anterior )
+
+EVALUATE
+{ VariacionPct ( 49460757, 22441854 ) }
+// 1,204 (+120,4 %)
+```
+
+### Modos de almacenamiento: Import, DirectQuery y Direct Lake
+
+| Modo            | Cómo funciona                                                            | Cuándo encaja                                                                     |
+| --------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| **Import**      | Copia los datos al modelo (en memoria, motor VertiPaq)                   | Lo habitual: rápido y flexible; hay que programar actualizaciones                 |
+| **DirectQuery** | Traduce cada consulta al origen en tiempo real                           | Datos que cambian al minuto o que no pueden copiarse; más lento                   |
+| **Direct Lake** | Lee tablas Delta de OneLake (Fabric) cargándolas en memoria bajo demanda | Grandes volúmenes en un lakehouse de Fabric; «refrescar» solo actualiza metadatos |
+
+En Direct Lake, según la documentación, una actualización copia **solo metadatos** (_framing_): tarda segundos, a diferencia de la importación completa,
+y las consultas las procesa el mismo motor que en Import, con rendimiento comparable. No sustituye a Import en todos los casos (por ejemplo, para
+analistas de autoservicio que necesitan transformar con Power Query).
+
+## En la práctica
+
+Antes de construir ningún visual, valida el modelo con tres comprobaciones (se hacen igual en Power BI y en pandas, como en el lab):
+
+1. **Grano**: el número de filas del hecho coincide con el de la fuente (1.014.555 líneas) y la clave del hecho es única.
+2. **Integridad**: toda clave foránea del hecho existe en su dimensión (sin huérfanos).
+3. **Cifra de control**: el total de la medida `Ingresos` (todas las líneas: 118,57 M€) coincide con el de la fuente.
+
+En el lab de esta lección construyes el hecho y la dimensión de fechas en pandas y compruebas esas tres cosas.
+
+## Trade-offs y cuándo usarlo
+
+- **Una estrella frente a un modelo plano (OBT)**: la estrella escala y se gobierna mejor; la tabla plana es más simple para un análisis puntual
+  pero propensa a duplicar medidas por fan-out.
+- **Medida frente a columna calculada**: la medida se adapta al contexto y no ocupa espacio; la columna es necesaria para segmentar o relacionar.
+- **Import frente a Direct Lake**: Import da libertad y es universal; Direct Lake evita copiar datos grandes pero exige Fabric y datos preparados en el lago.
+- **Lógica en Power Query, en el almacén o en DAX**: cuanto más arriba (almacén), más reutilizable; DAX es para lo que depende del filtro del usuario.
+
+## Errores comunes
+
+- **Relaciones bidireccionales y muchos a muchos** sin necesidad, que producen cifras ambiguas.
+- **Unir hechos de distinto grano** (pedido y línea) y sumar medidas del grano más grueso.
+- **Calcular en columnas lo que debe ser una medida.**
+- **Olvidar la tabla de fechas** o tener huecos en ella (la inteligencia de tiempo falla).
+- **No probar la RLS** con «Ver como» y publicar con filtros que no se propagan.
+- **Guardar todo en un único `.pbix`** sin versionado ni revisión.
+- **Medidas sin definición documentada** ni dueño.
+
+## Con IA
+
+Copilot en Power BI y otros asistentes pueden generar medidas DAX y visuales a partir de una petición, y son muy útiles para
+**explicar** una medida existente o proponer una base. Los fallos típicos: usan columnas que no existen, ignoran el contexto de filtro
+(sumas sobre columnas calculadas) y devuelven DAX que funciona pero no es el que corresponde a la definición oficial. Dale el
+esquema del modelo, pídele que explique el contexto de filtro de cada medida y valida los resultados contra una consulta SQL o una cifra de control.
+La licencia y la capacidad que requieren estas funciones cambian: consulta la documentación vigente.
+
+## En una entrevista
+
+- _"¿Qué es un modelo en estrella y por qué se usa en Power BI?"_ — Pista: hechos y dimensiones, uno a muchos, filtros predecibles,
+  rendimiento y gobierno.
+- _"Diferencia entre contexto de fila y de filtro. ¿Qué hace CALCULATE?"_ — Pista: fila a fila frente a filas visibles; CALCULATE
+  modifica el contexto de filtro.
+- _"¿Cómo versionas un informe de Power BI?"_ — Pista: PBIP con TMDL y PBIR en Git; revisión de cambios y CI/CD.
+
+<KeyTakeaways
+  items={[
+    'Un buen modelo en estrella (hechos con grano declarado y dimensiones en relaciones uno a muchos) evita las cifras que no cuadran; comprueba grano, integridad y una cifra de control.',
+    'Las medidas se evalúan en contexto de filtro (los visuales y CALCULATE lo modifican); las columnas calculadas, en contexto de fila: calcula por fila solo lo que es de la fila.',
+    'En Lumen 2025: ingresos no cancelados 49,46 M€, 161.706 pedidos, ticket 305,87 € y Electrónica 23,80 M€ (48,1 %): las medidas DAX deben reproducir estas cifras.',
+    'PBIP guarda el modelo en TMDL y el informe en PBIR (un JSON por página y visual), listos para Git; PBIR es el formato por defecto y las funciones DAX de usuario están disponibles de forma general desde junio de 2026.',
+    'Direct Lake (Fabric) lee tablas Delta de OneLake y su actualización solo copia metadatos; Import y DirectQuery siguen siendo válidos según el caso.',
+  ]}
+/>

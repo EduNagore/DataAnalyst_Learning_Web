@@ -1,0 +1,245 @@
+---
+title: 'Tableau, Looker, BI de código abierto y BI como código'
+description: 'Qué aporta cada familia de herramientas de BI (Tableau, Looker y LookML, Superset/Metabase/Lightdash y Evidence), en qué se parecen en el fondo y cómo elegir con criterios y no por moda.'
+module: dashboards-bi
+order: 3
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Explicar la idea de las expresiones LOD de Tableau y de la capa semántica de LookML con un ejemplo equivalente en SQL.'
+  - 'Distinguir BI de autoservicio visual, BI sobre capa semántica y BI como código.'
+  - 'Comparar herramientas con una matriz de criterios (gobierno, coste, habilidades, versionado, IA, rendimiento).'
+  - 'Decidir con un proceso reproducible (prototipo y criterios ponderados) en lugar de por marca.'
+prerequisites: ['dashboards-bi/02-power-bi-modelo-estrella-dax-y-pbip']
+tools: ['tableau', 'looker', 'superset', 'metabase', 'lightdash', 'evidence']
+volatility: high
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Tableau — Level of Detail (LOD) expressions'
+    url: 'https://help.tableau.com/current/pro/desktop/en-us/calculations_calculatedfields_lod.htm'
+    type: docs
+    authors: 'Salesforce / Tableau'
+    year: 2026
+  - title: 'Salesforce — Tableau Pulse generalmente disponible'
+    url: 'https://www.salesforce.com/news/stories/tableau-pulse-general-availability-news/'
+    type: blog
+    authors: 'Salesforce'
+    year: 2024
+  - title: "Google Cloud — Looker updates for agentic BI at Next '26"
+    url: 'https://cloud.google.com/blog/products/business-intelligence/looker-updates-for-agentic-bi-at-next26'
+    type: blog
+    authors: 'Google Cloud'
+    year: 2026
+  - title: 'Google Cloud — What is LookML?'
+    url: 'https://cloud.google.com/looker/docs/what-is-lookml'
+    type: docs
+    authors: 'Google Cloud'
+    year: 2026
+  - title: 'Apache Superset'
+    url: 'https://superset.apache.org/'
+    type: docs
+    authors: 'Apache Software Foundation'
+    year: 2026
+  - title: 'Evidence — documentación (BI como código)'
+    url: 'https://docs.evidence.dev/'
+    type: docs
+    authors: 'Evidence'
+    year: 2026
+relatedLabs: []
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Lumen crece y el comité pide una "herramienta de BI definitiva". Marketing quiere Tableau porque
+  la conoce de su anterior empresa, Finanzas ya paga Power BI, el equipo de datos prefiere algo en
+  Git y alguien ha visto una demo de un asistente de IA que "habla con los datos". ¿Cómo se decide
+  sin entrar en una guerra de marcas?
+</BusinessContext>
+
+Hay decenas de herramientas, pero **pocas ideas de fondo**. Entenderlas permite cambiar de herramienta sin empezar de cero y
+elegir por criterios. Las tres que se repiten en todas son: un **modelo/capa semántica** que define las métricas, un **motor de consulta**
+que las ejecuta sobre el almacén y una **capa de visualización** que las muestra.
+
+## Intuición
+
+Todas las herramientas de BI resuelven el mismo problema: convertir tablas en respuestas fiables para personas que no escriben SQL. Se
+diferencian en **dónde viven las definiciones** (en el informe, en un modelo, en código), **quién construye** (analista de negocio o
+desarrollador) y **cómo se gobierna** el resultado. Una vez que ves eso, Tableau, Looker, Superset o Evidence dejan de parecer mundos aparte.
+
+## Cómo funciona
+
+### Tableau: autoservicio visual y expresiones LOD
+
+**Tableau** destaca por la exploración visual rápida (arrastrar y soltar) y por una comunidad enorme de analistas. Su concepto más
+característico son las **expresiones LOD** (_level of detail_): permiten calcular una agregación a un nivel de detalle distinto del que
+muestra el gráfico. Tres variantes: `FIXED` (a un nivel fijo, ignorando los filtros del visual), `INCLUDE` (añade dimensiones) y `EXCLUDE` (quita
+dimensiones).
+
+```text
+{ FIXED [Cliente] : MIN([Fecha de pedido]) }          // primera compra de cada cliente, aunque el gráfico sea por mes
+{ FIXED [Región] : SUM([Ingresos]) }                  // ingresos de la región en cada fila, útil para calcular % sobre el total regional
+```
+
+Equivalen a **funciones de ventana** o a subconsultas agregadas de SQL, y a `CALCULATE` con filtros manipulados en DAX. Por ejemplo, la primera compra de
+cada cliente (cohorte) es en SQL `MIN(order_date) OVER (PARTITION BY customer_id)`: la misma idea con otra sintaxis. Tableau Pulse, la capa de
+métricas y alertas con lenguaje natural, está disponible de forma general desde el 22 de febrero de 2024.
+
+### Looker y LookML: la capa semántica como código
+
+**Looker** (Google Cloud) parte de otra idea: las métricas se definen **una vez, en código**, en **LookML**, un lenguaje declarativo. Las
+personas exploran sobre ese modelo y todas obtienen la misma cifra. Un fragmento ilustrativo para Lumen:
+
+```lookml
+view: ventas {
+  sql_table_name: lumen.order_items ;;
+
+  dimension: order_item_id {
+    primary_key: yes
+    type: string
+    sql: ${TABLE}.order_item_id ;;
+  }
+
+  measure: ingresos {
+    type: sum
+    sql: ${TABLE}.quantity * ${TABLE}.unit_price ;;
+    value_format: "#,##0 €"
+    description: "Ingresos netos (el precio unitario ya incluye el descuento)"
+  }
+}
+```
+
+Lo importante no es la sintaxis sino el **patrón**: dimensiones y medidas declaradas con su descripción, en un repositorio Git, revisables y
+reutilizables. Es el mismo patrón que las capas semánticas de dbt (MetricFlow) o los modelos de Power BI en TMDL. Looker Studio es otra
+herramienta distinta, de informes gratuitos de Google, que no usa LookML.
+
+### BI de código abierto
+
+**Apache Superset**, **Metabase** y **Lightdash** son plataformas de BI que se pueden alojar uno mismo. Se parecen a las comerciales en
+funcionalidad básica (conexión a un almacén, gráficos, paneles) y aportan **control de coste, transparencia y extensibilidad**; el precio
+es **operarlas** (despliegue, actualizaciones, seguridad). Matices: Superset es un proyecto de la Apache Software Foundation (licencia Apache 2.0);
+Metabase y Lightdash publican su código con licencias propias y funciones de pago, así que conviene **leer la licencia** antes de
+adoptarlas; y Lightdash se apoya en el modelo y las métricas definidas en dbt.
+
+### BI como código: Evidence
+
+**Evidence** lleva el principio de «todo es código» al informe: se escribe **Markdown con consultas SQL** y componentes, se versiona en Git y se
+publica como sitio estático (licencia MIT). Es el mismo enfoque de esta web: el contenido, los datos y los gráficos son texto reproducible.
+
+````markdown
+```sql ingresos_mes
+select date_trunc('month', order_date) as mes, sum(importe) as ingresos
+from ventas
+where estado <> 'cancelado'
+group by 1
+```
+
+# Ingresos mensuales
+
+<LineChart data={ingresos_mes} x=mes y=ingresos />
+````
+
+Encaja con equipos de datos que viven en Git y quieren informes revisables, reproducibles y rápidos; encaja peor cuando el público necesita
+explorar libremente sin conocer SQL.
+
+<Snapshot date="2026-10">
+  El mercado se mueve deprisa y casi todas las herramientas añaden asistentes de IA y soporte de
+  MCP. Datos verificados en fuentes oficiales: en la conferencia Google Cloud Next '26 (22 de abril
+  de 2026), Looker anunció agentes de BI y mejoras del Conversational Analytics, apoyados en la capa
+  semántica de LookML; Tableau Pulse es generalmente disponible desde febrero de 2024; Apache
+  Superset 6.1 se publicó en mayo de 2026; y Evidence es de código abierto con licencia MIT. Las
+  capacidades concretas de cada versión y su licencia cambian: compruébalas en la documentación
+  antes de decidir.
+</Snapshot>
+
+### La IA en las herramientas de BI
+
+Las tres familias coinciden en una tendencia: **asistentes y agentes que consultan la capa semántica**. Una pregunta en lenguaje natural es útil si se traduce a
+una métrica **definida y gobernada**; si el asistente improvisa cálculos sobre tablas crudas, devuelve cifras distintas según la formulación (lección de
+«La IA y el stack moderno»). Por eso la inversión que más rinde, con cualquier herramienta, es **la capa semántica y la calidad de los datos**.
+
+### Cómo elegir: criterios, no marcas
+
+| Criterio                     | Pregunta                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------ |
+| **Gobierno de métricas**     | ¿Dónde se definen una vez? ¿Quién las revisa? ¿Se versionan?                   |
+| **Quién construye**          | ¿Analistas de negocio (visual) o desarrolladores (código)?                     |
+| **Autoservicio**             | ¿Puede un usuario explorar sin SQL, sobre datos gobernados?                    |
+| **Integración con el stack** | ¿Conecta con mi almacén y mi herramienta de transformación (por ejemplo, dbt)? |
+| **Coste total**              | Licencias, capacidad, personal para operarlo, formación                        |
+| **Versionado y despliegue**  | ¿Hay Git, revisión de cambios y entornos?                                      |
+| **Seguridad**                | Seguridad por filas, SSO, auditoría                                            |
+| **IA y MCP**                 | ¿El asistente usa la capa semántica? ¿Qué controles hay?                       |
+| **Habilidades disponibles**  | ¿Qué sabe ya el equipo? ¿Es fácil contratar?                                   |
+
+Un proceso razonable: (1) fija los **criterios y sus pesos** con las áreas implicadas; (2) preselecciona dos o tres candidatas; (3) haz un **prototipo con tus datos y un caso
+real** (el cuadro de mando ejecutivo de la lección 1) con cada una; (4) puntúa con los criterios y decide. Y asume que **cambiar de herramienta será
+posible** si las definiciones viven en una capa semántica y en código portable.
+
+## En la práctica
+
+Ejercicio para el equipo: elige una métrica de Lumen (por ejemplo, «Ingresos netos») y escribe su definición en tres lenguajes.
+
+```sql
+-- SQL (el almacén)
+SELECT SUM(i.quantity * i.unit_price) FROM order_items i JOIN orders o USING (order_id) WHERE o.status <> 'cancelado';
+```
+
+```dax
+-- DAX (Power BI)
+Ingresos no cancelados = CALCULATE ( SUM ( Ventas[Importe línea] ), Pedidos[estado] <> "cancelado" )
+```
+
+```lookml
+# LookML (Looker): el filtro vive en la medida
+measure: ingresos_no_cancelados { type: sum  sql: ${TABLE}.quantity * ${TABLE}.unit_price ;;  filters: [pedidos.estado: "-cancelado"] }
+```
+
+Las tres deben dar **113,79 M€** para todo el histórico (49,46 M€ en 2025). Si una no cuadra, el problema es de **definición**, no de herramienta.
+
+## Trade-offs y cuándo usarlo
+
+- **Autoservicio visual frente a modelo gobernado**: el visual da agilidad; el gobernado da consistencia. Lo ideal es autoservicio **sobre** un modelo gobernado.
+- **Comercial frente a código abierto**: lo comercial reduce el esfuerzo operativo y da soporte; lo abierto da control y menor coste de licencia, a cambio de
+  operación propia.
+- **Herramienta única frente a varias**: una sola simplifica la formación y el gobierno; varias cubren más casos, con riesgo de definiciones divergentes.
+- **BI tradicional frente a BI como código**: lo segundo gana en reproducibilidad y revisión; lo primero, en facilidad para quien no programa.
+
+## Errores comunes
+
+- **Elegir por una demo** y no por un prototipo con datos propios.
+- **Definir las métricas dentro de cada informe** (se duplican y divergen).
+- **Ignorar el coste de operar** una herramienta de código abierto.
+- **Migrar de herramienta sin migrar las definiciones**: se pierde el gobierno.
+- **Dejar que un asistente consulte tablas crudas** sin capa semántica.
+- **Comparar herramientas por listas de funciones** y no por las del caso de uso real.
+
+## Con IA
+
+Para comparar herramientas, un asistente es útil como **guía de lectura** de documentación y para generar un borrador de matriz de criterios, pero
+sus datos de versiones, licencias y precios son fáciles de desfasar. Pídele que cite fuentes oficiales y comprueba cada afirmación; y utilízalo
+para traducir una métrica entre SQL, DAX y LookML, verificando después que las tres dan la misma cifra.
+
+## En una entrevista
+
+- _"¿Qué es una expresión LOD de Tableau y a qué equivale en SQL?"_ — Pista: agregación a un nivel distinto del visual; funciones de ventana o
+  subconsultas.
+- _"¿Qué ventaja tiene definir las métricas en LookML o en una capa semántica?"_ — Pista: una sola definición, Git, revisión, misma cifra en todos los
+  consumidores (incluida la IA).
+- _"¿Cómo decidirías entre Power BI, Tableau y una herramienta de código abierto?"_ — Pista: criterios ponderados, prototipo con datos propios,
+  coste total y habilidades.
+
+<KeyTakeaways
+  items={[
+    'Todas las herramientas de BI comparten tres piezas: capa semántica (definiciones), motor de consulta y visualización; se diferencian en dónde viven las definiciones y quién construye.',
+    'Las expresiones LOD de Tableau equivalen a funciones de ventana o subconsultas; LookML declara dimensiones y medidas en código versionable.',
+    'Superset (Apache 2.0), Metabase, Lightdash y Evidence (MIT) ofrecen BI alojable por uno mismo o como código; el precio es operarlas y leer bien sus licencias.',
+    'La misma métrica (ingresos no cancelados: 113,79 M€) debe dar la misma cifra en SQL, DAX y LookML: si no cuadra, el problema es de definición.',
+    'Elige con criterios ponderados y un prototipo con datos propios; la inversión más rentable con cualquier herramienta es la capa semántica y la calidad de los datos.',
+  ]}
+/>

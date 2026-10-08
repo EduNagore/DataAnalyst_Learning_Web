@@ -1,0 +1,75 @@
+lesson: dashboards-bi/03-tableau-looker-open-source-y-bi-as-code
+questions:
+  - id: bi1-03-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué permite una expresión LOD FIXED de Tableau, como { FIXED [Cliente] : MIN([Fecha de pedido]) }?'
+    options:
+      - 'Cambiar el color de un gráfico'
+      - 'Calcular una agregación a un nivel de detalle fijo (por cliente), independientemente del nivel que muestre el visual'
+      - 'Filtrar la hoja de cálculo'
+      - 'Exportar a PDF'
+    answer: [1]
+    explanation: 'Las expresiones LOD (level of detail) agregan a un nivel distinto del visual. Son equivalentes a funciones de ventana o subconsultas agregadas de SQL.'
+    ref: '#tableau-autoservicio-visual-y-expresiones-lod'
+
+  - id: bi1-03-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál es la idea central de LookML en Looker?'
+    options:
+      - 'Dibujar gráficos con código'
+      - 'Definir dimensiones y medidas una vez, en código versionable, para que todos los consumidores obtengan la misma cifra'
+      - 'Programar la actualización de datos'
+      - 'Gestionar usuarios'
+    answer: [1]
+    explanation: 'LookML es un lenguaje declarativo para la capa semántica: las métricas viven en un repositorio Git, revisables y reutilizables (también por los asistentes de IA).'
+    ref: '#looker-y-lookml-la-capa-semántica-como-código'
+
+  - id: bi1-03-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las afirmaciones correctas sobre la BI de código abierto y como código.'
+    options:
+      - 'Apache Superset es un proyecto de la Apache Software Foundation con licencia Apache 2.0'
+      - 'Se alojan y operan por cuenta propia, lo que da control a cambio de esfuerzo operativo'
+      - 'Evidence escribe informes en Markdown con consultas SQL, versionados en Git'
+      - 'Todas tienen exactamente la misma licencia'
+    answer: [0, 1, 2]
+    explanation: 'Las licencias difieren (Superset Apache 2.0, Evidence MIT, Metabase y Lightdash con licencias propias y funciones de pago): hay que leerlas antes de adoptar una herramienta.'
+    ref: '#bi-de-código-abierto'
+
+  - id: bi1-03-q4
+    type: numeric
+    difficulty: 2
+    prompt: 'La métrica «Ingresos netos» (no cancelados, todo el histórico) debe dar la misma cifra en SQL, DAX y LookML. ¿Cuántos M€ son? (dos decimales)'
+    answer: [113.79]
+    tolerance: 0.011
+    explanation: '113,79 M€. Si una de las herramientas da otra cifra, el problema es de definición (filtro de estado, grano o unidad), no de herramienta.'
+    ref: '#en-la-práctica'
+
+  - id: bi1-03-q5
+    type: single
+    difficulty: 2
+    prompt: 'Con una pregunta en lenguaje natural, un asistente de BI da cifras distintas según cómo se formule. ¿Qué inversión es la más rentable, con cualquier herramienta?'
+    options:
+      - 'Cambiar de herramienta'
+      - 'Una capa semántica gobernada y calidad de datos: que el asistente consulte métricas definidas, no tablas crudas'
+      - 'Más gráficos'
+      - 'Más usuarios'
+    answer: [1]
+    explanation: 'Looker, Tableau y Power BI coinciden en que los asistentes funcionan mejor si consultan una capa semántica. La inversión en definiciones y calidad es independiente de la marca.'
+    ref: '#la-ia-en-las-herramientas-de-bi'
+
+  - id: bi1-03-q6
+    type: single
+    difficulty: 3
+    prompt: '¿Cuál es el proceso más razonable para elegir una herramienta de BI?'
+    options:
+      - 'Elegir la que tenga la demo más vistosa'
+      - 'Fijar criterios y pesos con las áreas, preseleccionar dos o tres, prototipar el mismo caso real con datos propios, puntuar y decidir'
+      - 'Elegir la más barata'
+      - 'Elegir la que conoce la persona de más rango'
+    answer: [1]
+    explanation: 'Un prototipo con el mismo caso real y criterios acordados evita decidir por marca o por demo. Y si las definiciones viven en una capa semántica, cambiar de herramienta es posible.'
+    ref: '#cómo-elegir-criterios-no-marcas'

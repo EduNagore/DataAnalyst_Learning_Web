@@ -1,0 +1,204 @@
+---
+title: 'Inteligencia de tiempo: YTD, año anterior y medias móviles'
+description: 'Cómo calcular y comparar periodos sin engañarte: acumulado del año (YTD), mismo periodo del año anterior, variación interanual y 12 meses móviles, en SQL, pandas y DAX, con los datos de Lumen.'
+module: dashboards-bi
+order: 4
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Definir MTD, YTD, periodo anterior, mismo periodo del año anterior y 12 meses móviles y elegir cuál responde a cada pregunta.'
+  - 'Calcular esas comparaciones en SQL, pandas y DAX y comprobar que coinciden.'
+  - 'Evitar comparar un periodo parcial con uno completo y detectar saltos que merecen explicación.'
+  - 'Explicar por qué una tabla de fechas completa es imprescindible para la inteligencia de tiempo.'
+prerequisites: ['dashboards-bi/03-tableau-looker-open-source-y-bi-as-code']
+tools: ['power-bi', 'dax', 'duckdb', 'pandas']
+volatility: medium
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Microsoft Learn — Time intelligence functions (DAX)'
+    url: 'https://learn.microsoft.com/en-us/dax/time-intelligence-functions-dax'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft Learn — CALCULATE (DAX)'
+    url: 'https://learn.microsoft.com/en-us/dax/calculate-function-dax'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'DuckDB — Window functions'
+    url: 'https://duckdb.org/docs/stable/sql/functions/window_functions'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+relatedLabs: ['py-inteligencia-de-tiempo']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  A 30 de junio de 2026, el cuadro de mando de Lumen muestra "Ingresos 2026: 36,6 M€ (−26 % vs
+  2025)". La directora se alarma. Pero 2025 completo suma 49,5 M€ y 2026 solo lleva seis meses. ¿Qué
+  comparación debería mostrar el dashboard, y por qué en marzo el crecimiento interanual cae de
+  golpe?
+</BusinessContext>
+
+Casi cada tarjeta de KPI compara un periodo con otro. Si la comparación es injusta, el KPI miente, aunque el cálculo sea
+exacto. La **inteligencia de tiempo** es el conjunto de patrones para comparar periodos de forma justa.
+
+## Intuición
+
+Comparar «lo que llevamos» con «lo que hubo» solo es justo si los dos cubren **el mismo tramo del calendario**. Un corredor
+que ha hecho 6 km no va peor que otro que ha hecho 10 si el primero aún está en carrera. La inteligencia de tiempo cuenta
+**cuánto calendario ha pasado** y mide los dos periodos hasta el mismo punto.
+
+## Cómo funciona
+
+### Los patrones básicos
+
+| Patrón                               | Definición                                      | Responde a                                          |
+| ------------------------------------ | ----------------------------------------------- | --------------------------------------------------- |
+| **MTD** (_month to date_)            | Acumulado del mes hasta hoy                     | ¿Cómo va el mes?                                    |
+| **YTD** (_year to date_)             | Acumulado del año hasta hoy                     | ¿Cómo va el año?                                    |
+| **PoP** (periodo anterior)           | El periodo inmediatamente anterior (mes pasado) | ¿Mejora respecto al último periodo?                 |
+| **PY** (mismo periodo, año anterior) | El mismo mes (o YTD) del año anterior           | ¿Mejora respecto al año pasado, sin estacionalidad? |
+| **YoY** (variación interanual)       | $\text{actual}/\text{PY}-1$                     | ¿Cuánto crece de un año a otro?                     |
+| **12 meses móviles** (LTM)           | Suma de los últimos 12 meses                    | ¿Cuál es la tendencia sin estacionalidad?           |
+
+Elegir el patrón correcto es elegir la pregunta: PoP mezcla estacionalidad (diciembre contra noviembre), PY la elimina, y la media o suma móvil
+suaviza el ruido.
+
+### Lumen en 2026
+
+Ingresos netos mensuales (pedidos no cancelados) y sus comparaciones:
+
+| Mes (2026) | Ingresos |      YTD | Mismo mes 2025 |         YoY | 12 meses móviles |
+| ---------- | -------: | -------: | -------------: | ----------: | ---------------: |
+| Enero      |  5,81 M€ |  5,81 M€ |        2,94 M€ |     +97,5 % |         52,33 M€ |
+| Febrero    |  5,45 M€ | 11,26 M€ |        2,89 M€ |     +88,7 % |         54,89 M€ |
+| Marzo      |  4,82 M€ | 16,09 M€ |        3,54 M€ | **+36,3 %** |         56,18 M€ |
+| Abril      |  6,37 M€ | 22,46 M€ |        3,52 M€ |     +81,1 % |         59,03 M€ |
+| Mayo       |  6,92 M€ | 29,38 M€ |        3,77 M€ |     +83,6 % |         62,18 M€ |
+| Junio      |  7,21 M€ | 36,59 M€ |        3,79 M€ |     +89,9 % |         65,59 M€ |
+
+Tres lecturas:
+
+1. **Comparar 2026 con 2025 completo es injusto.** 36,6 M€ frente a 49,5 M€ da −26 %, pero el YTD de 2026 (36,59 M€) frente al **YTD de 2025 a
+   30 de junio (20,45 M€)** da **+78,9 %**. La comparación correcta es «mismo periodo del año anterior».
+2. **Marzo destaca**: el crecimiento interanual cae del 88,7 % al 36,3 % y se recupera en abril (+81,1 %). Una caída así en un mes aislado no es ruido: merece una
+   explicación (es la pista del caso guiado «Caída de ventas en marzo»).
+3. **Los 12 meses móviles** crecen de forma suave (52,3 a 65,6 M€) y esconden el bache de marzo: sirven para la tendencia, no para detectar incidencias. Cada patrón responde
+   a una pregunta distinta.
+
+<Callout type="warning">
+  Un periodo **parcial** (el mes en curso, el año en curso) nunca debe compararse con uno completo.
+  Hay dos remedios: comparar «hasta la misma fecha» (YTD frente a YTD del año anterior) o mostrar
+  solo periodos cerrados.
+</Callout>
+
+### La tabla de fechas
+
+Todos los patrones necesitan una **dimensión de fechas completa**: un día por fila, sin huecos, con año, trimestre, mes y marca de periodo cerrado. En
+Power BI se marca como _tabla de fechas_; en SQL se genera con una serie de fechas (`generate_series`) y se une por la izquierda. Con huecos, los
+acumulados y los «mes anterior» salen mal (un mes sin ventas desaparece en lugar de valer 0).
+
+### En DAX
+
+DAX incluye funciones dedicadas, que dependen de una tabla de fechas marcada:
+
+```dax
+Ingresos = SUM ( Ventas[Importe línea] )
+
+Ingresos YTD       = TOTALYTD ( [Ingresos], 'Fecha'[Fecha] )
+
+Ingresos PY        = CALCULATE ( [Ingresos], SAMEPERIODLASTYEAR ( 'Fecha'[Fecha] ) )
+
+Variación YoY %    = DIVIDE ( [Ingresos] - [Ingresos PY], [Ingresos PY] )
+
+Ingresos 12M móvil = CALCULATE ( [Ingresos], DATESINPERIOD ( 'Fecha'[Fecha], MAX ( 'Fecha'[Fecha] ), -12, MONTH ) )
+```
+
+`SAMEPERIODLASTYEAR` y `DATEADD` desplazan el contexto de filtro de fechas; `DATESYTD` y `TOTALYTD` acumulan desde el inicio del año; `DATESINPERIOD`
+define ventanas móviles. Un matiz: con un periodo parcial, `SAMEPERIODLASTYEAR` desplaza **las fechas seleccionadas**; si el visual muestra
+el año 2026 con datos hasta junio, el PY es todo 2025 salvo que filtres hasta la misma fecha. Compruébalo siempre con una cifra de control.
+
+### En SQL y en pandas
+
+Los mismos cálculos con ventanas (SQL de DuckDB) y con pandas:
+
+```sql
+WITH mensual AS (
+  SELECT date_trunc('month', o.order_date) AS mes, SUM(i.quantity * i.unit_price) AS ingresos
+  FROM orders o JOIN order_items i USING (order_id)
+  WHERE o.status <> 'cancelado' GROUP BY 1
+)
+SELECT mes, ingresos,
+       SUM(ingresos) OVER (PARTITION BY year(mes) ORDER BY mes)                    AS ytd,
+       LAG(ingresos, 12) OVER (ORDER BY mes)                                       AS mismo_mes_anio_anterior,
+       ingresos / LAG(ingresos, 12) OVER (ORDER BY mes) - 1                        AS yoy,
+       SUM(ingresos) OVER (ORDER BY mes ROWS BETWEEN 11 PRECEDING AND CURRENT ROW) AS movil_12m
+FROM mensual ORDER BY mes;
+```
+
+```python
+m["ytd"] = m.groupby("anio")["ingresos"].cumsum()
+m["py"] = m["ingresos"].shift(12)                  # exige una serie mensual SIN huecos
+m["yoy"] = m["ingresos"] / m["py"] - 1
+m["movil_12m"] = m["ingresos"].rolling(12).sum()
+```
+
+Fíjate en la condición de `LAG(…, 12)` y `shift(12)`: solo es «el mismo mes del año anterior» si la serie mensual **no tiene huecos**. De ahí la tabla de fechas.
+
+## En la práctica
+
+Checklist para cada KPI con comparación temporal:
+
+1. ¿El periodo actual está **cerrado**? Si no, ¿comparo hasta la misma fecha?
+2. ¿La serie base está **completa** (sin meses ausentes)?
+3. ¿Uso **PY** (sin estacionalidad) o **PoP** (con ella)?
+4. ¿La **zona horaria** y el calendario (fiscal o natural) son los de la definición de la métrica?
+5. ¿Contrastado con una **cifra de control** (por ejemplo, el YTD de junio de 2025: 20,45 M€)?
+
+En el lab de esta lección implementas YTD, variación interanual y 12 meses móviles sobre la serie mensual de Lumen y compruebas las cifras de la tabla.
+
+## Trade-offs y cuándo usarlo
+
+- **YoY frente a PoP**: el interanual evita la estacionalidad pero tarda un año en estar disponible; el periodo anterior reacciona antes y mezcla estacionalidad.
+- **12 meses móviles frente a YTD**: el móvil es estable y siempre comparable; el YTD se reinicia cada año y facilita el seguimiento de objetivos anuales.
+- **Calendario natural frente a fiscal**: define el año fiscal si la empresa lo usa y úsalo en toda la organización.
+- **Medidas DAX frente a calcular en el almacén**: DAX es flexible ante filtros; precalcular en el almacén es más reutilizable y rápido para series fijas.
+
+## Errores comunes
+
+- **Comparar un periodo parcial con uno completo** (−26 % que en realidad es +78,9 %).
+- **Usar `LAG(…, 12)` o `shift(12)` con meses ausentes.**
+- **Mezclar mes natural y semana o 4-4-5** sin una dimensión de fechas común.
+- **YoY con base cero o muy pequeña** (porcentajes enormes sin sentido): muestra también la diferencia absoluta.
+- **Ignorar el efecto calendario** (distinto número de días laborables entre mismos meses).
+- **No explicar los saltos** que la serie enseña (marzo de 2026).
+
+## Con IA
+
+Un asistente suele escribir `SAMEPERIODLASTYEAR` o `LAG(…, 12)` correctos, pero **no comprueba que el periodo esté completo**: te dará el −26 % sin avisarte. Pídele
+siempre «periodo cerrado o hasta la misma fecha», que genere la **cifra de control** y que señale los meses en que la variación se desvía mucho de la tendencia.
+Verifica con la serie base y una consulta independiente.
+
+## En una entrevista
+
+- _"El dashboard dice que los ingresos de este año caen un 26 %. ¿Qué compruebas?"_ — Pista: periodo parcial frente a completo; YTD frente a
+  YTD del año anterior.
+- _"¿Qué diferencia hay entre YoY y PoP y cuándo usas cada uno?"_ — Pista: estacionalidad; el interanual la elimina.
+- _"¿Por qué hace falta una tabla de fechas en Power BI?"_ — Pista: días consecutivos sin huecos para que las funciones de tiempo desplacen bien el contexto.
+
+<KeyTakeaways
+  items={[
+    'MTD, YTD, periodo anterior, mismo periodo del año anterior y 12 meses móviles responden a preguntas distintas; elige por la pregunta.',
+    'Un periodo parcial nunca se compara con uno completo: 2026 hasta junio frente a 2025 completo da −26 %, pero YTD frente a YTD da +78,9 %.',
+    'El YoY de Lumen cae del 88,7 % (febrero de 2026) al 36,3 % (marzo) y se recupera en abril: un bache aislado merece explicación; los 12 meses móviles lo esconden.',
+    'LAG(…, 12) y shift(12) solo equivalen al mismo mes del año anterior si la serie no tiene huecos; por eso se necesita una tabla de fechas completa.',
+    'En DAX: TOTALYTD, SAMEPERIODLASTYEAR y DATESINPERIOD; en SQL, ventanas; en pandas, cumsum, shift y rolling; todos deben dar la misma cifra de control.',
+  ]}
+/>

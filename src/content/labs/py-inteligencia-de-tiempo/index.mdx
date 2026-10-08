@@ -1,0 +1,29 @@
+---
+title: 'Inteligencia de tiempo: YTD, interanual y 12 meses móviles'
+description: 'Completa una serie mensual sin huecos y calcula el acumulado del año, el mismo mes del año anterior, la variación interanual y los 12 meses móviles; después compara YTD con YTD.'
+language: python
+part: 'Parte II · Visualización y comunicación'
+module: dashboards-bi
+difficulty: 2
+estimatedMinutes: 30
+concepts: ['YTD', 'interanual', 'media móvil', 'serie sin huecos', 'periodo parcial']
+datasets: ['orders', 'order_items']
+packages: []
+output: console
+hints:
+  - 'Para que `shift(12)` sea «el mismo mes del año anterior», la serie debe tener **todos** los meses: `reindex` con `pd.date_range(min, max, freq="MS")` y `fillna(0)`.'
+  - 'YTD: `groupby(año)["ingresos"].cumsum()`. Año anterior: `shift(12)`. Interanual en %: `(ingresos / py - 1) * 100`, con 1 decimal (`NaN` si no hay año anterior). Móvil: `rolling(12).sum()`.'
+  - '`ytd_hasta(df, anio, mes)` devuelve el acumulado del año hasta ese mes (el valor de `ytd` en esa fila).'
+  - 'Con la serie completa y los 12 meses móviles de junio de 2026 (65,59 M€), comprueba que no comparas un periodo parcial con uno completo.'
+relatedLessons: ['dashboards-bi/04-inteligencia-de-tiempo-y-comparaciones']
+businessQuestion: '¿Cómo van los ingresos de 2026 frente al mismo periodo de 2025, y qué mes se desvía de la tendencia?'
+---
+
+En el _starter_ tienes `mensual`: una fila por mes con `mes` (primer día del mes) e `ingresos` (pedidos no cancelados). Implementa:
+
+1. **`completar_meses(df)`** → DataFrame con **todos** los meses entre el primero y el último (los ausentes con `ingresos = 0`), ordenado por mes.
+2. **`con_comparaciones(df)`** → la serie completa con las columnas `mes`, `ingresos`, `ytd`, `py` (mismo mes del año anterior), `yoy_pct`
+   (1 decimal, `NaN` sin año anterior) y `movil_12m`.
+3. **`ytd_hasta(df, anio, mes)`** → acumulado del año hasta ese mes, calculado con `con_comparaciones`.
+
+Cierra con la comparación justa: el YTD de junio de 2026 frente al de junio de 2025.
