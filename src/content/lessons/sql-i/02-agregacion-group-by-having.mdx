@@ -71,7 +71,7 @@ SELECT
 FROM orders;
 ```
 
-Una sola fila, porque no hay `GROUP BY`. Sobre las 400.000 filas de `orders`, el envío medio es de
+Una sola fila, porque no hay `GROUP BY`. Sobre las 392.906 filas de `orders`, el envío medio es de
 unos 2,20 €. Esa media mezcla pedidos online con envío y pedidos en tienda, donde el envío es 0, así
 que probablemente no es la cifra que alguien quiere. Hay que agrupar.
 
@@ -104,7 +104,7 @@ FROM (
 ```
 
 No puedes escribir `WHERE COUNT(*) >= 10`: cuando se evalúa `WHERE`, los grupos aún no existen. En
-Lumen, 14.185 clientes cumplen la condición. Esa subconsulta en `FROM` es un patrón que verás
+Lumen, 13.843 clientes cumplen la condición. Esa subconsulta en `FROM` es un patrón que verás
 mucho; las subconsultas se tratan en la lección 5.
 
 La combinación habitual es usar los dos: `WHERE` para descartar filas que no te interesan
@@ -121,10 +121,10 @@ SELECT
 FROM orders;
 ```
 
-En Lumen devuelve **400.000**, **28.173** y **40**:
+En Lumen devuelve **392.906**, **27.708** y **40**:
 
 - `COUNT(*)` cuenta filas, sin mirar su contenido.
-- `COUNT(columna)` cuenta filas donde esa columna **no es `NULL`**. Los 371.827 pedidos online
+- `COUNT(columna)` cuenta filas donde esa columna **no es `NULL`**. Los 365.198 pedidos online
   tienen `store_id` nulo, así que no entran.
 - `COUNT(DISTINCT columna)` cuenta valores diferentes, también ignorando `NULL`.
 
@@ -160,12 +160,12 @@ GROUP BY cat.name
 ORDER BY ingresos DESC;
 ```
 
-Electrónica lidera con unos 56,5 millones de euros de los 120,8 millones totales, seguida de Hogar
-(22,7 M) y Deporte (13,5 M). Usamos `JOIN` de la lección 3 aquí; de momento, léelo como "une cada
+Electrónica lidera con unos 55,5 millones de euros de los 118,6 millones totales, seguida de Hogar
+(22,3 M) y Deporte (13,3 M). Usamos `JOIN` de la lección 3 aquí; de momento, léelo como "une cada
 línea con su producto y su categoría".
 
 <Callout type="info">
-  Esos 120,8 millones incluyen pedidos cancelados y devueltos parcialmente. ¿Es la cifra que quiere
+  Esos 118,6 millones incluyen pedidos cancelados y devueltos parcialmente. ¿Es la cifra que quiere
   la directora? Depende de la definición de "ingresos", y esa conversación hay que tenerla **antes**
   de escribir la consulta, no después. Definir bien una métrica es la mitad del trabajo.
 </Callout>

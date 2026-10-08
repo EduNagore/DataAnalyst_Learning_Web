@@ -41,11 +41,11 @@ import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
 
 <BusinessContext>
   Un responsable de tiendas te pide "todos los pedidos que no pasaron por la tienda store-01".
-  Escribes `WHERE store_id <> 'store-01'` y obtienes 27.569 filas. Pero la tabla tiene 400.000 pedidos y
-  solo 604 son de esa tienda: deberían salir 399.396. ¿Dónde están los 371.827 pedidos que faltan?
+  Escribes `WHERE store_id <> 'store-01'` y obtienes 27.124 filas. Pero la tabla tiene 392.906 pedidos y
+  solo 584 son de esa tienda: deberían salir 392.322. ¿Dónde están los 365.198 pedidos que faltan?
 </BusinessContext>
 
-Los 371.827 que faltan son los pedidos online, que tienen `store_id` nulo. Con `<>` desaparecen sin
+Los 365.198 que faltan son los pedidos online, que tienen `store_id` nulo. Con `<>` desaparecen sin
 error ni aviso. Entender `NULL` es lo que separa una cifra fiable de una cifra que "parece bien".
 
 ## Intuición
@@ -86,7 +86,7 @@ WHERE store_id IS NOT NULL    -- pedidos en tienda
 filas, aunque 10.870 suscripciones siguen activas). Para comparar tratando `NULL` como un valor más:
 
 ```sql
-WHERE store_id IS DISTINCT FROM 'store-01'   -- 399.396 filas: incluye los nulos
+WHERE store_id IS DISTINCT FROM 'store-01'   -- 392.322 filas: incluye los nulos
 ```
 
 `IS DISTINCT FROM` es "distinto de" con lógica de dos valores: dos `NULL` se consideran iguales y un
@@ -108,7 +108,7 @@ enteras. El efecto en una media es enorme y fácil de pasar por alto:
 ```sql
 SELECT
   ROUND(AVG(shipping_cost), 3)             AS media_con_ceros,     -- 2,203
-  ROUND(AVG(NULLIF(shipping_cost, 0)), 3)  AS media_solo_de_pago   -- 3,949
+  ROUND(AVG(NULLIF(shipping_cost, 0)), 3)  AS media_solo_de_pago   -- 3,95
 FROM orders;
 ```
 
@@ -134,7 +134,7 @@ GROUP BY puntualidad
 ORDER BY envios DESC;
 ```
 
-En Lumen: 304.894 envíos a tiempo, 27.068 con retraso leve y 39.865 con retraso grave (cinco días o
+En Lumen: 299.420 envíos a tiempo, 26.591 con retraso leve y 39.187 con retraso grave (cinco días o
 más). Sin `ELSE`, las filas que no cumplen ninguna condición devuelven `NULL`: ponlo siempre,
 aunque sea para marcar `'otros'`.
 
@@ -210,7 +210,7 @@ comprueba cuántas filas se descartan: un recuento `COUNT(*)` antes y después d
     'NULL significa "desconocido": cualquier comparación con NULL devuelve NULL, no TRUE ni FALSE.',
     'WHERE, HAVING y ON solo conservan las filas cuya condición es TRUE, así que col <> x descarta los nulos.',
     'Usa IS NULL, IS DISTINCT FROM, COALESCE y NULLIF para decidir explícitamente qué pasa con los ausentes.',
-    'Los agregados ignoran NULL; convertir un nulo en 0 antes de promediar cambia la media (2,203 frente a 3,949 en el envío).',
+    'Los agregados ignoran NULL; convertir un nulo en 0 antes de promediar cambia la media (2,203 frente a 3,95 en el envío).',
     'CASE evalúa en orden, devuelve NULL si no hay ELSE, y NOT IN con nulos devuelve vacío: prefiere NOT EXISTS.',
   ]}
 />

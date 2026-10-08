@@ -20,7 +20,7 @@ Diseño del dataset ficticio sobre el que corre toda la práctica del curso (ver
 | `products`               | 2.000                               | `product_id`, `category_id`, `name`, `price`, `cost`, `brand`                                                                                        |
 | `categories`             | ~40                                 | `category_id`, `parent_category_id`, `name`                                                                                                          |
 | `stores`                 | 40                                  | `store_id`, `city`, `region`, `size_m2`, `opened_date`                                                                                               |
-| `orders`                 | 400.000                             | `order_id`, `customer_id`, `order_date` (UTC), `channel`, `device`, `discount_pct`, `shipping_cost`, `status`, `store_id` (nulo si es online)        |
+| `orders`                 | 392.906                             | `order_id`, `customer_id`, `order_date` (UTC), `channel`, `device`, `discount_pct`, `shipping_cost`, `status`, `store_id` (nulo si es online)        |
 | `order_items`            | 1.000.000                           | `order_item_id`, `order_id`, `product_id`, `quantity`, `unit_price`                                                                                  |
 | `returns`                | ~30.000                             | `return_id`, `order_item_id`, `return_date`, `reason`                                                                                                |
 | `shipments`              | ~370.000                            | `shipment_id`, `order_id`, `promised_date`, `actual_date`, `carrier`                                                                                 |
@@ -105,16 +105,17 @@ El script (`data-gen/generate.py` + el paquete `data-gen/lumen/`):
 | customers           | 60.000                       |     | web_sessions           | 1.000.000 |
 | products            | 2.000                        |     | events                 | ~1,7 M    |
 | stores              | 40                           |     | marketing_spend        | 7.662     |
-| orders              | 400.000                      |     | campaigns              | 60        |
-| order_items         | ~1,03 M                      |     | experiments            | 15        |
-| returns             | ~72.000 (7 % de order_items) |     | experiment_assignments | 300.000   |
-| shipments           | ~372.000                     |     | experiment_metrics     | 1.074     |
+| orders              | 392.906                      |     | campaigns              | 60        |
+| order_items         | ~1,01 M                      |     | experiments            | 15        |
+| returns             | ~71.000 (7 % de order_items) |     | experiment_assignments | 300.000   |
+| shipments           | ~365.000                     |     | experiment_metrics     | 1.074     |
 | inventory_snapshots | ~1,46 M                      |     | subscriptions          | 25.000    |
 | calendar            | 1.277                        |     | support_tickets        | 15.000    |
 
 ## 8. Limitaciones conocidas del dataset (a tener en cuenta al escribir contenido)
 
 - `web_sessions`/`events` y `orders` se generan **de forma independiente**: no cuadran entre sí (las sesiones y las compras de `events` no se corresponden con filas de `orders`). Úsalos para analizar el funnel y la conversión dentro de la web, no para reconciliar con ingresos.
-- El negocio crece muy deprisa (pedidos: 2023 ≈ 18 k, 2024 ≈ 77 k, 2025 ≈ 168 k, 2026-H1 ≈ 136 k) porque las altas de clientes siguen una rampa creciente y no se pide antes del alta. Evita comparar años de forma ingenua y avisa del crecimiento en cualquier ejemplo interanual.
+- El negocio crece muy deprisa (pedidos: 2023 ≈ 18 k, 2024 ≈ 77 k, 2025 ≈ 168 k, 2026-H1 ≈ 129 k) porque las altas de clientes siguen una rampa creciente y no se pide antes del alta. Evita comparar años de forma ingenua y avisa del crecimiento en cualquier ejemplo interanual.
 - La paradoja de Simpson (#2) se manifiesta comparando Madrid y Andalucía, no las 16 regiones a la vez.
 - El calendario de festivos regionales es una simplificación ilustrativa.
+- **Pedidos más allá del calendario (corregido el 2026-10-08).** El generador relocaliza al principio del alta del cliente los pedidos que la precederían; los que quedaban después del 30-jun-2026 se recortaban a esa fecha y apilaban ~7.100 pedidos el último día (10 veces un día normal). Ahora esos pedidos (y sus líneas, envíos y devoluciones) se descartan al final de `build_lumen`, sin alterar el resto de la generación aleatoria: solo cambia junio de 2026 (−7.094 pedidos). Por eso la tabla `orders` tiene 392.906 filas y no 400.000.

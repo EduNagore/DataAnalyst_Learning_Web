@@ -10,7 +10,7 @@ questions:
       - 'bytes'
       - 'category'
     answer: [1]
-    explanation: 'pandas 3 infiere el dtype `str` para el texto. Ocupa menos memoria que `object` (en la columna channel de orders, 5,6 MB frente a 25,2 MB) y evita mezclar tipos sin querer.'
+    explanation: 'pandas 3 infiere el dtype `str` para el texto. Ocupa menos memoria que `object` (en la columna channel de orders, 5,5 MB frente a 24,7 MB) y evita mezclar tipos sin querer.'
     ref: '#texto-el-dtype-str'
 
   - id: py1-02-q2

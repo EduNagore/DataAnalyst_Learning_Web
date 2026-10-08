@@ -78,7 +78,7 @@ print(df["region"].isna().tolist())   # [False, True, False]
 ```
 
 Ventajas prácticas: menos memoria y operaciones de texto más rápidas (en la columna `channel` de
-`orders`, 400.000 filas, ocupa 5,6 MB como `str` frente a 25,2 MB como `object`), y errores más
+`orders`, 392.906 filas, ocupa 5,5 MB como `str` frente a 24,7 MB como `object`), y errores más
 claros: una columna `str` no acepta que le asignes un número por accidente.
 
 ### Copy-on-Write
@@ -164,7 +164,7 @@ que esperas** y falla si no se cumple:
 lineas.merge(pedidos, on="order_id", validate="many_to_one")
 ```
 
-Si `pedidos` tuviera `order_id` duplicados (aquí, 1.000 pedidos repetidos por error añaden 2.612
+Si `pedidos` tuviera `order_id` duplicados (aquí, 1.000 pedidos repetidos por error añaden 2.610
 líneas de más), pandas lanza `MergeError: Merge keys are not unique in right dataset`. Es una
 aserción gratuita contra el error más caro de un join.
 

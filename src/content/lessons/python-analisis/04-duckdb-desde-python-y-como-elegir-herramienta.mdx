@@ -141,7 +141,7 @@ aunque no todas (por ejemplo, las que cambian el tipo del texto o de las fechas)
 
 ### La misma consulta, tres formas
 
-Ingresos por año de los pedidos no cancelados, con 1.033.042 líneas de pedido y 400.000 pedidos.
+Ingresos por año de los pedidos no cancelados, con 1.014.555 líneas de pedido y 392.906 pedidos.
 Las tres versiones devuelven las mismas cifras:
 
 | Año  | Pedidos |     Ingresos |
@@ -149,7 +149,7 @@ Las tres versiones devuelven las mismas cifras:
 | 2023 |  17.597 |  5.299.401 € |
 | 2024 |  73.981 | 22.441.854 € |
 | 2025 | 161.706 | 49.460.757 € |
-| 2026 | 130.679 | 38.777.030 € |
+| 2026 | 123.861 | 36.585.358 € |
 
 El 2026 es un año parcial (hasta el 30 de junio). Ahora, el tiempo en un portátil con los
 ficheros Parquet de Lumen (mejor de cinco ejecuciones, leyendo solo las columnas necesarias):
@@ -157,7 +157,7 @@ ficheros Parquet de Lumen (mejor de cinco ejecuciones, leyendo solo las columnas
 | Herramienta | Tiempo aproximado |
 | ----------- | ----------------: |
 | pandas      |           ~770 ms |
-| DuckDB      |           ~260 ms |
+| DuckDB      |           ~200 ms |
 | Polars      |            ~80 ms |
 
 <Callout type="warning">
@@ -273,7 +273,7 @@ cada librería para que no mezcle APIs antiguas.
     'DuckDB ejecuta SQL dentro de Python sobre DataFrames de pandas y Polars y sobre ficheros Parquet o CSV, sin servidor.',
     'Usa parámetros enlazados (`?`) para los valores; solo sustituyen valores, no nombres de tabla o columna. Dentro de funciones, registra las tablas con `register`.',
     'pandas, Polars y DuckDB intercambian datos mediante Arrow; tras cada conversión comprueba tipos y recuentos.',
-    'En un millón de filas las tres son rápidas; las diferencias (≈ 0,8 s, 0,3 s y 0,08 s en una consulta con unión y agregación) importan al escalar o repetir. Mide con tus datos.',
+    'En un millón de filas las tres son rápidas; las diferencias (≈ 0,8 s, 0,2 s y 0,08 s en una consulta con unión y agregación) importan al escalar o repetir. Mide con tus datos.',
     'Que tres implementaciones den la misma cifra es la mejor validación; si no coinciden, hay un error de definición que encontrar.',
   ]}
 />

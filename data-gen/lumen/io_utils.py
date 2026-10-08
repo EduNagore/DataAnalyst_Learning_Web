@@ -14,7 +14,7 @@ def write_parquet(df: pd.DataFrame, path: Path) -> None:
 
 def write_csv(df: pd.DataFrame, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(path, index=False)
+    df.to_csv(path, index=False, lineterminator="\n")
 
 
 def compute_checksums(root: Path) -> dict[str, str]:

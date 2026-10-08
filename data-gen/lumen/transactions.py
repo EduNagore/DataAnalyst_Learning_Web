@@ -49,11 +49,16 @@ def build_orders(
     # Ningún pedido antes del alta del cliente: si tocara, se reubica justo
     # después del alta (con un pequeño margen aleatorio).
     too_early = order_dates < signup_dates
+    max_date = calendar["date"].to_numpy()[-1]
+    beyond_calendar = np.zeros(n_orders, dtype=bool)
     if too_early.any():
         offset_days = rng.integers(0, 30, size=too_early.sum())
         order_dates = order_dates.copy()
         order_dates[too_early] = signup_dates[too_early] + offset_days.astype("timedelta64[D]")
-        max_date = calendar["date"].to_numpy()[-1]
+        # Los pedidos relocalizados más allá del fin del calendario no existen en la realidad: se
+        # marcan (columna `_beyond_calendar`) para que `build_lumen` los elimine al final, sin
+        # alterar el resto de la generación aleatoria. Recortarlos al último día apilaba miles.
+        beyond_calendar = order_dates > max_date
         order_dates = np.minimum(order_dates, max_date)
 
     is_sale_event = pd.Series(order_dates).isin(
@@ -101,6 +106,7 @@ def build_orders(
             "shipping_cost": shipping_cost,
             "status": status,
             "store_id": store_ids,
+            "_beyond_calendar": beyond_calendar,
         }
     )
 

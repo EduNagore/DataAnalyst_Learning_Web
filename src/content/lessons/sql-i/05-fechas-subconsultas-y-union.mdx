@@ -176,10 +176,10 @@ Misma lógica, lectura de arriba abajo. En SQL II verás CTEs encadenados y recu
 
 ```sql
 SELECT customer_id FROM orders
-UNION                                -- 58.418 clientes distintos
+UNION                                -- 58.194 clientes distintos
 SELECT customer_id FROM subscriptions;
 
--- Con UNION ALL: 425.000 filas (400.000 de orders + 25.000 de subscriptions)
+-- Con UNION ALL: 417.906 filas (392.906 de orders + 25.000 de subscriptions)
 ```
 
 Regla práctica: usa **`UNION ALL` por defecto** y `UNION` solo cuando necesites deduplicar y lo
@@ -238,7 +238,7 @@ también explícitamente la zona horaria: sin ella el modelo asume la del servid
     'Filtra periodos con >= inicio y < inicio del siguiente; BETWEEN pierde el último día cuando hay horas.',
     'Un instante es único, pero el día en que cae depende de la zona horaria: decide y documenta la de negocio.',
     'Una subconsulta puede ser escalar, estar en FROM o ser correlacionada; un CTE suele ser más legible.',
-    'UNION ALL por defecto; UNION solo para deduplicar, con su coste (58.418 clientes distintos frente a 425.000 filas).',
+    'UNION ALL por defecto; UNION solo para deduplicar, con su coste (58.194 clientes distintos frente a 417.906 filas).',
     'Una comprobación de cordura (suma por día frente a total del mes) detecta errores de límites antes de entregar.',
   ]}
 />

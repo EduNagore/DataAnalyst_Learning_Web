@@ -73,7 +73,7 @@ líneas se repite tres veces, y al sumarlo, se cuenta tres veces. Eso es el **fa
 - **`FULL OUTER JOIN`**: todas las filas de ambos lados; los huecos, a `NULL`. Útil para
   reconciliar dos fuentes.
 - **`CROSS JOIN`**: el producto cartesiano, cada fila con cada fila. Úsalo a propósito (p. ej.
-  fechas × canales para rellenar huecos), nunca por descuido: 400.000 × 60.000 filas no cabe en
+  fechas × canales para rellenar huecos), nunca por descuido: 392.906 × 60.000 filas no cabe en
   ninguna máquina razonable.
 
 ```sql
@@ -108,7 +108,7 @@ SELECT
   (SELECT COUNT(*) FROM orders o JOIN order_items i USING (order_id)) AS filas_tras_join;
 ```
 
-En Lumen: 400.000 filas antes y 1.033.042 después. Si un join que no debería cambiar el número de
+En Lumen: 392.906 filas antes y 1.014.555 después. Si un join que no debería cambiar el número de
 filas lo cambia, hay fan-out. Ese contraste es la comprobación más barata y más importante.
 
 ### Ver el daño
@@ -116,13 +116,13 @@ filas lo cambia, hay fan-out. Ese contraste es la comprobación más barata y m�
 ```sql
 -- Correcto: sobre orders, sin unir
 SELECT ROUND(SUM(shipping_cost), 2) AS envio_total FROM orders;
--- 881.019,35
+-- 865.560,45
 
 -- Con fan-out: tras unir con las líneas
 SELECT ROUND(SUM(o.shipping_cost), 2) AS envio_total
 FROM orders AS o
 JOIN order_items AS i USING (order_id);
--- 2.275.942,25  (2,58 veces más)
+-- 2.235.993,75  (2,58 veces más)
 ```
 
 El segundo resultado no es un error de sintaxis ni de datos: es la respuesta correcta a otra
@@ -166,7 +166,7 @@ LEFT JOIN orders AS o ON o.customer_id = c.customer_id
 WHERE o.order_id IS NULL;
 ```
 
-En Lumen, 1.987 de 60.000. El `LEFT JOIN` conserva todos los clientes; los que no tienen pedido
+En Lumen, 2.336 de 60.000. El `LEFT JOIN` conserva todos los clientes; los que no tienen pedido
 quedan con las columnas de `orders` a `NULL`, y el `WHERE ... IS NULL` se queda solo con ellos. La
 alternativa equivalente `WHERE NOT EXISTS (...)` es igual de correcta y a menudo más clara.
 
@@ -245,7 +245,7 @@ riesgo se reduce mucho, porque la métrica ya está definida al grano correcto.
   items={[
     'El resultado de un join tiene el grano de la tabla más fina: unir con una relación 1:N repite las filas de la izquierda.',
     'Fan-out: sumar una columna de la tabla "uno" tras unir con la tabla "muchos" multiplica la métrica sin dar error.',
-    'Detéctalo comparando COUNT(*) antes y después del join; en Lumen, 400.000 pedidos pasan a 1.033.042 filas.',
+    'Detéctalo comparando COUNT(*) antes y después del join; en Lumen, 392.906 pedidos pasan a 1.014.555 filas.',
     'LEFT JOIN conserva la izquierda; INNER descarta sin avisar; un anti-join (IS NULL / NOT EXISTS) encuentra lo que no tiene pareja.',
     'Una condición sobre la tabla derecha en el WHERE convierte un LEFT JOIN en INNER.',
   ]}

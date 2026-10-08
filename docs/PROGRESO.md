@@ -83,6 +83,11 @@ Estado: **M04 ✅, M05 ✅ (5 lecciones, 8 labs), M06 ✅ (3 lecciones, lab SCD2
 
 PLAN §7.1. Por módulo: 3-5 lecciones (estructura de `docs/CONTENT_GUIDELINES.md`), quizzes (6+ preguntas/lección), labs, libros Excel (`scripts/build-workbooks.py`, openpyxl), widgets (JoinVisualizer, WindowFrameVisualizer, ChartChooser, DistributionExplorer, SimpsonExplorer...). Contenido `volatility: high` (M03 IA en Excel, M07 pandas 3/Polars 2.0, M11 Power BI/Tableau): **verificar con búsqueda web antes de escribir** y usar `<Snapshot>`. Orden: M08 → M09 → M00-M02 → M10-M12 → M03.
 
+**Corrección del dataset (2026-10-08)**: detectado un artefacto del generador (7.094 pedidos apilados el 30-jun-2026, 10× un día normal, por recortar con `np.minimum` los pedidos relocalizados tras el alta). Ahora se descartan al final de `build_lumen` (con líneas, envíos y devoluciones) sin alterar el resto del azar: solo cambia junio-2026. `orders` pasa de 400.000 a **392.906** filas, `order_items` 1.014.555, `shipments` 365.198. Se actualizaron las cifras de SQL I/II y M07, `docs/DATASET.md` y `data-gen/checksums.json`. Los CSV se escriben ahora con `
+` (checksums idénticos en Windows y Linux). **Al escribir contenido nuevo, usar siempre cifras recalculadas con el dataset actual.**
+
+Soporte `raw:<nombre>` en `datasets` de los labs Python (carga `lumen_raw/<nombre>.csv` en Pyodide; ver `PyLab`/`PyEngine`).
+
 Hechos verificados para M07 (2026-10): pandas 3.0.6 (última; local 3.0.2), Polars **2.0.0 estable el 2026-10-06**, DuckDB 1.5.x; Pyodide trae Polars 1.33.1 (labs usan solo API común 1.x/2.0). Los labs Python se verifican también en Pyodide con `tests/e2e/all-py-labs.spec.ts`. Notas previas: pandas 3.0.2 (str dtype por defecto, Copy-on-Write: la asignación encadenada lanza `ChainedAssignmentError` y no modifica, `pd.col()`, datetime64[us]), Polars 2.0.0 instalado localmente (Pyodide trae 1.33.1), DuckDB 1.5.x.
 
 **Regla de uso (ver `docs/USAGE_GUARD.md`)**: tras cada lección/fase ejecutar `node scripts/usage-guard.mjs status`; al ≥95 % el hook bloquea herramientas: guardar progreso, lanzar `node scripts/usage-guard.mjs wait` en segundo plano y terminar el turno.

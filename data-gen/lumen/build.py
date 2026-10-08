@@ -123,6 +123,15 @@ def build_lumen(config: dict, seed: int, scale: float) -> dict[str, pd.DataFrame
         sizes["support_tickets_labeled_sample"],
     )
 
+    # Pedidos que caerían después del fin del calendario: se descartan con todo lo que cuelga de ellos.
+    beyond = orders["_beyond_calendar"].to_numpy()
+    dropped_order_ids = set(orders.loc[beyond, "order_id"])
+    orders = orders.loc[~beyond].drop(columns=["_beyond_calendar"]).reset_index(drop=True)
+    dropped_item_ids = set(order_items.loc[order_items["order_id"].isin(dropped_order_ids), "order_item_id"])
+    order_items = order_items.loc[~order_items["order_id"].isin(dropped_order_ids)].reset_index(drop=True)
+    returns = returns.loc[~returns["order_item_id"].isin(dropped_item_ids)].reset_index(drop=True)
+    shipments = shipments.loc[~shipments["order_id"].isin(dropped_order_ids)].reset_index(drop=True)
+
     tables = {
         "customers": customers,
         "categories": categories,

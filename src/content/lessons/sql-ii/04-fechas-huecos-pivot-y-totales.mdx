@@ -157,7 +157,7 @@ ORDER BY anio, o.channel;
 ```
 
 Las filas de subtotal tienen `NULL` en la columna que se "enrolla": `2023, NULL → 5,30` es el total del
-año 2023 y `NULL, NULL → 115,98` es el total general de Lumen (115,98 M€).
+año 2023 y `NULL, NULL → 113,79` es el total general de Lumen (113,79 M€).
 
 - **`ROLLUP(a, b)`**: jerarquía; detalle, subtotal por `a` y total.
 - **`CUBE(a, b)`**: todas las combinaciones (también el subtotal por `b`).

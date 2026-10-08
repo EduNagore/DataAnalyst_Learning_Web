@@ -15,6 +15,8 @@ interface Props {
   tables: string[];
   /** Datasets de extra/ (sin extensión). */
   extras: string[];
+  /** CSV «sucios» de lumen_raw/ (sin extensión). */
+  raws: string[];
   packages: string[];
   needsVariant: boolean;
 }
@@ -27,6 +29,7 @@ export default function PyLab({
   hints,
   tables,
   extras,
+  raws,
   packages,
   needsVariant,
 }: Props) {
@@ -46,8 +49,15 @@ export default function PyLab({
 
   const engine = useMemo(
     () =>
-      new PyEngine({ packages, tables, extras, withVariant: needsVariant, onStatus: setStatus }),
-    [packages, tables, extras, needsVariant],
+      new PyEngine({
+        packages,
+        tables,
+        extras,
+        raws,
+        withVariant: needsVariant,
+        onStatus: setStatus,
+      }),
+    [packages, tables, extras, raws, needsVariant],
   );
 
   useEffect(() => {

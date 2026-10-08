@@ -45,6 +45,7 @@ export interface PyEngineOptions {
   tables: string[];
   withVariant?: boolean;
   extras?: string[];
+  raws?: string[];
   onStatus?: (text: string) => void;
 }
 
@@ -91,6 +92,10 @@ export class PyEngine {
         ...(this.options.extras ?? []).map((e) => ({
           path: `/data/extra/${e}.csv`,
           url: new URL(url(`/data/extra/${e}.csv`), location.origin).href,
+        })),
+        ...(this.options.raws ?? []).map((r) => ({
+          path: `/data/lumen_raw/${r}.csv`,
+          url: new URL(url(`/data/lumen_raw/${r}.csv`), location.origin).href,
         })),
       ];
       const init: InitMessage = {

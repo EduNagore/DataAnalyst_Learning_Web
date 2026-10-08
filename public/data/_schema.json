@@ -47,7 +47,7 @@
     },
     "orders": {
       "description": "Pedidos (online y en tienda).",
-      "rowCount": 400000,
+      "rowCount": 392906,
       "columns": {
         "order_id": "Identificador de pedido.",
         "customer_id": "Cliente que hizo el pedido.",
@@ -62,7 +62,7 @@
     },
     "order_items": {
       "description": "Líneas de pedido.",
-      "rowCount": 1033042,
+      "rowCount": 1014555,
       "columns": {
         "order_item_id": "Identificador de línea de pedido.",
         "order_id": "Pedido al que pertenece.",
@@ -73,7 +73,7 @@
     },
     "returns": {
       "description": "Devoluciones de líneas de pedido.",
-      "rowCount": 72477,
+      "rowCount": 71171,
       "columns": {
         "return_id": "Identificador de devolución.",
         "order_item_id": "Línea de pedido devuelta.",
@@ -83,7 +83,7 @@
     },
     "shipments": {
       "description": "Envíos de pedidos online.",
-      "rowCount": 371827,
+      "rowCount": 365198,
       "columns": {
         "shipment_id": "Identificador de envío.",
         "order_id": "Pedido al que corresponde.",

@@ -27,8 +27,8 @@ questions:
     difficulty: 2
     prompt: 'En la tabla orders de Lumen, los pedidos online tienen store_id nulo. ¿Qué devuelve SELECT COUNT(*) FROM orders WHERE store_id = NULL?'
     options:
-      - '371.827 (los pedidos online)'
-      - '28.173 (los pedidos en tienda)'
+      - '365.198 (los pedidos online)'
+      - '27.708 (los pedidos en tienda)'
       - '0, porque NULL = NULL no es verdadero'
       - 'Un error de sintaxis'
     answer: [2]
@@ -51,10 +51,10 @@ questions:
   - id: sql1-01-q5
     type: numeric
     difficulty: 2
-    prompt: 'La tabla orders tiene 400.000 filas, de las cuales 371.827 son online (store_id nulo). ¿Cuántas filas devuelve SELECT * FROM orders WHERE store_id IS NOT NULL?'
+    prompt: 'La tabla orders tiene 392.906 filas, de las cuales 365.198 son online (store_id nulo). ¿Cuántas filas devuelve SELECT * FROM orders WHERE store_id IS NOT NULL?'
     answer: [28173]
     tolerance: 0
-    explanation: '400.000 − 371.827 = 28.173. IS NOT NULL conserva exactamente las filas con tienda asignada, es decir, los pedidos en tienda física. No hay que restar nada más: IS NOT NULL no descarta filas por ningún otro motivo.'
+    explanation: '392.906 − 365.198 = 27.708. IS NOT NULL conserva exactamente las filas con tienda asignada, es decir, los pedidos en tienda física. No hay que restar nada más: IS NOT NULL no descarta filas por ningún otro motivo.'
     ref: '#en-la-práctica'
 
   - id: sql1-01-q6

@@ -126,10 +126,15 @@ const difficultyLabel = ['', 'Fácil', 'Media', 'Difícil'][d.difficulty];
             labId={id}
             starter={starter}
             hints={d.hints}
-            tables={d.datasets.filter((t: string) => !t.startsWith('extra:'))}
+            tables={d.datasets.filter(
+              (t: string) => !t.startsWith('extra:') && !t.startsWith('raw:'),
+            )}
             extras={d.datasets
               .filter((t: string) => t.startsWith('extra:'))
               .map((t: string) => t.slice(6))}
+            raws={d.datasets
+              .filter((t: string) => t.startsWith('raw:'))
+              .map((t: string) => t.slice(4))}
             packages={d.packages ?? []}
             needsVariant={pyNeedsVariant}
           />
