@@ -42,6 +42,22 @@ test('DistributionExplorer: cambia de distribución y muestra media y varianza c
   await expect(stats).toContainText('3,46');
 });
 
+test('CoverageExplorer: simula 100 intervalos y reporta la cobertura', async ({ page }) => {
+  await page.goto('teoria/inferencia/01-muestreo-error-estandar-e-intervalos-de-confianza/');
+  const explorer = page
+    .getByRole('figure')
+    .filter({ hasText: 'Explorador de intervalos de confianza' });
+  await explorer.scrollIntoViewIfNeeded();
+  const resumen = explorer.locator('p[aria-live="polite"]');
+  await expect(resumen).toContainText('de 100');
+  const antes = await resumen.innerText();
+  await explorer.getByRole('combobox', { name: 'Tamaño de cada muestra' }).selectOption('400');
+  await explorer.getByRole('button', { name: 'Nuevas muestras' }).click();
+  await expect(resumen).not.toHaveText(antes);
+  const hits = Number((await resumen.innerText()).match(/(\d+) de 100/)?.[1]);
+  expect(hits).toBeGreaterThan(85);
+});
+
 const lessonsWithCharts = [
   'teoria/eda/01-preguntas-y-analisis-univariante/',
   'teoria/eda/02-relaciones-correlacion-y-segmentacion/',
@@ -50,6 +66,7 @@ const lessonsWithCharts = [
   'teoria/visualizacion/02-gramatica-de-graficos-anotaciones-y-titulos/',
   'teoria/visualizacion/03-color-accesibilidad-e-incertidumbre/',
   'teoria/visualizacion/04-como-mienten-los-graficos-y-herramientas/',
+  'teoria/inferencia/02-contrastes-p-valor-errores-y-potencia/',
 ];
 
 for (const url of lessonsWithCharts) {

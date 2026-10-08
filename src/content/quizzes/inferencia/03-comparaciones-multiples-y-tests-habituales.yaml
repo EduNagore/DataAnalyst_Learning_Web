@@ -1,0 +1,71 @@
+lesson: inferencia/03-comparaciones-multiples-y-tests-habituales
+questions:
+  - id: inf-03-q1
+    type: numeric
+    difficulty: 2
+    prompt: 'Haces 10 contrastes independientes con α = 0,05 y ninguno de los efectos es real. ¿Cuál es, en %, la probabilidad de obtener al menos un falso positivo?'
+    answer: [40.1]
+    tolerance: 0.5
+    explanation: '1 − 0,95¹⁰ = 1 − 0,5987 = 0,401, es decir, un 40 %. Con 20 contrastes sube al 64 % y con 100 al 99,4 %.'
+    ref: '#la-probabilidad-de-algún-falso-positivo'
+
+  - id: inf-03-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Qué relación hay entre los métodos de Holm y Bonferroni?'
+    options:
+      - 'Bonferroni siempre rechaza más hipótesis que Holm'
+      - 'Holm controla el mismo error por familia (FWER) y siempre es al menos tan potente como Bonferroni'
+      - 'Holm controla la tasa de falsos descubrimientos (FDR), no el FWER'
+      - 'Son idénticos'
+    answer: [1]
+    explanation: 'Holm es un procedimiento descendente que controla el FWER igual que Bonferroni, pero rechaza al menos las mismas hipótesis. Por eso se recomienda Holm en lugar de Bonferroni.'
+    ref: '#las-correcciones'
+
+  - id: inf-03-q3
+    type: single
+    difficulty: 2
+    prompt: 'Cribas 200 segmentos para encontrar candidatos a un análisis más profundo y aceptas que una pequeña proporción sean falsos descubrimientos. ¿Qué control es el adecuado?'
+    options:
+      - 'Ninguna corrección'
+      - 'Bonferroni, para ser lo más estricto posible'
+      - 'Benjamini-Hochberg (control del FDR)'
+      - 'Un solo test t sobre el promedio de los 200'
+    answer: [2]
+    explanation: 'En exploración con muchas hipótesis, controlar la proporción de falsos descubrimientos (FDR) conserva potencia. Bonferroni sería demasiado conservador y sin corregir se inflan los falsos positivos.'
+    ref: '#dos-filosofías-de-control'
+
+  - id: inf-03-q4
+    type: single
+    difficulty: 1
+    prompt: '¿Qué test se usa para comprobar si el estado del pedido (completado, cancelado, devuelto) depende del canal (online o tienda)?'
+    options:
+      - 'Un t de Welch'
+      - 'Un χ² de independencia sobre la tabla de contingencia'
+      - 'Un t pareado'
+      - 'Mann-Whitney sobre los importes'
+    answer: [1]
+    explanation: 'Dos variables categóricas se contrastan con un χ² de independencia sobre su tabla de contingencia (en Lumen: χ² = 1,45, p = 0,48; no hay asociación).'
+    ref: '#guía-de-contrastes-habituales'
+
+  - id: inf-03-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las prácticas que inflan la tasa de falsos positivos.'
+    options:
+      - 'Mirar muchos subgrupos y presentar el que sale significativo sin decir cuántos probaste'
+      - 'Cambiar de test o de métrica después de ver los datos hasta que p < 0,05'
+      - 'No contar los gráficos y cortes que descartaste'
+      - 'Preregistrar la hipótesis, la métrica primaria y el test antes de ver los datos'
+    answer: [0, 1, 2]
+    explanation: 'Los caminos bifurcados multiplican las comparaciones reales sin que se vean. Preregistrar es justo la defensa contra ello.'
+    ref: '#cómo-se-hace-p-hacking-sin-querer'
+
+  - id: inf-03-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Si una diferencia sigue siendo significativa después de corregir por comparaciones múltiples, entonces es necesariamente relevante para el negocio.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Con muestras muy grandes una diferencia de 0,025 días (unos 35 minutos) puede seguir siendo significativa tras corregir. La relevancia se juzga por el tamaño del efecto en unidades de negocio.'
+    ref: '#caso-2-cinco-transportistas-diez-parejas'

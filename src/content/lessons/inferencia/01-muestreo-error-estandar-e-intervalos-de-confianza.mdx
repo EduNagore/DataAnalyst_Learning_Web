@@ -1,0 +1,202 @@
+---
+title: 'Muestreo, error estándar e intervalos de confianza'
+description: 'Cómo pasar de una muestra a una afirmación sobre la población: distribución muestral, error estándar, intervalos de confianza t y de Wilson, bootstrap y qué significa de verdad «95 % de confianza».'
+module: inferencia
+order: 1
+level: intermedio
+estimatedMinutes: 50
+objectives:
+  - 'Explicar la distribución muestral de la media y calcular el error estándar de una muestra.'
+  - 'Construir e interpretar correctamente un intervalo de confianza t para una media y un intervalo de Wilson para una proporción.'
+  - 'Aplicar un bootstrap percentil a una media y a una mediana, y saber cuándo es preferible a la fórmula.'
+  - 'Distinguir el error de muestreo (que se reduce con más datos) del sesgo de selección (que no).'
+  - 'Calcular cuánta muestra hace falta para alcanzar una precisión objetivo.'
+prerequisites: ['estadistica-descriptiva/04-ley-de-grandes-numeros-y-teorema-central-del-limite']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Brown, Cai & DasGupta (2001) — Interval Estimation for a Binomial Proportion'
+    url: 'https://projecteuclid.org/journals/statistical-science/volume-16/issue-2/Interval-Estimation-for-a-Binomial-Proportion/10.1214/ss/1009213286.full'
+    type: paper
+    authors: 'Brown, L. D., Cai, T. T., DasGupta, A.'
+    year: 2001
+  - title: 'Lakens — Improving Your Statistical Inferences'
+    url: 'https://lakens.github.io/statistical_inferences/'
+    type: book
+    authors: 'Lakens, D.'
+    year: 2022
+  - title: 'SciPy — scipy.stats.bootstrap'
+    url: 'https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.bootstrap.html'
+    type: docs
+    authors: 'SciPy'
+    year: 2026
+  - title: 'statsmodels — proportion_confint'
+    url: 'https://www.statsmodels.org/stable/generated/statsmodels.stats.proportion.proportion_confint.html'
+    type: docs
+    authors: 'statsmodels'
+    year: 2026
+relatedLabs: ['py-ic-y-bootstrap']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import CoverageExplorer from '../../../components/content/CoverageExplorer.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Finanzas necesita el ticket medio de los pedidos completados para fijar el umbral de envío gratis,
+  pero la exportación completa tarda horas y te llega una **muestra de 200 pedidos**. Su media es de
+  288,24 €. ¿Cuánto te puedes fiar de ese número? ¿Se puede afirmar que el ticket medio es «unos 290
+  €», o puede estar en 250 € o en 330 €? Esa pregunta, cuánta incertidumbre trae una cifra calculada
+  con una muestra, es el corazón de la inferencia.
+</BusinessContext>
+
+Casi todo lo que calculas como analista es una **estimación**: la tasa de conversión de ayer, el ticket medio de un trimestre o el efecto de un experimento.
+Una cifra sin su incertidumbre es una afirmación a medias; con ella, es una decisión informada.
+
+## Intuición
+
+Imagina que repites el muestreo mil veces: cada vez sacas 200 pedidos y calculas su media. No obtendrás siempre 288,24 €; unas veces saldrá 270 € y otras 320 €. Esa **variación entre muestras** es el
+error de muestreo, y su tamaño típico es el **error estándar**. Un intervalo de confianza es un rango construido para que, repitiendo el procedimiento muchas veces, contenga el valor
+verdadero en una proporción conocida de las ocasiones (por ejemplo, el 95 %).
+
+## Cómo funciona
+
+### Población, muestra y estimador
+
+- **Población:** todos los pedidos completados de Lumen (353.542). Su media verdadera, que normalmente **no conoces**, es 301,70 €, con una desviación típica de 363,60 € y una mediana de 180,27 €.
+- **Muestra:** 200 pedidos tomados al azar. Su media (288,24 €) es un **estimador** de la media poblacional.
+- **Error de muestreo:** la diferencia entre el estimador y el valor verdadero. No se puede observar, pero sí estimar su tamaño.
+
+### Error estándar
+
+Para la media de una muestra aleatoria simple, con desviación típica muestral $s$ y tamaño $n$:
+
+$$
+\text{SE}(\bar{x}) = \frac{s}{\sqrt{n}}
+$$
+
+En la muestra de 200 pedidos, $s = 322{,}03$ €, así que $\text{SE} = 322{,}03 / \sqrt{200} = 22{,}77$ €. Dos consecuencias prácticas:
+
+- La precisión mejora con la **raíz** del tamaño: para **dividir el error por 2 hay que multiplicar la muestra por 4**.
+- El error depende de la **variabilidad de los datos** ($s$): los importes de pedido son muy asimétricos (una cola larga de pedidos grandes), así que hace falta más muestra que con una variable estable.
+
+### Intervalo de confianza para una media
+
+El intervalo t de nivel $1-\alpha$ es:
+
+$$
+\bar{x} \;\pm\; t_{1-\alpha/2,\;n-1}\cdot \text{SE}
+$$
+
+Con $n = 200$, $t_{0{,}975;\,199} = 1{,}972$, y el intervalo del 95 % es $288{,}24 \pm 1{,}972 \times 22{,}77 = [243{,}3\;;\;333{,}2]$ €. Se informa así: «ticket medio de 288 €, con un intervalo de confianza del 95 % de 243 a 333 €».
+
+<Callout type="warning">
+  **Qué NO significa «95 % de confianza».** No quiere decir que haya un 95 % de probabilidad de que
+  la media verdadera esté en _este_ intervalo (la media verdadera es un número fijo: o está dentro o
+  no). Significa que el **procedimiento** produce intervalos que contienen el valor verdadero en el
+  95 % de las repeticiones. Para verlo, simula tú mismo muestras.
+</Callout>
+
+<CoverageExplorer client:visible />
+
+Prueba con n = 10 y un 95 %: en una población asimétrica como la de los importes, la cobertura real ronda el 86 % (con n = 30, el 89 %; con n = 400, el 94 %). Con los datos reales de Lumen (muestreo repetido de pedidos), la cobertura de un intervalo t del 95 % fue del
+**87 %** con n = 10, del **91 %** con n = 30 y del **94 %** con n = 200. La aproximación mejora con la muestra gracias al teorema central del límite, pero con datos muy asimétricos tarda en llegar.
+
+### Intervalo para una proporción: Wilson
+
+Para una proporción $\hat{p} = k/n$ (por ejemplo, la tasa de cancelación), el intervalo de Wald, $\hat{p} \pm z\sqrt{\hat{p}(1-\hat{p})/n}$, falla cuando $n$ es pequeño o $\hat{p}$ está cerca de 0 o de 1.
+Brown, Cai y DasGupta (2001) recomiendan el **intervalo de Wilson**, que corrige la asimetría:
+
+$$
+\frac{\hat{p} + \frac{z^2}{2n} \;\pm\; z\sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^2}{4n^2}}}{1 + \frac{z^2}{n}}
+$$
+
+En una muestra de 500 pedidos de Lumen hay 22 cancelados ($\hat{p} = 4{,}4$ %). El intervalo de Wald del 95 % es [2,6 %; 6,2 %] y el de Wilson, [2,9 %; 6,6 %]. La tasa verdadera de la población es del 4,01 %; los dos intervalos la contienen, pero Wilson es más fiable cuando la tasa es baja y se desvía
+menos del nivel nominal.
+
+### Bootstrap
+
+El **bootstrap** (Efron) estima la variabilidad del estimador **remuestreando la propia muestra con reemplazo**:
+
+1. Toma $B$ remuestras de tamaño $n$ con reemplazo de la muestra (por ejemplo, $B = 2000$).
+2. Calcula el estadístico (media, mediana, percentil…) en cada remuestra.
+3. El **intervalo percentil** del 95 % son los percentiles 2,5 y 97,5 de esos $B$ valores.
+
+En la muestra de 200 pedidos, el bootstrap de la media da [245,1 €; 334,3 €], casi idéntico al intervalo t (error estándar bootstrap de 22,8 € frente a 22,77 €). La ventaja aparece en estadísticos sin fórmula sencilla: para la **mediana** (168,62 € en la muestra), el bootstrap da [140,7 €; 218,6 €], un intervalo
+claramente asimétrico que ninguna fórmula de la media te daría.
+
+El bootstrap no es magia: no arregla una muestra pequeña o sesgada, funciona mal con extremos (máximo, mínimo) y con muestras con dependencias (series temporales, clientes repetidos) necesita variantes por bloques o por clúster.
+
+### Error de muestreo frente a sesgo
+
+Todo lo anterior mide el **error aleatorio**. El **sesgo de selección** (la muestra no representa a la población) no se reduce con más datos: si la exportación solo incluye clientes que abrieron el correo, tienes un intervalo muy estrecho alrededor
+de un número equivocado. Pregúntate siempre: ¿cómo llegó cada fila a mi muestra? ¿Quién falta?
+
+## En la práctica
+
+Un procedimiento para informar una estimación:
+
+1. **Define la población y la unidad** (pedidos completados, clientes activos…) y comprueba cómo se obtuvo la muestra.
+2. **Elige el estimador** (media, mediana, proporción) y comprueba la forma de los datos (asimetría, extremos).
+3. **Calcula la estimación y su intervalo**: t o Wilson para medias y proporciones; bootstrap para medianas, percentiles y cocientes.
+4. **Comunica el intervalo junto a la cifra** y qué decisión cambiaría con el extremo inferior o superior.
+5. **Si el intervalo es demasiado ancho para decidir**, calcula cuánta muestra necesitas: $n \approx (z\cdot s / \text{margen})^2$.
+
+```python
+import numpy as np
+from scipy import stats
+
+x = importes_muestra                      # 200 importes
+se = x.std(ddof=1) / np.sqrt(len(x))
+t = stats.t.ppf(0.975, df=len(x) - 1)
+ic = (x.mean() - t * se, x.mean() + t * se)
+
+# bootstrap percentil de la mediana
+rng = np.random.default_rng(0)
+boot = np.median(x[rng.integers(0, len(x), (2000, len(x)))], axis=1)
+ic_mediana = np.percentile(boot, [2.5, 97.5])
+```
+
+En el lab programarás el error estándar, el intervalo t, el bootstrap de cualquier estadístico y el intervalo de Wilson.
+
+## Trade-offs y cuándo usarlo
+
+- **t frente a bootstrap:** con muestras grandes y estadísticos suaves (la media) dan lo mismo; con medianas, percentiles, razones o estadísticos propios, el bootstrap es más flexible. Con $n$ muy pequeño ninguno es fiable.
+- **Wilson frente a Wald:** Wilson no cuesta nada y es mejor casi siempre; usa Wald solo para explicar la idea.
+- **Más muestra frente a menor varianza:** reducir la variabilidad (estratificar, usar una métrica menos ruidosa, covariables como en CUPED) puede valer tanto como multiplicar los datos.
+- **Nivel de confianza:** el 95 % es una convención, no una ley; un nivel más alto da intervalos más anchos. Elige el nivel según el coste de equivocarte.
+
+## Errores comunes
+
+- **Interpretar el intervalo como «95 % de probabilidad de contener el valor verdadero».**
+- **Confundir la desviación típica con el error estándar:** la primera describe a los individuos; el segundo, la precisión del estimador.
+- **Aplicar la fórmula de la media a datos muy asimétricos con $n$ pequeño** sin comprobar la cobertura (ver simulador).
+- **Usar Wald con tasas muy bajas** o con $n$ pequeño.
+- **Ignorar la dependencia:** pedidos del mismo cliente no son independientes; el error estándar real es mayor.
+- **Creer que más datos curan el sesgo.**
+- **Solapar intervalos y concluir «no hay diferencia»:** la comparación correcta se hace sobre la diferencia, no sobre los dos intervalos.
+
+## Con IA
+
+Un asistente puede escribir el código del intervalo y el bootstrap en segundos, pero conviene comprobar tres cosas: que usa `ddof=1`, que el cuantil es el de una t con $n-1$ grados de libertad (o una normal justificada) y que el bootstrap remuestrea **filas con reemplazo**. Pídele que verifique la cobertura con una simulación
+y no le pidas «el intervalo» sin decir cuál (t, Wilson, percentil), porque inventa el que le resulta más fácil.
+
+## En una entrevista
+
+- _"¿Qué significa un intervalo de confianza del 95 %?"_ — Pista: propiedad del procedimiento a largo plazo; no es la probabilidad de que este intervalo contenga el valor verdadero.
+- _"¿Cómo estimarías la incertidumbre de la mediana?"_ — Pista: bootstrap percentil (no hay fórmula sencilla); remuestreo con reemplazo.
+- _"Tu muestra tiene un sesgo de selección. ¿Ayuda aumentarla?"_ — Pista: no; reduce el error aleatorio, no el sistemático.
+
+<KeyTakeaways
+  items={[
+    'El error estándar (s/√n) mide la precisión de un estimador; para dividirlo por 2 hay que multiplicar la muestra por 4.',
+    'Un intervalo de confianza del 95 % es una propiedad del procedimiento (el 95 % de los intervalos construidos así contienen el valor verdadero), no una probabilidad sobre un intervalo concreto.',
+    'Con datos asimétricos y muestras pequeñas, el intervalo t cubre menos de lo nominal: en Lumen, 87 % con n = 10, 91 % con n = 30 y 94 % con n = 200.',
+    'Para proporciones usa Wilson, no Wald; para medianas, percentiles y razones, el bootstrap percentil remuestrea con reemplazo y no necesita fórmula.',
+    'Más datos reducen el error aleatorio, pero no el sesgo de selección: pregunta siempre cómo llegó cada fila a la muestra.',
+  ]}
+/>

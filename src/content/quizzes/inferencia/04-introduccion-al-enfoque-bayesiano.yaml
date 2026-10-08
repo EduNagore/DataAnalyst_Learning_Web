@@ -1,0 +1,71 @@
+lesson: inferencia/04-introduccion-al-enfoque-bayesiano
+questions:
+  - id: inf-04-q1
+    type: single
+    difficulty: 1
+    prompt: 'Partes de un prior Beta(2, 8) para una tasa y observas 3 éxitos en 10 intentos. ¿Cuál es el posterior?'
+    options:
+      - 'Beta(3, 10)'
+      - 'Beta(5, 15)'
+      - 'Beta(5, 8)'
+      - 'Beta(2, 8), porque los datos no cambian el prior'
+    answer: [1]
+    explanation: 'Posterior = Beta(a + k, b + n − k) = Beta(2 + 3, 8 + 10 − 3) = Beta(5, 15).'
+    ref: '#el-modelo-beta-binomial'
+
+  - id: inf-04-q2
+    type: numeric
+    difficulty: 2
+    prompt: '¿Cuál es la media del posterior Beta(5, 15) (como fracción, dos decimales)?'
+    answer: [0.25]
+    tolerance: 0.001
+    explanation: 'La media de una Beta(a, b) es a / (a + b) = 5 / 20 = 0,25: un promedio ponderado entre la tasa del prior (0,20) y la observada (0,30).'
+    ref: '#el-modelo-beta-binomial'
+
+  - id: inf-04-q3
+    type: single
+    difficulty: 2
+    prompt: 'Un análisis bayesiano da un intervalo creíble del 95 % de 7,5 % a 11,3 % para la tasa de devolución de un producto. ¿Cómo se interpreta?'
+    options:
+      - 'El 95 % de los productos tiene una tasa entre 7,5 % y 11,3 %'
+      - 'Dado el prior y los datos, la tasa verdadera del producto está en ese rango con probabilidad 0,95'
+      - 'Si repitiéramos el experimento, el 95 % de los intervalos contendría la tasa'
+      - 'La tasa observada es 9,4 %'
+    answer: [1]
+    explanation: 'El intervalo creíble es una afirmación probabilística sobre el parámetro condicionada al modelo y al prior. La lectura en términos de repetición es la del intervalo de confianza frecuentista.'
+    ref: '#intervalo-creíble-frente-a-intervalo-de-confianza'
+
+  - id: inf-04-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las afirmaciones correctas sobre el prior.'
+    options:
+      - 'Con pocos datos, el posterior depende mucho del prior'
+      - 'Con muchos datos, el posterior apenas depende de un prior razonable'
+      - 'Conviene repetir el análisis con varios priors razonables para ver si la conclusión cambia'
+      - 'Un prior Beta(1, 1) no supone ninguna creencia previa'
+    answer: [0, 1, 2]
+    explanation: 'Beta(1, 1) (uniforme) sí supone algo: que todas las tasas entre 0 y 1 son igual de plausibles, incluidas el 90 % o el 0,1 %, lo que para una tasa de devolución es poco realista.'
+    ref: '#elegir-un-prior'
+
+  - id: inf-04-q5
+    type: single
+    difficulty: 2
+    prompt: 'Ordenas 2.000 productos por tasa de devolución cruda y miras los 5 primeros. ¿Cuál es el problema principal?'
+    options:
+      - 'Las tasas se calculan con pocas cifras decimales'
+      - 'Con ventas limitadas por producto, las tasas extremas aparecen por azar: el top ordena en parte ruido (regresión a la media)'
+      - 'No se pueden ordenar tasas'
+      - 'Los productos con más ventas siempre tienen la tasa más alta'
+    answer: [1]
+    explanation: 'La variabilidad aleatoria de una tasa con n pequeño es alta. En Lumen la dispersión observada entre productos coincide con la esperada solo por azar, así que el ranking crudo apenas informa. El encogimiento pone cada tasa en contexto.'
+    ref: '#encogimiento-no-ordenes-el-ruido'
+
+  - id: inf-04-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Usar un enfoque bayesiano evita tener que justificar supuestos previos, porque los datos hablan por sí solos.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. El análisis bayesiano exige declarar un prior, que es un supuesto. Con pocos datos influye mucho en el resultado, por lo que hay que justificarlo y comprobar la sensibilidad.'
+    ref: '#elegir-un-prior'

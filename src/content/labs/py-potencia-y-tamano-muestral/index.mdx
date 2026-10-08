@@ -1,0 +1,29 @@
+---
+title: 'Contraste de Welch, tamaño de muestra y potencia por simulación'
+description: 'Implementa el t de Welch desde cero y lo aplica al experimento de checkout de Lumen; calcula el tamaño de muestra y la potencia de dos proporciones y compruébala con una simulación.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: inferencia
+difficulty: 3
+estimatedMinutes: 40
+concepts: ['t de Welch', 'p-valor', 'tamaño de muestra', 'potencia', 'simulación de Monte Carlo']
+datasets: ['experiment_metrics']
+packages: ['scipy']
+output: console
+hints:
+  - 'Welch: `se = sqrt(var_a/n_a + var_b/n_b)` con varianzas muestrales (`ddof=1`); `t = (media_a - media_b) / se`; los grados de libertad son `se**4 / ((var_a/n_a)**2/(n_a-1) + (var_b/n_b)**2/(n_b-1))`; el p-valor bilateral es `2 * stats.t.sf(abs(t), df)`.'
+  - 'Tamaño de muestra: `p2 = p1 * (1 + mde_rel)`, `za = norm.ppf(1 - alpha/2)`, `zb = norm.ppf(potencia)` y `n = (za + zb)**2 * (p1*(1-p1) + p2*(1-p2)) / (p2 - p1)**2`, redondeado hacia arriba con `math.ceil`.'
+  - 'Potencia: `se = sqrt((p1*(1-p1) + p2*(1-p2)) / n)`, `z = abs(p2-p1) / se` y `potencia = norm.cdf(z - za) + norm.cdf(-z - za)`.'
+  - 'Simulación: en cada repetición genera `rng.binomial(n, p1)` y `rng.binomial(n, p2)`, calcula el z de dos proporciones con la proporción agrupada y cuenta cuántas veces `|z| > za`. Vectoriza las `n_sim` repeticiones.'
+relatedLessons: ['inferencia/02-contrastes-p-valor-errores-y-potencia']
+businessQuestion: '¿Fue real el efecto del nuevo checkout y cuánta muestra hace falta para detectarlo con fiabilidad?'
+---
+
+Parte de la serie diaria de conversión de `exp-checkout-v2` (29 días por rama). Implementa cuatro funciones:
+
+1. **`welch_t(a, b)`** → `(t, gl, p)` del contraste bilateral de Welch para `a` frente a `b`, sin usar `scipy.stats.ttest_ind` (puedes usar `stats.t.sf`).
+2. **`tamano_muestra(p1, mde_rel, alpha=0.05, potencia=0.8)`** → entero: clientes necesarios por grupo para detectar un cambio relativo `mde_rel` sobre una proporción base `p1`.
+3. **`potencia(p1, mde_rel, n, alpha=0.05)`** → potencia analítica con `n` por grupo.
+4. **`potencia_simulada(p1, mde_rel, n, alpha=0.05, n_sim=4000, seed=0)`** → fracción de simulaciones en las que el z de dos proporciones rechaza $H_0$, para comprobar la fórmula.
+
+El script imprime el contraste del experimento, el tamaño de muestra para un +8 % sobre el 5,4 % y la potencia con 10.000 clientes por grupo.

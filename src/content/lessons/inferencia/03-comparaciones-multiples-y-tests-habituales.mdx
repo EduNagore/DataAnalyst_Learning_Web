@@ -1,0 +1,209 @@
+---
+title: 'Comparaciones múltiples y tests habituales'
+description: 'Por qué mirar muchas comparaciones produce falsos positivos y cómo controlarlos con Bonferroni, Holm y Benjamini-Hochberg; y una guía práctica de los tests que usa un analista: t de Welch, proporciones, χ², Mann-Whitney y permutación.'
+module: inferencia
+order: 3
+level: intermedio
+estimatedMinutes: 50
+objectives:
+  - 'Calcular la probabilidad de al menos un falso positivo al hacer varias comparaciones y distinguir tasa de error por familia (FWER) de tasa de falsos descubrimientos (FDR).'
+  - 'Aplicar las correcciones de Bonferroni, Holm y Benjamini-Hochberg e interpretar los p-valores ajustados.'
+  - 'Elegir el contraste adecuado (t de Welch, z de proporciones, χ², Mann-Whitney, permutación) según el tipo de dato y la pregunta.'
+  - 'Reconocer el p-hacking y los «caminos bifurcados» y reducir el riesgo con preregistro y un registro de todo lo probado.'
+prerequisites: ['inferencia/02-contrastes-p-valor-errores-y-potencia']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Benjamini & Hochberg (1995) — Controlling the False Discovery Rate'
+    url: 'https://www.jstor.org/stable/2346101'
+    type: paper
+    authors: 'Benjamini, Y., Hochberg, Y.'
+    year: 1995
+  - title: 'statsmodels — multipletests'
+    url: 'https://www.statsmodels.org/stable/generated/statsmodels.stats.multitest.multipletests.html'
+    type: docs
+    authors: 'statsmodels'
+    year: 2026
+  - title: 'SciPy — scipy.stats.mannwhitneyu'
+    url: 'https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.mannwhitneyu.html'
+    type: docs
+    authors: 'SciPy'
+    year: 2026
+  - title: 'SciPy — scipy.stats.chi2_contingency'
+    url: 'https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.chi2_contingency.html'
+    type: docs
+    authors: 'SciPy'
+    year: 2026
+  - title: 'Wasserstein & Lazar (2016) — The ASA Statement on p-Values'
+    url: 'https://www.amstat.org/asa/files/pdfs/p-valuestatement.pdf'
+    type: paper
+    authors: 'Wasserstein, R. L., Lazar, N. A.'
+    year: 2016
+relatedLabs: ['py-comparaciones-multiples']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Logística quiere saber si algún transportista llega más tarde que los demás. Tienes 365.198 envíos
+  y cinco transportistas, es decir, 10 comparaciones por parejas. Una de ellas sale con p = 0,002.
+  ¿Has encontrado un transportista peor, o simplemente has mirado tantas veces que algo tenía que
+  salir?
+</BusinessContext>
+
+Cada contraste que haces tiene una probabilidad $\alpha$ de dar un falso positivo si no hay efecto. Si haces muchos, la probabilidad de que **alguno** falle se dispara. La mayoría de errores graves de análisis (hallazgos que no se replican) vienen de aquí.
+
+## Intuición
+
+Un detector de humo con un 5 % de falsas alarmas es razonable si lo consultas una vez. Si consultas 100 detectores independientes, esperas 5 falsas alarmas aunque no haya fuego. Cada comparación adicional es otro «detector». Corregir por comparaciones múltiples es
+exigir más evidencia a cada una, en proporción a cuántas has mirado.
+
+## Cómo funciona
+
+### La probabilidad de algún falso positivo
+
+Con $m$ contrastes independientes y todas las nulas ciertas, la probabilidad de al menos un falso positivo (**FWER**, _family-wise error rate_) es
+
+$$
+1 - (1-\alpha)^m
+$$
+
+Con $\alpha = 0{,}05$: 5 % si $m = 1$; **40 %** si $m = 10$; **64 %** si $m = 20$; **99,4 %** si $m = 100$. Esto no solo ocurre con tests explícitos: cada gráfico que miras, cada segmento que cortas y cada métrica que añades cuenta como una comparación.
+
+### Dos filosofías de control
+
+- **FWER:** controla la probabilidad de **cualquier** falso positivo en la familia. Es lo adecuado cuando un solo error es costoso (decisiones confirmatorias, pocas hipótesis).
+- **FDR** (_false discovery rate_): controla la **proporción esperada de falsos descubrimientos** entre los positivos. Es lo adecuado cuando exploras muchas hipótesis y aceptas que algunos descubrimientos sean falsos mientras se mantengan en una proporción conocida (cribado de segmentos, de métricas, de experimentos).
+
+### Las correcciones
+
+Ordena los p-valores $p_{(1)} \le \dots \le p_{(m)}$:
+
+| Método                      | P-valor ajustado                                               | Controla | Comentario                                               |
+| --------------------------- | -------------------------------------------------------------- | -------- | -------------------------------------------------------- |
+| **Bonferroni**              | $\min(1,\; m \cdot p_i)$                                       | FWER     | Muy sencillo y conservador                               |
+| **Holm** (descendente)      | $\max_{j \le i}\,\min\bigl(1,\,(m-j+1)\,p_{(j)}\bigr)$         | FWER     | Siempre al menos tan potente como Bonferroni             |
+| **Benjamini-Hochberg (BH)** | $\min_{j \ge i}\,\min\bigl(1,\,m\,p_{(j)}/j\bigr)$ («q-valor») | FDR      | Más potente; supone independencia o dependencia positiva |
+
+La regla: rechaza las hipótesis cuyo p-valor ajustado sea menor que $\alpha$. Usa Holm por defecto para decisiones confirmatorias y BH para exploración.
+
+### Caso 1: 15 experimentos de Lumen
+
+Lumen tiene 15 experimentos con su métrica principal diaria. Dos tienen un efecto real por construcción (`exp-checkout-v2`, +8 %; `exp-social-ads-geo-holdout`, +6 %) y los otros trece son nulos. Con un t de Welch por experimento:
+
+| Experimento                  | p crudo    | p Bonferroni | q de BH |
+| ---------------------------- | ---------- | -----------: | ------: |
+| `exp-checkout-v2`            | 1,8 × 10⁻⁶ |      0,00003 | 0,00003 |
+| `exp-social-ads-geo-holdout` | 3,3 × 10⁻⁵ |      0,00049 | 0,00025 |
+| `exp-generic-08`             | 0,36       |            1 |    0,95 |
+| …                            | ≥ 0,41     |            1 |    0,95 |
+
+Aquí no hay conflicto: las correcciones confirman exactamente los dos efectos reales y ningún nulo cruza el umbral. Pero eso no siempre pasa por casualidad: con 13 nulos y $\alpha = 0{,}05$, la probabilidad de que ninguno saliera «significativo» sin corrección era de $0{,}95^{13} \approx 51\,\%$.
+
+### Caso 2: cinco transportistas, diez parejas
+
+El transportista de cada envío se asigna al azar en Lumen (dataset sintético): **no hay diferencia real** entre ellos. Comparar el retraso (días entre la fecha prometida y la real) con un test de Mann-Whitney en las 10 parejas da:
+
+| Pareja                   | Dif. de medias (días) | p crudo | p Holm | q de BH |
+| ------------------------ | --------------------: | ------: | -----: | ------: |
+| CorreosExpress – SEUR    |                 0,025 |   0,002 |  0,022 |   0,022 |
+| CorreosExpress – MRW     |                 0,027 |   0,024 |  0,213 |   0,116 |
+| Correos – CorreosExpress |                −0,012 |   0,035 |  0,279 |   0,116 |
+| GLS – SEUR               |                 0,018 |   0,056 |  0,395 |   0,141 |
+| …                        |                     … |       … |      … |       … |
+
+Sin corrección, **tres** de diez parejas son «significativas» (p < 0,05): tres falsos positivos. Con Holm o BH queda **una** (la de p = 0,002): las correcciones controlan el error, no lo eliminan; y es de esperar que aproximadamente 1 de cada 20 familias nulas conserve algún falso positivo. Además,
+la diferencia de medias es de 0,025 días (unos 35 minutos), irrelevante en la práctica: **la significación con 73.000 envíos por transportista no es relevancia**. Para decidir hay que mirar el tamaño del efecto.
+
+<Callout type="warning">
+  **No corregir también es una decisión.** Quien informa «CorreosExpress es el peor transportista (p
+  = 0,002)» sin decir que probó 10 parejas está engañando, aunque no lo sepa. Declara siempre
+  cuántas comparaciones hiciste.
+</Callout>
+
+### Guía de contrastes habituales
+
+| Pregunta                                                 | Test habitual                         | Supuestos y notas                                                          | En Python                                |
+| -------------------------------------------------------- | ------------------------------------- | -------------------------------------------------------------------------- | ---------------------------------------- |
+| Diferencia de **medias** entre dos grupos independientes | **t de Welch**                        | No exige varianzas iguales; robusto con $n$ razonable; sensible a extremos | `stats.ttest_ind(a, b, equal_var=False)` |
+| Mismos sujetos antes y después                           | **t pareado**                         | Trabaja sobre las diferencias                                              | `stats.ttest_rel(a, b)`                  |
+| Diferencia de **proporciones** (conversión)              | **z de dos proporciones**             | Muestras grandes; con pocos casos, test exacto de Fisher                   | `statsmodels…proportions_ztest`          |
+| Asociación entre **dos categóricas** (estado × canal)    | **χ² de independencia**               | Frecuencias esperadas ≥ 5 en las celdas                                    | `stats.chi2_contingency(tabla)`          |
+| Reparto observado frente a esperado (50/50, **SRM**)     | **χ² de bondad de ajuste**            | Un grado de libertad menos que categorías                                  | `stats.chisquare(obs, esperado)`         |
+| Distribuciones muy asimétricas u ordinales               | **Mann-Whitney U**                    | Compara rangos (no medias); sensible a cambios de posición y forma         | `stats.mannwhitneyu(a, b)`               |
+| Cualquier estadístico sin fórmula                        | **Permutación / bootstrap**           | Barajar etiquetas bajo $H_0$ y recalcular; flexible                        | `stats.permutation_test(...)`            |
+| Más de dos grupos                                        | **ANOVA** / Kruskal-Wallis + post hoc | Después, comparaciones por parejas con corrección                          | `stats.f_oneway`, `stats.kruskal`        |
+
+Dos ejemplos con los datos de Lumen:
+
+- **χ² de independencia entre canal y estado del pedido:** online (328.558 completados, 14.657 cancelados, 21.983 devueltos) y tienda (24.984, 1.104, 1.620): $\chi^2 = 1{,}45$ con 2 grados de libertad, $p = 0{,}48$. El reparto de estados es el mismo en ambos canales (≈ 4 % cancelados).
+- **χ² de bondad de ajuste (SRM):** en `exp-reco-engine` se esperaba 50/50 y hubo 11.166 en control y 8.834 en tratamiento: $\chi^2 = 271{,}9$ con 1 grado de libertad, $p \approx 4 \times 10^{-61}$. Un reparto así es incompatible con una asignación aleatoria equilibrada (lo estudiaremos en el módulo de experimentación).
+
+### Cómo se hace p-hacking sin querer
+
+Los **caminos bifurcados** (_garden of forking paths_, Gelman y Loken): cada decisión del análisis (qué métrica, qué subgrupo, qué outliers excluir, qué test) es una bifurcación. Si decides después de ver los datos, el número real de comparaciones es mucho mayor que el que informas. Medidas:
+
+1. **Preregistrar** la hipótesis, la métrica primaria, el test y las exclusiones antes de ver el resultado.
+2. **Separar** análisis confirmatorio (pocas hipótesis, FWER) y exploratorio (muchas, FDR, y se replica).
+3. **Registrar** todo lo probado en un cuaderno compartido, también lo que no funcionó.
+4. **Replicar** los hallazgos exploratorios en datos nuevos antes de actuar.
+
+## En la práctica
+
+1. **Cuenta tus comparaciones** antes de mirar resultados: segmentos, métricas, variantes, ventanas de tiempo.
+2. **Elige el control del error:** Holm (o Bonferroni) si decides algo importante con unas pocas hipótesis; BH si criba muchas.
+3. **Calcula los p-valores ajustados** y presenta el tamaño del efecto con su intervalo (ver lección 2).
+4. **Informa** cuántas comparaciones hiciste y cuál fue el criterio de corrección.
+
+```python
+from statsmodels.stats.multitest import multipletests
+
+p = [0.0022, 0.0237, 0.0349, 0.0565, 0.2495]
+reject, p_holm, _, _ = multipletests(p, alpha=0.05, method="holm")
+reject, q_bh, _, _ = multipletests(p, alpha=0.05, method="fdr_bh")
+```
+
+En el lab implementas Bonferroni, Holm y BH desde cero, los aplicas a las parejas de transportistas y simulas la tasa de falsos positivos con y sin corrección.
+
+## Trade-offs y cuándo usarlo
+
+- **Conservador frente a potente:** Bonferroni es sencillo pero pierde potencia con muchas hipótesis; Holm lo mejora gratis; BH acepta algunos falsos descubrimientos a cambio de detectar más efectos reales.
+- **Corregir frente a jerarquizar:** en un experimento con una métrica primaria y varias secundarias, no hace falta corregir la primaria; se corrigen (o se declaran exploratorias) las demás.
+- **Test paramétrico frente a no paramétrico:** el t compara medias (lo que suele interesar al negocio); Mann-Whitney compara rangos y puede dar «significativo» con medias casi iguales (o al revés). Elige según la pregunta, no según quién da el p más pequeño.
+- **Dependencia entre tests:** las correcciones suponen cierta independencia; con métricas muy correlacionadas son conservadoras.
+
+## Errores comunes
+
+- **No contar las comparaciones** (los gráficos que miraste y descartaste también cuentan).
+- **Aplicar Bonferroni con cientos de hipótesis exploratorias** y concluir que «no hay nada».
+- **Cambiar de test hasta que salga significativo.**
+- **Confundir «significativo tras corregir» con «grande»** (véanse los 35 minutos de retraso).
+- **Hacer pruebas t por parejas en lugar de un ANOVA** sin ajustar.
+- **Usar χ² con frecuencias esperadas muy bajas.**
+- **Presentar subgrupos que salieron significativos como hallazgos confirmatorios.**
+
+## Con IA
+
+Pedir a un asistente «prueba si hay diferencias por segmento» sin límites es una máquina de fabricar falsos positivos: encadena decenas de cortes y comenta el que sale. Indica **cuántas hipótesis** quieres probar, **qué corrección** aplicar y que **informe de todos los p-valores**.
+Revisa también que no cambie de test entre intentos y que reporte tamaños de efecto, no solo significación.
+
+## En una entrevista
+
+- _"Haces 20 tests y uno sale significativo al 5 %. ¿Es un hallazgo?"_ — Pista: la probabilidad de algún falso positivo es del 64 %; corrige por comparaciones múltiples y replica.
+- _"¿Diferencia entre Bonferroni y Benjamini-Hochberg?"_ — Pista: FWER frente a FDR; Bonferroni es más conservador.
+- _"¿Qué test usas para comparar proporciones, y para datos muy asimétricos?"_ — Pista: z de dos proporciones (o Fisher con pocos casos); Mann-Whitney o permutación; cuida que la pregunta de negocio sea sobre medias o rangos.
+
+<KeyTakeaways
+  items={[
+    'Con m contrastes independientes y todo nulo, la probabilidad de algún falso positivo es 1 − 0,95^m: 40 % con 10 comparaciones, 64 % con 20 y 99,4 % con 100.',
+    'Bonferroni y Holm controlan el error por familia (FWER) y son adecuados para decisiones confirmatorias; Benjamini-Hochberg controla la proporción de falsos descubrimientos (FDR) y es adecuado para cribado exploratorio.',
+    'En Lumen, tres de diez parejas de transportistas salen significativas sin corregir y una tras corregir (p ajustado = 0,022), aunque la diferencia real es nula y la de medias es de 0,025 días: significativo no es relevante.',
+    'Elige el test según la pregunta: t de Welch para medias, z de proporciones para conversión, χ² para categóricas y SRM, Mann-Whitney o permutación para distribuciones asimétricas.',
+    'Evita el p-hacking declarando antes la hipótesis, la métrica y el test, registrando todo lo probado y replicando los hallazgos exploratorios.',
+  ]}
+/>

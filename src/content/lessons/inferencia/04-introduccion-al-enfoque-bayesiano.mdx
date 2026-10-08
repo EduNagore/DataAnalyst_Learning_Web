@@ -1,0 +1,194 @@
+---
+title: 'Introducción al enfoque bayesiano: priors, posteriores y encogimiento'
+description: 'Cómo actualizar creencias con datos usando el modelo beta-binomial, qué es un intervalo creíble, cómo comparar dos grupos con la probabilidad de que uno supere al otro y por qué el encogimiento (shrinkage) evita ordenar el ruido.'
+module: inferencia
+order: 4
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Actualizar una distribución beta con datos binomiales y calcular media, intervalo creíble y probabilidades sobre la tasa.'
+  - 'Explicar la diferencia entre un intervalo de confianza frecuentista y un intervalo creíble bayesiano.'
+  - 'Comparar dos grupos con la probabilidad de que uno supere al otro y con la pérdida esperada de elegir mal.'
+  - 'Usar un prior informado y el encogimiento hacia la media global para estabilizar tasas calculadas con pocos datos.'
+  - 'Elegir un prior débil o informado, comprobar la sensibilidad del resultado y detectar cuándo los datos dominan.'
+prerequisites: ['inferencia/03-comparaciones-multiples-y-tests-habituales']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Gelman et al. — Bayesian Data Analysis (3.ª ed.)'
+    url: 'https://www.stat.columbia.edu/~gelman/book/BDA3.pdf'
+    type: book
+    authors: 'Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., Rubin, D. B.'
+    year: 2013
+  - title: 'McElreath — Statistical Rethinking'
+    url: 'https://xcelab.net/rm/'
+    type: book
+    authors: 'McElreath, R.'
+    year: 2020
+  - title: 'SciPy — scipy.stats.beta'
+    url: 'https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.beta.html'
+    type: docs
+    authors: 'SciPy'
+    year: 2026
+  - title: 'Lakens — Improving Your Statistical Inferences'
+    url: 'https://lakens.github.io/statistical_inferences/'
+    type: book
+    authors: 'Lakens, D.'
+    year: 2022
+relatedLabs: ['py-bayes-beta-binomial']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Calidad quiere retirar del catálogo los productos con más devoluciones. Ordenas los 2.000
+  productos de Lumen por tasa de devolución y el primero, `prod-00019`, tiene 57 devoluciones en 510
+  unidades vendidas: un 11,2 % frente a una media del 7,0 %. ¿Es de verdad un producto problemático
+  o has encontrado, entre 2.000, el que tuvo peor suerte?
+</BusinessContext>
+
+El enfoque bayesiano responde esa pregunta combinando lo que sabes **antes** de ver los datos con lo que dicen los datos. Es una forma coherente de razonar bajo incertidumbre, muy útil cuando hay pocos datos por unidad (productos, tiendas, campañas) y se necesitan probabilidades directas sobre la decisión.
+
+## Intuición
+
+Piensa en un médico con una prueba positiva. Si la enfermedad es rara (prior baja), un positivo no la hace probable. Si es frecuente, sí. La probabilidad final depende de la creencia de partida **y** de la evidencia. Bayes formaliza exactamente eso:
+
+$$
+\underbrace{p(\theta \mid \text{datos})}_{\text{posterior}} \;\propto\; \underbrace{p(\text{datos} \mid \theta)}_{\text{verosimilitud}} \cdot \underbrace{p(\theta)}_{\text{prior}}
+$$
+
+Aquí $\theta$ es lo que quieres saber (la tasa de devolución verdadera del producto). El resultado no es una cifra sino una **distribución**: todo lo que crees sobre $\theta$ después de ver los datos.
+
+## Cómo funciona
+
+### El modelo beta-binomial
+
+Para una tasa $\theta$ con $k$ éxitos en $n$ intentos, la verosimilitud es binomial. Si el prior es una **beta**, $\theta \sim \text{Beta}(a, b)$, el posterior es otra beta (_conjugación_):
+
+$$
+\theta \mid k, n \;\sim\; \text{Beta}(a + k,\; b + n - k)
+$$
+
+Interpretación: $a$ y $b$ son «éxitos y fracasos imaginarios» que ya habías visto. La media posterior es $\dfrac{a+k}{a+b+n}$, un **promedio ponderado** de la tasa del prior y la tasa observada, con pesos proporcionales a $a+b$ y a $n$.
+
+### Un prior débil y un prior informado
+
+Para `prod-00019` (57 devoluciones de 510):
+
+| Prior                                                     | Media posterior | Intervalo creíble 95 % | $P(\theta > 10\,\%)$ |
+| --------------------------------------------------------- | --------------: | ---------------------: | -------------------: |
+| **Plano** Beta(1, 1): «no sé nada»                        |          11,3 % |         8,7 % – 14,2 % |                 0,83 |
+| **Informado** con la tasa histórica (7,0 %) y peso de 400 |           9,3 % |         7,5 % – 11,3 % |                 0,24 |
+
+Con el prior plano el posterior casi coincide con los datos (11,2 %). Con el informado, el prior pesa como 400 observaciones frente a las 510 del producto y la media se **encoge** hacia la tasa global. La diferencia entre «83 % de probabilidad de que supere el 10 %» y «24 %» es exactamente la cuestión que debes resolver:
+**¿cuánto crees, antes de mirar este producto, que un producto puede desviarse de la media?**
+
+### Intervalo creíble frente a intervalo de confianza
+
+|                  | Intervalo de confianza (frecuentista)                       | Intervalo creíble (bayesiano)                                      |
+| ---------------- | ----------------------------------------------------------- | ------------------------------------------------------------------ |
+| Qué es aleatorio | El intervalo (depende de la muestra); el parámetro es fijo  | El parámetro (tiene distribución); el intervalo se calcula de ella |
+| Interpretación   | El 95 % de los intervalos así construidos contiene $\theta$ | Dado el prior y los datos, $\theta$ está ahí con probabilidad 0,95 |
+| Necesita         | Un modelo de muestreo                                       | Un modelo de muestreo **y** un prior                               |
+
+El creíble responde de forma directa lo que suele preguntar el negocio («¿cuál es la probabilidad de que…?»), pero esa respuesta **depende del prior**: es un supuesto que hay que declarar y justificar.
+
+### Comparar dos grupos: $P(B > A)$ y pérdida esperada
+
+Para decidir entre dos variantes se simulan muchas extracciones de cada posterior y se cuenta cuántas veces $\theta_B > \theta_A$. Ejemplo con la tasa de cancelación por canal en Lumen (online: 14.657 de 365.198; tienda: 1.104 de 27.708) con priors planos:
+
+- $P(\theta_{\text{tienda}} > \theta_{\text{online}}) = 0{,}41$.
+- Diferencia de tasas (tienda − online): intervalo creíble del 95 % de −0,26 a +0,22 puntos porcentuales.
+
+Es decir, no hay evidencia de diferencia (0,5 sería «no sé cuál es mayor»). Además de $P(B>A)$ conviene calcular la **pérdida esperada** de elegir una variante: la media de cuánto pierdes cuando eliges mal. Una decisión puede tener 0,95 de probabilidad de ser buena y aún así una pérdida esperada que no compensa un cambio costoso.
+
+### Encogimiento: no ordenes el ruido
+
+Con 2.000 productos y unas 507 unidades vendidas por producto, algunos producirán tasas extremas por pura variación aleatoria. Si todos los productos tuvieran la misma tasa verdadera (7,0 %), la desviación típica esperada de la tasa observada sería $\sqrt{0{,}07 \cdot 0{,}93 / 507} = 1{,}13$ puntos. La observada es de **1,13 puntos**: idéntica. La varianza «extra» entre productos
+es prácticamente cero, así que la clasificación por tasa cruda ordena, en esencia, **ruido** (efecto de la «maldición del ganador» y de la regresión a la media).
+
+El **encogimiento** (estimador bayesiano empírico) lo corrige: estima cada tasa como un promedio ponderado entre la observada y la global. Para los cinco peores productos, con un prior de peso 400:
+
+| Producto     | Devoluciones / ventas | Tasa cruda | Tasa encogida (peso 400) |
+| ------------ | --------------------: | ---------: | -----------------------: |
+| `prod-00019` |              57 / 510 |     11,2 % |                    9,3 % |
+| `prod-01106` |              53 / 502 |     10,6 % |                    9,0 % |
+| `prod-01277` |              52 / 503 |     10,3 % |                    8,9 % |
+| `prod-01053` |              51 / 495 |     10,3 % |                    8,8 % |
+| `prod-00296` |              52 / 506 |     10,3 % |                    8,8 % |
+
+Si en lugar de 400 se usara el peso que sugiere la propia varianza entre productos (muy grande, por ser casi cero), todos los productos quedarían en torno al 7 %: la conclusión honesta es que **no hay productos con una tasa de devolución verdaderamente distinta**.
+
+<Callout type="warning">
+  Tomar los «top N» de una lista ordenada por una tasa ruidosa es el origen de muchos falsos
+  hallazgos: el top siempre parece anormal. El encogimiento no inventa información: pone cada
+  observación en el contexto de lo que ya se sabe del conjunto.
+</Callout>
+
+### Elegir un prior
+
+1. **Débil o poco informativo** (Beta(1,1), Beta(0,5; 0,5)): deja hablar a los datos; apropiado cuando no hay conocimiento previo fiable.
+2. **Informado por datos históricos** o por el conjunto (priors empíricos): estabiliza unidades con pocos datos; justifica el «peso» (cuántas observaciones equivale).
+3. **Siempre comprueba la sensibilidad:** repite el análisis con dos o tres priors razonables. Si la conclusión cambia, lo que sabes depende del prior y debes decirlo.
+4. Con muchos datos, el posterior es casi independiente del prior: los datos dominan.
+
+## En la práctica
+
+1. **Define el parámetro y el modelo** (tasa binomial, media normal…).
+2. **Elige y documenta el prior**, con su peso y su justificación.
+3. **Calcula el posterior** (analítico si hay conjugación) y resume: media, intervalo creíble, probabilidades sobre umbrales relevantes.
+4. **Compara con $P(B>A)$ y pérdida esperada** si hay una decisión.
+5. **Verifica la sensibilidad** al prior y comunica el resultado con sus supuestos.
+
+```python
+from scipy import stats
+
+k, n = 57, 510
+a0, b0 = 28.07, 371.93                      # prior: 7,0 % con peso 400
+post = stats.beta(a0 + k, b0 + n - k)
+post.mean(), post.interval(0.95), post.sf(0.10)
+```
+
+En el lab implementas el posterior beta, el prior desde un histórico, la comparación de dos grupos por simulación y el ranking encogido de productos.
+
+## Trade-offs y cuándo usarlo
+
+- **Bayesiano frente a frecuentista:** el bayesiano da probabilidades directas, incorpora conocimiento previo y encaja con la decisión; el frecuentista no necesita priors y tiene garantías de error a largo plazo. En la práctica se complementan: con muchos datos y priors débiles suelen coincidir.
+- **Subjetividad del prior:** es una ventaja si es explícito y revisable; un riesgo si se ajusta para obtener el resultado deseado. Declara y comprueba la sensibilidad.
+- **Parada anticipada:** los análisis bayesianos se suelen presentar como más cómodos para mirar resultados antes de acabar, pero no garantizan por sí solos el control de la tasa de falsos positivos; si necesitas esa garantía, usa diseños secuenciales con propiedades conocidas (módulo de experimentación).
+- **Coste computacional:** con modelos conjugados es trivial; con modelos jerárquicos o complejos hay que usar MCMC (PyMC, Stan), fuera del alcance de esta lección.
+
+## Errores comunes
+
+- **Elegir un prior para que salga lo que esperas** y no comprobar la sensibilidad.
+- **Interpretar el posterior como si fuera independiente del prior** cuando hay pocos datos.
+- **Ordenar por tasa cruda** unidades con tamaños muy distintos.
+- **Confundir «probabilidad de que B sea mejor» con «B es mucho mejor»:** hay que mirar también el tamaño de la diferencia y la pérdida esperada.
+- **Usar Beta(1,1) como «no informativo» sin pensar:** equivale a creer que la tasa del 90 % es tan plausible como la del 7 %.
+- **Tratar los resultados bayesianos como inmunes al sesgo de selección o al p-hacking.**
+
+## Con IA
+
+Un asistente puede producir el código del posterior en segundos, pero a menudo omite el prior ("usa uno plano") o lo elige sin justificar; es una decisión de análisis, no un detalle técnico. Pídele que **explique el prior**, que compare dos o tres y que
+verifique el resultado analítico con una simulación. Cuidado con las explicaciones que atribuyen al intervalo de confianza la lectura del creíble: es un error muy frecuente.
+
+## En una entrevista
+
+- _"¿Diferencia entre un intervalo de confianza y uno creíble?"_ — Pista: el primero describe un procedimiento y el segundo, una distribución del parámetro dado un prior.
+- _"Tienes 300 tiendas con pocas ventas cada una. ¿Cómo comparas sus tasas de conversión?"_ — Pista: encogimiento hacia la media global (beta-binomial jerárquico) para no ordenar ruido.
+- _"¿Cuándo importa el prior?"_ — Pista: con pocos datos; con muchos, los datos dominan; comprueba la sensibilidad.
+
+<KeyTakeaways
+  items={[
+    'En el modelo beta-binomial, Beta(a, b) con k éxitos en n intentos da Beta(a + k, b + n − k): la media posterior es un promedio ponderado entre la tasa del prior y la observada.',
+    'Un intervalo creíble expresa la probabilidad de que el parámetro esté en un rango dado el prior y los datos; un intervalo de confianza describe un procedimiento. El primero depende del prior y debe acompañarse de un análisis de sensibilidad.',
+    'Para decidir entre variantes calcula P(B > A) y la pérdida esperada, no solo la probabilidad: en cancelaciones por canal en Lumen, P(tienda > online) = 0,41 y no hay evidencia de diferencia.',
+    'Con 2.000 productos de unas 507 ventas cada uno, la dispersión observada de las tasas de devolución (1,13 pp) coincide con la esperada solo por azar: el ranking crudo ordena ruido y el encogimiento hacia la media global lo corrige.',
+    'Con muchos datos el posterior apenas depende del prior; con pocos, sí: declara el prior, justifica su peso y repite el análisis con alternativas razonables.',
+  ]}
+/>

@@ -1,0 +1,71 @@
+lesson: inferencia/01-muestreo-error-estandar-e-intervalos-de-confianza
+questions:
+  - id: inf-01-q1
+    type: numeric
+    difficulty: 1
+    prompt: 'Una muestra de n = 400 pedidos tiene una desviación típica muestral de 200 €. ¿Cuál es el error estándar de la media, en euros?'
+    answer: [10]
+    tolerance: 0.01
+    explanation: 'SE = s / √n = 200 / √400 = 200 / 20 = 10 €.'
+    ref: '#error-estándar'
+
+  - id: inf-01-q2
+    type: single
+    difficulty: 2
+    prompt: 'Quieres que el error estándar de tu estimación sea la mitad. ¿Qué tienes que hacer con el tamaño de la muestra?'
+    options:
+      - 'Duplicarlo'
+      - 'Multiplicarlo por 4'
+      - 'Multiplicarlo por 10'
+      - 'Nada: el error estándar no depende del tamaño'
+    answer: [1]
+    explanation: 'El error estándar decrece con la raíz del tamaño: para reducirlo a la mitad hay que cuadruplicar la muestra.'
+    ref: '#error-estándar'
+
+  - id: inf-01-q3
+    type: single
+    difficulty: 2
+    prompt: 'Un intervalo de confianza del 95 % para el ticket medio es [243 €; 333 €]. ¿Qué afirmación es correcta?'
+    options:
+      - 'Hay un 95 % de probabilidad de que la media verdadera esté entre 243 y 333 €'
+      - 'El 95 % de los pedidos cuesta entre 243 y 333 €'
+      - 'Si repitiéramos el muestreo y la construcción del intervalo muchas veces, el 95 % de los intervalos contendría la media verdadera'
+      - 'La media muestral está garantizada dentro del intervalo y la verdadera, no'
+    answer: [2]
+    explanation: 'El 95 % describe el procedimiento a largo plazo. La media verdadera es un número fijo: en este intervalo concreto está o no está. Y el intervalo habla de la media, no de la distribución de los pedidos individuales.'
+    ref: '#intervalo-de-confianza-para-una-media'
+
+  - id: inf-01-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las situaciones en las que el bootstrap percentil es una buena herramienta.'
+    options:
+      - 'Intervalo para la mediana de una variable asimétrica'
+      - 'Intervalo para un cociente (por ejemplo, ingresos entre pedidos) sin fórmula sencilla'
+      - 'Intervalo para un estadístico definido por ti (por ejemplo, el percentil 90)'
+      - 'Corregir una muestra con un fuerte sesgo de selección'
+    answer: [0, 1, 2]
+    explanation: 'El bootstrap estima la variabilidad de cualquier estadístico a partir de la muestra, pero no corrige sesgos: si la muestra no representa a la población, el remuestreo hereda ese sesgo.'
+    ref: '#bootstrap'
+
+  - id: inf-01-q5
+    type: single
+    difficulty: 2
+    prompt: 'Tienes 3 cancelados en 100 pedidos (3 %). ¿Qué intervalo para la proporción es preferible?'
+    options:
+      - 'Wald, por ser el más sencillo'
+      - 'Wilson, porque se comporta mejor con n pequeño y proporciones cercanas a 0 o 1'
+      - 'Ninguno: con n = 100 no se puede calcular'
+      - 'El intervalo t de la media de ceros y unos, siempre'
+    answer: [1]
+    explanation: 'Brown, Cai y DasGupta (2001) recomiendan Wilson (o Agresti-Coull) frente a Wald, cuya cobertura real es peor sobre todo con proporciones bajas.'
+    ref: '#intervalo-para-una-proporción-wilson'
+
+  - id: inf-01-q6
+    type: truefalse
+    difficulty: 1
+    prompt: 'Si tu muestra tiene un sesgo de selección, basta con aumentar su tamaño para que el intervalo sea fiable.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Más datos reducen el error aleatorio (intervalos más estrechos), pero no el sesgo: tendrías un intervalo muy estrecho alrededor de un número equivocado.'
+    ref: '#error-de-muestreo-frente-a-sesgo'

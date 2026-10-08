@@ -1,0 +1,30 @@
+---
+title: 'Beta-binomial: posterior, comparación de grupos y ranking encogido'
+description: 'Actualiza una beta con datos de devoluciones de Lumen, resume el posterior, compara dos grupos por simulación y ordena productos con tasas encogidas hacia la media global.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: inferencia
+difficulty: 3
+estimatedMinutes: 40
+concepts:
+  ['conjugación beta-binomial', 'intervalo creíble', 'P(B > A)', 'encogimiento', 'prior informado']
+datasets: ['order_items', 'returns']
+packages: ['scipy']
+output: console
+hints:
+  - 'El posterior es `Beta(a + k, b + n - k)`. La media es `(a + k) / (a + b + n)`; el intervalo creíble, los cuantiles `(1-nivel)/2` y `(1+nivel)/2` de `stats.beta`.'
+  - 'Un prior con media `m` y peso `fuerza` es `Beta(m * fuerza, (1 - m) * fuerza)`.'
+  - '`prob_mayor`: con `rng = np.random.default_rng(seed)`, genera `rng.beta(a1, b1, n_sim)` y `rng.beta(a2, b2, n_sim)` y calcula la media de `x2 > x1`.'
+  - 'Para el ranking, `devuelto = order_items.order_item_id.isin(returns.order_item_id)`; agrupa por `product_id` para obtener `k` (suma) y `n` (recuento), calcula la media global ponderada (`k.sum()/n.sum()`) como media del prior y la tasa encogida `(a + k)/(fuerza + n)`.'
+relatedLessons: ['inferencia/04-introduccion-al-enfoque-bayesiano']
+businessQuestion: '¿Qué productos tienen de verdad más devoluciones, y cuáles solo parecen tenerlas por azar?'
+---
+
+Implementa cuatro funciones:
+
+1. **`posterior_beta(k, n, a=1.0, b=1.0)`** → `(a_post, b_post)`.
+2. **`resumen_posterior(a, b, nivel=0.95)`** → diccionario con `media`, `mediana`, `inferior`, `superior` (intervalo creíble central) y `p_mayor_que(umbral)` como función que devuelve $P(\theta > \text{umbral})$.
+3. **`prob_mayor(a1, b1, a2, b2, n_sim=200000, seed=0)`** → $P(\theta_2 > \theta_1)$ por simulación.
+4. **`ranking_encogido(order_items, returns, fuerza=400)`** → DataFrame con `product_id`, `k` (devoluciones), `n` (unidades), `tasa` (cruda) y `tasa_bayes` (encogida hacia la tasa global con un prior de peso `fuerza`), ordenado por `tasa_bayes` descendente.
+
+El script imprime el posterior de `prod-00019` con dos priors y el top 5 del ranking.

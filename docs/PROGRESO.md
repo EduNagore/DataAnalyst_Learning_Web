@@ -91,6 +91,12 @@ Hechos verificados para M07 (2026-10): pandas 3.0.6 (última; local 3.0.2), Pola
 
 **Regla de uso (ver `docs/USAGE_GUARD.md`)**: tras cada lección/fase ejecutar `node scripts/usage-guard.mjs status`; al ≥95 % el hook bloquea herramientas: guardar progreso, lanzar `node scripts/usage-guard.mjs wait` en segundo plano y terminar el turno.
 
+## F7 — en curso (Contenido Partes III-IV, M13-M20 + casos 2-8)
+
+Estado: **M13 ✅** (4 lecciones, 4 labs: IC/bootstrap/Wilson, Welch+potencia, comparaciones múltiples, beta-binomial; widget `CoverageExplorer` + `src/lib/inference.ts` con tests vitest). Pendientes: M14 (SRM, CUPED, peeking, caso 2-3), M15, M16, M17, M18, M19, M20 y casos 2-8.
+
+Hechos reales del dataset para F7 (verificados 2026-10-08): `experiment_metrics` son **series diarias por rama** (no hay datos por usuario); `exp-checkout-v2` +7,8 % relativo (t = 5,34, p = 1,8e-6, 29 días), `exp-social-ads-geo-holdout` +5,9 % (último clic dice +22 %), `exp-reco-engine` SRM 11.166/8.834 (χ² = 271,9), `exp-onboarding-flow` y los 11 genéricos son nulos (p ≥ 0,36). No existe una columna pre-experimento por usuario: para CUPED derivar el ingreso previo de `orders`. Los productos tienen tasas de devolución indistinguibles del azar (dispersión 1,13 pp = esperada); el transportista es aleatorio (sin efecto real).
+
 ## Notas para retomar
 
 1. `git status` en `C:\dev\Data_Analyst_Web`; en Windows la herramienta Bash falla con heredocs largos que mezclan comillas: usar la herramienta Write para ficheros largos.

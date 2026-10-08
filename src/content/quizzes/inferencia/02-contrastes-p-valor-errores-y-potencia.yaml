@@ -1,0 +1,67 @@
+lesson: inferencia/02-contrastes-p-valor-errores-y-potencia
+questions:
+  - id: inf-02-q1
+    type: single
+    difficulty: 2
+    prompt: 'Un test A/B da p = 0,03. ¿Cuál es la interpretación correcta?'
+    options:
+      - 'Hay un 97 % de probabilidad de que el tratamiento funcione'
+      - 'Si no hubiera ningún efecto, una diferencia al menos tan grande como la observada aparecería en el 3 % de los casos'
+      - 'El efecto del tratamiento es del 3 %'
+      - 'Hay un 3 % de probabilidad de que la hipótesis nula sea cierta'
+    answer: [1]
+    explanation: 'El p-valor es una probabilidad de los datos suponiendo la hipótesis nula, no una probabilidad de la hipótesis ni una medida del tamaño del efecto (principios 2 y 5 de la ASA).'
+    ref: '#qué-es-un-p-valor-y-qué-no'
+
+  - id: inf-02-q2
+    type: numeric
+    difficulty: 1
+    prompt: 'La diferencia entre tratamiento y control es de 10 € y su error estándar es de 4 €. ¿Cuánto vale el estadístico t (diferencia dividida por su error estándar)?'
+    answer: [2.5]
+    tolerance: 0.01
+    explanation: 't = 10 / 4 = 2,5. Con muchos grados de libertad, |t| ≈ 2 corresponde a p ≈ 0,05, así que 2,5 es significativo al 5 % (p ≈ 0,012).'
+    ref: '#el-esquema-de-un-contraste'
+
+  - id: inf-02-q3
+    type: single
+    difficulty: 2
+    prompt: 'Un experimento con muy poca potencia no encuentra diferencias (p = 0,20) y su intervalo de confianza abarca desde −2 hasta +9 puntos. ¿Qué conclusión es la adecuada?'
+    options:
+      - 'El tratamiento no tiene efecto'
+      - 'El resultado es inconcluyente: el intervalo es compatible tanto con efectos nulos como con efectos relevantes'
+      - 'El tratamiento funciona, porque el límite superior es positivo'
+      - 'El experimento debe repetirse hasta que p < 0,05'
+    answer: [1]
+    explanation: 'Ausencia de evidencia no es evidencia de ausencia. Un intervalo ancho que incluye efectos relevantes dice que no hay información suficiente, no que el efecto sea cero.'
+    ref: '#errores-de-tipo-i-y-ii-nivel-de-significación-y-potencia'
+
+  - id: inf-02-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las afirmaciones que respalda la declaración de la ASA sobre los p-valores.'
+    options:
+      - 'Un p-valor no mide la probabilidad de que la hipótesis estudiada sea cierta'
+      - 'Las conclusiones no deberían basarse solo en que el p-valor supere o no un umbral'
+      - 'Un p-valor, o la significación estadística, no mide el tamaño de un efecto ni su importancia'
+      - 'Un p-valor menor que 0,05 demuestra que el efecto es relevante para el negocio'
+    answer: [0, 1, 2]
+    explanation: 'La cuarta afirmación es justo la confusión que la ASA desaconseja: significación no es importancia práctica.'
+    ref: '#qué-es-un-p-valor-y-qué-no'
+
+  - id: inf-02-q5
+    type: numeric
+    difficulty: 2
+    prompt: 'Si el efecto mínimo que quieres detectar se reduce a la MITAD, ¿por cuánto se multiplica aproximadamente el tamaño de muestra necesario?'
+    answer: [4]
+    tolerance: 0.1
+    explanation: 'El tamaño de muestra es proporcional a 1 / (efecto)². Dividir el efecto por 2 multiplica la muestra por 2² = 4.'
+    ref: '#tamaño-de-muestra-y-efecto-mínimo-detectable'
+
+  - id: inf-02-q6
+    type: truefalse
+    difficulty: 3
+    prompt: 'Una vez terminado el experimento, calcular la «potencia observada» usando el efecto medido es una buena forma de saber si el test tenía potencia suficiente.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. La potencia observada es una función directa del p-valor y no aporta información nueva: con un p alto siempre sale baja. La potencia sirve para diseñar el experimento, con un efecto mínimo relevante fijado de antemano.'
+    ref: '#trade-offs-y-cuándo-usarlo'

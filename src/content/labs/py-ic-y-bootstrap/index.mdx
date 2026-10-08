@@ -1,0 +1,36 @@
+---
+title: 'Intervalos de confianza: fórmula t, bootstrap y Wilson'
+description: 'Calcula el error estándar, el intervalo t de la media, un bootstrap percentil para cualquier estadístico y el intervalo de Wilson de una proporción sobre pedidos reales de Lumen.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: inferencia
+difficulty: 2
+estimatedMinutes: 30
+concepts:
+  [
+    'error estándar',
+    'intervalo t',
+    'bootstrap percentil',
+    'intervalo de Wilson',
+    'semilla reproducible',
+  ]
+datasets: ['orders', 'order_items']
+packages: ['scipy']
+output: console
+hints:
+  - 'El error estándar de la media es `x.std(ddof=1) / np.sqrt(len(x))`. Recuerda `ddof=1`: es la desviación típica muestral.'
+  - 'El intervalo t es `media ± t * se`, con `t = scipy.stats.t.ppf(1 - (1 - nivel) / 2, df=len(x) - 1)`.'
+  - 'Bootstrap: `rng = np.random.default_rng(seed)`; `idx = rng.integers(0, n, size=(n_boot, n))` da los índices de todas las remuestras; `estadistico(x[idx], axis=1)` calcula el estadístico de cada una; el intervalo son los percentiles `100*(1-nivel)/2` y `100*(1+nivel)/2` con `np.percentile`.'
+  - 'Wilson con `p = k/n` y `z = scipy.stats.norm.ppf(1 - (1 - nivel) / 2)`: centro `(p + z²/(2n)) / (1 + z²/n)` y semiancho `z * sqrt(p(1-p)/n + z²/(4n²)) / (1 + z²/n)`. Con `k = 0` el límite inferior es 0.'
+relatedLessons: ['inferencia/01-muestreo-error-estandar-e-intervalos-de-confianza']
+businessQuestion: '¿Cuánto nos podemos fiar del ticket medio, de la mediana y de la tasa de cancelación calculados con una muestra?'
+---
+
+Parte de una muestra de **200 importes** de pedidos completados (`random_state=7`) y de una muestra de **500 pedidos** para la tasa de cancelación. Implementa cuatro funciones y comprueba que los intervalos contienen el valor de la población (301,70 € de media; 4,01 % de cancelación):
+
+1. **`error_estandar(x)`** → error estándar de la media.
+2. **`ic_media_t(x, nivel=0.95)`** → `(inferior, superior)` del intervalo t de la media.
+3. **`ic_bootstrap(x, estadistico=np.mean, nivel=0.95, n_boot=2000, seed=0)`** → `(inferior, superior)` del bootstrap percentil de cualquier estadístico. Debe ser reproducible con la misma `seed`.
+4. **`ic_wilson(k, n, nivel=0.95)`** → `(inferior, superior)` del intervalo de Wilson de una proporción.
+
+Al final se imprimen los intervalos del ticket medio, de la mediana y de la tasa de cancelación.

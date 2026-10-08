@@ -1,0 +1,28 @@
+---
+title: 'Comparaciones múltiples: Bonferroni, Holm y Benjamini-Hochberg'
+description: 'Implementa las tres correcciones desde cero, aplícalas a las diez parejas de transportistas de Lumen y simula cuántos falsos positivos aparecen con y sin corrección.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: inferencia
+difficulty: 3
+estimatedMinutes: 40
+concepts: ['FWER', 'FDR', 'Bonferroni', 'Holm', 'Benjamini-Hochberg', 'Mann-Whitney', 'simulación']
+datasets: ['shipments']
+packages: ['scipy']
+output: console
+hints:
+  - 'Bonferroni: `np.minimum(1, p * m)`, con `m = len(p)`.'
+  - 'Holm: ordena los p de menor a mayor, multiplica el i-ésimo (empezando en 0) por `m - i`, aplica el máximo acumulado (`np.maximum.accumulate`), limita a 1 y devuelve el resultado en el orden original.'
+  - 'Benjamini-Hochberg: ordena de menor a mayor, multiplica el i-ésimo por `m / (i + 1)`, aplica el mínimo acumulado **desde el final** (`np.minimum.accumulate` sobre el array invertido), limita a 1 y restituye el orden original.'
+  - 'Para las parejas: `itertools.combinations(sorted(carriers), 2)`, el retraso es `(actual_date - promised_date).dt.days` y el test es `stats.mannwhitneyu(x, y, alternative="two-sided")`. En la simulación todos los p-valores son uniformes en [0, 1]: `rng.random((n_sim, m))`.'
+relatedLessons: ['inferencia/03-comparaciones-multiples-y-tests-habituales']
+businessQuestion: '¿Hay algún transportista con retrasos distintos, o estamos viendo falsos positivos por mirar diez parejas?'
+---
+
+Implementa cuatro funciones (sin `statsmodels`):
+
+1. **`ajustar_bonferroni(p)`**, **`ajustar_holm(p)`** y **`ajustar_bh(p)`** → arrays con los p-valores ajustados, en el **mismo orden** que la entrada.
+2. **`comparar_transportistas(shipments)`** → DataFrame con una fila por pareja de transportistas y las columnas `a`, `b`, `dif_media` (diferencia de medias de retraso en días, `a - b`), `p`, `p_holm` y `p_bh`, ordenado por `p` ascendente.
+3. **`simular_fwer(m, n_sim=2000, alpha=0.05, seed=0)`** → diccionario con la fracción de simulaciones en las que se rechaza **al menos una** hipótesis nula (todas ciertas) con las claves `sin_correccion`, `bonferroni` y `bh`, generando `m` p-valores uniformes por simulación.
+
+El script imprime la tabla de parejas y la simulación para `m = 20`.

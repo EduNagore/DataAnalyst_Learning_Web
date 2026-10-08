@@ -1,0 +1,279 @@
+---
+title: 'Contrastes de hipótesis, p-valor, errores y potencia'
+description: 'Cómo funciona un contraste de hipótesis, qué es (y qué no es) un p-valor según la declaración de la ASA, los errores de tipo I y II, la potencia, el tamaño del efecto y el cálculo del tamaño de muestra.'
+module: inferencia
+order: 2
+level: intermedio
+estimatedMinutes: 55
+objectives:
+  - 'Formular hipótesis nula y alternativa, calcular un estadístico de contraste y obtener un p-valor con un t de Welch.'
+  - 'Enunciar con precisión qué significa un p-valor y reconocer los seis principios de la declaración de la ASA de 2016.'
+  - 'Distinguir error de tipo I, error de tipo II, nivel de significación y potencia, y calcular el tamaño de muestra para un efecto mínimo detectable.'
+  - 'Separar significación estadística de relevancia práctica con un tamaño del efecto y un intervalo de confianza.'
+prerequisites: ['inferencia/01-muestreo-error-estandar-e-intervalos-de-confianza']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Wasserstein & Lazar (2016) — The ASA Statement on p-Values: Context, Process, and Purpose'
+    url: 'https://www.amstat.org/asa/files/pdfs/p-valuestatement.pdf'
+    type: paper
+    authors: 'Wasserstein, R. L., Lazar, N. A.'
+    year: 2016
+  - title: 'Lakens — Improving Your Statistical Inferences (capítulos sobre p-valores y potencia)'
+    url: 'https://lakens.github.io/statistical_inferences/'
+    type: book
+    authors: 'Lakens, D.'
+    year: 2022
+  - title: 'SciPy — scipy.stats.ttest_ind'
+    url: 'https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.ttest_ind.html'
+    type: docs
+    authors: 'SciPy'
+    year: 2026
+  - title: 'statsmodels — NormalIndPower'
+    url: 'https://www.statsmodels.org/stable/generated/statsmodels.stats.power.NormalIndPower.html'
+    type: docs
+    authors: 'statsmodels'
+    year: 2026
+  - title: 'Evan Miller — Sample size calculator for A/B tests'
+    url: 'https://www.evanmiller.org/ab-testing/sample-size.html'
+    type: blog
+    authors: 'Miller, E.'
+    year: 2026
+relatedLabs: ['py-potencia-y-tamano-muestral']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import VegaChart from '../../../components/content/VegaChart.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Producto probó un nuevo flujo de checkout durante 29 días (`exp-checkout-v2`, del 2 al 30 de marzo
+  de 2023). La conversión diaria pasó de una media del 5,44 % en control al 5,87 % en tratamiento
+  (+7,8 % relativo). ¿Es un efecto real o ruido de unos días buenos y malos? Y si no hubiera salido
+  «significativo», ¿habría que concluir que el flujo no funciona o que el experimento no tenía
+  potencia para verlo?
+</BusinessContext>
+
+Un contraste de hipótesis es el protocolo estándar para decidir si una diferencia observada es compatible con el azar. Se usa a diario, y se malinterpreta a diario. Esta lección fija las ideas correctas.
+
+## Intuición
+
+Imagina que preguntas: «si el nuevo checkout **no** hiciera nada, ¿qué tan raro sería ver una diferencia tan grande como la que he visto?». Si sería muy raro, dudas de que no haga nada. Esa «rareza» es el p-valor.
+Es una prueba por contradicción probabilística: supones el mundo aburrido (sin efecto), mides cuánto choca tu dato con él y decides si ese choque es suficiente para abandonarlo.
+
+## Cómo funciona
+
+### El esquema de un contraste
+
+1. **Hipótesis nula** $H_0$: no hay efecto ($\mu_T = \mu_C$). **Alternativa** $H_1$: sí lo hay (bilateral: $\mu_T \neq \mu_C$).
+2. **Estadístico:** una medida estandarizada de la discrepancia, como el t de Welch, $t = \dfrac{\bar{x}_T - \bar{x}_C}{\sqrt{s_T^2/n_T + s_C^2/n_C}}$.
+3. **p-valor:** probabilidad, **suponiendo $H_0$ cierta**, de obtener un estadístico al menos tan extremo como el observado.
+4. **Decisión:** si $p < \alpha$ (típicamente 0,05) se rechaza $H_0$.
+
+En `exp-checkout-v2`, con la conversión diaria de 29 días por rama: diferencia de medias = 0,427 puntos porcentuales; error estándar = 0,080; **t = 5,34** con 55,6 grados de libertad; **p = 1,8 × 10⁻⁶**. El intervalo de confianza del 95 % de la diferencia es de 0,27 a 0,59
+puntos porcentuales. Un p tan pequeño dice que unas diferencias así serían rarísimas sin efecto. Para comparar, `exp-generic-08` (ingresos por usuario) da $t = -0{,}91$ y $p = 0{,}36$: una diferencia perfectamente compatible con el ruido.
+
+```python
+from scipy import stats
+r = stats.ttest_ind(tratamiento, control, equal_var=False)   # Welch
+print(r.statistic, r.pvalue)
+```
+
+<Callout type="note">
+  **Unidad de análisis.** Aquí cada observación es un día, porque `experiment_metrics` solo guarda
+  series diarias por rama. En un experimento real la unidad de aleatorización suele ser el usuario;
+  analizar días o sesiones cuando se aleatorizó por usuario infla la confianza (observaciones no
+  independientes). Lo retomamos en el módulo de experimentación.
+</Callout>
+
+### Qué es un p-valor (y qué no)
+
+La **declaración de la American Statistical Association (2016)** fija seis principios. Resumidos:
+
+1. Un p-valor puede indicar **cuán incompatibles** son los datos con un modelo estadístico especificado.
+2. **No mide** la probabilidad de que la hipótesis nula sea cierta ni de que los datos se produjeran «solo por azar».
+3. Las conclusiones y decisiones **no deberían basarse solo en que el p-valor pase un umbral** (0,05).
+4. Una inferencia correcta exige **informar de todo** lo que se probó y de cómo (transparencia).
+5. Un p-valor, o la significación estadística, **no mide el tamaño de un efecto ni la importancia** de un resultado.
+6. Por sí solo, un p-valor **no es una buena medida de evidencia** sobre un modelo o una hipótesis.
+
+Frases que debes evitar y qué decir en su lugar:
+
+| ❌ Incorrecto                                           | ✅ Correcto                                                                                       |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| «Hay un 95 % de probabilidad de que el efecto sea real» | «Si no hubiera efecto, una diferencia así aparecería en menos del 0,001 % de los casos»           |
+| «p = 0,06, no hay efecto»                               | «El dato es compatible con un efecto entre −0,1 y +0,9 puntos; no podemos descartar ni confirmar» |
+| «p = 0,001, el efecto es enorme»                        | «Es muy poco compatible con ausencia de efecto; su tamaño lo da la diferencia y su intervalo»     |
+
+### Errores de tipo I y II, nivel de significación y potencia
+
+|                         | $H_0$ cierta (no hay efecto)                         | $H_1$ cierta (hay efecto)                            |
+| ----------------------- | ---------------------------------------------------- | ---------------------------------------------------- |
+| **Se rechaza $H_0$**    | **Error de tipo I** (falso positivo), prob. $\alpha$ | Acierto, prob. **potencia** $1-\beta$                |
+| **No se rechaza $H_0$** | Acierto                                              | **Error de tipo II** (falso negativo), prob. $\beta$ |
+
+- El **nivel de significación $\alpha$** (0,05) lo fijas tú: es la tasa de falsos positivos que toleras **cuando no hay efecto**.
+- La **potencia** (convencionalmente 0,80) es la probabilidad de detectar un efecto de un tamaño dado **si existe**. Depende de ese tamaño, de la variabilidad, de $n$ y de $\alpha$.
+- Un resultado «no significativo» con baja potencia es poco informativo: **ausencia de evidencia no es evidencia de ausencia**.
+
+### Tamaño de muestra y efecto mínimo detectable
+
+Para comparar dos proporciones (por ejemplo, conversión) con $n$ por grupo, un nivel $\alpha$ bilateral y una potencia $1-\beta$:
+
+$$
+n \approx \frac{(z_{1-\alpha/2} + z_{1-\beta})^2\,\bigl[p_1(1-p_1) + p_2(1-p_2)\bigr]}{(p_2 - p_1)^2}
+$$
+
+El **efecto mínimo detectable (MDE)** es el efecto más pequeño que merece la pena detectar (decisión de negocio, no estadística). Con una conversión base del 5,4 % y potencia 0,80 con $\alpha = 0{,}05$:
+
+| Efecto relativo a detectar | Tamaño por grupo |
+| -------------------------- | ---------------: |
+| +2 %                       |          693.979 |
+| +5 %                       |          112.586 |
+| **+8 %**                   |       **44.582** |
+| +10 %                      |           28.789 |
+| +20 %                      |            7.516 |
+
+El tamaño crece con el **inverso del cuadrado** del efecto: detectar la mitad de efecto cuesta cuatro veces más muestra. En Lumen, `experiment_assignments` reparte unos 10.000 clientes por rama; si la
+conversión se analizara a nivel de cliente, la potencia para un +8 % sería de solo el **26 %**. Un experimento «infrapotenciado» fracasa casi siempre en detectar un efecto real y, cuando lo detecta, tiende a sobreestimarlo.
+
+<VegaChart
+  minHeight={320}
+  alt="Curvas de potencia para dos proporciones con conversión base del 5,4 %: para detectar un +5 % relativo, la potencia llega al 75 % con 100.000 clientes por grupo; para +8 %, supera el 80 % hacia los 45.000; para +10 %, lo supera hacia los 29.000."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    width: 'container',
+    height: 240,
+    background: 'transparent',
+    data: {
+      values: [
+        { n: 2000, mde: '+5 %', potencia: 0.066 },
+        { n: 5000, mde: '+5 %', potencia: 0.091 },
+        { n: 10000, mde: '+5 %', potencia: 0.133 },
+        { n: 20000, mde: '+5 %', potencia: 0.219 },
+        { n: 30000, mde: '+5 %', potencia: 0.304 },
+        { n: 40000, mde: '+5 %', potencia: 0.386 },
+        { n: 50000, mde: '+5 %', potencia: 0.463 },
+        { n: 60000, mde: '+5 %', potencia: 0.534 },
+        { n: 80000, mde: '+5 %', potencia: 0.656 },
+        { n: 100000, mde: '+5 %', potencia: 0.752 },
+        { n: 2000, mde: '+8 %', potencia: 0.091 },
+        { n: 5000, mde: '+8 %', potencia: 0.155 },
+        { n: 10000, mde: '+8 %', potencia: 0.264 },
+        { n: 20000, mde: '+8 %', potencia: 0.467 },
+        { n: 30000, mde: '+8 %', potencia: 0.632 },
+        { n: 40000, mde: '+8 %', potencia: 0.756 },
+        { n: 50000, mde: '+8 %', potencia: 0.843 },
+        { n: 60000, mde: '+8 %', potencia: 0.902 },
+        { n: 80000, mde: '+8 %', potencia: 0.964 },
+        { n: 100000, mde: '+8 %', potencia: 0.987 },
+        { n: 2000, mde: '+10 %', potencia: 0.114 },
+        { n: 5000, mde: '+10 %', potencia: 0.215 },
+        { n: 10000, mde: '+10 %', potencia: 0.379 },
+        { n: 20000, mde: '+10 %', potencia: 0.646 },
+        { n: 30000, mde: '+10 %', potencia: 0.816 },
+        { n: 40000, mde: '+10 %', potencia: 0.91 },
+        { n: 50000, mde: '+10 %', potencia: 0.958 },
+        { n: 60000, mde: '+10 %', potencia: 0.981 },
+        { n: 80000, mde: '+10 %', potencia: 0.997 },
+        { n: 100000, mde: '+10 %', potencia: 0.999 },
+      ],
+    },
+    layer: [
+      {
+        mark: { type: 'line', point: true },
+        encoding: {
+          x: {
+            field: 'n',
+            type: 'quantitative',
+            title: 'Clientes por grupo',
+            axis: { format: ',.0f' },
+          },
+          y: {
+            field: 'potencia',
+            type: 'quantitative',
+            title: 'Potencia',
+            scale: { domain: [0, 1] },
+            axis: { format: '.0%' },
+          },
+          color: { field: 'mde', type: 'nominal', title: 'Efecto relativo a detectar' },
+        },
+      },
+      {
+        mark: { type: 'rule', strokeDash: [4, 4], color: '#888' },
+        encoding: { y: { datum: 0.8 } },
+      },
+    ],
+  }}
+/>
+
+### Significación frente a relevancia
+
+Con muestras enormes cualquier diferencia minúscula es «significativa». Si dos grupos de **1.000.000 de pedidos** cada uno tienen una desviación típica de 363,6 € (como los pedidos de Lumen), una diferencia de **1,5 €** (el 0,5 % del ticket medio) da
+$t = 1{,}5/(363{,}6\sqrt{2/10^6}) \approx 2{,}9$ y $p \approx 0{,}004$: «significativo» y probablemente irrelevante. Al revés, un efecto grande con pocos datos puede no alcanzar significación. Por eso hay que comunicar siempre:
+
+- el **tamaño del efecto** en unidades de negocio (puntos porcentuales, euros, % relativo) y, si ayuda, estandarizado (d de Cohen);
+- su **intervalo de confianza**;
+- el **p-valor** como un dato más, no como veredicto.
+
+En `exp-checkout-v2`, la d de Cohen es 1,40 (enorme, porque la variabilidad diaria es baja), pero lo que importa al negocio es +0,43 puntos porcentuales (+7,8 % relativo) con un intervalo de 0,27 a 0,59: ¿compensa el coste de desplegarlo?
+
+## En la práctica
+
+1. **Antes de recoger datos:** define la métrica primaria, el MDE, $\alpha$, la potencia y el tamaño de muestra; fija el análisis (test, unidad, exclusiones).
+2. **Después:** calcula la diferencia con su intervalo y el p-valor; comprueba los supuestos básicos (independencia, valores extremos).
+3. **Informa:** «+0,43 pp (IC 95 %: 0,27 a 0,59; p < 0,001)», más la decisión recomendada y los límites.
+4. **Si no es significativo:** di si el intervalo descarta efectos relevantes; si es ancho, el resultado es inconcluyente, no «sin efecto».
+
+```python
+from statsmodels.stats.power import NormalIndPower
+from statsmodels.stats.proportion import proportion_effectsize
+
+es = proportion_effectsize(0.054 * 1.08, 0.054)
+n = NormalIndPower().solve_power(effect_size=es, alpha=0.05, power=0.8)
+```
+
+El lab implementa el tamaño de muestra y la potencia de dos proporciones desde la fórmula y los compara con simulaciones sobre datos de Lumen.
+
+## Trade-offs y cuándo usarlo
+
+- **Bilateral frente a unilateral:** el unilateral gana potencia pero solo es honesto si un efecto contrario sería irrelevante y se decidió de antemano; en producto casi siempre se usa bilateral.
+- **$\alpha$ más estricto (0,01) frente a más potencia:** menos falsos positivos, pero hace falta más muestra; elige según el coste de equivocarse.
+- **Contraste frente a intervalo:** el intervalo contiene la información del contraste y además el tamaño; es preferible como resultado principal.
+- **Potencia a priori frente a «potencia observada»:** calcular la potencia con el efecto observado después del experimento no aporta nada (es función del p-valor); úsala solo para diseñar.
+
+## Errores comunes
+
+- **Interpretar $p$ como la probabilidad de que $H_0$ sea cierta** o de que el resultado sea «real».
+- **Declarar «no hay efecto»** con un p-valor alto y poca potencia.
+- **Mirar el p-valor varias veces y parar cuando baja de 0,05** (_peeking_, módulo de experimentación).
+- **Cambiar la métrica o el subgrupo después de ver los datos** hasta que salga algo (p-hacking, _forking paths_).
+- **Confundir significación con importancia.**
+- **No aleatorizar por la unidad correcta** y analizar con otra.
+- **Ignorar el efecto de «ganador maldito»:** el efecto estimado en experimentos infrapotenciados suele estar inflado.
+
+## Con IA
+
+Un asistente puede calcular un t de Welch o el tamaño de muestra, pero a menudo elige tests por defecto sin preguntar por la unidad de análisis, mezcla bilateral y unilateral, o interpreta el p-valor como una probabilidad de hipótesis (error muy frecuente en sus explicaciones). Pídele que
+declare los supuestos y el tipo de test, y **verifica el tamaño de muestra con una fuente independiente** (statsmodels, calculadora de Evan Miller).
+
+## En una entrevista
+
+- _"¿Qué es un p-valor?"_ — Pista: probabilidad de datos al menos tan extremos si $H_0$ fuera cierta; no es la probabilidad de $H_0$; menciona la declaración de la ASA.
+- _"El test no salió significativo. ¿Qué concluyes?"_ — Pista: depende de la potencia y del intervalo; ausencia de evidencia no es evidencia de ausencia.
+- _"¿Cómo calculas el tamaño de muestra de un A/B test?"_ — Pista: métrica base, MDE, $\alpha$, potencia, varianza; crece con $1/\text{MDE}^2$.
+
+<KeyTakeaways
+  items={[
+    'Un p-valor es la probabilidad de observar datos al menos tan extremos si la hipótesis nula fuera cierta; no es la probabilidad de que la nula sea cierta ni mide el tamaño o la importancia del efecto (declaración de la ASA, 2016).',
+    'En exp-checkout-v2 (29 días por rama) el t de Welch da t = 5,34 y p = 1,8 × 10⁻⁶ con una diferencia de +0,43 pp (IC 95 %: 0,27 a 0,59); en un experimento nulo como exp-generic-08, p = 0,36.',
+    'El nivel α es la tasa de falsos positivos cuando no hay efecto; la potencia (1 − β) es la probabilidad de detectar un efecto real de un tamaño dado; un resultado no significativo con poca potencia es inconcluyente.',
+    'Detectar un +8 % sobre una conversión del 5,4 % necesita unos 44.582 clientes por grupo; la muestra crece con el inverso del cuadrado del efecto.',
+    'Comunica siempre el tamaño del efecto en unidades de negocio con su intervalo; con muestras enormes cualquier diferencia es significativa, y con muestras pequeñas casi ninguna.',
+  ]}
+/>
