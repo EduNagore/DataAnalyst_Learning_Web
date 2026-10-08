@@ -1,0 +1,185 @@
+---
+title: 'CUPED y reducción de varianza'
+description: 'Cómo usar datos previos al experimento para reducir el error estándar sin sesgo (CUPED), cuánto se gana según la correlación, por qué en Lumen apenas ayuda con ingresos y cuándo funciona de verdad; extensiones como CUPAC y ajuste por regresión.'
+module: experimentacion
+order: 3
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Deducir la corrección CUPED y calcular el coeficiente θ y la reducción de varianza 1 − ρ².'
+  - 'Explicar por qué la covariable debe medirse antes de la asignación y por qué el ajuste no introduce sesgo.'
+  - 'Aplicar CUPED a datos reales de Lumen e interpretar por qué la ganancia es pequeña con una métrica dispersa.'
+  - 'Elegir covariables y métricas para las que CUPED aporta mucho, y conocer extensiones (CUPAC, ANCOVA, post-estratificación).'
+prerequisites: ['experimentacion/02-validez-srm-experimentos-aa-y-ley-de-twyman']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Deng, Xu, Kohavi & Walker (2013) — Improving the Sensitivity of Online Controlled Experiments by Utilizing Pre-Experiment Data (CUPED)'
+    url: 'https://exp-platform.com/Documents/2013-02-CUPED-ImprovingSensitivityOfControlledExperiments.pdf'
+    type: paper
+    authors: 'Deng, A., Xu, Y., Kohavi, R., Walker, T.'
+    year: 2013
+  - title: 'Kohavi, Tang & Xu — Trustworthy Online Controlled Experiments'
+    url: 'https://experimentguide.com/'
+    type: book
+    authors: 'Kohavi, R., Tang, D., Xu, Y.'
+    year: 2020
+  - title: 'GrowthBook — CUPED (documentación)'
+    url: 'https://docs.growthbook.io/statistics/cuped'
+    type: docs
+    authors: 'GrowthBook'
+    year: 2026
+relatedLabs: ['py-cuped']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import CupedDemo from '../../../components/content/CupedDemo.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  El experimento de onboarding de Lumen (`exp-onboarding-flow`, del 28 de octubre al 25 de noviembre
+  de 2023) midió los ingresos por cliente durante cuatro semanas. El error estándar de la diferencia
+  entre ramas fue de 1,63 € sobre una media de 12,6 € por cliente: demasiado ruido para detectar
+  mejoras de un 5 %. Alguien propone: «usemos lo que compraron antes del experimento para quitar
+  parte de ese ruido». Eso es CUPED.
+</BusinessContext>
+
+La mayor parte de la variación entre usuarios no tiene nada que ver con el cambio que estás probando: unos compran más, otros menos, siempre. Esa **variabilidad previa** es ruido para el experimento. Si la conoces de antemano, puedes restarla.
+
+## Intuición
+
+Imagina dos grupos de corredores y quieres saber si un nuevo calzado les hace más rápidos. Si conoces el tiempo que hacía cada uno **antes**, comparar las _mejoras_ es mucho más preciso que comparar los tiempos absolutos: la velocidad base de cada corredor desaparece de la comparación. CUPED (_Controlled-experiment Using Pre-Experiment Data_)
+hace eso con una regresión simple: ajusta cada valor por lo que el comportamiento previo ya predice.
+
+## Cómo funciona
+
+### La corrección
+
+Sea $Y$ la métrica durante el experimento y $X$ una covariable medida **antes** de la asignación (por ejemplo, los ingresos del cliente en los 90 días previos). Define
+
+$$
+\tilde{Y}_i = Y_i - \theta\,(X_i - \bar{X}), \qquad \theta = \frac{\operatorname{Cov}(X, Y)}{\operatorname{Var}(X)}
+$$
+
+Tres propiedades fundamentales:
+
+1. **Es insesgado:** como $X$ se mide antes de la asignación, tiene la misma distribución en ambas ramas, así que $\mathbb{E}[\tilde{Y}_T] - \mathbb{E}[\tilde{Y}_C] = \mathbb{E}[Y_T] - \mathbb{E}[Y_C]$. El efecto estimado es el mismo.
+2. **Reduce la varianza** en un factor $1-\rho^2$, con $\rho = \operatorname{Corr}(X, Y)$:
+
+$$
+\operatorname{Var}(\tilde{Y}) = \operatorname{Var}(Y)\,(1 - \rho^2)
+$$
+
+3. **Cuesta pocos supuestos:** solo hace falta una covariable previa y su relación lineal con $Y$ (aunque no sea lineal, no sesga: solo ayuda menos).
+
+El error estándar se reduce en un factor $\sqrt{1-\rho^2}$. Equivale a multiplicar el tamaño de muestra por $1/(1-\rho^2)$:
+
+| Correlación $\rho$ | Reducción de varianza | Equivale a tener… |
+| -----------------: | --------------------: | ----------------: |
+|                0,1 |                   1 % |             1,01× |
+|                0,3 |                   9 % |             1,10× |
+|                0,5 |                  25 % |             1,33× |
+|                0,7 |                  49 % |             1,96× |
+|                0,8 |                  64 % |             2,78× |
+|                0,9 |                  81 % |             5,26× |
+
+Juega con la correlación en la demostración:
+
+<CupedDemo client:visible />
+
+### Con los datos reales de Lumen
+
+Para `exp-onboarding-flow` (20.000 clientes asignados) se toman como $X$ los ingresos (pedidos no cancelados) de cada cliente en los 90 días previos al inicio y como $Y$ los de las cuatro semanas del experimento:
+
+| Medida                                       | Valor     |
+| -------------------------------------------- | --------- |
+| Clientes que compran durante el experimento  | 2,9 %     |
+| Media de ingresos por cliente                | 12,64 €   |
+| Correlación $\rho$ entre $X$ e $Y$           | **0,126** |
+| $\theta$                                     | 0,076     |
+| Error estándar de la diferencia, sin ajustar | 1,627 €   |
+| Error estándar con CUPED                     | 1,614 €   |
+| Varianza reducida                            | **1,6 %** |
+
+La ganancia es **minúscula**. ¿Por qué? Porque la métrica es **dispersa** (el 97 % de los clientes no compra en cuatro semanas) y el comportamiento de compra de un cliente es poco predecible a ese plazo: la correlación es baja. CUPED no es mágico: su beneficio es exactamente $\rho^2$.
+Es un resultado honesto que conviene conocer: antes de prometer «un 50 % menos de muestra con CUPED», **calcula la correlación con tus datos**.
+
+### Cuándo CUPED funciona de verdad
+
+- **Métricas estables en el tiempo:** minutos de uso, número de sesiones por semana, visitas, tiempo en la página; la correlación con el periodo previo suele ser de 0,6 a 0,9.
+- **Covariables muy predictivas:** la **misma métrica** en el periodo previo suele ser lo mejor; cuanto más cercano y de duración parecida, mejor.
+- **Poblaciones con historial:** usuarios recurrentes. Para usuarios nuevos no hay $X$ (se imputa la media con un indicador, o se estratifica).
+- **Métricas muy sesgadas:** conviene recortar (_winsorizar_) valores extremos antes de calcular $\theta$ para que unos pocos clientes no dominen.
+
+### Extensiones
+
+- **CUPAC:** en lugar de una covariable simple, usa la **predicción de un modelo** (por ejemplo, un gradient boosting entrenado con datos previos) como covariable. Puede capturar relaciones no lineales y combinar muchas variables.
+- **ANCOVA / regresión con covariables:** $Y = \alpha + \beta T + \theta X + \varepsilon$; la estimación de $\beta$ es el efecto ajustado (equivalente a CUPED en grandes muestras) y permite incluir varias covariables y la interacción con el tratamiento.
+- **Post-estratificación:** divide la población en estratos con covariables previas (segmento, país) y combina las diferencias por estrato; reduce varianza de forma similar.
+
+<Callout type="warning">
+  **La covariable debe ser previa a la asignación.** Si $X$ se mide durante o después del
+  experimento, puede estar afectada por el tratamiento (es una variable «post-tratamiento») y el
+  ajuste introduce sesgo. Ejemplo: ajustar por el «número de sesiones durante el test» cuando el
+  cambio altera las sesiones. Con SRM o ramas desequilibradas, tampoco hay ajuste que lo salve.
+</Callout>
+
+## En la práctica
+
+1. **Elige la covariable:** la misma métrica en un periodo previo de longitud comparable (y evita solapar con el experimento).
+2. **Calcula $\rho$** en datos previos y estima la ganancia: $1 - \rho^2$.
+3. **Estima $\theta$** con ambas ramas juntas (no por rama) y construye $\tilde{Y}$.
+4. **Analiza** $\tilde{Y}$ como harías con $Y$: diferencia de medias, error estándar y contraste.
+5. **Comprueba** que el efecto estimado con y sin ajuste es parecido; si difiere mucho, revisa SRM y la covariable.
+6. **Decide el tamaño de muestra con la varianza ajustada** si se usa CUPED de forma planificada.
+
+```python
+import numpy as np
+
+theta = np.cov(x, y)[0, 1] / x.var(ddof=1)
+y_cuped = y - theta * (x - x.mean())
+efecto = y_cuped[tratamiento].mean() - y_cuped[~tratamiento].mean()
+```
+
+En el lab reproduces el análisis sobre `exp-onboarding-flow`, comparas con una simulación de ρ = 0,75 y comprobarás cuánta varianza se elimina en cada caso.
+
+## Trade-offs y cuándo usarlo
+
+- **Ganancia frente a complejidad:** si $\rho < 0{,}3$, la ganancia es menor del 10 % y puede no compensar la complejidad; con $\rho > 0{,}6$ es casi imprescindible.
+- **Covariable simple frente a modelo (CUPAC):** un modelo puede capturar más, pero añade riesgo de _leakage_ y de dependencia del tratamiento si usa variables posteriores.
+- **Todos los usuarios frente a solo con historial:** si una parte importante son nuevos, el beneficio se diluye; separa o estratifica.
+- **Análisis planificado frente a post hoc:** decide antes de ver los datos si usarás CUPED; elegir entre ajustado y no ajustado según el resultado es otra puerta al p-hacking.
+
+## Errores comunes
+
+- **Usar una covariable medida durante el experimento** o afectada por el tratamiento.
+- **Estimar $\theta$ por separado en cada rama** (sesga el efecto).
+- **Esperar grandes ganancias sin calcular $\rho$** (como ocurre con ingresos dispersos).
+- **Olvidar a los usuarios sin historial** (valores perdidos) y descartarlos silenciosamente.
+- **No recortar extremos** y que un puñado de pedidos enormes domine $\theta$.
+- **Cambiar la métrica de la covariable** (ingresos) respecto a la del resultado (conversión) sin comprobar la correlación.
+- **Usar el error estándar sin ajustar** para el contraste después de ajustar la métrica.
+
+## Con IA
+
+Un asistente puede implementar CUPED en pocas líneas, pero suele escoger una covariable cualquiera del conjunto de datos (a veces posterior al experimento) y no pregunta por la fecha de asignación. Indica explícitamente **qué covariables son previas**, pide que **calcule ρ y la reducción esperada** y verifica con una simulación que el efecto estimado no cambia.
+
+## En una entrevista
+
+- _"¿Qué es CUPED y por qué funciona?"_ — Pista: ajuste con una covariable previa; reduce varianza en 1 − ρ²; insesgado porque la covariable es previa a la asignación.
+- _"El experimento no tiene potencia. ¿Cómo la aumentas sin más usuarios?"_ — Pista: CUPED/CUPAC, métrica más sensible, ventana más larga, estratificación.
+- _"¿Qué pasa si usas una covariable posterior al tratamiento?"_ — Pista: sesgo por variable post-tratamiento (mediador/colisionador).
+
+<KeyTakeaways
+  items={[
+    'CUPED resta a la métrica la parte predicha por una covariable previa: Ỹ = Y − θ(X − X̄), con θ = Cov(X, Y)/Var(X); no sesga el efecto y reduce la varianza en un factor 1 − ρ².',
+    'La covariable debe medirse antes de la asignación; con una covariable posterior al tratamiento el ajuste introduce sesgo.',
+    'En exp-onboarding-flow de Lumen, la correlación entre los ingresos de los 90 días previos y los del experimento es solo 0,126 (el 97 % no compra): CUPED reduce la varianza un 1,6 % (error estándar de 1,627 a 1,614 €).',
+    'CUPED brilla con métricas estables y con historial (sesiones, minutos de uso), con ρ de 0,6 a 0,9; con ρ = 0,75 reduce la varianza un 56 % (equivale a 2,3× más usuarios).',
+    'Extensiones: CUPAC (predicción de un modelo como covariable), ANCOVA con varias covariables y post-estratificación; decide el uso del ajuste antes de ver los datos.',
+  ]}
+/>

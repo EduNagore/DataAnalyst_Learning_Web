@@ -1,0 +1,199 @@
+---
+title: 'Peeking, tests secuenciales e inferencia siempre válida'
+description: 'Por qué mirar un experimento cada día y parar cuando «sale» infla los falsos positivos, y cómo evitarlo con diseños de grupo secuencial (Pocock, O’Brien-Fleming) o con inferencia siempre válida (mSPRT, secuencias de confianza).'
+module: experimentacion
+order: 4
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Cuantificar cuánto infla la tasa de falsos positivos el parar al primer p < 0,05 según el número de revisiones.'
+  - 'Explicar el principio de los diseños de grupo secuencial y comparar los límites de Pocock y de O’Brien-Fleming.'
+  - 'Describir la prueba secuencial de mezcla (mSPRT) y la idea de inferencia siempre válida, con la desigualdad de Ville.'
+  - 'Decidir cuándo conviene un diseño de horizonte fijo, uno secuencial o uno siempre válido, y qué se paga por ello.'
+  - 'Usar la monitorización de guardarraíles sin comprometer el análisis de la métrica principal.'
+prerequisites: ['experimentacion/03-cuped-y-reduccion-de-varianza']
+tools: ['python']
+volatility: medium
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Johari, Pekelis & Walsh (2015) — Always Valid Inference: Bringing Sequential Analysis to A/B Testing'
+    url: 'https://arxiv.org/abs/1512.04922'
+    type: paper
+    authors: 'Johari, R., Pekelis, L., Walsh, D. J.'
+    year: 2015
+  - title: 'Evan Miller — How Not To Run an A/B Test'
+    url: 'https://www.evanmiller.org/how-not-to-run-an-ab-test.html'
+    type: blog
+    authors: 'Miller, E.'
+    year: 2010
+  - title: 'Kohavi, Tang & Xu — Trustworthy Online Controlled Experiments'
+    url: 'https://experimentguide.com/'
+    type: book
+    authors: 'Kohavi, R., Tang, D., Xu, Y.'
+    year: 2020
+  - title: 'GrowthBook — Estadística (motores bayesiano y frecuentista, tests secuenciales, CUPED, SRM)'
+    url: 'https://docs.growthbook.io/statistics/overview'
+    type: docs
+    authors: 'GrowthBook'
+    year: 2026
+relatedLabs: ['py-peeking-y-msprt']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import PeekingSimulator from '../../../components/content/PeekingSimulator.tsx';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Un director pregunta cada mañana por el experimento «Banner de urgencia en checkout»
+  (`exp-generic-02`) y el panel muestra el p-valor del día. El quinto día aparece p = 0,045: «¡ya
+  sale significativo, lo lanzamos!». Al terminar las seis semanas planificadas, el p-valor final fue
+  0,54: no había ningún efecto. ¿Qué pasó? Que mirando todos los días se le dio muchas oportunidades
+  a la casualidad.
+</BusinessContext>
+
+El p-valor de un test de horizonte fijo solo es válido si **se calcula una vez**, al final, con el tamaño de muestra decidido de antemano. Cada vez que miras y estás dispuesto a parar si el resultado te gusta, estás haciendo otro contraste.
+
+## Intuición
+
+Imagina lanzar una moneda justa y detenerte «cuando haya más caras de lo normal». Si miras después de cada lanzamiento, tarde o temprano un tramo parecerá sospechoso, aunque la moneda sea justa. En un A/A, el estadístico $Z$ sigue un paseo aleatorio: cruza ±1,96 con probabilidad 5 % **en un instante dado**, pero con muchas
+oportunidades acaba cruzándolo casi seguro. Ese cruce es un falso ganador.
+
+## Cómo funciona
+
+### Cuánto se infla el error
+
+Para un A/A con $K$ revisiones igualmente espaciadas, parando en cuanto $|Z_k| > 1{,}96$ en alguna revisión (simulación con 40.000 experimentos por caso):
+
+| Revisiones $K$ | Mirar solo al final | **Parar al primer $p < 0{,}05$** |
+| -------------: | ------------------: | -------------------------------: |
+|              1 |               4,8 % |                            4,8 % |
+|              2 |               5,0 % |                        **8,4 %** |
+|              5 |               4,9 % |                       **14,0 %** |
+|             10 |               5,2 % |                       **19,3 %** |
+|             20 |               5,0 % |                       **24,5 %** |
+
+Pruébalo tú mismo:
+
+<PeekingSimulator client:visible />
+
+### El caso real de Lumen
+
+Si se calcula el p-valor acumulado de la métrica principal cada día (con al menos 5 días de datos) en los 15 experimentos de Lumen:
+
+- **`exp-checkout-v2`** (efecto real de +8 %) cruza p < 0,05 el **día 7** y termina con p ≈ 2 × 10⁻⁶. Pararlo ahí habría sido correcto… pero por casualidad: sin un diseño secuencial no hay garantías.
+- **`exp-social-ads-geo-holdout`** (efecto real de +6 %) también cruza el día 7.
+- **`exp-generic-02`** (sin efecto) cruza el **día 5** (p = 0,045) y termina con p = 0,54: un falso ganador.
+- Los otros 12 experimentos nunca bajan de 0,05 en ningún día.
+
+Es decir, 1 de los 13 experimentos nulos (el 8 %) habría producido un falso éxito por el simple hecho de mirar todos los días, y no se le podría distinguir _a posteriori_ de un efecto real.
+
+### Soluciones
+
+1. **Horizonte fijo y disciplina:** fijar el tamaño de muestra y no tomar decisiones hasta alcanzarlo. Es lo más simple y el mejor punto de partida; los paneles pueden mostrar el estado del experimento pero ocultar p-valores hasta que acabe.
+2. **Diseños de grupo secuencial:** planificar $K$ revisiones y usar umbrales más exigentes que 1,96 para que la probabilidad total de falso positivo siga siendo el 5 %.
+3. **Inferencia siempre válida:** métodos cuyos p-valores e intervalos son válidos **en cualquier momento**, incluso si miras continuamente y paras cuando quieras.
+
+### Grupo secuencial: Pocock y O’Brien-Fleming
+
+Con $K$ revisiones equiespaciadas, el estadístico en la revisión $k$ es $Z_k = S_k/\sqrt{k}$ (con $S_k$ la suma de las contribuciones estandarizadas de los bloques). Se para si $|Z_k|$ supera un límite $b_k$:
+
+- **Pocock:** $b_k = b$ constante (2,413 para $K = 5$, 2,555 para $K = 10$). Fácil de explicar y permite parar pronto, pero exige evidencia fuerte también al final (el último límite, 2,41, es mayor que 1,96).
+- **O’Brien-Fleming:** $b_k = c\sqrt{K/k}$ (con $c \approx 2{,}04$ para $K = 5$): exigente al principio (4,56 en la primera de cinco revisiones) y casi igual a 1,96 al final (2,04). Gasta poca «probabilidad de error» pronto, por lo que apenas pierde potencia y es la opción habitual en ensayos clínicos.
+- **Funciones de gasto de alfa** (Lan-DeMets): en lugar de fijar las revisiones de antemano, se define cómo se «gasta» $\alpha$ con el tiempo; permiten revisiones en momentos imprevistos.
+
+Límites para $K = 5$ y $\alpha = 0{,}05$:
+
+| Revisión        |    1 |    2 |    3 |    4 |    5 |
+| --------------- | ---: | ---: | ---: | ---: | ---: |
+| Pocock          | 2,41 | 2,41 | 2,41 | 2,41 | 2,41 |
+| O’Brien-Fleming | 4,56 | 3,22 | 2,63 | 2,28 | 2,04 |
+
+El coste es una **pérdida de potencia pequeña** con O’Brien-Fleming (y mayor con Pocock), o dicho de otro modo, una muestra máxima algo mayor, a cambio de poder parar antes si el efecto es muy grande o claramente dañino.
+
+### Inferencia siempre válida y mSPRT
+
+Johari, Pekelis y Walsh (2015) adaptan el análisis secuencial al A/B testing: en lugar de un p-valor para un tamaño fijo, definen un **p-valor siempre válido** $p_n$ tal que, bajo $H_0$, $\Pr(\exists n: p_n \le \alpha) \le \alpha$. Se puede mirar cada minuto y parar cuando $p_n \le \alpha$ con garantía de error.
+
+La **prueba secuencial de mezcla** (mSPRT) lo consigue con una razón de verosimilitudes que promedia las alternativas con una distribución a priori sobre el efecto. Para datos $N(\theta, \sigma^2)$, $H_0: \theta = 0$ y mezcla $\theta \sim N(0, \tau^2)$:
+
+$$
+\Lambda_n = \sqrt{\frac{\sigma^2}{\sigma^2 + n\tau^2}}\;\exp\!\left(\frac{n^2\tau^2\,\bar{x}_n^2}{2\sigma^2(\sigma^2 + n\tau^2)}\right)
+$$
+
+Bajo $H_0$, $\Lambda_n$ es una **martingala no negativa** con valor esperado 1, y la **desigualdad de Ville** asegura que $\Pr(\sup_n \Lambda_n \ge 1/\alpha) \le \alpha$. Se rechaza en cuanto $\Lambda_n \ge 1/\alpha$, y el p-valor siempre válido es $p_n = \min(1, \min_{m\le n} 1/\Lambda_m)$.
+En una simulación de 3.000 pruebas sin efecto y 2.000 observaciones cada una, vigiladas tras cada observación, el mSPRT con $\tau^2=0{,}25$ rechazó en torno al 3 %, por debajo del 5 % garantizado (es conservador); con un efecto de 0,15 desviaciones típicas por observación rechazó siempre.
+
+Los intervalos correspondientes se llaman **secuencias de confianza**: contienen el efecto verdadero en todos los instantes con probabilidad $1-\alpha$.
+
+<Snapshot date="2026-10">
+  Varias plataformas de experimentación incorporan pruebas secuenciales. Por ejemplo, la
+  documentación de GrowthBook (código abierto, licencia MIT) indica que ofrece, además de los
+  motores bayesiano y frecuentista, CUPED, comprobación de SRM, correcciones por comparaciones
+  múltiples en el análisis dimensional y **pruebas secuenciales** como mitigación del _peeking_ en
+  el motor frecuentista. Cada plataforma implementa variantes distintas (límites, funciones de
+  gasto, mSPRT): consulta su documentación antes de interpretar un «p-valor secuencial».
+</Snapshot>
+
+### ¿Y el enfoque bayesiano?
+
+A menudo se afirma que, con un análisis bayesiano, se puede mirar cuando se quiera. La realidad es más matizada: la **probabilidad posterior** sigue siendo coherente al mirar, pero las **tasas de error frecuentistas** (por ejemplo, la probabilidad de declarar un ganador falso en experimentos sin efecto) no quedan controladas si paras en cuanto la probabilidad de superioridad supera un umbral. Si necesitas garantías de error, usa diseños secuenciales o siempre válidos, o simula tu regla de parada con A/A.
+
+### Qué mirar sin trampa: guardarraíles y seguridad
+
+Hay dos usos legítimos de mirar durante el experimento:
+
+- **Calidad de datos** (SRM, exposición, tasas de error): no son decisiones de éxito; se vigilan desde el primer día.
+- **Seguridad:** parar si un guardarraíl se deteriora claramente (conversión que se desploma, latencia disparada). Aquí se usan umbrales de daño fijados de antemano o métodos secuenciales para la dirección del daño.
+
+Lo que no se hace es **parar por éxito** con un p-valor de horizonte fijo.
+
+## En la práctica
+
+1. **Por defecto, horizonte fijo:** calcula el tamaño de muestra, lanza y no decidas hasta el final. Oculta el p-valor en el panel mientras no se alcance.
+2. **Si necesitas poder parar pronto:** elige antes un diseño secuencial (O’Brien-Fleming con 4-5 revisiones es una opción robusta) o una plataforma con inferencia siempre válida.
+3. **Documenta la regla de parada** en el registro del diseño: número de revisiones, límites y condiciones de daño.
+4. **Valida con A/A y simulación** que tu regla mantiene el 5 % de falsos positivos.
+5. **Informa** del número de revisiones y de la regla aplicada cuando presentes resultados.
+
+En el lab simulas el peeking, los límites de O’Brien-Fleming y el mSPRT, y calculas en qué día habrías parado los 15 experimentos de Lumen.
+
+## Trade-offs y cuándo usarlo
+
+- **Horizonte fijo frente a secuencial:** el fijo es más simple y más potente a igualdad de muestra; el secuencial permite parar antes si el efecto es grande o dañino, con un coste pequeño en muestra máxima.
+- **O’Brien-Fleming frente a Pocock:** O’Brien-Fleming conserva la potencia pero casi nunca para al principio; Pocock permite parar pronto con efectos moderados pero reduce la potencia final.
+- **mSPRT frente a grupo secuencial:** el mSPRT permite revisiones continuas y no exige fijar $K$, pero es conservador y la elección de $\tau^2$ condiciona la sensibilidad; los diseños de grupo son más potentes si las revisiones están planificadas.
+- **Parar antes frente a estimar bien:** los experimentos que paran temprano por éxito tienden a **sobreestimar** el efecto; para cuantificarlo bien, a veces conviene seguir recogiendo datos.
+
+## Errores comunes
+
+- **Mirar el p-valor a diario y parar cuando baja de 0,05.**
+- **Decir «el panel lo muestra, así que es válido»:** una herramienta que muestra un p-valor de horizonte fijo no lo vuelve secuencial.
+- **Ampliar un experimento que «casi sale» hasta que salga:** es otro caso de peeking.
+- **Usar secuencial y reportar luego el p-valor sin ajustar.**
+- **Pararlo por daño sin umbral previo** y sacar conclusiones de éxito de la misma muestra.
+- **Pensar que bayesiano elimina el problema** sin simularlo.
+- **No documentar la regla de parada.**
+
+## Con IA
+
+Un asistente de análisis suele calcular el p-valor «hasta hoy» con gusto y declarar un ganador. Establece en el mensaje **el horizonte fijo o el método secuencial** y que **no concluya éxito antes de tiempo**. Si le pides un test secuencial, comprueba que aplica límites o un método siempre válido, no un t cada día con p < 0,05.
+
+## En una entrevista
+
+- _"El director mira el experimento cada día. ¿Qué problema hay y cómo lo resuelves?"_ — Pista: peeking; tasa de falsos positivos inflada (≈ 19 % con 10 revisiones); horizonte fijo, límites de grupo secuencial o inferencia siempre válida.
+- _"¿Diferencia entre Pocock y O’Brien-Fleming?"_ — Pista: constante frente a exigente al principio; potencia; cuándo parar.
+- _"¿Se puede mirar libremente con un análisis bayesiano?"_ — Pista: la posterior es coherente pero los errores frecuentistas no quedan controlados; simula la regla de parada.
+
+<KeyTakeaways
+  items={[
+    'Parar al primer p < 0,05 infla los falsos positivos: 8,4 % con 2 revisiones, 14 % con 5, 19,3 % con 10 y 24,5 % con 20, frente al 5 % de mirar una sola vez.',
+    'En Lumen, exp-generic-02 (sin efecto) habría sido declarado ganador el día 5 (p = 0,045) y terminó con p = 0,54; 1 de 13 experimentos nulos habría producido un falso éxito por mirar a diario.',
+    'Los diseños de grupo secuencial usan límites más estrictos que 1,96: Pocock es constante (2,41 con 5 revisiones) y O’Brien-Fleming es exigente al principio y casi 1,96 al final (4,56 … 2,04).',
+    'La inferencia siempre válida (mSPRT, secuencias de confianza) garantiza el error en cualquier momento gracias a que la razón de verosimilitudes es una martingala y a la desigualdad de Ville, a costa de ser conservadora.',
+    'Mira siempre calidad de datos (SRM) y guardarraíles de seguridad; no pares por éxito con un p-valor de horizonte fijo ni asumas que bayesiano elimina el problema sin simularlo.',
+  ]}
+/>

@@ -1,0 +1,144 @@
+---
+title: 'El motor de recomendaciones «mejora el CTR»: ¿nos fiamos?'
+description: 'Un caso de validez experimental: un experimento con un reparto de 56/44 en lugar de 50/50. Diagnostica el SRM, descarta el resultado y explica qué hay que hacer antes de relanzar.'
+difficulty: 3
+estimatedMinutes: 40
+role: producto
+datasets: ['experiments', 'experiment_assignments', 'experiment_metrics']
+brief: |
+  De: Lucía Martín (Producto)
+  Asunto: Motor de recomendaciones v2: el CTR sube
+
+  Hola, tenemos los resultados del experimento del motor de recomendaciones (`exp-reco-engine`) y el panel marca una subida del CTR. Quiero presentarlo mañana al comité como el siguiente gran lanzamiento.
+
+  ¿Puedes revisarlo y decirme si está todo en orden? Esta tarde cierro la presentación.
+
+  Gracias, Lucía
+steps:
+  - id: s1-control
+    tool: sql
+    answerType: numeric
+    answer: 55.83
+    tolerance: 0.05
+    prompt: |
+      Empieza por lo básico. El experimento se diseñó con un reparto 50/50. ¿Qué **porcentaje** de los clientes de `exp-reco-engine` está en la rama de **control**? (Dos decimales.)
+    hints:
+      - "Cuenta filas de `experiment_assignments` con `experiment_id = 'exp-reco-engine'` por `variant`."
+    explanation: |
+      Hay 11.166 clientes en control y 8.834 en tratamiento: el **55,83 %** en control. Con un reparto 50/50 esperarías unos 10.000 por rama.
+
+  - id: s2-chi2
+    tool: sql
+    answerType: numeric
+    answer: 271.91
+    tolerance: 0.05
+    prompt: |
+      Cuantifica cuánto se aleja del diseño con el estadístico χ² del test de SRM:
+
+      χ² = Σ (observado − esperado)² / esperado, con esperado = N / 2 en cada rama.
+
+      ¿Cuánto vale χ²? (Dos decimales.)
+    hints:
+      - 'N es el número total de clientes del experimento (20.000). Los esperados son 10.000 y 10.000.'
+    explanation: |
+      χ² = (1.166² + 1.166²) / 10.000 = **271,91**. Con 1 grado de libertad, el umbral p = 0,001 corresponde a un χ² de 10,83; este es 25 veces mayor (p ≈ 4 × 10⁻⁶¹).
+
+  - id: s3-azar
+    tool: reasoning
+    answerType: single
+    answer: [2]
+    options:
+      - 'Es una desviación normal: pasa en uno de cada veinte experimentos.'
+      - 'Es raro, pero puede pasar por azar con 20.000 usuarios.'
+      - 'No puede ser azar: la asignación aleatoria no produce un reparto así, ni siquiera una vez entre muchos millones de billones.'
+      - 'Depende de si el CTR mejora o empeora.'
+    prompt: |
+      ¿Qué probabilidad tiene un reparto así si la asignación fuera de verdad aleatoria 50/50?
+    hints:
+      - 'Compara el χ² con el umbral 10,83 (p = 0,001, 1 grado de libertad).'
+    explanation: |
+      El p-valor es del orden de 10⁻⁶¹: no es azar. La aleatorización está rota en algún punto del flujo de asignación o de registro, y eso invalida la comparación entre ramas.
+
+  - id: s4-lift
+    tool: sql
+    answerType: numeric
+    answer: 1.23
+    tolerance: 0.05
+    prompt: |
+      Mira ahora lo que ve el panel. `experiment_metrics` guarda el **CTR diario** (`click_through_rate`) de cada rama. ¿Cuál es el **efecto relativo** del tratamiento sobre el control (media del tratamiento / media del control − 1), en %? (Dos decimales.)
+    hints:
+      - "Filtra `metric_name = 'click_through_rate'` y `experiment_id = 'exp-reco-engine'`."
+    explanation: |
+      El CTR del tratamiento es un **+1,23 %** relativo respecto al control (2,44 % frente a 2,41 %): una mejora diminuta.
+
+  - id: s5-t
+    tool: sql
+    answerType: numeric
+    answer: 0.76
+    tolerance: 0.05
+    prompt: |
+      ¿Esa mejora es distinguible del ruido? Calcula el **t de Welch** sobre las 29 observaciones diarias de cada rama (`VAR_SAMP`). (Dos decimales.)
+    hints:
+      - 't = (media_t − media_c) / √(var_t / n_t + var_c / n_c).'
+    explanation: |
+      t = **0,76** (p ≈ 0,45): ni siquiera sin tener en cuenta el SRM sale significativo. El panel marcaba una «subida» sin tener una evidencia estadística: la mejora es compatible con el ruido.
+
+  - id: s6-decision
+    tool: reasoning
+    answerType: single
+    answer: [1]
+    options:
+      - 'Presentar el +1,2 % como una mejora modesta pero real.'
+      - 'No presentar el resultado como evidencia: hay un SRM y, además, el efecto no es significativo; investigar la asignación y relanzar.'
+      - 'Reponderar las ramas para que el reparto sea 50/50 y volver a analizar.'
+      - 'Esperar unas semanas más a ver si el reparto se arregla solo.'
+    prompt: |
+      ¿Qué le recomiendas a Lucía?
+    hints:
+      - 'Un SRM invalida la comparación; reponderar no resuelve la causa, y esperar no corrige una asignación defectuosa.'
+    explanation: |
+      Con un SRM no se puede interpretar el resultado. Reponderar oculta el problema (las ramas no son comparables, tampoco con pesos). Y aunque no hubiera SRM, el efecto no es significativo. Lo correcto es **no presentarlo como evidencia**, diagnosticar la causa y relanzar.
+
+  - id: s7-causas
+    tool: reasoning
+    answerType: multiple
+    answer: [0, 1, 2]
+    options:
+      - 'Un fallo en la función de asignación o en la configuración del reparto (por ejemplo, 56/44 en lugar de 50/50).'
+      - 'El tratamiento pierde usuarios (errores, redirecciones, carga lenta) antes de registrarse la exposición.'
+      - 'Un filtro de bots o de usuarios «inválidos» aplicado después de la asignación que afecta más a una rama.'
+      - 'Que el CTR sea una métrica con mucha variabilidad diaria.'
+    prompt: |
+      Enumera las **causas plausibles** del desajuste que habría que investigar con ingeniería. (Marca todas las que apliquen.)
+    hints:
+      - 'Piensa en dónde se puede perder o redistribuir gente entre la asignación y el análisis.'
+    explanation: |
+      Las tres primeras son causas típicas de SRM (fallo de asignación, pérdida diferencial de usuarios y filtros posteriores). La variabilidad diaria del CTR afecta a la precisión de la métrica, no al reparto de usuarios entre ramas.
+
+  - id: s8-mensaje
+    tool: reasoning
+    answerType: text-self-assessed
+    prompt: |
+      Escribe la respuesta a Lucía en 4-5 líneas: **qué has encontrado, por qué no se puede presentar el resultado y qué proponéis hacer**. Piensa en cómo decir «no» sin que suene a bloqueo.
+    hints:
+      - 'Empieza por la conclusión, después la evidencia (reparto, χ²), el efecto observado y qué haréis para tener un resultado fiable cuanto antes.'
+    explanation: |
+      Un buen mensaje propone una alternativa: qué puede contar Lucía al comité mañana (que el experimento tiene un problema de asignación en investigación, con fecha de relanzamiento) y qué no (una subida del CTR).
+rubric:
+  - 'Empiezo por la conclusión: el resultado no es fiable y no debe presentarse como evidencia.'
+  - 'Cuantifico el SRM (55,8 / 44,2; χ² = 271,9; p ≈ 10⁻⁶¹) y explico que no puede ser azar.'
+  - 'Digo que el efecto observado (+1,2 %) tampoco es significativo (t = 0,76).'
+  - 'Rechazo la reponderación como solución y propongo diagnosticar la causa y relanzar.'
+  - 'Ofrezco a Lucía una alternativa para el comité y una fecha o siguiente paso concreto.'
+modelReport: |
+  **Conclusión.** No deberíamos presentar el experimento del motor de recomendaciones como evidencia de mejora: la aleatorización está rota y, aun así, el efecto no es distinguible del ruido.
+
+  **Evidencia.** El reparto debía ser 50/50 y es 55,8 % en control (11.166 clientes) frente a 44,2 % en tratamiento (8.834). El test de SRM da χ² = 271,9 (p ≈ 10⁻⁶¹): esto no ocurre por azar. De los 15 experimentos de Lumen, este es el único con un reparto incompatible con el diseño. Además, el CTR del tratamiento es un +1,2 % relativo mayor, con un t de Welch de 0,76 (p ≈ 0,45): ni sin el SRM sería significativo.
+
+  **Por qué no se puede arreglar en el análisis.** Si una rama pierde usuarios por una causa relacionada con su comportamiento (errores, redirecciones, filtros de bots), lo que queda ya no es una muestra comparable; reponderar no corrige el sesgo.
+
+  **Qué proponemos.** Ingeniería revisa la asignación y el registro de exposición (¿configuración 56/44?, ¿pérdida de usuarios en tratamiento?, ¿filtros posteriores?). Relanzamos con una comprobación automática de SRM desde el primer día. Para el comité de mañana: «el experimento está en revisión por un desajuste de asignación; relanzamos en X semanas con un diseño validado».
+---
+
+Este caso usa las tablas `experiments`, `experiment_assignments` y `experiment_metrics` del dataset Lumen. La teoría está en la
+lección «Validez del experimento: SRM, pruebas A/A y la ley de Twyman».

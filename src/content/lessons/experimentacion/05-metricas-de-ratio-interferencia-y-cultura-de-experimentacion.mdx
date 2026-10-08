@@ -1,0 +1,203 @@
+---
+title: 'Métricas de ratio, interferencia, efectos heterogéneos y cultura de experimentación'
+description: 'Cómo analizar métricas de ratio con el método delta, detectar efectos de novedad, qué hacer cuando las unidades interfieren (switchback, clústeres, geo), cómo explorar efectos heterogéneos sin autoengañarse y qué plataformas de experimentación existen.'
+module: experimentacion
+order: 5
+level: avanzado
+estimatedMinutes: 55
+objectives:
+  - 'Reconocer cuándo una métrica de ratio rompe la independencia de las observaciones y aplicar el método delta para su varianza.'
+  - 'Detectar efectos de novedad y de primacía y decidir si hay que alargar el experimento.'
+  - 'Identificar la interferencia entre unidades (violación de SUTVA) y elegir un diseño adecuado: clústeres, switchback o geo-experimento.'
+  - 'Analizar efectos heterogéneos de forma confirmatoria o exploratoria sin caer en el p-hacking.'
+  - 'Describir las prácticas de una cultura de experimentación y la foto actual de las plataformas.'
+prerequisites: ['experimentacion/04-peeking-tests-secuenciales-y-analisis-siempre-valido']
+tools: ['python']
+volatility: medium
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Kohavi, Tang & Xu — Trustworthy Online Controlled Experiments'
+    url: 'https://experimentguide.com/'
+    type: book
+    authors: 'Kohavi, R., Tang, D., Xu, Y.'
+    year: 2020
+  - title: 'GrowthBook — documentación de estadística'
+    url: 'https://docs.growthbook.io/statistics/overview'
+    type: docs
+    authors: 'GrowthBook'
+    year: 2026
+  - title: 'Statsig — Why Datadog bought Eppo for $220M'
+    url: 'https://statsig.com/blog/datadog-acquires-eppo'
+    type: blog
+    authors: 'Statsig'
+    year: 2025
+  - title: 'Pulse 2.0 — OpenAI Acquires Statsig For A Reported $1.1 Billion'
+    url: 'https://pulse2.com/openai-acquires-statsig-for-a-reported-1-1-billion/'
+    type: blog
+    authors: 'Pulse 2.0'
+    year: 2025
+  - title: 'Evan Miller — Sample size calculator for A/B tests'
+    url: 'https://www.evanmiller.org/ab-testing/sample-size.html'
+    type: blog
+    authors: 'Miller, E.'
+    year: 2026
+relatedLabs: []
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Tres peticiones llegan a la vez al equipo de datos de Lumen: (1) medir el efecto de un cambio en
+  el **ingreso por sesión** (una razón) con aleatorización por cliente; (2) probar una nueva
+  política de **envío gratis** que puede cambiar el stock disponible para todos; (3) saber si el
+  nuevo checkout «funciona mejor en móvil» que en escritorio. Cada una esconde una trampa
+  estadística distinta, y las tres se resuelven con técnicas que van más allá del t de Welch básico.
+</BusinessContext>
+
+El A/B test simple supone que cada usuario aporta una observación independiente, que lo que le pasa a uno no afecta a otro y que el efecto es el mismo en el tiempo y entre grupos. Cuando alguna de esas hipótesis falla, hace falta un método más cuidadoso.
+
+## Cómo funciona
+
+### Métricas de ratio y el método delta
+
+Muchas métricas son cocientes de dos sumas: ingresos por sesión, clics por impresión (CTR), pedidos por visita. Si aleatorizas por **usuario** pero la métrica se calcula por **sesión** (o por impresión), las observaciones de un mismo usuario no son independientes y el error estándar de la
+fórmula habitual es demasiado pequeño: falsos positivos. La solución es analizar a nivel de **usuario**, tratando la razón como $R = \bar{Y}/\bar{X}$, donde $Y_i$ y $X_i$ son los totales del usuario $i$ (ingresos y sesiones).
+
+El **método delta** da la varianza aproximada de $R$:
+
+$$
+\operatorname{Var}(R) \approx \frac{1}{n\,\mu_X^2}\Bigl[\operatorname{Var}(Y) - 2R\,\operatorname{Cov}(X, Y) + R^2\operatorname{Var}(X)\Bigr]
+$$
+
+Con ella se calcula el error estándar de la razón por rama y de su diferencia. Alternativas: _bootstrap por usuario_ (remuestrear usuarios completos) o linealizar la métrica.
+
+```python
+import numpy as np
+r = y.sum() / x.sum()                      # ingreso total / sesiones totales
+n = len(y)
+var_r = (y.var(ddof=1) - 2 * r * np.cov(x, y)[0, 1] + r**2 * x.var(ddof=1)) / (n * x.mean() ** 2)
+```
+
+<Callout type="warning">
+  Regla de oro: **la unidad de análisis debe coincidir con la de aleatorización**. Si analizas por
+  sesión lo que aleatorizaste por usuario, tus p-valores son demasiado optimistas. Es uno de los
+  fallos más frecuentes en los paneles de experimentación caseros.
+</Callout>
+
+### Efectos de novedad y de primacía
+
+- **Novedad:** los usuarios reaccionan a lo nuevo y el efecto decae (un botón llamativo atrae clics al principio).
+- **Primacía:** los usuarios habituados al diseño antiguo tardan en adaptarse y el efecto sube con el tiempo.
+
+Cómo detectarlos: representar el **efecto por día o por semana** desde la exposición; separar a **usuarios nuevos y recurrentes**; comprobar si la tendencia se estabiliza. Si el efecto cambia mucho, el resultado de dos semanas no es el que tendrás a largo plazo: alarga el experimento, mide en semanas posteriores
+o usa un _holdout_ de largo plazo (un pequeño grupo que sigue sin el cambio meses después).
+
+### Interferencia entre unidades
+
+El análisis estándar supone **SUTVA**: el resultado de un usuario depende solo de su asignación, no de la de los demás. Falla cuando:
+
+- hay **efectos de red** (mensajería, redes sociales, recomendaciones entre amigos);
+- las unidades **comparten recursos** (el mismo stock, la misma flota de repartidores, el mismo presupuesto de anuncios, precios de un mercado);
+- hay **efectos de mercado** de dos lados (compradores y vendedores).
+
+En esas condiciones, la diferencia entre ramas no es el efecto de desplegar el cambio a todos (puede sobreestimarlo o subestimarlo). Diseños alternativos:
+
+| Diseño                           | Idea                                                                          | Cuándo                                                                                              |
+| -------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Aleatorización por clústeres** | Asigna grupos enteros (comunidades, tiendas) y analiza a nivel de clúster     | Efectos de red locales; pocas unidades → poca potencia                                              |
+| **Switchback**                   | Alterna la versión en el tiempo para todo el sistema (franjas horarias, días) | Mercados compartidos (logística, precios); cuida los efectos de arrastre (_carryover_)              |
+| **Geo-experimento**              | Asigna regiones o ciudades; compara con las regiones de control               | Publicidad, precios, campañas de medios; se apoya en diferencias en diferencias y control sintético |
+| **Holdout global**               | Un grupo no recibe nunca el cambio                                            | Medir el efecto acumulado de un programa                                                            |
+
+En Lumen, `exp-social-ads-geo-holdout` es un **holdout geográfico**: el ingreso por usuario del tratamiento fue +5,9 % por encima del control, mientras que la atribución de último clic atribuyó un +22 % a esas campañas. La diferencia (los clics se atribuyen aunque la compra habría ocurrido igual) es la diferencia entre **atribución** e **incrementalidad**, que estudiaremos en el módulo de marketing.
+
+### Efectos heterogéneos
+
+«¿Funciona mejor en móvil que en escritorio?» Un efecto promedio puede esconder efectos opuestos en subgrupos. Pero **cada corte es una comparación más** (lección de comparaciones múltiples):
+
+1. **Segmentos preespecificados** (3-5 como máximo, definidos con una razón de negocio): se contrastan con la **interacción** tratamiento × segmento (`y ~ t * segmento`), no con «significativo en uno y no en otro».
+2. **Exploración:** cribas muchos cortes, corriges por FDR y tratas lo que sale como hipótesis para un nuevo experimento.
+3. **Métodos de aprendizaje de efectos heterogéneos** (bosques causales, meta-aprendices): potentes con mucha muestra, pero requieren validación cruzada para no ajustar ruido.
+
+El error clásico: «el efecto es significativo en móvil (p = 0,03) y no en escritorio (p = 0,20), así que funciona solo en móvil». Esa diferencia de significación **no es** una diferencia significativa: hay que contrastar la interacción.
+
+### Efectos a largo plazo y métricas sustitutas
+
+Muchos objetivos (retención, valor de vida) tardan meses. Opciones: **métricas sustitutas** de corto plazo validadas con experimentos anteriores, **holdouts de largo plazo**, y estimar el efecto con modelos que combinan señales tempranas. Siempre deja constancia de qué suposición asumes (que el sustituto predice el resultado final).
+
+### Cultura de experimentación
+
+La estadística es solo parte del problema. Las organizaciones que experimentan bien comparten prácticas:
+
+- **Infraestructura fiable:** asignación estable, registro de exposición, comprobaciones automáticas de SRM y A/A continuo.
+- **Estándares:** registro previo, una métrica principal, guardarraíles comunes y una plantilla de informe.
+- **Revisión por pares** de diseños y resultados.
+- **Aprendizaje, no solo victorias:** la mayoría de los cambios no mueven la métrica. En Lumen, 2 de los 15 experimentos (13 %) tienen un efecto real; saber qué no funciona también tiene valor.
+- **Repositorio de experimentos** con hipótesis, resultados y decisión, para no repetir pruebas.
+- **Decisiones coherentes con los resultados**, incluso cuando contradicen la intuición del jefe.
+
+<Snapshot date="2026-10">
+  Panorama de plataformas de experimentación. **GrowthBook** es de código abierto (licencia MIT) y
+  ofrece motores bayesiano (por defecto) y frecuentista, CUPED, comprobaciones de SRM, pruebas
+  secuenciales y correcciones por comparaciones múltiples, según su documentación. El mercado se ha
+  consolidado: según la prensa especializada, **Datadog adquirió Eppo** (por unos 220 millones de
+  dólares, mayo de 2025) y **OpenAI adquirió Statsig** (por unos 1.100 millones de dólares en
+  acciones, septiembre de 2025), y Statsig seguiría operando de forma independiente con sus
+  clientes. Optimizely sigue ofreciendo productos de experimentación comercial. Los precios, los
+  planes y la propiedad cambian: comprueba la situación vigente antes de recomendar una herramienta.
+</Snapshot>
+
+## En la práctica
+
+Antes de analizar un experimento, haz esta comprobación de supuestos:
+
+1. **Unidad:** ¿la unidad de análisis es la de aleatorización? Si la métrica es una razón, usa el método delta o el bootstrap por usuario.
+2. **Tiempo:** ¿el efecto se estabiliza? Mira el efecto por semana y por tipo de usuario.
+3. **Interferencia:** ¿pueden las unidades afectarse entre sí? Si sí, cambia el diseño.
+4. **Heterogeneidad:** ¿qué segmentos preespecificaste? Prueba la interacción; trata el resto como exploración.
+5. **Registro:** guarda diseño, resultado y decisión en el repositorio de experimentos.
+
+En el caso «¿Lanzamos el nuevo checkout?» aplicarás estas comprobaciones al experimento con efecto real; en el módulo de causalidad verás qué hacer cuando no es posible aleatorizar.
+
+## Trade-offs y cuándo usarlo
+
+- **Análisis por usuario frente a por sesión:** por usuario es válido pero con menos observaciones; por sesión da más potencia aparente pero p-valores incorrectos.
+- **Clústeres y geo frente a usuario:** evitan la interferencia, pero con pocas unidades la potencia es muy baja; se necesitan efectos grandes o series largas.
+- **Segmentos preespecificados frente a exploración libre:** lo primero controla el error; lo segundo descubre hipótesis, pero requiere replicación.
+- **Plataforma propia frente a comercial:** la propia da control y encaja con el almacén de datos; la comercial acelera pero introduce dependencia y coste. Comprueba que cualquiera implemente SRM, CUPED y análisis válidos.
+
+## Errores comunes
+
+- **Analizar por sesión lo que se aleatorizó por usuario.**
+- **Dar por buenos los resultados de una semana** sin mirar novedad o primacía.
+- **Ignorar la interferencia** en logística, precios o campañas.
+- **Concluir «solo funciona en móvil»** a partir de significaciones distintas por subgrupo.
+- **Cortar por decenas de segmentos** y publicar el que sale.
+- **Confiar en la plataforma sin entender qué estadístico calcula** (varianza, ajuste, secuencial).
+- **No guardar los experimentos fallidos.**
+
+## Con IA
+
+Un asistente puede escribir el código del método delta o de una regresión con interacción, pero con frecuencia calcula el error estándar de una razón como si las observaciones fueran independientes, o recomienda cortar por todos los segmentos disponibles. Pide que **explicite la unidad de análisis y de aleatorización**, que use interacción para la heterogeneidad
+y que declare cuántos cortes se probaron.
+
+## En una entrevista
+
+- _"Aleatorizas por usuario pero tu métrica es ingreso por sesión. ¿Qué problema hay?"_ — Pista: observaciones no independientes; método delta, bootstrap por usuario o analizar a nivel de usuario.
+- _"¿Cómo mides el efecto de un cambio de precios o de logística si las unidades se afectan entre sí?"_ — Pista: switchback, clústeres o geo-experimento; SUTVA.
+- _"El test salió significativo en móvil y no en escritorio. ¿Funciona solo en móvil?"_ — Pista: no necesariamente; contrasta la interacción y recuerda las comparaciones múltiples.
+
+<KeyTakeaways
+  items={[
+    'Si la métrica es una razón (ingresos por sesión) y se aleatoriza por usuario, hay que analizar a nivel de usuario con el método delta o un bootstrap por usuario; analizar por sesión da p-valores demasiado optimistas.',
+    'Los efectos de novedad y de primacía se detectan mirando el efecto por día o semana y por tipo de usuario; un holdout de largo plazo mide el efecto estable.',
+    'Cuando las unidades interfieren (stock, flota, anuncios, redes), hay que cambiar el diseño: clústeres, switchback o geo-experimentos; en Lumen el holdout geográfico mostró +5,9 % frente al +22 % que atribuía el último clic.',
+    'Para efectos heterogéneos, preespecifica pocos segmentos y contrasta la interacción; «significativo en uno y no en otro» no es una diferencia significativa.',
+    'La cultura de experimentación necesita infraestructura fiable, estándares, revisión y registro de lo aprendido; solo 2 de los 15 experimentos de Lumen tienen un efecto real.',
+  ]}
+/>

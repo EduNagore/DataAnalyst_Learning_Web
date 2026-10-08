@@ -1,0 +1,71 @@
+lesson: experimentacion/02-validez-srm-experimentos-aa-y-ley-de-twyman
+questions:
+  - id: exp-02-q1
+    type: numeric
+    difficulty: 2
+    prompt: 'Un experimento 50/50 reparte 5.200 usuarios en control y 4.800 en tratamiento. ¿Cuánto vale el estadístico χ² del test de SRM (esperado: 5.000 y 5.000)?'
+    answer: [16]
+    tolerance: 0.01
+    explanation: 'χ² = (5.200 − 5.000)² / 5.000 + (4.800 − 5.000)² / 5.000 = 8 + 8 = 16. Con 1 grado de libertad, p ≈ 6 × 10⁻⁵: es un SRM con el umbral habitual (p < 0,001).'
+    ref: '#el-test-de-srm'
+
+  - id: exp-02-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Por qué el test de SRM suele usar un umbral estricto (p < 0,001) en lugar de 0,05?'
+    options:
+      - 'Porque el χ² solo funciona con umbrales pequeños'
+      - 'Porque se aplica a todos los experimentos y la consecuencia es invalidar el resultado: se quiere evitar la mayoría de falsas alarmas'
+      - 'Porque un SRM nunca puede ocurrir por azar'
+      - 'Porque 0,05 no está definido para dos ramas'
+    answer: [1]
+    explanation: 'Con 0,05 una de cada veinte asignaciones perfectamente correctas sería marcada como rota. Con 0,001 las falsas alarmas son raras y los problemas reales (p ≈ 10⁻⁶¹ en exp-reco-engine) se detectan igual.'
+    ref: '#el-test-de-srm'
+
+  - id: exp-02-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las causas que pueden producir un SRM.'
+    options:
+      - 'Un fallo en la función de asignación (por ejemplo, un hash mal configurado)'
+      - 'Una rama que redirige a otra URL y pierde usuarios por el camino'
+      - 'Un filtro de bots aplicado después de la asignación que afecta más a una rama'
+      - 'Usar un nivel de significación de 0,05 en la métrica principal'
+    answer: [0, 1, 2]
+    explanation: 'El nivel de significación de la métrica no cambia el reparto de usuarios. Las otras tres hacen que una rama pierda o gane usuarios de forma sistemática.'
+    ref: '#causas-habituales-de-srm'
+
+  - id: exp-02-q4
+    type: single
+    difficulty: 3
+    prompt: 'Un experimento con SRM muestra un +6 % en la métrica principal. ¿Qué haces?'
+    options:
+      - 'Reponderas las ramas para que el reparto sea 50/50 y analizas'
+      - 'Lo publicas con una nota al pie sobre el reparto'
+      - 'No interpretas el resultado: buscas la causa del SRM, la corriges y relanzas'
+      - 'Lo repites con la misma configuración hasta que desaparezca'
+    answer: [2]
+    explanation: 'Con un SRM no se puede confiar en la comparación: no se arregla con ponderaciones, porque la causa suele estar relacionada con el comportamiento de los usuarios que desaparecen. Se diagnostica, se corrige y se relanza.'
+    ref: '#por-qué-un-srm-invalida-el-resultado'
+
+  - id: exp-02-q5
+    type: single
+    difficulty: 2
+    prompt: 'En una prueba A/A correcta, ¿cómo se distribuyen los p-valores de la métrica a lo largo de muchas repeticiones?'
+    options:
+      - 'Concentrados cerca de 0'
+      - 'Uniformemente entre 0 y 1: aproximadamente el 5 % cae por debajo de 0,05'
+      - 'Concentrados cerca de 1'
+      - 'No siguen ningún patrón'
+    answer: [1]
+    explanation: 'Si no hay efecto y los supuestos se cumplen, el p-valor es uniforme en [0, 1]. Si el 25 % sale por debajo de 0,05, hay un problema en la tubería (por ejemplo, observaciones no independientes).'
+    ref: '#pruebas-aa'
+
+  - id: exp-02-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Según la ley de Twyman, un resultado extraordinariamente bueno es más probable que sea un error de medición que un descubrimiento real.'
+    options: ['Verdadero', 'Falso']
+    answer: [0]
+    explanation: 'Verdadero. Cuanto más espectacular o inesperado es un resultado, más conviene tratar de refutarlo (SRM, estabilidad temporal, segmentos, guardarraíles) antes de comunicarlo.'
+    ref: '#la-ley-de-twyman'

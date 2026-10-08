@@ -1,0 +1,31 @@
+# Consultas que RECALCULAN las respuestas numéricas del caso a partir de los datos
+# (las ejecuta tests/labs/test_cases.py; no se publican en la web).
+s1-reparto: |
+  SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE variant = 'tratamiento') / COUNT(*), 2)
+  FROM experiment_assignments WHERE experiment_id = 'exp-checkout-v2'
+s3-lift: |
+  SELECT ROUND(100.0 * (AVG(value) FILTER (WHERE variant = 'tratamiento') / AVG(value) FILTER (WHERE variant = 'control') - 1), 2)
+  FROM experiment_metrics WHERE experiment_id = 'exp-checkout-v2' AND metric_name = 'conversion_rate'
+s4-dias: |
+  WITH d AS (
+    SELECT date, MAX(value) FILTER (WHERE variant = 'tratamiento') AS t, MAX(value) FILTER (WHERE variant = 'control') AS c
+    FROM experiment_metrics WHERE experiment_id = 'exp-checkout-v2' AND metric_name = 'conversion_rate'
+    GROUP BY date
+  )
+  SELECT COUNT(*) FILTER (WHERE t > c) FROM d
+s5-t: |
+  WITH s AS (
+    SELECT variant, AVG(value) AS m, VAR_SAMP(value) AS v, COUNT(*) AS n
+    FROM experiment_metrics WHERE experiment_id = 'exp-checkout-v2' AND metric_name = 'conversion_rate'
+    GROUP BY variant
+  )
+  SELECT ROUND((MAX(m) FILTER (WHERE variant = 'tratamiento') - MAX(m) FILTER (WHERE variant = 'control'))
+    / SQRT(MAX(v) FILTER (WHERE variant = 'tratamiento') / MAX(n) FILTER (WHERE variant = 'tratamiento')
+         + MAX(v) FILTER (WHERE variant = 'control') / MAX(n) FILTER (WHERE variant = 'control')), 2)
+  FROM s
+s6-pp: |
+  SELECT ROUND(100.0 * (AVG(value) FILTER (WHERE variant = 'tratamiento') - AVG(value) FILTER (WHERE variant = 'control')), 2)
+  FROM experiment_metrics WHERE experiment_id = 'exp-checkout-v2' AND metric_name = 'conversion_rate'
+s7-pedidos: |
+  SELECT ROUND(100000 * (AVG(value) FILTER (WHERE variant = 'tratamiento') - AVG(value) FILTER (WHERE variant = 'control')), 0)
+  FROM experiment_metrics WHERE experiment_id = 'exp-checkout-v2' AND metric_name = 'conversion_rate'

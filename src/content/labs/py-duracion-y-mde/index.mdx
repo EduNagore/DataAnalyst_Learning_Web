@@ -1,0 +1,29 @@
+---
+title: 'Duración de un experimento y efecto mínimo detectable con el tráfico real'
+description: 'Calcula el tráfico diario elegible a partir de web_sessions, la duración en semanas completas para un MDE objetivo y el MDE alcanzable con una duración dada.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: experimentacion
+difficulty: 2
+estimatedMinutes: 30
+concepts: ['tráfico elegible', 'tamaño de muestra', 'MDE', 'semanas completas', 'bisección']
+datasets: ['web_sessions']
+packages: ['scipy']
+output: console
+hints:
+  - 'El tráfico diario es el número de sesiones por día natural (`started_at.dt.normalize()`), promediado sobre los últimos `dias` días del dataset: del último día (incluido) hacia atrás `dias` días.'
+  - 'Tamaño por rama: `n = (za + zb)**2 * (p1*(1-p1) + p2*(1-p2)) / (p2 - p1)**2` con `p2 = p1*(1+mde)`. Redondea hacia arriba con `math.ceil`.'
+  - 'El MDE no tiene fórmula cerrada sencilla con varianza no agrupada: busca por bisección el `mde` en (0, 2] tal que `tamano(p1, mde) == n` (el tamaño decrece al aumentar el MDE).'
+  - 'Duración: `dias = ceil(ramas * n / trafico)` y semanas completas `ceil(dias / 7)`. Para el MDE de una duración dada: `n = trafico * 7 * semanas / ramas`.'
+relatedLessons: ['experimentacion/01-diseno-de-un-experimento-metricas-potencia-y-duracion']
+businessQuestion: '¿Cuánto tiempo necesita un A/B test en Lumen y qué efecto podemos detectar si solo disponemos de unas semanas?'
+---
+
+Implementa cuatro funciones:
+
+1. **`trafico_diario(web_sessions, dias=90)`** → media de sesiones por día natural en los últimos `dias` días del dataset (incluido el último día con datos).
+2. **`tamano_por_rama(p1, mde_rel, alpha=0.05, potencia=0.8)`** → entero: usuarios por rama (comparación bilateral de dos proporciones).
+3. **`mde_alcanzable(p1, n_por_rama, alpha=0.05, potencia=0.8)`** → efecto relativo mínimo detectable con `n_por_rama` usuarios por rama (por bisección).
+4. **`plan(p1, mde_rel, trafico, ramas=2)`** → diccionario con `n_por_rama`, `dias` y `semanas` (semanas completas).
+
+El script imprime el tráfico, el plan para +8 %, +10 % y +20 % sobre una conversión del 5,4 % y el MDE alcanzable con 1, 4, 8 y 17 semanas.

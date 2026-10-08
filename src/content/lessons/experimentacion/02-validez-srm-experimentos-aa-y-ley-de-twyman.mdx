@@ -1,0 +1,199 @@
+---
+title: 'Validez del experimento: SRM, pruebas A/A y la ley de Twyman'
+description: 'Cómo comprobar que un experimento es fiable antes de interpretar su resultado: desajuste en la proporción de muestra (SRM) con χ², causas habituales, pruebas A/A, filtros por exposición y la ley de Twyman.'
+module: experimentacion
+order: 2
+level: avanzado
+estimatedMinutes: 45
+objectives:
+  - 'Calcular y interpretar un test de desajuste de la proporción de muestra (SRM) con χ² y un umbral estricto (p < 0,001).'
+  - 'Enumerar las causas típicas de un SRM y explicar por qué invalida el análisis aunque el resultado «parezca bueno».'
+  - 'Diseñar e interpretar una prueba A/A para validar la tubería de asignación, registro y análisis.'
+  - 'Aplicar la ley de Twyman: desconfiar de los resultados extraordinarios hasta descartar errores de medición.'
+  - 'Distinguir análisis por intención de tratar y análisis condicionado a la exposición, y sus riesgos de sesgo.'
+prerequisites: ['experimentacion/01-diseno-de-un-experimento-metricas-potencia-y-duracion']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Fabijan et al. (2019) — Diagnosing Sample Ratio Mismatch in Online Controlled Experiments'
+    url: 'https://doi.org/10.1145/3292500.3330722'
+    type: paper
+    authors: 'Fabijan, A., Gupchup, J., Gupta, S., Omhover, J., Qin, W., Vermeer, L., Dmitriev, P.'
+    year: 2019
+  - title: 'Kohavi, Tang & Xu — Trustworthy Online Controlled Experiments'
+    url: 'https://experimentguide.com/'
+    type: book
+    authors: 'Kohavi, R., Tang, D., Xu, Y.'
+    year: 2020
+  - title: 'Lukas Vermeer — SRM Checker'
+    url: 'https://lukasvermeer.nl/srm/'
+    type: blog
+    authors: 'Vermeer, L.'
+    year: 2026
+  - title: 'SciPy — scipy.stats.chisquare'
+    url: 'https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.chisquare.html'
+    type: docs
+    authors: 'SciPy'
+    year: 2026
+relatedLabs: ['py-srm-y-pruebas-aa']
+relatedCases: ['motor-recomendaciones-srm']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Producto anuncia que el nuevo motor de recomendaciones de Lumen (`exp-reco-engine`) «mejora el
+  CTR». Antes de mirar la métrica, revisas cuántos clientes hay en cada rama: se diseñó 50/50 y hay
+  11.166 en control y 8.834 en tratamiento. Un reparto del 56/44 con 20.000 clientes no es mala
+  suerte: es una señal de que algo se rompió en la asignación o en el registro, y cualquier número
+  que salga después no se puede interpretar.
+</BusinessContext>
+
+La aleatorización es lo que da validez causal a un experimento. Si el reparto real no coincide con el diseñado, **la aleatorización se ha roto en algún punto** y las ramas ya no son comparables. Esta lección enseña a detectarlo antes de celebrar nada.
+
+## Intuición
+
+Si lanzas una moneda justa 20.000 veces, esperas unos 10.000 caras, con una desviación típica de unas 71 ($\sqrt{20.000 \cdot 0{,}25}$). Obtener 11.166 caras estaría a más de 16 desviaciones de lo esperado: no pasa por azar. Con una asignación aleatoria sucede lo mismo. El **SRM** (_sample ratio mismatch_) es ese chequeo
+de la «moneda» aplicado al reparto entre ramas.
+
+## Cómo funciona
+
+### El test de SRM
+
+Compara los recuentos observados con los esperados según el diseño con un $\chi^2$ de bondad de ajuste:
+
+$$
+\chi^2 = \sum_{r} \frac{(O_r - E_r)^2}{E_r}, \qquad E_r = N \cdot \text{reparto diseñado}_r
+$$
+
+con $r-1$ grados de libertad (1 para dos ramas). Para `exp-reco-engine`, con $N = 20.000$ y esperado $10.000/10.000$:
+
+$$
+\chi^2 = \frac{(11.166 - 10.000)^2}{10.000} + \frac{(8.834 - 10.000)^2}{10.000} = 271{,}9, \qquad p \approx 4 \times 10^{-61}
+$$
+
+**Umbral:** como se comprueba en cada experimento y la consecuencia es descartar el resultado, se usa un umbral estricto, habitualmente $p < 0{,}001$, para limitar las falsas alarmas.
+
+```python
+from scipy import stats
+stats.chisquare([11166, 8834], f_exp=[10000, 10000])   # estadístico 271,9; p ≈ 4e-61
+```
+
+### Los 15 experimentos de Lumen
+
+| Experimento                  | Control | Tratamiento | % en tratamiento |    χ² | p valor |
+| ---------------------------- | ------: | ----------: | ---------------: | ----: | ------: |
+| **`exp-reco-engine`**        |  11.166 |       8.834 |         **44,2** | 271,9 | **≈ 0** |
+| `exp-generic-02`             |  10.137 |       9.863 |             49,3 |  3,75 |   0,053 |
+| `exp-generic-09`             |  10.131 |       9.869 |             49,3 |  3,43 |   0,064 |
+| `exp-social-ads-geo-holdout` |   9.881 |      10.119 |             50,6 |  2,83 |   0,092 |
+| `exp-checkout-v2`            |  10.074 |       9.926 |             49,6 |  1,10 |   0,295 |
+| …                            |       … |           … |                … |     … |       … |
+| `exp-generic-04`             |   9.998 |      10.002 |             50,0 |  0,00 |   0,977 |
+
+Solo uno de los quince está por debajo de 0,001. Los demás muestran la variación normal de una asignación aleatoria: un reparto de 49,3/50,7 con 20.000 usuarios es perfectamente creíble (y observa que, con p < 0,05 sin corregir, aparecería uno de cada veinte; por eso el umbral es 0,001).
+
+### Por qué un SRM invalida el resultado
+
+Si algo ha hecho que unos usuarios desaparezcan de una rama y no de la otra, lo que queda **ya no es una muestra aleatoria equivalente**. Ejemplo: si la nueva versión falla y se registra menos a los usuarios con conexiones lentas, el tratamiento pierde justo los usuarios menos
+comprometidos y su CTR parece mejor sin que el cambio haga nada. **El sesgo puede ir en cualquier dirección y no se corrige con un ajuste**: la única solución es encontrar la causa, corregirla y relanzar.
+
+<Callout type="warning">
+  Un SRM no significa que «el experimento falló y hay que olvidarlo»: significa que **no puedes
+  fiarte de este resultado**. Con un SRM, ni el p-valor ni el intervalo de confianza tienen la
+  interpretación habitual. Investiga antes de analizar.
+</Callout>
+
+### Causas habituales de SRM
+
+Fabijan et al. (2019) y el libro de Kohavi, Tang y Xu clasifican las causas. Las más comunes:
+
+| Causa                                       | Ejemplo                                                                                        |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| **Fallo de asignación**                     | Un _bug_ en el hash, un reparto mal configurado o una caché que sirve siempre la misma versión |
+| **Redirecciones y ejecución**               | La versión B redirige a otra URL y pierde usuarios por el camino                               |
+| **Pérdida de telemetría diferencial**       | La rama B falla o tarda más y registra menos eventos                                           |
+| **Filtros posteriores a la asignación**     | Eliminar bots o usuarios «inválidos» con una regla que afecta de forma distinta a cada rama    |
+| **Efectos de la intervención en la salida** | El tratamiento hace que ciertos usuarios abandonen antes de que se registre la exposición      |
+| **Mezcla de periodos o de experimentos**    | Cambiar el reparto en mitad del test y combinar datos de periodos con repartos distintos       |
+| **Interacción con otros experimentos**      | Una capa de asignación compartida que reasigna usuarios                                        |
+
+Un buen diagnóstico mira **cuándo** aparece (desde el primer día o tras un cambio), **dónde** (por país, dispositivo, navegador, versión) y **qué usuarios** faltan. Muchas plataformas calculan el SRM de forma automática y bloquean los resultados de un experimento afectado.
+
+### Pruebas A/A
+
+Una prueba **A/A** reparte a los usuarios en dos ramas que reciben exactamente la misma experiencia. Si la tubería (asignación, registro, métricas, análisis) es correcta:
+
+- el reparto cumple el SRM;
+- aproximadamente el 5 % de las métricas salen «significativas» al 5 % (ni más ni menos), y los p-valores son **uniformes** en [0, 1];
+- las diferencias de medias se distribuyen alrededor de cero.
+
+Un A/A que da el 25 % de falsos positivos revela un problema (por ejemplo, analizar observaciones no independientes como si lo fueran). Hazlo al montar una plataforma, tras cambios importantes y de forma continuada con A/A «de fondo».
+
+### La ley de Twyman
+
+> «Cualquier cifra que parezca interesante o diferente suele estar equivocada.» (ley de Twyman, popularizada por Kohavi en los experimentos online)
+
+Si un cambio pequeño produce un efecto enorme, o un resultado contradice algo que se sabía con firmeza, la explicación más probable no es un descubrimiento: es un **error de medición**, un SRM, un filtro mal aplicado o un efecto de novedad. La rutina del analista ante un resultado espectacular es
+**intentar romperlo** antes de comunicarlo: ¿SRM? ¿se movió también una métrica que no debería? ¿se mantiene por días y por segmentos? ¿hay un guardarraíl que lo desmiente?
+
+### Intención de tratar y análisis por exposición
+
+- **Intención de tratar (ITT):** analiza a todos los usuarios según la rama **asignada**, hayan llegado o no a ver el cambio. Es la comparación que preserva la aleatorización.
+- **Análisis condicionado a la exposición:** limita el análisis a quienes vieron el cambio (por ejemplo, los que llegaron a la página del carrito). Reduce el ruido y aumenta la potencia, pero **solo es válido si la condición se define igual en las dos ramas** (el control debe registrar la misma «exposición contrafactual»). Si no, introduces sesgo.
+- **Efectos diluidos:** si solo el 10 % de los asignados ve el cambio, el efecto en ITT es el 10 % del efecto en los expuestos; para comparar, ajusta el cálculo de potencia o analiza los expuestos con cuidado.
+
+## En la práctica
+
+Un guion de control de calidad antes de interpretar cualquier experimento:
+
+1. **Reparto:** χ² de SRM con $p < 0{,}001$ → si falla, para y diagnostica.
+2. **Exposición:** ¿la exposición se registra por igual en ambas ramas? ¿Cuántos asignados llegaron a verla?
+3. **Estabilidad temporal:** el efecto, ¿es parecido entre semanas? (¿novedad, primacía?)
+4. **Segmentos básicos:** dispositivo, país, versión; una anomalía en un segmento puede indicar el origen del problema.
+5. **Guardarraíles y métricas de calidad:** latencia, errores, cancelaciones.
+6. **Aplica la ley de Twyman:** si el resultado es espectacular, trata de refutarlo antes de celebrarlo.
+
+En el lab calcularás el SRM de todos los experimentos de Lumen y simularás pruebas A/A para ver qué tasa de falsos positivos produce el umbral 0,05 y cuál el umbral 0,001. En el caso «El motor de recomendaciones mejora el CTR» deberás decidir qué hacer con un experimento con SRM.
+
+## Trade-offs y cuándo usarlo
+
+- **Umbral estricto frente a sensibilidad:** con $p < 0{,}001$ rara vez saltan falsas alarmas, pero se pueden escapar desajustes pequeños con muestras moderadas; con mucho tráfico hasta un desajuste de 0,3 puntos es detectable.
+- **Bloquear automáticamente frente a avisar:** bloquear evita decisiones basadas en datos inválidos; avisar permite al analista juzgar. Muchas plataformas hacen lo primero.
+- **ITT frente a expuestos:** ITT es robusto y diluido; el análisis de expuestos es potente pero exige un registro simétrico de la exposición.
+- **A/A continuo frente a puntual:** un A/A permanente de fondo detecta regresiones de la plataforma a tiempo; cuesta tráfico.
+
+## Errores comunes
+
+- **Ignorar el SRM porque «el reparto es parecido» (56/44)** o porque el resultado es el esperado.
+- **Corregir el SRM «reponderando»** las ramas: oculta el problema, no lo arregla.
+- **Usar $p < 0{,}05$** para el SRM y vivir con falsas alarmas (o ignorarlas).
+- **Filtrar usuarios después de la asignación con reglas distintas por rama.**
+- **Celebrar un resultado extraordinario sin intentar refutarlo.**
+- **Analizar solo a los usuarios que «completaron» un paso** (el tratamiento puede haber cambiado quién lo completa).
+- **No registrar la exposición** y no poder distinguir asignados de expuestos.
+
+## Con IA
+
+Un asistente puede calcular el χ² del SRM, pero rara vez lo hace por iniciativa propia: suele ir directo a «comparar el CTR». Incluye siempre en el mensaje «comprueba primero la validez del experimento (SRM, exposición, estabilidad)» y verifica tú el cálculo. Desconfía de las conclusiones que ofrece sobre «por qué» hay SRM: son hipótesis a comprobar con datos de ingeniería.
+
+## En una entrevista
+
+- _"El experimento salió muy bien, pero el reparto es 52/48. ¿Qué haces?"_ — Pista: χ² de SRM; si p < 0,001, no interpretas el efecto; diagnosticas causa y relanzas.
+- _"¿Qué es un test A/A y para qué sirve?"_ — Pista: dos ramas idénticas; valida asignación, métricas y análisis; p-valores uniformes y ~5 % de falsos positivos.
+- _"¿Qué es la ley de Twyman?"_ — Pista: lo que parece demasiado bueno suele ser un error; intenta refutarlo antes.
+
+<KeyTakeaways
+  items={[
+    'Un SRM es un reparto observado entre ramas incompatible con el diseño (χ² de bondad de ajuste con p < 0,001); indica que la aleatorización se rompió y el resultado no es interpretable.',
+    'En Lumen, exp-reco-engine tiene 11.166 en control y 8.834 en tratamiento (44,2 %): χ² = 271,9, p ≈ 4 × 10⁻⁶¹; los otros 14 experimentos tienen p ≥ 0,05 (no hay SRM).',
+    'Las causas típicas son fallos de asignación, redirecciones, pérdida de telemetría distinta por rama, filtros posteriores a la asignación y efectos de la intervención en la medición; no se corrigen con ponderaciones: hay que encontrar la causa y relanzar.',
+    'Un A/A valida la tubería: reparto correcto, p-valores uniformes y alrededor del 5 % de falsos positivos al 5 %.',
+    'Ley de Twyman: un resultado demasiado bueno suele ser un error; intenta refutarlo (SRM, estabilidad temporal, segmentos, guardarraíles) antes de comunicarlo.',
+  ]}
+/>

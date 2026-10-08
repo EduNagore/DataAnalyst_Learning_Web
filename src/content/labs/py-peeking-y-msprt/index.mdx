@@ -1,0 +1,36 @@
+---
+title: 'Peeking, límites secuenciales y mSPRT'
+description: 'Simula cuántos falsos positivos produce mirar un A/A varias veces, aplica límites de grupo secuencial y la prueba secuencial de mezcla (mSPRT), y detecta cuándo habrías parado en experimentos reales de Lumen.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: experimentacion
+difficulty: 3
+estimatedMinutes: 40
+concepts:
+  [
+    'peeking',
+    'tasa de falsos positivos',
+    'límites O’Brien-Fleming',
+    'mSPRT',
+    'inferencia siempre válida',
+  ]
+datasets: ['experiment_metrics', 'experiments']
+packages: ['scipy']
+output: console
+hints:
+  - 'En un A/A con `K` revisiones igualmente espaciadas, el estadístico en la revisión `k` es `Z_k = cumsum(N(0,1))[k] / sqrt(k)`. Genera una matriz `(n_sim, K)`, acumula por filas y divide por `sqrt(arange(1, K+1))`.'
+  - 'Mirando siempre con 1,96, la tasa es `np.mean((np.abs(Z) > 1.96).any(axis=1))`. Con límites propios, compara con `limites[None, :]`. Los límites tipo O’Brien-Fleming son `c * sqrt(K / k)` con `c ≈ 2,04` para K = 5.'
+  - 'mSPRT para datos con media `xbar` tras `n` observaciones de varianza `sigma2` y prior de mezcla N(0, tau2): `Λ = sqrt(sigma2 / (sigma2 + n*tau2)) * exp(n² tau2 xbar² / (2 sigma2 (sigma2 + n*tau2)))`. Se rechaza H0 en cuanto `Λ ≥ 1/alpha`.'
+  - 'Para `primer_cruce`: recorre `d` desde `minimo` hasta el número de días y calcula el p-valor de Welch (`stats.ttest_ind(equal_var=False)`) con los `d` primeros días de cada rama; devuelve el primer `d` con `p < 0.05`, o `None`.'
+relatedLessons: ['experimentacion/04-peeking-tests-secuenciales-y-analisis-siempre-valido']
+businessQuestion: '¿Cuántos falsos «ganadores» produce mirar cada día un experimento y cómo se evita?'
+---
+
+Implementa cuatro funciones:
+
+1. **`simular_peeking(revisiones, n_sim=20000, seed=0, limites=None)`** → fracción de experimentos A/A (sin efecto) en los que algún `|Z_k|` supera el límite en alguna de las `revisiones` revisiones igualmente espaciadas. Si `limites` es `None`, el límite es 1,96 en todas.
+2. **`limites_obf(revisiones, c)`** → array de límites tipo O’Brien-Fleming `c * sqrt(K / k)`.
+3. **`simular_msprt(n_obs=2000, n_sim=3000, tau2=0.25, alpha=0.05, efecto=0.0, seed=0)`** → fracción de simulaciones en las que, vigilando tras **cada** observación, el mSPRT (datos N(`efecto`, 1)) alcanza `Λ ≥ 1/alpha` en algún momento.
+4. **`primer_cruce(control, tratamiento, minimo=5)`** → primer día (con al menos `minimo` días de datos) en que el p-valor de Welch acumulado baja de 0,05, o `None`.
+
+El script imprime la tasa de falsos positivos con 1, 2, 5, 10 y 20 revisiones, con los límites de O’Brien-Fleming y con el mSPRT, y el primer día de cruce en los 15 experimentos de Lumen.

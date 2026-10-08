@@ -1,0 +1,159 @@
+---
+title: '¿Lanzamos el nuevo checkout?'
+description: 'Un caso de experimentación: valida un A/B test de un flujo de checkout, cuantifica el efecto con su incertidumbre y decide si desplegarlo, con los guardarraíles que faltan.'
+difficulty: 2
+estimatedMinutes: 40
+role: producto
+datasets: ['experiments', 'experiment_assignments', 'experiment_metrics']
+brief: |
+  De: Pablo Sanz (Producto)
+  Asunto: Resultado del experimento del nuevo checkout
+
+  Hola, el experimento del checkout nuevo (`exp-checkout-v2`) ha terminado y el panel dice que la conversión sube. Quiero lanzarlo a todo el mundo la semana que viene, pero antes de llevarlo a dirección necesito saber si me puedo fiar del resultado, cuánto mejora de verdad y si hay algo que debamos comprobar.
+
+  ¿Me ayudas con esto? Gracias, Pablo
+steps:
+  - id: s1-reparto
+    tool: sql
+    answerType: numeric
+    answer: 49.63
+    tolerance: 0.05
+    prompt: |
+      Antes de mirar el resultado hay que comprobar que el experimento es válido. `experiment_assignments` contiene un cliente por fila con su rama (`control` o `tratamiento`).
+
+      ¿Qué **porcentaje** de los clientes de `exp-checkout-v2` está en la rama de tratamiento? (Dos decimales.)
+    hints:
+      - "Filtra `experiment_id = 'exp-checkout-v2'` y calcula `COUNT(*) FILTER (WHERE variant = 'tratamiento') / COUNT(*)`."
+    explanation: |
+      Hay 9.926 clientes en tratamiento y 10.074 en control: el **49,63 %** en tratamiento. Se diseñó 50/50, y esta desviación de 0,37 puntos con 20.000 clientes es compatible con una asignación aleatoria.
+
+  - id: s2-srm
+    tool: reasoning
+    answerType: single
+    answer: [0]
+    options:
+      - 'No hay SRM: el χ² es 1,10 (p ≈ 0,30), compatible con un reparto aleatorio 50/50.'
+      - 'Hay un SRM grave: el reparto invalida el experimento.'
+      - 'No se puede saber sin conocer la métrica principal.'
+      - 'Es imposible comprobarlo con estos datos.'
+    prompt: |
+      Con 10.074 clientes en control y 9.926 en tratamiento (esperado: 10.000 y 10.000), ¿qué concluyes sobre la **validez del reparto**?
+
+      (Pista: χ² = (74² + 74²) / 10.000 con 1 grado de libertad.)
+    hints:
+      - 'Calcula χ² = Σ (observado − esperado)² / esperado. Con 1 grado de libertad, un χ² menor que 3,84 corresponde a p > 0,05.'
+    explanation: |
+      χ² = (74² / 10.000) × 2 = 1,10; p ≈ 0,30. No hay SRM: el reparto es compatible con la aleatorización diseñada. Si el p-valor hubiera sido menor que 0,001, habría que parar y diagnosticar antes de interpretar nada.
+
+  - id: s3-lift
+    tool: sql
+    answerType: numeric
+    answer: 7.84
+    tolerance: 0.05
+    prompt: |
+      `experiment_metrics` guarda la **conversión diaria** de cada rama (`metric_name = 'conversion_rate'`). Calcula el **efecto relativo** del tratamiento: la media diaria del tratamiento dividida entre la media diaria del control, menos 1, en %. (Dos decimales.)
+    hints:
+      - "Usa `AVG(value) FILTER (WHERE variant = 'tratamiento')` y lo mismo para `control`, con `experiment_id = 'exp-checkout-v2'`."
+    explanation: |
+      La conversión media pasa del 5,44 % (control) al 5,87 % (tratamiento): un **+7,84 %** relativo.
+
+  - id: s4-dias
+    tool: sql
+    answerType: numeric
+    answer: 24
+    tolerance: 0
+    prompt: |
+      El resultado medio puede esconder un comportamiento irregular. ¿En **cuántos de los 29 días** del experimento la conversión del tratamiento fue mayor que la del control?
+    hints:
+      - 'Pivota por día: una columna para `control` y otra para `tratamiento` (`MAX(value) FILTER (WHERE ...)` agrupando por `date`) y cuenta los días en que `tratamiento > control`.'
+    explanation: |
+      En **24 de los 29 días** el tratamiento supera al control. Es coherente con un efecto positivo, pero no con un efecto perfecto: la variación diaria (el «ruido») hace que en 5 días el control gane.
+
+  - id: s5-t
+    tool: sql
+    answerType: numeric
+    answer: 5.34
+    tolerance: 0.05
+    prompt: |
+      Contrasta la diferencia con un **t de Welch** sobre las 29 conversiones diarias de cada rama:
+
+      t = (media_t − media_c) / √(var_t / n_t + var_c / n_c)
+
+      ¿Cuánto vale el estadístico t? (Dos decimales; usa `VAR_SAMP`.)
+    hints:
+      - 'Calcula por rama `AVG(value)`, `VAR_SAMP(value)` y `COUNT(*)` en una subconsulta y combínalas.'
+    explanation: |
+      t = 5,34 con unos 56 grados de libertad: p ≈ 1,8 × 10⁻⁶. Si el nuevo checkout no tuviera efecto, un resultado así sería extremadamente raro.
+
+      Nota: la unidad de análisis son los **días** (porque la tabla solo guarda series diarias). En un experimento real habría que analizar por usuario, que es la unidad de aleatorización.
+
+  - id: s6-pp
+    tool: sql
+    answerType: numeric
+    answer: 0.43
+    tolerance: 0.01
+    prompt: |
+      El efecto relativo suena bien, pero ¿cuántos puntos porcentuales sube la conversión? Calcula la diferencia de medias diarias (tratamiento − control) en **puntos porcentuales**. (Dos decimales.)
+    hints:
+      - 'La conversión se guarda como fracción (0,0544). Multiplica la diferencia por 100.'
+    explanation: |
+      La conversión sube **0,43 puntos porcentuales** (de 5,44 % a 5,87 %). Con una incertidumbre: el intervalo de confianza del 95 % de la diferencia va de unos 0,27 a unos 0,59 puntos porcentuales.
+
+  - id: s7-pedidos
+    tool: sql
+    answerType: numeric
+    answer: 427
+    tolerance: 2
+    prompt: |
+      Traduce el efecto a términos de negocio: ¿cuántos **pedidos adicionales** esperarías por cada **100.000 visitas** con el nuevo checkout? (Entero.)
+    hints:
+      - 'Pedidos adicionales = diferencia de conversión (como fracción) × 100.000.'
+    explanation: |
+      0,00427 × 100.000 ≈ **427 pedidos más por cada 100.000 visitas**. Con el ticket medio de Lumen (≈ 300 €), serían unos 128.000 € de ingresos adicionales por cada 100.000 visitas, antes de descontar costes y cualquier efecto negativo en guardarraíles.
+
+  - id: s8-faltan
+    tool: reasoning
+    answerType: multiple
+    answer: [0, 1, 2]
+    options:
+      - 'Los guardarraíles por rama (cancelaciones, devoluciones, incidencias de pago): la tabla solo guarda la conversión.'
+      - 'La evolución del efecto por semana, para descartar efecto de novedad.'
+      - 'La unidad de análisis: los datos son series diarias, y el análisis correcto sería por usuario.'
+      - 'Nada: con p < 0,001 el resultado es definitivo.'
+    prompt: |
+      Pablo quiere desplegarlo ya. ¿Qué **limitaciones o comprobaciones pendientes** señalarías antes de decir que sí? (Marca todas las que apliquen.)
+    hints:
+      - 'Recuerda la lección de diseño: métrica principal, guardarraíles y qué usuarios se analizan.'
+    explanation: |
+      Un p-valor muy pequeño solo dice que el efecto no es ruido; no sustituye a los guardarraíles (¿sube también la tasa de cancelación?), no descarta una novedad que se desvanece ni valida que el análisis use la unidad correcta. La última opción es justo la confusión entre significación y decisión.
+
+  - id: s9-recomendacion
+    tool: reasoning
+    answerType: text-self-assessed
+    prompt: |
+      Escribe la respuesta a Pablo en 4-5 líneas: **si el resultado es fiable, cuánto mejora (con su rango), qué falta por comprobar y qué recomiendas**.
+    hints:
+      - 'Empieza por la recomendación; después, las cifras (+0,43 pp, +7,8 % relativo, intervalo), y por último las comprobaciones pendientes y cuándo se tomaría la decisión final.'
+    explanation: |
+      Una buena respuesta recomienda un despliegue **condicionado** a comprobar los guardarraíles, y da la cifra con su intervalo en vez de una cifra suelta.
+rubric:
+  - 'Empiezo por la recomendación (desplegar condicionado a comprobaciones), no por el método.'
+  - 'Doy el efecto en puntos porcentuales y relativo, con su intervalo de confianza.'
+  - 'Digo que el reparto es válido (sin SRM) y qué p-valor se obtiene, sin interpretarlo como probabilidad de que el efecto sea real.'
+  - 'Señalo las comprobaciones pendientes: guardarraíles por rama, estabilidad por semana y unidad de análisis.'
+  - 'Traduzco el efecto a pedidos o ingresos adicionales con una base de comparación clara.'
+modelReport: |
+  **Recomendación.** Desplegar el nuevo checkout de forma gradual, siempre que los guardarraíles (cancelaciones, devoluciones e incidencias de pago) no empeoren en el tratamiento. Solo tengo la conversión por rama, así que esa comprobación es el paso previo a la decisión final.
+
+  **Validez.** El reparto es 49,6 / 50,4 (9.926 en tratamiento y 10.074 en control): χ² = 1,10, p ≈ 0,30, sin señales de SRM. El tratamiento supera al control en 24 de los 29 días.
+
+  **Efecto.** La conversión pasa del 5,44 % al 5,87 %: +0,43 puntos porcentuales (+7,8 % relativo), con un intervalo de confianza del 95 % de unos 0,27 a 0,59 puntos. Un t de Welch da t = 5,3 (p ≈ 2 × 10⁻⁶): un resultado así sería extremadamente raro si el cambio no tuviera efecto. En términos de negocio, unos 427 pedidos más por cada 100.000 visitas.
+
+  **Límites.** Los datos son series diarias, no observaciones por usuario; el análisis definitivo debería hacerse a nivel de cliente (la unidad de aleatorización). No sé si el efecto se mantiene después de las primeras semanas (efecto de novedad) ni si hay un coste en guardarraíles.
+
+  **Siguientes pasos.** Producto lanza al 20 % con una rampa, Datos revisa los guardarraíles y el efecto por semana y, si todo se mantiene, se despliega al 100 % y se mantiene un pequeño holdout para medir el efecto a largo plazo.
+---
+
+Este caso usa las tablas `experiments`, `experiment_assignments` y `experiment_metrics` del dataset Lumen. Trabaja cada
+paso con el editor SQL (**Ctrl/⌘ + Enter** ejecuta) y responde antes de avanzar. El análisis está en la lección
+«Contrastes de hipótesis, p-valor, errores y potencia» y la validez del reparto, en «Validez del experimento».

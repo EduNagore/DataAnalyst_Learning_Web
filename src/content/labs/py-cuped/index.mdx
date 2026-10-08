@@ -1,0 +1,30 @@
+---
+title: 'CUPED con datos reales de Lumen y con una covariable muy predictiva'
+description: 'Calcula los ingresos previos y durante el experimento de onboarding, aplica el ajuste CUPED, mide cuánta varianza se elimina y compáralo con una simulación en la que la correlación es alta.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: experimentacion
+difficulty: 3
+estimatedMinutes: 40
+concepts: ['CUPED', 'covariable previa', 'θ', 'reducción de varianza', 'error estándar']
+datasets: ['orders', 'order_items', 'experiment_assignments', 'experiments']
+packages: []
+output: console
+hints:
+  - 'Ingresos por cliente en una ventana: suma `quantity * unit_price` por pedido (`groupby("order_id")`), une con `orders` (sin cancelados), filtra `inicio <= order_date <= fin`, agrupa por `customer_id` y reindexa a los clientes asignados con `fillna(0)`.'
+  - '`theta = np.cov(x, y)[0, 1] / x.var(ddof=1)` y `y_ajustada = y - theta * (x - x.mean())`.'
+  - 'El efecto es la diferencia de medias tratamiento − control; el error estándar de Welch es `sqrt(var_t/n_t + var_c/n_c)` con varianzas `ddof=1`.'
+  - 'La reducción de varianza es `1 - var(y_ajustada) / var(y)` (debe acercarse a `corr(x, y)**2`).'
+relatedLessons: ['experimentacion/03-cuped-y-reduccion-de-varianza']
+businessQuestion: '¿Cuánto ruido elimina el uso de los ingresos previos en el experimento de onboarding, y cuándo valdría la pena de verdad?'
+---
+
+Los clientes asignados a `exp-onboarding-flow` (del 28 de octubre al 25 de noviembre de 2023) son la muestra. Como covariable previa usa los ingresos de los **90 días anteriores** al inicio (sin pedidos cancelados). Implementa:
+
+1. **`ingresos_por_cliente(orders, order_items, clientes, inicio, fin)`** → array con los ingresos (sin cancelados) de cada cliente de `clientes` (en ese orden) entre `inicio` y `fin` ambos incluidos; 0 si no compró.
+2. **`theta_cuped(x, y)`** → coeficiente $\theta = \operatorname{Cov}(X,Y)/\operatorname{Var}(X)$.
+3. **`ajustar_cuped(y, x)`** → métrica ajustada $Y - \theta(X - \bar{X})$.
+4. **`efecto_y_error(y, tratamiento)`** → `(diferencia, error_estandar)` tratamiento menos control (`tratamiento` es un array booleano), con el error estándar de Welch.
+5. **`reduccion_varianza(x, y)`** → fracción de varianza que elimina el ajuste.
+
+El script imprime el análisis real y una simulación con correlación 0,75.

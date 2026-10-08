@@ -1,0 +1,24 @@
+# Consultas que RECALCULAN las respuestas numéricas del caso a partir de los datos
+# (las ejecuta tests/labs/test_cases.py; no se publican en la web).
+s1-control: |
+  SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE variant = 'control') / COUNT(*), 2)
+  FROM experiment_assignments WHERE experiment_id = 'exp-reco-engine'
+s2-chi2: |
+  WITH c AS (
+    SELECT COUNT(*) FILTER (WHERE variant = 'control') AS c, COUNT(*) FILTER (WHERE variant = 'tratamiento') AS t, COUNT(*) AS n
+    FROM experiment_assignments WHERE experiment_id = 'exp-reco-engine'
+  )
+  SELECT ROUND(POWER(c - n / 2.0, 2) / (n / 2.0) + POWER(t - n / 2.0, 2) / (n / 2.0), 2) FROM c
+s4-lift: |
+  SELECT ROUND(100.0 * (AVG(value) FILTER (WHERE variant = 'tratamiento') / AVG(value) FILTER (WHERE variant = 'control') - 1), 2)
+  FROM experiment_metrics WHERE experiment_id = 'exp-reco-engine' AND metric_name = 'click_through_rate'
+s5-t: |
+  WITH s AS (
+    SELECT variant, AVG(value) AS m, VAR_SAMP(value) AS v, COUNT(*) AS n
+    FROM experiment_metrics WHERE experiment_id = 'exp-reco-engine' AND metric_name = 'click_through_rate'
+    GROUP BY variant
+  )
+  SELECT ROUND((MAX(m) FILTER (WHERE variant = 'tratamiento') - MAX(m) FILTER (WHERE variant = 'control'))
+    / SQRT(MAX(v) FILTER (WHERE variant = 'tratamiento') / MAX(n) FILTER (WHERE variant = 'tratamiento')
+         + MAX(v) FILTER (WHERE variant = 'control') / MAX(n) FILTER (WHERE variant = 'control')), 2)
+  FROM s

@@ -93,7 +93,9 @@ Hechos verificados para M07 (2026-10): pandas 3.0.6 (última; local 3.0.2), Pola
 
 ## F7 — en curso (Contenido Partes III-IV, M13-M20 + casos 2-8)
 
-Estado: **M13 ✅** (4 lecciones, 4 labs: IC/bootstrap/Wilson, Welch+potencia, comparaciones múltiples, beta-binomial; widget `CoverageExplorer` + `src/lib/inference.ts` con tests vitest). Pendientes: M14 (SRM, CUPED, peeking, caso 2-3), M15, M16, M17, M18, M19, M20 y casos 2-8.
+Estado: **M13 ✅** (4 lecciones, 4 labs: IC/bootstrap/Wilson, Welch+potencia, comparaciones múltiples, beta-binomial; widget `CoverageExplorer` + `src/lib/inference.ts` con tests vitest). **M14 ✅** (5 lecciones, 4 labs: duración/MDE, SRM+A/A, CUPED, peeking+mSPRT; widgets `CupedDemo` y `PeekingSimulator`; casos 2 `checkout-nuevo` y 3 `motor-recomendaciones-srm`; `tests/e2e/todos-los-casos.spec.ts` resuelve cada caso con las respuestas publicadas). Pendientes: M15, M16, M17, M18, M19, M20 y casos 4-8 (+9-12 en F8).
+
+Hechos reales de experimentos para el contenido: CUPED con ingresos previos de 90 días apenas ayuda en `exp-onboarding-flow` (ρ = 0,126, 1,6 % de varianza); peeking diario habría declarado ganador a `exp-generic-02` el día 5; 2 de 15 experimentos con efecto real; clientes solapados en ~5 experimentos cada uno.
 
 Hechos reales del dataset para F7 (verificados 2026-10-08): `experiment_metrics` son **series diarias por rama** (no hay datos por usuario); `exp-checkout-v2` +7,8 % relativo (t = 5,34, p = 1,8e-6, 29 días), `exp-social-ads-geo-holdout` +5,9 % (último clic dice +22 %), `exp-reco-engine` SRM 11.166/8.834 (χ² = 271,9), `exp-onboarding-flow` y los 11 genéricos son nulos (p ≥ 0,36). No existe una columna pre-experimento por usuario: para CUPED derivar el ingreso previo de `orders`. Los productos tienen tasas de devolución indistinguibles del azar (dispersión 1,13 pp = esperada); el transportista es aleatorio (sin efecto real).
 

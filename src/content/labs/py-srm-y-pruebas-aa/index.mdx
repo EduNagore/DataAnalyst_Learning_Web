@@ -1,0 +1,27 @@
+---
+title: 'SRM en los 15 experimentos de Lumen y pruebas A/A por simulación'
+description: 'Calcula el test de desajuste de proporción de muestra (SRM) para cada experimento de Lumen, identifica el que está roto y simula pruebas A/A para ver la tasa real de falsos positivos.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: experimentacion
+difficulty: 2
+estimatedMinutes: 30
+concepts: ['SRM', 'χ² de bondad de ajuste', 'umbral estricto', 'prueba A/A', 'simulación']
+datasets: ['experiment_assignments']
+packages: ['scipy']
+output: console
+hints:
+  - 'Para dos ramas con reparto `(rc, rt)`: `esperado = [N*rc, N*rt]`, `chi2 = sum((obs - esp)**2 / esp)` y `p = stats.chi2.sf(chi2, df=1)`. También sirve `stats.chisquare(obs, f_exp=esp)`.'
+  - 'Cuenta clientes por experimento y rama con `pd.crosstab(assignments.experiment_id, assignments.variant)` y marca `srm = p < umbral`.'
+  - 'Simulación A/A: en cada repetición, reparte `2*n_por_rama` usuarios con `rng.binomial(2*n, 0.5)` para el tamaño de rama de control y calcula el SRM; para la métrica, genera conversiones `rng.binomial(n, p)` en cada rama (n usuarios por rama) y un z de dos proporciones con la proporción agrupada. Vectoriza todo con arrays de tamaño `n_exp`.'
+relatedLessons: ['experimentacion/02-validez-srm-experimentos-aa-y-ley-de-twyman']
+businessQuestion: '¿Qué experimentos de Lumen tienen la aleatorización rota y qué tasa de falsas alarmas producen los umbrales habituales?'
+---
+
+Implementa tres funciones:
+
+1. **`srm_chi2(control, tratamiento, reparto=(0.5, 0.5))`** → `(chi2, p)` del contraste de bondad de ajuste con 1 grado de libertad.
+2. **`srm_todos(assignments, umbral=0.001)`** → DataFrame con una fila por experimento y las columnas `experiment_id`, `control`, `tratamiento`, `pct_tratamiento` (en %), `chi2`, `p` y `srm` (booleano: `p < umbral`), ordenado por `p` ascendente.
+3. **`simular_aa(n_exp=4000, n_por_rama=5000, p=0.054, seed=0)`** → diccionario con `signif_05` (fracción de pruebas A/A cuya métrica sale «significativa» con $\alpha=0{,}05$) y `srm_001` (fracción marcada como SRM con $p<0{,}001$), cuando **no hay ningún problema** (A/A con asignación aleatoria).
+
+El script imprime la tabla de SRM y la simulación.

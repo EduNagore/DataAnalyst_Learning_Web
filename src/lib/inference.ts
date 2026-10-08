@@ -180,3 +180,145 @@ export function srmTest(control: number, treatment: number, expectedShare = 0.5)
   const p = 2 * (1 - normalCdf(z, 0, 1));
   return { chi2, p };
 }
+
+export interface CupedSample {
+  x: number[];
+  y: number[];
+  treated: boolean[];
+}
+
+export interface CupedResult {
+  rawEffect: number;
+  rawSe: number;
+  cupedEffect: number;
+  cupedSe: number;
+  theta: number;
+  rho: number;
+  varianceReduction: number;
+}
+
+/** Genera una muestra con covariable previa X, métrica Y correlacionada (ρ) y un efecto aditivo. */
+export function simulateCupedSample(
+  rho: number,
+  effect: number,
+  n: number,
+  seed: number,
+): CupedSample {
+  const u = rng(seed);
+  const x: number[] = [];
+  const y: number[] = [];
+  const treated: boolean[] = [];
+  for (let i = 0; i < n; i++) {
+    const xi = randn(u);
+    const t = i % 2 === 1;
+    const yi = rho * xi + Math.sqrt(Math.max(0, 1 - rho * rho)) * randn(u) + (t ? effect : 0);
+    x.push(xi);
+    y.push(yi);
+    treated.push(t);
+  }
+  return { x, y, treated };
+}
+
+const mean = (a: number[]) => a.reduce((s, v) => s + v, 0) / a.length;
+const variance = (a: number[]) => {
+  const m = mean(a);
+  return a.reduce((s, v) => s + (v - m) ** 2, 0) / (a.length - 1);
+};
+
+/** Efecto y error estándar (Welch) con y sin ajuste CUPED con la covariable previa. */
+export function cupedAnalysis(sample: CupedSample): CupedResult {
+  const { x, y, treated } = sample;
+  const mx = mean(x);
+  const my = mean(y);
+  const cov = x.reduce((s, v, i) => s + (v - mx) * (y[i] - my), 0) / (x.length - 1);
+  const theta = cov / variance(x);
+  const adjusted = y.map((v, i) => v - theta * (x[i] - mx));
+  const split = (a: number[]) => [a.filter((_, i) => treated[i]), a.filter((_, i) => !treated[i])];
+  const effectSe = (a: number[]) => {
+    const [t, c] = split(a);
+    return {
+      effect: mean(t) - mean(c),
+      se: Math.sqrt(variance(t) / t.length + variance(c) / c.length),
+    };
+  };
+  const raw = effectSe(y);
+  const cuped = effectSe(adjusted);
+  const rho = cov / Math.sqrt(variance(x) * variance(y));
+  return {
+    rawEffect: raw.effect,
+    rawSe: raw.se,
+    cupedEffect: cuped.effect,
+    cupedSe: cuped.se,
+    theta,
+    rho,
+    varianceReduction: 1 - variance(adjusted) / variance(y),
+  };
+}
+
+/** Límites constantes (Pocock) y escalados (tipo O'Brien-Fleming, z_k = c·√(K/k)) para α = 0,05 bilateral. */
+export const POCOCK_BOUNDARY: Record<number, number> = {
+  1: 1.96,
+  2: 2.178,
+  3: 2.289,
+  5: 2.413,
+  10: 2.555,
+  20: 2.672,
+};
+export const OBF_CONSTANT: Record<number, number> = {
+  1: 1.96,
+  2: 1.978,
+  3: 2.012,
+  5: 2.041,
+  10: 2.087,
+  20: 2.125,
+};
+
+/** Estadísticos z acumulados de un experimento A/A con `looks` revisiones igualmente espaciadas. */
+export function zPath(looks: number, u: () => number): number[] {
+  const z: number[] = [];
+  let s = 0;
+  for (let k = 1; k <= looks; k++) {
+    s += randn(u);
+    z.push(s / Math.sqrt(k));
+  }
+  return z;
+}
+
+export interface PeekingRates {
+  finalOnly: number;
+  peeking: number;
+  pocock: number;
+  obf: number;
+}
+
+/** Tasa de falsos positivos de A/A según la regla de parada (todas con α = 0,05 nominal). */
+export function peekingRates(looks: number, trials: number, seed: number): PeekingRates {
+  const u = rng(seed);
+  const pocock = POCOCK_BOUNDARY[looks] ?? 1.96;
+  const c = OBF_CONSTANT[looks] ?? 1.96;
+  let finalOnly = 0;
+  let peeking = 0;
+  let pocockHits = 0;
+  let obfHits = 0;
+  for (let t = 0; t < trials; t++) {
+    const z = zPath(looks, u);
+    if (Math.abs(z[looks - 1]) > 1.96) finalOnly++;
+    if (z.some((v) => Math.abs(v) > 1.96)) peeking++;
+    if (z.some((v) => Math.abs(v) > pocock)) pocockHits++;
+    if (z.some((v, i) => Math.abs(v) > c * Math.sqrt(looks / (i + 1)))) obfHits++;
+  }
+  return {
+    finalOnly: finalOnly / trials,
+    peeking: peeking / trials,
+    pocock: pocockHits / trials,
+    obf: obfHits / trials,
+  };
+}
+
+/** Razón de verosimilitud de la prueba secuencial de mezcla (mSPRT) para la media de datos normales. */
+export function msprtLambda(n: number, xbar: number, sigma2: number, tau2: number): number {
+  return (
+    Math.sqrt(sigma2 / (sigma2 + n * tau2)) *
+    Math.exp((n * n * tau2 * xbar * xbar) / (2 * sigma2 * (sigma2 + n * tau2)))
+  );
+}

@@ -1,0 +1,75 @@
+lesson: experimentacion/05-metricas-de-ratio-interferencia-y-cultura-de-experimentacion
+questions:
+  - id: exp-05-q1
+    type: single
+    difficulty: 2
+    prompt: 'Aleatorizas por usuario, pero analizas «ingresos por sesión» tratando cada sesión como una observación independiente. ¿Cuál es la consecuencia?'
+    options:
+      - 'El efecto estimado queda sesgado a la baja'
+      - 'El error estándar es demasiado pequeño y los p-valores son demasiado optimistas, porque las sesiones de un mismo usuario están correlacionadas'
+      - 'No pasa nada: la métrica es una razón'
+      - 'El test pierde potencia'
+    answer: [1]
+    explanation: 'Las sesiones de un usuario no son independientes. Hay que analizar a nivel de usuario (método delta o bootstrap por usuario), que coincide con la unidad de aleatorización.'
+    ref: '#métricas-de-ratio-y-el-método-delta'
+
+  - id: exp-05-q2
+    type: single
+    difficulty: 2
+    prompt: 'Un nuevo diseño atrae muchos clics la primera semana y luego su efecto decae. ¿Cómo se llama el fenómeno y qué haces?'
+    options:
+      - 'Efecto de primacía; paras el experimento'
+      - 'Efecto de novedad; analizas el efecto por semana y alargas o añades un holdout de largo plazo'
+      - 'SRM; relanzas'
+      - 'Regresión a la media; no haces nada'
+    answer: [1]
+    explanation: 'Cuando el efecto decae con el tiempo es un efecto de novedad. Para estimar el efecto estable conviene mirar su evolución, alargar la duración o mantener un holdout de largo plazo.'
+    ref: '#efectos-de-novedad-y-de-primacía'
+
+  - id: exp-05-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las situaciones en las que es probable que haya interferencia entre unidades (violación de SUTVA).'
+    options:
+      - 'Una red social donde el cambio afecta a lo que ven los amigos'
+      - 'Una política de envío que consume un stock compartido por todos los usuarios'
+      - 'Un cambio en el presupuesto de anuncios de una campaña que compite con otras'
+      - 'Un cambio del color de un botón en un sitio de contenidos estáticos'
+    answer: [0, 1, 2]
+    explanation: 'Con efectos de red, recursos compartidos o mercados donde unas unidades compiten con otras, lo que le pasa a un usuario depende de las asignaciones de los demás. El botón de color afecta solo a quien lo ve.'
+    ref: '#interferencia-entre-unidades'
+
+  - id: exp-05-q4
+    type: single
+    difficulty: 3
+    prompt: 'Un cambio es significativo en móvil (p = 0,03) y no en escritorio (p = 0,20). ¿Qué puedes concluir?'
+    options:
+      - 'Que el cambio solo funciona en móvil'
+      - 'Nada firme: una diferencia entre «significativo» y «no significativo» no es una diferencia significativa; hay que contrastar la interacción'
+      - 'Que el cambio perjudica a escritorio'
+      - 'Que hay que repetir el experimento solo en móvil'
+    answer: [1]
+    explanation: 'Compara los efectos de los dos segmentos directamente (interacción tratamiento × dispositivo) y recuerda que cada corte es una comparación más. Si no estaba preespecificado, trátalo como hipótesis exploratoria.'
+    ref: '#efectos-heterogéneos'
+
+  - id: exp-05-q5
+    type: single
+    difficulty: 2
+    prompt: 'Para medir el efecto de un cambio de política de precios en una plataforma de logística con una flota compartida, ¿qué diseño es más apropiado?'
+    options:
+      - 'Aleatorizar por usuario 50/50'
+      - 'Un switchback (alternar la política en el tiempo) o un diseño por zonas/clústeres'
+      - 'Comparar antes y después sin grupo de control'
+      - 'Mirar solo la media del primer día'
+    answer: [1]
+    explanation: 'Cuando las unidades comparten recursos, aleatorizar por usuario mezcla los efectos. Alternar la política en el tiempo (switchback) o asignar zonas completas evita la interferencia, cuidando los efectos de arrastre entre periodos.'
+    ref: '#interferencia-entre-unidades'
+
+  - id: exp-05-q6
+    type: numeric
+    difficulty: 1
+    prompt: 'De los 15 experimentos de Lumen, solo 2 tienen un efecto real. ¿Qué porcentaje es, redondeado al entero más cercano?'
+    answer: [13]
+    tolerance: 0.6
+    explanation: '2 / 15 = 13,3 %. Es una buena ilustración de que la mayoría de los cambios no mueven la métrica y de que los resultados nulos son lo normal.'
+    ref: '#cultura-de-experimentación'

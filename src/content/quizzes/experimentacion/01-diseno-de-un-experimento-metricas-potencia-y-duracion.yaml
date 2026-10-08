@@ -1,0 +1,71 @@
+lesson: experimentacion/01-diseno-de-un-experimento-metricas-potencia-y-duracion
+questions:
+  - id: exp-01-q1
+    type: single
+    difficulty: 1
+    prompt: 'Vas a probar un nuevo flujo de checkout. ¿Cuál es normalmente la mejor unidad de aleatorización?'
+    options:
+      - 'La sesión, porque es lo que se mide en analítica web'
+      - 'El usuario (cliente), con una asignación estable por hash'
+      - 'El pedido'
+      - 'El día de la semana'
+    answer: [1]
+    explanation: 'El usuario debe ver siempre la misma versión; aleatorizar por sesión contamina la experiencia y genera observaciones no independientes del mismo usuario.'
+    ref: '#población-y-unidad-de-aleatorización'
+
+  - id: exp-01-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'Necesitas 30.000 usuarios en total (todas las ramas) y llegan 1.000 usuarios elegibles al día. ¿Cuántas semanas completas dura el experimento?'
+    answer: [5]
+    tolerance: 0
+    explanation: '30.000 / 1.000 = 30 días, que son 4,3 semanas; se redondea a semanas completas, es decir, 5, para no sesgar la medición por el día de la semana.'
+    ref: '#duración'
+
+  - id: exp-01-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'En el test del nuevo checkout, selecciona TODAS las métricas que serían buenos guardarraíles.'
+    options:
+      - 'Tasa de cancelación de pedidos'
+      - 'Tasa de devoluciones'
+      - 'Incidencias de pago'
+      - 'Número de clics en el botón del nuevo flujo'
+    answer: [0, 1, 2]
+    explanation: 'Los guardarraíles detectan daños que no se aceptarían aunque la principal mejore. Los clics en el botón son una métrica diagnóstica o secundaria: cuentan uso, no un daño potencial.'
+    ref: '#métricas'
+
+  - id: exp-01-q4
+    type: single
+    difficulty: 2
+    prompt: '¿Por qué conviene que la duración sea un número entero de semanas?'
+    options:
+      - 'Porque los cálculos de potencia solo funcionan con semanas'
+      - 'Porque el comportamiento cambia con el día de la semana y una muestra incompleta sobrerrepresentaría algunos días'
+      - 'Porque las plataformas solo permiten múltiplos de 7 días'
+      - 'Porque así se reduce el número de usuarios necesario'
+    answer: [1]
+    explanation: 'En Lumen hay unas 965 sesiones los sábados y unas 742 los domingos. Cortar el experimento a mitad de semana mide una mezcla de días que no representa el uso real.'
+    ref: '#duración'
+
+  - id: exp-01-q5
+    type: single
+    difficulty: 2
+    prompt: 'El tráfico no alcanza para detectar el efecto esperado en un tiempo razonable. ¿Cuál NO es una opción válida?'
+    options:
+      - 'Probar un cambio con un efecto esperado mayor'
+      - 'Usar una métrica más sensible y reducir la varianza (por ejemplo, CUPED)'
+      - 'Lanzar el test igualmente y pararlo en cuanto el p-valor baje de 0,05'
+      - 'Complementar con un cuasiexperimento o evidencia cualitativa'
+    answer: [2]
+    explanation: 'Parar cuando sale significativo (peeking) infla la tasa de falsos positivos; no sustituye a la potencia que falta. Las otras tres son alternativas legítimas.'
+    ref: '#duración'
+
+  - id: exp-01-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Es aceptable cambiar la métrica principal después de ver los resultados siempre que lo anotes en el informe.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Elegir la métrica con los datos delante multiplica las comparaciones reales y es p-hacking aunque se documente. La métrica principal, el análisis y la regla de decisión se fijan antes de lanzar.'
+    ref: '#registro-previo-del-diseño'

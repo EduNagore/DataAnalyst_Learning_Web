@@ -1,0 +1,232 @@
+---
+title: 'Diseño de un experimento: hipótesis, unidad, métricas, potencia y duración'
+description: 'Cómo diseñar un A/B test antes de lanzarlo: hipótesis, población y unidad de aleatorización, métrica principal, guardarraíles, efecto mínimo detectable, duración en semanas completas y qué hacer cuando el tráfico no alcanza.'
+module: experimentacion
+order: 1
+level: intermedio
+estimatedMinutes: 50
+objectives:
+  - 'Redactar una hipótesis comprobable y elegir población, unidad de aleatorización y mecanismo de asignación.'
+  - 'Definir una métrica principal (OEC), métricas secundarias, guardarraíles y métricas de calidad de datos.'
+  - 'Calcular la duración de un experimento a partir del tráfico diario, el efecto mínimo detectable y los ciclos semanales.'
+  - 'Decidir qué hacer cuando el tráfico no permite detectar el efecto buscado (apuestas mayores, CUPED, menos exigencia, alternativas).'
+  - 'Documentar el diseño en un registro previo que fije el análisis antes de ver los datos.'
+prerequisites: ['inferencia/02-contrastes-p-valor-errores-y-potencia']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Kohavi, Tang & Xu — Trustworthy Online Controlled Experiments'
+    url: 'https://experimentguide.com/'
+    type: book
+    authors: 'Kohavi, R., Tang, D., Xu, Y.'
+    year: 2020
+  - title: 'Evan Miller — How Not To Run an A/B Test'
+    url: 'https://www.evanmiller.org/how-not-to-run-an-ab-test.html'
+    type: blog
+    authors: 'Miller, E.'
+    year: 2010
+  - title: 'Evan Miller — Sample size calculator for A/B tests'
+    url: 'https://www.evanmiller.org/ab-testing/sample-size.html'
+    type: blog
+    authors: 'Miller, E.'
+    year: 2026
+  - title: 'Lakens — Improving Your Statistical Inferences'
+    url: 'https://lakens.github.io/statistical_inferences/'
+    type: book
+    authors: 'Lakens, D.'
+    year: 2022
+relatedLabs: ['py-duracion-y-mde']
+relatedCases: ['checkout-nuevo']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import VegaChart from '../../../components/content/VegaChart.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Producto de Lumen quiere probar un nuevo flujo de checkout y pregunta: «¿cuánto tiempo hace falta?
+  ¿Lo dejamos dos semanas y vemos?». Con la conversión base del 5,4 % y unas 759 sesiones al día
+  (media de los últimos 90 días del dataset), la respuesta honesta depende de qué mejora quieren
+  poder detectar. Y para algunas mejoras, la respuesta honesta es «no podemos medirlo con un A/B
+  test en un tiempo razonable».
+</BusinessContext>
+
+Un experimento mal diseñado no se arregla en el análisis: si no tienes potencia, el resultado es inconcluyente; si la métrica es mala, mides lo equivocado; y si no fijas el análisis de antemano, dejas la puerta abierta al p-hacking. Diseñar bien cuesta una hora y ahorra semanas.
+
+## Intuición
+
+Un experimento controlado aleatorio (A/B test) es la mejor herramienta para estimar un **efecto causal**: asignas al azar quién ve cada versión, de modo que las dos ramas son comparables en todo salvo en el cambio. El diseño responde a seis preguntas antes de empezar:
+**qué crees** (hipótesis), **a quién** (población), **a qué unidad** (aleatorización), **qué mides** (métricas), **cuánto necesitas** (potencia y duración) y **cómo decidirás** (reglas de decisión).
+
+## Cómo funciona
+
+### Hipótesis
+
+Una buena hipótesis incluye el cambio, la métrica afectada, la dirección esperada y el mecanismo:
+
+> «Si reducimos el checkout de cinco a tres pasos, la **conversión** subirá al menos un **5 % relativo** porque se reduce la fricción en pagos; esperamos que el **importe medio por pedido** no baje.»
+
+Sin mecanismo y sin tamaño esperado no hay forma de calcular la muestra ni de interpretar el resultado.
+
+### Población y unidad de aleatorización
+
+- **Población elegible:** quién puede entrar en el experimento (clientes con carrito, nuevos visitantes…). Se define por criterios **previos** a la asignación; filtrar por algo que ocurre después (por ejemplo, «los que llegan al pago») sesga la comparación.
+- **Unidad de aleatorización:** lo que se asigna a una rama de forma estable. La más habitual es el **usuario** (cliente o dispositivo), no la sesión ni el pedido: si una persona ve versiones distintas en sesiones diferentes, la experiencia se contamina y las observaciones no son independientes.
+- **Mecanismo:** asignar con una función hash determinista de `id_usuario + sal_del_experimento`, de modo que el mismo usuario vea siempre la misma rama y que distintos experimentos no se correlacionen.
+- **Unidad de análisis = unidad de aleatorización**, salvo que uses métodos que corrijan la dependencia (método delta, errores robustos por clúster).
+
+### Métricas
+
+| Tipo                        | Para qué sirve                                       | Ejemplo en el checkout de Lumen                                      |
+| --------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------- |
+| **OEC** / métrica principal | La decisión se toma con ella; una sola (o un índice) | Conversión de visita a pedido                                        |
+| **Secundarias**             | Entender el mecanismo; no deciden                    | Abandono por paso, tiempo de checkout                                |
+| **Guardarraíles**           | Daños que no se aceptan aunque la principal mejore   | Tasa de cancelación y de devoluciones, latencia, incidencias de pago |
+| **Calidad de datos**        | Comprobar que el experimento es válido               | Reparto de usuarios entre ramas (SRM), exposición registrada         |
+
+Una buena métrica principal es **sensible** (se mueve con cambios realistas), **robusta** (no depende de unos pocos valores extremos), **atribuible** al cambio y **alineada** con el objetivo a largo plazo. A veces la métrica que importa (retención a un año) no es observable en
+dos semanas y se usa una métrica **proxy** de corto plazo con evidencia de que predice la de largo.
+
+### Efecto mínimo detectable (MDE) y tamaño de muestra
+
+El **MDE** es el cambio más pequeño que justificaría desplegar el cambio (decisión de negocio: coste, riesgo, valor). Con la fórmula de la lección de inferencia, para una conversión base de $p_1 = 5{,}4\,\%$, $\alpha = 0{,}05$ bilateral y potencia $0{,}80$:
+
+| MDE relativo | Tamaño por rama | Tamaño total |
+| ------------ | --------------: | -----------: |
+| +8 %         |          44.582 |       89.164 |
+| +10 %        |          28.789 |       57.578 |
+| +20 %        |           7.516 |       15.032 |
+
+### Duración
+
+La duración sale de dividir el tamaño total necesario entre el tráfico elegible diario, y se **redondea a semanas completas**, porque el comportamiento cambia con el día de la semana. En Lumen, las sesiones medias por día de la semana (último año) son
+835 (lunes), 824, 834, 831, **954 (viernes)**, **965 (sábado)** y **742 (domingo)**: medir solo cinco días o cortar un domingo sesgaría el resultado.
+
+Con 759 sesiones al día y reparto 50/50:
+
+| MDE relativo | Días necesarios | Semanas completas |
+| ------------ | --------------: | ----------------: |
+| +8 %         |             118 |                17 |
+| +10 %        |              76 |                11 |
+| +20 %        |              20 |                 3 |
+
+Dicho al revés, ¿qué se puede detectar con una duración dada?
+
+<VegaChart
+  minHeight={300}
+  alt="Efecto relativo mínimo detectable con potencia 0,80 según las semanas de experimento en Lumen, con 759 sesiones al día: 34,7 % con una semana, 24 % con dos, 16,7 % con cuatro, 11,7 % con ocho, 9,5 % con doce y 8,0 % con diecisiete."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    width: 'container',
+    height: 220,
+    background: 'transparent',
+    data: {
+      values: [
+        { semanas: 1, mde: 34.65 },
+        { semanas: 2, mde: 23.99 },
+        { semanas: 4, mde: 16.7 },
+        { semanas: 8, mde: 11.68 },
+        { semanas: 12, mde: 9.49 },
+        { semanas: 17, mde: 7.95 },
+      ],
+    },
+    layer: [
+      {
+        mark: { type: 'line', point: true, color: '#4C78A8' },
+        encoding: {
+          x: {
+            field: 'semanas',
+            type: 'quantitative',
+            title: 'Semanas de experimento',
+            axis: { tickMinStep: 1 },
+          },
+          y: { field: 'mde', type: 'quantitative', title: 'MDE relativo (%)' },
+        },
+      },
+      {
+        mark: { type: 'text', dy: -10, fontSize: 11 },
+        encoding: {
+          x: { field: 'semanas', type: 'quantitative' },
+          y: { field: 'mde', type: 'quantitative' },
+          text: { field: 'mde', type: 'quantitative', format: '.1f' },
+        },
+      },
+    ],
+  }}
+/>
+
+El MDE baja con la **raíz** de la duración: pasar de 4 a 17 semanas reduce el efecto detectable del 16,7 % al 8,0 %, pero cuesta mucho más tiempo, y durante ese tiempo la empresa decide a ciegas o con otros cambios simultáneos.
+
+<Callout type="warning">
+  Una empresa con poco tráfico **no puede** detectar mejoras pequeñas con un A/B test en tiempos
+  razonables. Las opciones honestas son: probar **cambios más grandes** (apuestas con efecto
+  esperado mayor), usar una **métrica más sensible** (conversión en el paso afectado en lugar de
+  ingresos totales), **reducir la varianza** (CUPED, siguiente lección), relajar $\alpha$ o la
+  potencia si el coste de equivocarse es bajo, o recurrir a evidencia **cualitativa** y
+  **cuasiexperimentos** (módulo de causalidad).
+</Callout>
+
+### Otras decisiones de diseño
+
+- **Reparto:** 50/50 maximiza la potencia; un reparto asimétrico (90/10) se usa para despliegues graduales de riesgo, a costa de duración.
+- **Cuántas variantes:** cada variante extra reparte el tráfico y exige corregir por comparaciones múltiples.
+- **Periodo de enfriamiento y rampa:** empezar con 1-5 % del tráfico para detectar errores graves y subir; el análisis confirmatorio se hace sobre la fase estable.
+- **Solapamiento de experimentos:** ortogonalizar con distintas sales o capas de asignación; sin cuidado, interactúan.
+- **Ética y riesgo:** no se hacen experimentos que puedan dañar a los usuarios, y la información personal se trata según la normativa.
+
+### Registro previo del diseño
+
+Antes de lanzar, escribe (y fecha) una ficha con: hipótesis, población, unidad, métrica principal y guardarraíles con umbrales, MDE, $\alpha$, potencia, tamaño y duración, regla de decisión («desplegar si la conversión sube al menos un 5 % con IC por encima de 0 y ningún guardarraíl empeora más de X»), análisis previsto y exclusiones. Es la mejor defensa contra el análisis «a medida» después de ver los datos.
+
+## En la práctica
+
+1. **Redacta la hipótesis** con mecanismo y tamaño esperado.
+2. **Define población, unidad y asignación** (hash estable, sal por experimento).
+3. **Elige métrica principal, guardarraíles y comprobaciones de calidad.**
+4. **Calcula tamaño y duración** con el tráfico real elegible (no el total del sitio) y redondea a semanas completas.
+5. **Haz un A/A** o revisa un histórico para validar la tubería y la varianza.
+6. **Registra el diseño**, lanza con una rampa y supervisa SRM y guardarraíles desde el primer día.
+
+En el lab calcularás la duración y el MDE alcanzable a partir del tráfico real de `web_sessions`, y en el caso «¿Lanzamos el nuevo checkout?» tomarás la decisión con el resultado.
+
+## Trade-offs y cuándo usarlo
+
+- **Potencia frente a velocidad:** más potencia exige más tiempo; si el coste de esperar es alto, acepta un MDE mayor y complementa con otras fuentes.
+- **Métrica sensible frente a métrica relevante:** la conversión del paso afectado es sensible pero no es el negocio; los ingresos son el negocio pero con ruido. Usa la sensible para decidir si la relación con la de negocio está justificada.
+- **Muchas métricas frente a decisión clara:** cuantas más métricas «de decisión», más falsos positivos y más conflictos. Una principal, pocos guardarraíles.
+- **Experimento frente a otras evidencias:** un A/B test no siempre es posible (efectos de red, pocas unidades, cambios irreversibles, pocos datos); entonces diseña un cuasiexperimento o un piloto.
+
+## Errores comunes
+
+- **Calcular la duración con el tráfico total** del sitio en lugar del elegible.
+- **Parar a mitad de semana** o en cuanto el resultado «sale».
+- **Aleatorizar por sesión** y analizar por usuario (o al revés).
+- **Elegir la métrica principal después de ver los datos.**
+- **Ignorar los guardarraíles** hasta que alguien pregunte por ellos.
+- **Cambiar el experimento a mitad** (nueva variante, nuevo reparto) sin reiniciar.
+- **Lanzar varios experimentos solapados** sobre la misma población sin pensar en interacciones.
+
+## Con IA
+
+Un asistente puede redactar la ficha del diseño y proponer métricas, pero tiende a listar demasiadas métricas «principales», a olvidar los guardarraíles y a calcular la duración con cifras de tráfico inventadas. Dale el **tráfico elegible real**, la métrica base y el MDE de negocio y **comprueba** el tamaño de muestra con tu propio cálculo.
+
+## En una entrevista
+
+- _"Diseña un A/B test para un nuevo flujo de checkout."_ — Pista: hipótesis, población, unidad (usuario), métrica principal, guardarraíles, MDE, duración en semanas completas, SRM, regla de decisión.
+- _"No tenemos tráfico suficiente para el efecto que esperamos. ¿Qué haces?"_ — Pista: cambios mayores, métrica más sensible, CUPED, relajar parámetros, cuasiexperimentos, evidencia cualitativa.
+- _"¿Por qué semanas completas?"_ — Pista: estacionalidad semanal; sesgo si la muestra sobrerrepresenta algunos días.
+
+<KeyTakeaways
+  items={[
+    'Un diseño completo fija hipótesis con mecanismo y tamaño, población, unidad de aleatorización (normalmente el usuario), métrica principal, guardarraíles, MDE, duración y regla de decisión antes de ver datos.',
+    'La duración sale del tamaño total necesario entre el tráfico elegible diario y se redondea a semanas completas: en Lumen (759 sesiones/día), detectar +8 % sobre una conversión del 5,4 % exige 17 semanas, +10 % 11 y +20 % 3.',
+    'El efecto mínimo detectable baja con la raíz de la duración: 16,7 % en 4 semanas, 11,7 % en 8 y 8,0 % en 17.',
+    'Con poco tráfico hay que probar apuestas mayores, usar métricas más sensibles, reducir la varianza (CUPED) o complementar con cuasiexperimentos y evidencia cualitativa.',
+    'La unidad de análisis debe ser la de aleatorización; la métrica principal, el análisis y las exclusiones se registran por escrito antes de lanzar.',
+  ]}
+/>

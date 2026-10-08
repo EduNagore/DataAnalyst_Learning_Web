@@ -1,0 +1,75 @@
+lesson: experimentacion/04-peeking-tests-secuenciales-y-analisis-siempre-valido
+questions:
+  - id: exp-04-q1
+    type: single
+    difficulty: 1
+    prompt: 'Un A/A sin ningún efecto se revisa 10 veces y se para en cuanto p < 0,05. ¿Qué proporción de estos experimentos acabará declarando un «ganador», aproximadamente?'
+    options:
+      - '5 %'
+      - '10 %'
+      - '19 %'
+      - '50 %'
+    answer: [2]
+    explanation: 'Con 10 revisiones la tasa de falsos positivos al parar en el primer p < 0,05 es de alrededor del 19 %, casi cuatro veces el nivel nominal. Con 20 revisiones sube al 25 %.'
+    ref: '#cuánto-se-infla-el-error'
+
+  - id: exp-04-q2
+    type: single
+    difficulty: 2
+    prompt: 'Comparado con los límites de Pocock, ¿qué caracteriza a los límites de O’Brien-Fleming?'
+    options:
+      - 'Son iguales en todas las revisiones'
+      - 'Son muy exigentes al principio y casi iguales a 1,96 al final, por lo que apenas pierden potencia'
+      - 'Son más permisivos al principio para parar pronto'
+      - 'Solo valen para métricas binarias'
+    answer: [1]
+    explanation: 'O’Brien-Fleming usa límites c·√(K/k): altos al principio (4,56 en la primera de cinco revisiones) y 2,04 en la última. Pocock usa un límite constante (2,41 con cinco revisiones).'
+    ref: '#grupo-secuencial-pocock-y-obrien-fleming'
+
+  - id: exp-04-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las formas legítimas de afrontar la presión por «mirar el experimento cada día».'
+    options:
+      - 'Fijar el horizonte y ocultar el p-valor hasta alcanzar la muestra planificada'
+      - 'Usar un diseño de grupo secuencial con límites decididos de antemano'
+      - 'Usar inferencia siempre válida (mSPRT o secuencias de confianza)'
+      - 'Parar en cuanto el p-valor de un t clásico baje de 0,05'
+    answer: [0, 1, 2]
+    explanation: 'La cuarta opción es justamente el peeking que infla los falsos positivos. Las otras tres controlan el error de forma explícita o evitan decidir antes de tiempo.'
+    ref: '#soluciones'
+
+  - id: exp-04-q4
+    type: single
+    difficulty: 3
+    prompt: '¿Qué garantiza la desigualdad de Ville para el mSPRT?'
+    options:
+      - 'Que la potencia siempre es del 80 %'
+      - 'Que, sin efecto, la probabilidad de que la razón de verosimilitudes Λ alcance alguna vez 1/α es como mucho α'
+      - 'Que el efecto estimado es insesgado al parar'
+      - 'Que no hace falta fijar ninguna distribución a priori'
+    answer: [1]
+    explanation: 'Bajo la nula, Λₙ es una martingala no negativa con esperanza 1; la desigualdad de Ville acota por α la probabilidad de que supere 1/α en cualquier momento. No dice nada de la potencia ni del sesgo del efecto estimado al parar pronto.'
+    ref: '#inferencia-siempre-válida-y-msprt'
+
+  - id: exp-04-q5
+    type: single
+    difficulty: 2
+    prompt: 'En Lumen, exp-generic-02 (sin efecto) mostró p = 0,045 el día 5 y terminó con p = 0,54. ¿Qué lección ilustra?'
+    options:
+      - 'Que los experimentos genéricos no son fiables'
+      - 'Que mirar cada día y parar cuando sale significativo habría producido un falso ganador'
+      - 'Que el p-valor final siempre es mayor que el inicial'
+      - 'Que hay un SRM'
+    answer: [1]
+    explanation: 'Con un efecto real nulo, el paseo aleatorio del estadístico cruzó el umbral de forma transitoria. Si se hubiera parado ese día, se habría declarado un ganador que no existía.'
+    ref: '#el-caso-real-de-lumen'
+
+  - id: exp-04-q6
+    type: truefalse
+    difficulty: 3
+    prompt: 'Si analizas con un enfoque bayesiano, puedes parar el experimento cuando la probabilidad de que B sea mejor supere el 95 % sin afectar a la tasa de falsos positivos.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. La posterior es coherente, pero parar con una regla de umbral no controla la tasa de falsos «ganadores» en experimentos sin efecto; hay que simular la regla de parada o usar un diseño con garantías.'
+    ref: '#y-el-enfoque-bayesiano'

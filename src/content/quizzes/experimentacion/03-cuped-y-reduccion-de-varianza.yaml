@@ -1,0 +1,71 @@
+lesson: experimentacion/03-cuped-y-reduccion-de-varianza
+questions:
+  - id: exp-03-q1
+    type: numeric
+    difficulty: 2
+    prompt: 'La métrica de un experimento tiene una correlación de 0,6 con la misma métrica del periodo previo. ¿Qué porcentaje de la varianza elimina CUPED?'
+    answer: [36]
+    tolerance: 0.5
+    explanation: 'CUPED deja una varianza igual a Var(Y)(1 − ρ²), así que elimina ρ² = 0,36, es decir, el 36 %.'
+    ref: '#la-corrección'
+
+  - id: exp-03-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál de estas covariables es válida para CUPED en un experimento que empieza el 1 de marzo?'
+    options:
+      - 'Las sesiones del usuario durante el experimento (marzo)'
+      - 'Los ingresos del usuario en los 90 días anteriores al 1 de marzo'
+      - 'El tiempo que el usuario pasa en el checkout nuevo'
+      - 'La rama asignada al usuario'
+    answer: [1]
+    explanation: 'La covariable debe medirse antes de la asignación para que tenga la misma distribución en las dos ramas. Las otras tres pueden estar afectadas por el tratamiento o ser el propio tratamiento.'
+    ref: '#la-corrección'
+
+  - id: exp-03-q3
+    type: single
+    difficulty: 2
+    prompt: 'En el experimento de onboarding de Lumen, CUPED redujo la varianza solo un 1,6 %. ¿Cuál es la explicación principal?'
+    options:
+      - 'CUPED está mal implementado'
+      - 'La métrica es muy dispersa (el 97 % no compra en el periodo) y la correlación con las compras previas es baja (ρ ≈ 0,13)'
+      - 'El experimento tenía muy pocos usuarios'
+      - 'La covariable se midió después de la asignación'
+    answer: [1]
+    explanation: 'El beneficio de CUPED es ρ²: con ρ = 0,126 solo se elimina el 1,6 %. Con métricas estables como sesiones semanales, ρ puede ser 0,6-0,9.'
+    ref: '#con-los-datos-reales-de-lumen'
+
+  - id: exp-03-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las situaciones en las que CUPED suele aportar una reducción grande de varianza.'
+    options:
+      - 'Métricas estables en el tiempo, como minutos de uso semanales'
+      - 'Usuarios recurrentes con historial amplio'
+      - 'Un modelo predictivo entrenado con datos previos usado como covariable (CUPAC)'
+      - 'Una métrica binaria rara medida en usuarios nuevos sin historial'
+    answer: [0, 1, 2]
+    explanation: 'Sin historial no hay covariable previa útil, y una métrica binaria rara tiene correlación baja con cualquier cosa previa.'
+    ref: '#cuándo-cuped-funciona-de-verdad'
+
+  - id: exp-03-q5
+    type: single
+    difficulty: 3
+    prompt: 'Aplicas CUPED y el efecto estimado cambia de +0,25 a +0,23 con un error estándar algo menor. ¿Qué indica?'
+    options:
+      - 'Que algo va mal: CUPED nunca debe cambiar el efecto'
+      - 'Que es normal: el ajuste conserva el efecto en esperanza, pero la estimación de una muestra concreta puede moverse un poco al eliminar ruido'
+      - 'Que el experimento tiene un SRM'
+      - 'Que hay que usar la covariable con signo contrario'
+    answer: [1]
+    explanation: 'CUPED es insesgado, no idéntico en cada muestra. Un cambio grande entre el efecto ajustado y el no ajustado sí sería señal de alarma (SRM o covariable inadecuada).'
+    ref: '#la-corrección'
+
+  - id: exp-03-q6
+    type: truefalse
+    difficulty: 3
+    prompt: 'Para calcular θ en CUPED es correcto estimarlo por separado dentro de cada rama.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. θ debe estimarse con los datos agrupados (o con la rama de control) y aplicarse igual a ambas ramas; si se estima por separado, el ajuste puede introducir sesgo en el efecto.'
+    ref: '#errores-comunes'

@@ -58,6 +58,40 @@ test('CoverageExplorer: simula 100 intervalos y reporta la cobertura', async ({ 
   expect(hits).toBeGreaterThan(85);
 });
 
+test('CupedDemo: la reducción de varianza crece con la correlación', async ({ page }) => {
+  await page.goto('teoria/experimentacion/03-cuped-y-reduccion-de-varianza/');
+  const demo = page.getByRole('figure').filter({ hasText: 'Demostración de CUPED' });
+  await demo.scrollIntoViewIfNeeded();
+  const resumen = demo.locator('p[aria-live="polite"]');
+  const slider = demo.getByRole('slider');
+  await expect
+    .poll(() => demo.locator('xpath=ancestor::astro-island').getAttribute('ssr'))
+    .toBeNull();
+  await slider.press('Home');
+  await expect(resumen).toContainText('(teoría: 1 − ρ² → 0 %)');
+  await slider.fill('0.9');
+  await expect(resumen).toContainText('→ 81 %)');
+  const eliminada = Number((await resumen.innerText()).match(/reducida: (\d+) %/)?.[1]);
+  expect(eliminada).toBeGreaterThan(70);
+});
+
+test('PeekingSimulator: mirar muchas veces infla los falsos positivos', async ({ page }) => {
+  await page.goto(
+    'teoria/experimentacion/04-peeking-tests-secuenciales-y-analisis-siempre-valido/',
+  );
+  const sim = page.getByRole('figure').filter({ hasText: 'Simulador de «mirar antes de tiempo»' });
+  await sim.scrollIntoViewIfNeeded();
+  const texto = sim.locator('div[aria-live="polite"]');
+  await expect
+    .poll(() => sim.locator('xpath=ancestor::astro-island').getAttribute('ssr'))
+    .toBeNull();
+  await sim.getByRole('combobox', { name: 'Número de revisiones' }).selectOption('20');
+  await expect(texto).toContainText('Con 20 revisiones');
+  const tasa = Number((await texto.innerText()).match(/Con 20 revisiones[\s\S]*?(\d+),\d %/)?.[1]);
+  expect(tasa).toBeGreaterThanOrEqual(20);
+  expect(tasa).toBeLessThanOrEqual(30);
+});
+
 const lessonsWithCharts = [
   'teoria/eda/01-preguntas-y-analisis-univariante/',
   'teoria/eda/02-relaciones-correlacion-y-segmentacion/',
@@ -67,6 +101,7 @@ const lessonsWithCharts = [
   'teoria/visualizacion/03-color-accesibilidad-e-incertidumbre/',
   'teoria/visualizacion/04-como-mienten-los-graficos-y-herramientas/',
   'teoria/inferencia/02-contrastes-p-valor-errores-y-potencia/',
+  'teoria/experimentacion/01-diseno-de-un-experimento-metricas-potencia-y-duracion/',
 ];
 
 for (const url of lessonsWithCharts) {
