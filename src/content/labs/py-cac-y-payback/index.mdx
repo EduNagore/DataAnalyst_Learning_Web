@@ -1,0 +1,31 @@
+---
+title: 'CAC mixto, CAC por canal y payback de una cohorte'
+description: 'Calcula cuánto cuesta captar un cliente (en total y por canal) y en qué mes el margen acumulado de una cohorte recupera ese coste.'
+language: python
+part: 'Parte 0 · Fundamentos del oficio'
+module: pensamiento-negocio
+difficulty: 2
+estimatedMinutes: 30
+concepts: ['CAC', 'CAC por canal', 'payback', 'margen acumulado', 'cohortes']
+datasets: ['customers', 'orders', 'order_items', 'products', 'marketing_spend']
+packages: []
+output: console
+hints:
+  - 'CAC = gasto del periodo / clientes nuevos del periodo. El gasto está en `marketing_spend` (`date`, `channel`, `spend_eur`) y las altas en `customers.signup_date`.'
+  - 'Para el CAC por canal, une el gasto por (año, canal) con las altas por (año, `acquisition_channel`).'
+  - 'Payback: acumula el margen con `cumsum()` y devuelve el primer índice (mes) en que el acumulado es mayor o igual que el CAC; si nunca se alcanza, devuelve `None`.'
+  - 'Redondeos: gasto sin decimales, CAC mixto con 2 decimales y CAC por canal con 1 decimal.'
+relatedLessons: ['pensamiento-negocio/03-unit-economics-cac-ltv-y-payback']
+businessQuestion: '¿Cuánto cuesta captar un cliente, por qué canal sale más barato y en cuántos meses se recupera?'
+---
+
+En el _starter_ tienes `margen_mensual`: el margen de contribución **por cliente** de la cohorte de 2024 en cada mes
+desde su alta (índice 0 = mes del alta). Implementa:
+
+1. **`cac_por_anio(marketing_spend, customers)`** → DataFrame con `anio`, `gasto` (euros, sin decimales), `clientes_nuevos`
+   y `cac_mixto` (2 decimales), ordenado por año.
+2. **`cac_por_canal(marketing_spend, customers, anio)`** → DataFrame con `channel`, `gasto`, `clientes_nuevos` y `cac`
+   (1 decimal) para un año, ordenado por `cac` ascendente.
+3. **`payback_meses(margen_mensual, cac)`** → primer mes en que el margen acumulado cubre el CAC, o `None` si nunca.
+
+Con el CAC mixto de 2024, ¿en qué mes se recupera? ¿Y si el CAC fuera de 400 €?

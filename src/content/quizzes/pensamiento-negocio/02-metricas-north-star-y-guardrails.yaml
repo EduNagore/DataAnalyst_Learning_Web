@@ -1,0 +1,75 @@
+lesson: pensamiento-negocio/02-metricas-north-star-y-guardrails
+questions:
+  - id: neg1-02-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué es un guardrail (métrica de control)?'
+    options:
+      - 'La métrica que se quiere maximizar'
+      - 'Una métrica que no debe empeorar mientras se optimiza otra, con un umbral que indica cuándo parar'
+      - 'Un informe mensual'
+      - 'Un objetivo individual de ventas'
+    answer: [1]
+    explanation: 'Los guardrails protegen lo que una optimización podría dañar (margen, devoluciones, cancelaciones, entregas) y se fijan antes de lanzar la acción.'
+    ref: '#tres-tipos-de-métrica'
+
+  - id: neg1-02-q2
+    type: single
+    difficulty: 2
+    prompt: 'Tres equipos hablan de «conversión»: 4,23 % (sesiones con compra / sesiones), 4,24 % (eventos de compra / sesiones) y 27,14 % (clientes que compraron / clientes que visitaron en 3,5 años). ¿Qué ocurre?'
+    options:
+      - 'Dos de ellos se han equivocado'
+      - 'Miden cosas distintas (unidad, numerador y ventana); hay que llamar a cada una por su nombre y fichar una definición oficial'
+      - 'La conversión no puede medirse'
+      - 'Hay que promediar las tres'
+    answer: [1]
+    explanation: 'La segunda cuenta eventos (y se infla con eventos duplicados) y la tercera cambia unidad y ventana. Todas son legítimas, pero no son la misma métrica.'
+    ref: '#definir-una-métrica-sin-ambigüedad'
+
+  - id: neg1-02-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los campos que la ficha de una métrica debe fijar para evitar ambigüedad.'
+    options:
+      - 'Grano (qué es una fila)'
+      - 'Filtros (cancelados, devoluciones, internos)'
+      - 'Ventana temporal y zona horaria'
+      - 'El color del gráfico donde se muestra'
+    answer: [0, 1, 2]
+    explanation: 'Grano, filtros, ventana, numerador y denominador, dueño y fuente. El color del gráfico no es parte de la definición de la métrica.'
+    ref: '#definir-una-métrica-sin-ambigüedad'
+
+  - id: neg1-02-q4
+    type: single
+    difficulty: 2
+    prompt: 'Enuncia la ley de Goodhart y elige el ejemplo correcto.'
+    options:
+      - 'Cuando una medida se convierte en objetivo deja de ser una buena medida; por ejemplo, premiar «más pedidos» puede llevar a regalar descuentos que destruyen margen'
+      - 'Las métricas siempre mejoran con el tiempo'
+      - 'Cuantas más métricas, mejor decisión'
+      - 'Un objetivo individual siempre alinea a la empresa'
+    answer: [0]
+    explanation: 'Al presionar sobre una métrica, se busca la vía más barata para moverla, que no siempre crea valor. Se mitiga combinando volumen y calidad y con guardrails.'
+    ref: '#la-ley-de-goodhart'
+
+  - id: neg1-02-q5
+    type: numeric
+    difficulty: 2
+    prompt: 'Un pedido sin descuento deja 142,1 € de margen y uno con un 30 % de descuento, 42,6 €. ¿Qué fracción del margen conserva el segundo? (dos decimales, entre 0 y 1)'
+    answer: [0.3]
+    tolerance: 0.011
+    explanation: '42,6 / 142,1 = 0,30: el pedido con el máximo descuento conserva el 30 % del margen del pedido sin descuento. Con «pedidos» como objetivo se pierde ese 70 %.'
+    ref: '#la-ley-de-goodhart'
+
+  - id: neg1-02-q6
+    type: single
+    difficulty: 3
+    prompt: 'Lumen elige «pedidos» como North Star. ¿Cuál es el principal problema y una alternativa mejor?'
+    options:
+      - 'No hay ningún problema'
+      - 'Es manipulable con descuentos; una alternativa es el margen de contribución, que obliga a equilibrar volumen y rentabilidad'
+      - 'No se puede medir'
+      - 'Es demasiado difícil de calcular'
+    answer: [1]
+    explanation: 'Una buena North Star es difícil de manipular sin crear valor real. Los pedidos se pueden comprar con descuentos; el margen de contribución combina volumen y rentabilidad.'
+    ref: '#tres-tipos-de-métrica'

@@ -1,0 +1,31 @@
+---
+title: 'Descomposición precio-volumen-mezcla de los ingresos'
+description: 'Reparte el crecimiento de los ingresos entre dos años en efecto volumen, efecto mezcla y efecto precio, y comprueba que suman exactamente la variación total.'
+language: python
+part: 'Parte 0 · Fundamentos del oficio'
+module: pensamiento-negocio
+difficulty: 3
+estimatedMinutes: 30
+concepts: ['precio-volumen-mezcla', 'identidad contable', 'cuotas de mezcla', 'nivel de detalle']
+datasets: ['orders', 'order_items', 'products', 'categories']
+packages: []
+output: console
+hints:
+  - 'Para cada periodo necesitas, por categoría, las unidades `q` y los ingresos `r`. El precio medio es `p = r / q` y la cuota de unidades `s = q / Q`, con `Q = q.sum()`.'
+  - 'Volumen = `(Q1 - Q0) * (s0 * p0).sum()`; mezcla = `Q1 * ((s1 - s0) * p0).sum()`; precio = `Q1 * (s1 * (p1 - p0)).sum()`.'
+  - 'Alinea las dos tablas por categoría con `reindex`/`set_index`. Si una categoría no existe en un periodo, trátala como 0 unidades y precio 0 (el hidden test lo prueba).'
+  - 'Devuelve `volumen`, `mezcla`, `precio` y `total` (variación de ingresos); los tres efectos suman el total con un error de redondeo mínimo.'
+relatedLessons: ['pensamiento-negocio/04-funnels-cohortes-y-precio-volumen-mezcla']
+businessQuestion: '¿Cuánto del aumento de ingresos se debe a vender más unidades, a vender productos distintos o a vender a otro precio?'
+---
+
+En el _starter_ tienes `g2024` y `g2025`: una fila por categoría con las unidades vendidas `q` y los ingresos `r`
+(pedidos no cancelados). Implementa **`descomponer_pvm(a, b)`**, con `a` el periodo base y `b` el comparado, que devuelve un
+diccionario con:
+
+- `volumen`: efecto de vender más (o menos) unidades manteniendo el precio y la mezcla del periodo base,
+- `mezcla`: efecto del cambio de reparto de unidades entre categorías, a los precios del periodo base,
+- `precio`: efecto del cambio de precio medio de cada categoría, con la mezcla del periodo comparado,
+- `total`: variación de ingresos (`b.r.sum() - a.r.sum()`).
+
+Los tres efectos deben sumar `total`. Después, interpreta: ¿qué parte del crecimiento es puro volumen?

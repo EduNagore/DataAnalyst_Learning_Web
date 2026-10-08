@@ -1,0 +1,235 @@
+---
+title: 'Unit economics: CAC, LTV, payback y margen de contribución'
+description: 'Cuánto cuesta captar un cliente, cuánto margen deja y en cuánto tiempo se recupera, con las cifras de Lumen y las trampas de cada cálculo.'
+module: pensamiento-negocio
+order: 3
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Calcular el CAC (mixto y por canal), el margen de contribución por cliente y el payback con datos de marketing y pedidos.'
+  - 'Estimar el LTV de dos formas (histórico acumulado y por fórmula con abandono constante) y explicar sus supuestos.'
+  - 'Interpretar la razón LTV/CAC y el payback sin caer en reglas mágicas.'
+  - 'Detectar por qué una mejora del CAC puede deberse al crecimiento del negocio y no a la eficiencia de marketing.'
+prerequisites: ['pensamiento-negocio/02-metricas-north-star-y-guardrails']
+tools: ['duckdb', 'pandas']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Customer lifetime value (Wikipedia)'
+    url: 'https://en.wikipedia.org/wiki/Customer_lifetime_value'
+    type: docs
+    authors: 'Wikipedia contributors'
+    year: 2026
+  - title: 'Customer acquisition cost (Wikipedia)'
+    url: 'https://en.wikipedia.org/wiki/Customer_acquisition_cost'
+    type: docs
+    authors: 'Wikipedia contributors'
+    year: 2026
+  - title: 'The Value of Keeping the Right Customers (Harvard Business Review)'
+    url: 'https://hbr.org/2014/10/the-value-of-keeping-the-right-customers'
+    type: paper
+    authors: 'Gallo, A.'
+    year: 2014
+  - title: 'Amplitude — The North Star Playbook'
+    url: 'https://amplitude.com/books/north-star'
+    type: book
+    authors: 'Amplitude'
+    year: 2026
+relatedLabs: ['py-cac-y-payback']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Finanzas pregunta: "¿Cuánto nos cuesta conseguir un cliente y en cuánto tiempo lo recuperamos?".
+  Marketing responde que el CAC ha bajado un 44 % en dos años y pide más presupuesto. Tú tienes los
+  gastos de marketing, los clientes captados y los pedidos con su coste. ¿Es cierto que marketing ha
+  mejorado?
+</BusinessContext>
+
+Los _unit economics_ (economía por unidad) responden una pregunta simple: **por cada cliente, ¿gano más de
+lo que gasto en conseguirlo?** Es la base de cualquier decisión de inversión en crecimiento.
+
+## Intuición
+
+Piensa en una cafetería con un cupón de bienvenida. Si el cupón y el anuncio te cuestan 5 € por cliente
+nuevo y cada cliente te deja 20 € de margen a lo largo de un año, el negocio de captar es rentable. Si te
+deja 3 €, cada cliente nuevo te hace perder dinero. Y si tardas ocho meses en recuperar los 5 €, necesitas
+caja para esperar. Tres cifras: **lo que cuesta (CAC)**, **lo que deja (LTV)** y **cuánto tarda (payback)**.
+
+## Cómo funciona
+
+### Las cuatro definiciones
+
+| Concepto                              | Definición                                                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **CAC** (_customer acquisition cost_) | Gasto de captación en un periodo ÷ clientes nuevos captados en ese periodo                                          |
+| **Margen de contribución**            | Ingresos − costes **variables** (coste del producto, comisiones, devoluciones, envío si lo asume la empresa)        |
+| **LTV** (_lifetime value_)            | Margen de contribución total que aporta un cliente a lo largo de su relación con la empresa (idealmente descontado) |
+| **Payback**                           | Tiempo hasta que el margen acumulado de un cliente cubre su CAC                                                     |
+
+La razón **LTV/CAC** compara lo que deja con lo que cuesta. Se suele citar «mayor que 3» como referencia, pero
+es una regla sin fundamento universal: depende del margen, del payback y de la caja disponible.
+
+### CAC en Lumen: mixto y por canal
+
+Gasto de marketing de Lumen (`marketing_spend`, todos los canales) dividido entre los clientes nuevos de cada
+año (`customers.signup_date`):
+
+| Año       | Gasto de marketing | Clientes nuevos | **CAC mixto** |
+| --------- | -----------------: | --------------: | ------------: |
+| 2023      |        1.258.886 € |          11.039 |  **114,04 €** |
+| 2024      |        1.235.375 € |          15.820 |   **78,09 €** |
+| 2025      |        1.323.437 € |          20.841 |   **63,50 €** |
+| 2026 (S1) |          649.353 € |          12.300 |   **52,79 €** |
+
+El CAC mixto (_blended_) ha bajado un 44 % entre 2023 y 2025. Pero fíjate en el **numerador**: el gasto es
+casi **plano** (1,26 M€, 1,24 M€, 1,32 M€) mientras los clientes nuevos casi se **duplican**. ¿Ha mejorado
+marketing o el negocio crece por otros motivos (marca, boca a boca, producto)? La cifra no lo distingue.
+
+Por **canal de adquisición** (2025), la historia es muy distinta:
+
+| Canal       | Gasto 2025 | Clientes nuevos |     CAC |
+| ----------- | ---------: | --------------: | ------: |
+| direct      |  150.911 € |           5.883 |  25,7 € |
+| paid_search |  182.642 € |           3.751 |  48,7 € |
+| organic     |  217.645 € |           3.942 |  55,2 € |
+| email       |  204.209 € |           2.565 |  79,6 € |
+| paid_social |  279.672 € |           2.937 |  95,2 € |
+| affiliate   |  288.358 € |           1.763 | 163,6 € |
+
+Un canal cuesta **6,4 veces** más por cliente que otro (163,6 € frente a 25,7 €). Pero un CAC por canal con la
+atribución «el canal de alta» es una simplificación: un cliente captado «directo» pudo conocer la marca por
+una campaña de afiliación. El CAC por canal es una pista, no una verdad causal (se estudia en el módulo de
+marketing e incrementalidad).
+
+### Margen de contribución por cliente y payback
+
+El margen de una línea es `quantity × (unit_price − cost)`; ya está **neto de descuentos** porque `unit_price`
+los incluye. En Lumen, el margen sobre ingresos de los pedidos no cancelados es del **35,8 %** (40,72 M€ sobre
+113,79 M€). Margen acumulado por cliente (hasta junio de 2026) según la cohorte de alta:
+
+| Cohorte | Clientes | Margen acumulado por cliente |
+| ------- | -------: | ---------------------------: |
+| 2023    |   11.039 |                      666,8 € |
+| 2024    |   15.820 |                      689,0 € |
+| 2025    |   20.841 |                      696,4 € |
+
+Y la curva de la cohorte de 2024, mes a mes desde el alta (margen acumulado por cliente):
+
+| Mes desde el alta |       0 |       1 |       2 |       3 |       6 |      12 |
+| ----------------- | ------: | ------: | ------: | ------: | ------: | ------: |
+| Margen acumulado  | 152,7 € | 312,3 € | 327,8 € | 343,5 € | 392,9 € | 494,1 € |
+
+El CAC mixto de 2024 es 78,09 €: el margen acumulado lo cubre **durante el primer mes** (152,7 €), de modo que el
+payback es inferior a un mes y el LTV/CAC es de 689 / 78 ≈ **8,8**.
+
+<Callout type="warning">
+  Estas cifras se leen con cuidado: Lumen es un dataset sintético. El primer mes concentra mucho
+  margen (152,7 € y 159,6 € en los meses 0 y 1, y unos 16 € al mes después) porque el generador
+  reubica pedidos «anteriores al alta» justo después del alta; y las cohortes más recientes acumulan
+  casi lo mismo que las antiguas por la misma razón. En un negocio real la curva crece más despacio
+  y las cohortes antiguas acumulan más. Lo que importa aquí es el **método**: no extrapoles el 8,8 a
+  tu empresa.
+</Callout>
+
+### Dos formas de estimar el LTV
+
+1. **LTV histórico acumulado**: el margen real acumulado hasta hoy por cliente de una cohorte. Es observado,
+   pero subestima el valor total si la relación continúa y está **sesgado a la baja** en cohortes recientes.
+2. **LTV por fórmula**, con abandono constante: si un cliente abandona cada periodo con probabilidad $c$ y deja un
+   margen $m$ por periodo, entonces
+
+$$
+\text{LTV} = \frac{m}{c}
+$$
+
+Ejemplo con la suscripción de Lumen: ingreso medio mensual de 17,71 € y un abandono mensual del 4,29 %
+(14.130 cancelaciones sobre 329.598 meses-cliente). La vida media esperada es $1/0{,}0429 \approx 23{,}3$ meses y el
+LTV de **ingresos** es $17{,}71/0{,}0429 \approx 413$ €. Los supuestos son frágiles (abandono constante,
+sin diferencias entre planes mensuales y anuales, ingresos en lugar de margen): úsalo como orden de magnitud
+y contrástalo con la cohorte real.
+
+### Las trampas habituales
+
+- **CAC mixto frente a CAC de pago**: el mixto mezcla clientes orgánicos y de pago y tiende a ocultar canales
+  ineficientes. Calcula también el de pago y el marginal (el coste del siguiente cliente).
+- **Gasto completo**: ¿incluye salarios del equipo, herramientas y agencias, o solo la inversión en medios?
+- **Retraso**: se gasta hoy y los clientes llegan después; compara gasto y altas con el desfase correcto.
+- **LTV con ingresos en lugar de margen** y sin descontar: sobrestima el valor.
+- **Cohortes recientes**: no han tenido tiempo de acumular margen; no las compares con las antiguas.
+- **Promedios que esconden segmentos**: un LTV medio de 689 € puede ser 100 € para unos y 3.000 € para otros.
+
+## En la práctica
+
+El CAC mixto por año, en SQL:
+
+```sql
+WITH gasto AS (
+  SELECT year(date) AS anio, SUM(spend_eur) AS gasto FROM marketing_spend GROUP BY anio
+),
+altas AS (
+  SELECT year(signup_date) AS anio, COUNT(*) AS clientes_nuevos FROM customers GROUP BY anio
+)
+SELECT anio, ROUND(gasto) AS gasto, clientes_nuevos, ROUND(gasto / clientes_nuevos, 2) AS cac_mixto
+FROM gasto JOIN altas USING (anio)
+ORDER BY anio;
+```
+
+Y el payback de una cohorte en pandas: margen por cliente y mes desde el alta, acumulado, y el primer mes en
+que supera al CAC:
+
+```python
+acumulado = margen_mes.cumsum()                     # margen acumulado por cliente y mes
+payback = int((acumulado >= cac).idxmax()) if (acumulado >= cac).any() else None
+```
+
+En el lab de esta lección calculas el CAC mixto y por canal, y el payback de una cohorte.
+
+## Trade-offs y cuándo usarlo
+
+- **Rapidez frente a rigor**: una estimación rápida de CAC y LTV sirve para priorizar; para presupuestos grandes,
+  hace falta incrementalidad (¿habrían llegado igualmente?).
+- **LTV a 12 meses frente a «de por vida»**: horizontes cortos son más fiables y comparables; los largos dependen de
+  supuestos muy inciertos.
+- **Margen frente a ingresos**: el margen es más honesto pero requiere costes fiables y bien asignados.
+- **Un CAC bajo no siempre es bueno**: puede indicar que no se invierte lo suficiente en canales marginales con
+  retorno aceptable.
+
+## Errores comunes
+
+- **Celebrar un CAC a la baja sin mirar por qué baja** (¿gasto plano y negocio creciendo?).
+- **Mezclar periodos**: gasto de un trimestre y altas de otro sin desfase.
+- **Usar la regla LTV/CAC > 3 como ley.**
+- **Calcular el LTV con ingresos y no con margen.**
+- **Comparar cohortes de edades distintas** como si tuvieran el mismo recorrido.
+- **Olvidar los costes variables** (devoluciones, comisiones, envío) en el margen.
+
+## Con IA
+
+Un asistente escribe fórmulas de CAC y LTV al instante, pero suele usar **definiciones genéricas** (ingresos en vez
+de margen, sin descontar, sin desfase) y presentar un LTV/CAC como veredicto. Dale la definición de coste y de
+margen de tu empresa, pídele que enumere los supuestos de cada cifra y comprueba el cálculo con una cohorte
+real. Nunca aceptes un «LTV/CAC saludable» sin ver el payback y la sensibilidad a los supuestos.
+
+## En una entrevista
+
+- _"El CAC ha bajado un 40 % en dos años. ¿Qué miras antes de felicitar a marketing?"_ — Pista: numerador y
+  denominador por separado; gasto plano y altas crecientes; mezcla orgánico/pago; incrementalidad.
+- _"¿Cómo calculas el LTV de un cliente?"_ — Pista: margen, no ingresos; observado por cohortes y por fórmula con
+  abandono constante; horizonte y descuento.
+- _"¿Qué es el payback y por qué importa?"_ — Pista: tiempo para recuperar el CAC; relación con la caja disponible.
+
+<KeyTakeaways
+  items={[
+    'CAC = gasto de captación ÷ clientes nuevos; LTV = margen de contribución acumulado por cliente; payback = tiempo hasta cubrir el CAC.',
+    'El CAC mixto de Lumen baja de 114,04 € (2023) a 63,50 € (2025), pero el gasto es plano y las altas se duplican: no demuestra que marketing sea más eficiente.',
+    'Por canal, el CAC 2025 va de 25,7 € (directo) a 163,6 € (afiliación), pero el canal de alta no es una atribución causal.',
+    'LTV por fórmula = margen por periodo ÷ abandono; con la suscripción (17,71 € al mes, 4,29 % de abandono mensual) da unos 413 € de ingresos y 23 meses de vida media.',
+    'La razón LTV/CAC y los umbrales como «mayor que 3» son reglas sin validez universal: mira el payback, el margen real y la incrementalidad.',
+  ]}
+/>

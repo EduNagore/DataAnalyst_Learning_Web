@@ -1,0 +1,29 @@
+---
+title: 'Retrasos de envío: media, percentiles y cumplimiento de un SLA'
+description: 'Resume los retrasos de entrega con medidas de centro y dispersión, calcula los percentiles que definen un SLA y comprueba qué porcentaje de envíos lo cumple.'
+language: python
+part: 'Parte 0 · Fundamentos del oficio'
+module: estadistica-descriptiva
+difficulty: 2
+estimatedMinutes: 25
+concepts: ['mediana', 'desviación típica', 'IQR', 'percentiles', 'SLA', 'media ponderada']
+datasets: ['shipments']
+packages: []
+output: console
+hints:
+  - 'El retraso es `(actual_date - promised_date).dt.days`. Negativo = llega antes; 0 = día prometido.'
+  - 'Con pandas: `x.mean()`, `x.median()`, `x.std()` (usa n-1), `x.quantile(q)`. El IQR es `quantile(0.75) - quantile(0.25)`.'
+  - 'El porcentaje que cumple un SLA «como máximo `max_dias` de retraso» es `(x <= max_dias).mean() * 100`.'
+  - 'La media ponderada de tasas es `sum(tasa * peso) / sum(pesos)`; con `numpy.average(tasas, weights=pesos)` o a mano.'
+relatedLessons: ['estadistica-descriptiva/01-tipos-de-variables-centro-y-dispersion']
+businessQuestion: '¿Qué porcentaje de envíos cumple un SLA de retraso máximo, y por qué la media del retraso no lo refleja?'
+---
+
+En el _starter_ tienes `retraso`: una serie con los días de retraso de cada envío de Lumen. Implementa:
+
+1. **`resumen_retrasos(x)`** → diccionario con `n`, `media`, `mediana`, `desviacion`, `iqr`, `p90`, `p95` y `p99`.
+2. **`cumple_sla(x, max_dias)`** → porcentaje de envíos con retraso menor o igual que `max_dias`, con 1 decimal.
+3. **`media_ponderada(tasas, pesos)`** → media ponderada de una lista de tasas (3 decimales). Compruébala con la
+   conversión de Madrid (7,881 % con 149.907 sesiones) y Andalucía (2,383 % con 180.170).
+
+Redondeos: `media` y `desviacion` a 2 decimales; `iqr`, `p90`, `p95`, `p99` y la mediana a 1 decimal.

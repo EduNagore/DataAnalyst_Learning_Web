@@ -1,0 +1,238 @@
+---
+title: 'Formular la pregunta: árboles de problemas e hipótesis'
+description: 'Cómo convertir una petición vaga en una pregunta contestable, descomponerla con un árbol MECE y priorizar hipótesis, con la descomposición real del crecimiento de Lumen.'
+module: pensamiento-negocio
+order: 1
+level: básico
+estimatedMinutes: 40
+objectives:
+  - 'Reformular una petición vaga como una pregunta con decisión, métrica, comparación y periodo.'
+  - 'Construir un árbol de problemas MECE, matemático o lógico, y comprobar que no se solapa ni deja huecos.'
+  - 'Descomponer el crecimiento de los ingresos en clientes activos, frecuencia y ticket, y repartir la variación entre los tres factores.'
+  - 'Plantear hipótesis falsables y priorizarlas por impacto, probabilidad y coste de comprobarlas.'
+prerequisites: ['analista-2026/02-ciclo-del-analisis-y-que-hace-top-a-un-analista']
+tools: ['pandas', 'duckdb']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Barbara Minto — The Pyramid Principle'
+    url: 'https://www.barbaraminto.com/'
+    type: book
+    authors: 'Minto, B.'
+    year: 1987
+  - title: 'Thinking with Data (Max Shron)'
+    url: 'https://thinkingwithdata.com/'
+    type: book
+    authors: 'Shron, M.'
+    year: 2014
+  - title: 'MECE principle'
+    url: 'https://en.wikipedia.org/wiki/MECE_principle'
+    type: docs
+    authors: 'Wikipedia contributors'
+    year: 2026
+relatedLabs: ['py-arbol-de-ingresos']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  El CEO de Lumen lanza en el comité: "Los ingresos se han más que duplicado de 2024 a 2025. ¿Cómo
+  seguimos creciendo así?". Hay tres propuestas en la mesa (más captación, más recompra, subir
+  precios) y cada área defiende la suya. Tú tienes un dataset y un día. ¿Por dónde empiezas?
+</BusinessContext>
+
+Las preguntas de negocio llegan como deseos («¿cómo crecemos?»), no como preguntas contestables. El
+primer trabajo del analista es **convertir el deseo en una pregunta con respuesta** y **partirla en trozos**
+que se puedan medir.
+
+## Intuición
+
+Imagina que tienes que decidir qué ingrediente mejorar de una receta. No sirve probar «todo a la vez».
+Primero descompones la receta en ingredientes que no se solapan y que suman el plato completo; después
+miras cuál pesa más y cuál está peor. Un **árbol de problemas** hace lo mismo con un problema de negocio.
+
+## Cómo funciona
+
+### De la petición a una pregunta contestable
+
+Una pregunta contestable tiene cuatro elementos:
+
+| Elemento        | Pregunta que responde             | Ejemplo                                 |
+| --------------- | --------------------------------- | --------------------------------------- |
+| **Decisión**    | ¿Qué cambiará según la respuesta? | Dónde invertir el presupuesto de 2027   |
+| **Métrica**     | ¿Cómo se mide, exactamente?       | Ingresos netos de pedidos no cancelados |
+| **Comparación** | ¿Frente a qué?                    | 2025 frente a 2024                      |
+| **Periodo**     | ¿De cuándo a cuándo?              | Años naturales completos                |
+
+«¿Cómo seguimos creciendo?» pasa a: **«¿Qué parte del aumento de ingresos netos de 2024 a 2025 se debe a más
+clientes, a que compran con más frecuencia o a que gastan más por pedido, para decidir dónde invertir en 2027?»**.
+Ya se puede contestar con datos.
+
+### Árboles de problemas y MECE
+
+Un **árbol de problemas** (_issue tree_) descompone una pregunta en subpreguntas. La regla de calidad es
+que las ramas sean **MECE** (_mutually exclusive, collectively exhaustive_): sin solapamientos (cada
+cosa está en una sola rama) y sin huecos (entre todas las ramas cubren el todo).
+
+Hay dos tipos:
+
+- **Árbol matemático**: la descomposición es una fórmula, así que es MECE por construcción y cuantificable.
+- **Árbol lógico**: se enumeran causas o categorías posibles (por ejemplo, «caída por demanda» o «por
+  oferta»); requiere comprobar a mano que es MECE.
+
+El árbol de ingresos de Lumen es matemático:
+
+<Diagram
+  client:visible
+  chart={`flowchart TB
+    A["Ingresos netos"] --> B["Clientes activos"]
+    A --> C["Pedidos por cliente activo<br/>(frecuencia)"]
+    A --> D["Ticket medio<br/>(importe por pedido)"]`}
+  alt="Árbol de ingresos: los ingresos netos son el producto de clientes activos, pedidos por cliente activo (frecuencia) y ticket medio (importe por pedido)."
+/>
+
+$$
+\text{Ingresos} = \text{clientes activos}\times\frac{\text{pedidos}}{\text{cliente activo}}\times\frac{\text{ingresos}}{\text{pedido}}
+$$
+
+Es MECE: es una identidad, no una aproximación. Con los datos de Lumen (pedidos no cancelados, ingresos
+netos):
+
+| Factor                     |         2024 |         2025 |    Variación |
+| -------------------------- | -----------: | -----------: | -----------: |
+| Clientes activos           |       21.606 |       39.190 |  **+81,4 %** |
+| Pedidos por cliente activo |        3,424 |        4,126 |  **+20,5 %** |
+| Ticket medio               |     303,35 € |     305,87 € |   **+0,8 %** |
+| **Ingresos**               | 22.441.854 € | 49.460.757 € | **+120,4 %** |
+
+Los tres factores se **multiplican**, así que no se pueden repartir con una suma. Un reparto limpio usa
+logaritmos, porque el logaritmo de un producto es la suma de los logaritmos: el aumento de ingresos
+($\ln 2{,}204 = 0{,}790$) se reparte entre los factores en proporción a su logaritmo:
+
+| Factor                     | Contribución al crecimiento |
+| -------------------------- | --------------------------: |
+| Clientes activos           |                      75,3 % |
+| Pedidos por cliente activo |                      23,6 % |
+| Ticket medio               |                       1,0 % |
+
+Lectura: tres cuartas partes del crecimiento vienen de **tener más clientes que compran**; casi todo el resto,
+de que compren más veces; el precio o el ticket apenas cuentan. Esto no es una opinión: es una descomposición
+exacta, y cambia el debate del comité (las propuestas de subir precios atacan el factor que menos pesó).
+
+<Callout type="warning">
+  Una descomposición dice **qué factor se movió**, no **por qué** se movió ni **qué pasaría si lo
+  empujas**. Que los clientes activos expliquen el 75 % del pasado no demuestra que invertir en
+  captación produzca esa misma proporción en el futuro.
+</Callout>
+
+### Análisis guiado por hipótesis
+
+En lugar de explorar todo, se formulan **hipótesis falsables**: afirmaciones que los datos pueden refutar. Una
+buena hipótesis tiene tres partes: **qué** esperas, **dónde** lo verías en los datos y **qué la refutaría**.
+
+| Hipótesis                                                          | Dónde se vería                                      | Qué la refutaría                          |
+| ------------------------------------------------------------------ | --------------------------------------------------- | ----------------------------------------- |
+| El crecimiento viene de captar más clientes, no de que compren más | Clientes activos crecen mucho más que la frecuencia | La frecuencia crece lo mismo o más        |
+| La frecuencia sube porque aumentan los clientes habituales y VIP   | Mezcla de segmentos entre 2024 y 2025               | La mezcla de segmentos no cambia          |
+| El ticket no cambia porque el precio medio y la cesta son estables | Ticket y líneas por pedido planos                   | El ticket sube o baja de forma apreciable |
+
+Para decidir con cuál empezar, puntúa cada hipótesis por **impacto** si es cierta, **probabilidad** de que
+lo sea y **coste** de comprobarla. Empieza por las de mucho impacto y bajo coste: son las que antes
+reducen incertidumbre.
+
+### Qué hace buena a una pregunta
+
+- **Está atada a una decisión**: si la respuesta no cambia nada, no merece la pena.
+- **Es medible con los datos que hay** (o se sabe qué dato falta).
+- **Es falsable**: puede salir «no».
+- **Es específica**: métrica, comparación y periodo definidos.
+- **Es MECE al descomponerla**: las subpreguntas suman la pregunta.
+
+## En la práctica
+
+La descomposición del árbol se calcula con una consulta. El ingreso de cada año, el número de clientes
+activos y los pedidos salen de una sola agregación:
+
+```sql
+WITH pedidos AS (
+  SELECT o.order_id, o.customer_id, year(o.order_date) AS anio,
+         SUM(i.quantity * i.unit_price) AS ingresos
+  FROM orders AS o
+  JOIN order_items AS i USING (order_id)
+  WHERE o.status <> 'cancelado'
+  GROUP BY o.order_id, o.customer_id, anio
+)
+SELECT anio,
+       COUNT(DISTINCT customer_id)                         AS clientes_activos,
+       COUNT(*) * 1.0 / COUNT(DISTINCT customer_id)        AS pedidos_por_cliente,
+       SUM(ingresos) / COUNT(*)                            AS ticket_medio,
+       SUM(ingresos)                                       AS ingresos
+FROM pedidos
+GROUP BY anio
+ORDER BY anio;
+```
+
+Y el reparto logarítmico en Python, a partir de dos filas (año base y año comparado):
+
+```python
+import math
+
+factores = ["clientes_activos", "pedidos_por_cliente", "ticket_medio"]
+total = math.log(b["ingresos"] / a["ingresos"])
+reparto = {f: math.log(b[f] / a[f]) / total for f in factores}   # suma 1 (identidad)
+```
+
+En el lab de esta lección construyes el árbol y el reparto, y compruebas que las tres contribuciones suman 1.
+
+## Trade-offs y cuándo usarlo
+
+- **Árboles matemáticos frente a lógicos**: los primeros son exactos y comprobables; los segundos cubren causas
+  que no son fórmula (mercado, competencia, operaciones) pero exigen más juicio.
+- **Profundidad del árbol**: tres niveles suelen bastar. Más profundidad multiplica ramas que nadie va a
+  investigar.
+- **Descomposición logarítmica frente a otros repartos**: el logarítmico es sencillo y aditivo; existen otros
+  (Shapley, ordenar los factores) que dan repartos algo distintos cuando hay mucha interacción. Dilo si importa.
+- **Hipótesis frente a exploración abierta**: las hipótesis ahorran tiempo pero pueden cegarte; deja un
+  margen para mirar lo inesperado.
+
+## Errores comunes
+
+- **Empezar a consultar sin pregunta**: se acumulan números sin dirección.
+- **Árboles que se solapan** (por ejemplo, «clientes nuevos» y «clientes de móvil») y cuyas ramas suman más
+  del 100 %.
+- **Árboles con huecos**: olvidar una causa relevante (otras fuentes, estacionalidad, errores de datos).
+- **Repartir una variación multiplicativa con sumas simples** y obtener porcentajes que no cuadran.
+- **Confundir descomposición con causa**: «explica el 75 %» no es «lo causa».
+- **Hipótesis imposibles de refutar** («el cliente está cambiando sus hábitos»).
+
+## Con IA
+
+Un asistente genera árboles de problemas rápidos y razonables, pero tiende a producir listas plausibles
+que **no son MECE** (ramas solapadas) y a pasar por alto causas específicas de tu negocio. Úsalo como
+lluvia de ideas, y después pásale el filtro: ¿las ramas se solapan?, ¿suman el todo?, ¿cada hipótesis dice qué la
+refutaría? Pídele también que traduzca cada rama en una consulta y **comprueba tú** que las cifras de las
+ramas multiplican o suman lo que dice el árbol.
+
+## En una entrevista
+
+- _"Las ventas han caído un 10 %. ¿Cómo estructuras el problema?"_ — Pista: árbol MECE (volumen × ticket;
+  canales; productos; interno/externo), hipótesis falsables y primer paso de menor coste.
+- _"¿Qué significa MECE y cómo lo compruebas?"_ — Pista: sin solapes ni huecos; las ramas suman el total;
+  ejemplo de identidad matemática.
+- _"Los ingresos crecieron un 120 %. ¿De dónde viene?"_ — Pista: clientes activos × frecuencia × ticket,
+  con reparto logarítmico.
+
+<KeyTakeaways
+  items={[
+    'Una pregunta contestable tiene decisión, métrica, comparación y periodo; «¿cómo crecemos?» no lo es.',
+    'Un árbol de problemas debe ser MECE: ramas sin solapes ni huecos; si es una fórmula, lo es por construcción.',
+    'Ingresos = clientes activos × pedidos por cliente × ticket medio: de 2024 a 2025 en Lumen, el 75,3 % del crecimiento viene de clientes activos, el 23,6 % de la frecuencia y el 1,0 % del ticket.',
+    'Una descomposición dice qué factor se movió, no por qué ni qué pasará si lo empujas.',
+    'Las hipótesis se formulan como falsables (qué, dónde se vería, qué la refutaría) y se priorizan por impacto, probabilidad y coste.',
+  ]}
+/>

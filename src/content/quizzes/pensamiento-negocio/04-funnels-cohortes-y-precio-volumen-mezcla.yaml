@@ -1,0 +1,75 @@
+lesson: pensamiento-negocio/04-funnels-cohortes-y-precio-volumen-mezcla
+questions:
+  - id: neg1-04-q1
+    type: numeric
+    difficulty: 2
+    prompt: 'En el embudo de Lumen, 186.148 sesiones llegan a checkout y 42.277 compran. ¿Cuál es la tasa de paso de checkout a compra? (un decimal, en %)'
+    answer: [22.7]
+    tolerance: 0.06
+    explanation: '42.277 / 186.148 = 0,2271, es decir, 22,7 %. La conversión global (4,2 %) es el producto de las tasas de paso: 47,3 % × 39,3 % × 22,7 %.'
+    ref: '#el-embudo-tasas-de-paso'
+
+  - id: neg1-04-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Por qué un embudo debe contar sesiones (o usuarios) distintos y no eventos?'
+    options:
+      - 'Porque es más rápido'
+      - 'Porque los eventos duplicados (por ejemplo, el bug de la app que duplicaba compras) inflan los pasos y falsean las tasas'
+      - 'Porque los eventos no tienen fecha'
+      - 'Porque así hay menos pasos'
+    answer: [1]
+    explanation: 'La unidad del embudo es la sesión o el usuario. Contar eventos mezcla unidades y se infla con duplicados.'
+    ref: '#el-embudo-tasas-de-paso'
+
+  - id: neg1-04-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Qué problema de los promedios globales resuelven las cohortes?'
+    options:
+      - 'Que los promedios son difíciles de calcular'
+      - 'Que en un negocio que crece el promedio está dominado por clientes recientes, que se comportan distinto de los antiguos; las cohortes comparan grupos de la misma edad'
+      - 'Que los promedios no se pueden graficar'
+      - 'Ninguno'
+    answer: [1]
+    explanation: 'Mezclar edades hace que cambios de composición parezcan cambios de comportamiento. La cohorte fija el punto de partida y sigue al grupo con la edad.'
+    ref: '#la-cohorte-comparar-grupos-de-la-misma-edad'
+
+  - id: neg1-04-q4
+    type: single
+    difficulty: 3
+    prompt: 'Entre 2024 y 2025 los ingresos de Lumen suben 27,02 M€. La PVM da +26,6 M€ de volumen, +0,12 M€ de mezcla y +0,28 M€ de precio. ¿Qué lectura es correcta?'
+    options:
+      - 'El crecimiento se debe sobre todo a subidas de precio'
+      - 'El crecimiento es casi todo volumen (98,5 %); precio y mezcla apenas contribuyen, y los tres efectos suman exactamente la variación total'
+      - 'La mezcla de productos explica la mitad'
+      - 'No se puede saber'
+    answer: [1]
+    explanation: 'Vender 2,19 veces más unidades al mismo precio medio explica casi toda la variación. La descomposición es una identidad: los tres efectos suman el total.'
+    ref: '#descomposición-precio-volumen-mezcla-pvm'
+
+  - id: neg1-04-q5
+    type: single
+    difficulty: 3
+    prompt: 'Haces la PVM con 8 categorías y obtienes una mezcla pequeña. Al repetirla con 2.000 productos la mezcla es mucho mayor. ¿Por qué?'
+    options:
+      - 'Hay un error de cálculo'
+      - 'Con más detalle, la mezcla capta también los cambios de reparto entre productos dentro de cada categoría; el resultado depende del nivel de detalle y hay que fijarlo y comunicarlo'
+      - 'Los productos no tienen precio'
+      - 'La identidad deja de cumplirse'
+    answer: [1]
+    explanation: 'El efecto mezcla solo recoge el cambio de reparto entre los elementos que distingues. A mayor detalle, más mezcla y menos precio. La identidad se cumple igual.'
+    ref: '#descomposición-precio-volumen-mezcla-pvm'
+
+  - id: neg1-04-q6
+    type: multiple
+    difficulty: 2
+    prompt: 'Asocia cada pregunta con el marco adecuado. Selecciona TODAS las asociaciones correctas.'
+    options:
+      - '«¿Dónde se pierde la gente en el proceso de compra?» → embudo'
+      - '«¿Retienen mejor las cohortes recientes que las antiguas?» → cohorte'
+      - '«¿El aumento de ingresos es precio, volumen o mezcla?» → PVM'
+      - '«¿Qué canal tiene el peor CAC?» → embudo'
+    answer: [0, 1, 2]
+    explanation: 'El CAC por canal es un cálculo de unit economics, no un embudo. Las otras tres asociaciones son correctas.'
+    ref: '#la-cohorte-comparar-grupos-de-la-misma-edad'

@@ -1,0 +1,79 @@
+lesson: analista-2026/01-perfiles-de-datos-y-tipos-de-analista
+questions:
+  - id: ana0-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué perfil se ocupa principalmente de modelar los datos con prácticas de ingeniería de software (versionado, pruebas) para que cada métrica se defina una sola vez?'
+    options:
+      - 'Data engineer'
+      - 'Analytics engineer'
+      - 'Data scientist'
+      - 'Analista de marketing'
+    answer: [1]
+    explanation: 'El analytics engineer ocupa el hueco entre ingeniería y análisis: modela, prueba y documenta las transformaciones y las definiciones de métricas. El ingeniero de datos se centra en mover y almacenar; el científico de datos, en modelos.'
+    ref: '#cuatro-perfiles-cuatro-preguntas'
+
+  - id: ana0-01-q2
+    type: single
+    difficulty: 2
+    prompt: 'Un puesto llamado «Data Analyst» pide «construir pipelines de ingesta y mantener la plataforma en la nube». ¿Qué conclusión es más razonable?'
+    options:
+      - 'Es un puesto de análisis puro'
+      - 'Por sus verbos y entregables parece más ingeniería de datos que análisis; hay que preguntar en la entrevista'
+      - 'Es imposible saberlo'
+      - 'Es un puesto de ciencia de datos'
+    answer: [1]
+    explanation: 'El título es inconsistente entre empresas. Lo fiable son los verbos, las herramientas y los entregables. Construir pipelines y mantener la plataforma es trabajo de ingeniería de datos.'
+    ref: '#en-la-práctica'
+
+  - id: ana0-01-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los pares correctos de tipo de analista y pregunta típica.'
+    options:
+      - 'Producto: ¿dónde abandonan los usuarios el funnel?'
+      - 'Marketing/growth: ¿qué campaña aporta clientes rentables e incrementales?'
+      - 'Finanzas (FP&A): ¿qué desvía las previsiones del presupuesto?'
+      - 'Operaciones: ¿cómo diseñar la identidad visual de la marca?'
+    answer: [0, 1, 2]
+    explanation: 'Operaciones se ocupa de logística, stock y cumplimiento de plazos, no de identidad visual. Los otros tres pares son correctos.'
+    ref: '#cinco-tipos-de-analista'
+
+  - id: ana0-01-q4
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál es la diferencia principal entre un analista y un científico de datos según la lección?'
+    options:
+      - 'El nivel: el científico siempre es más senior'
+      - 'El tipo de salida: el analista explica y recomienda una acción; el científico construye modelos que se ejecutan de forma repetida'
+      - 'El analista no usa estadística'
+      - 'El científico no comunica resultados'
+    answer: [1]
+    explanation: 'No es una cuestión de nivel. Los dos programan y usan estadística, pero la salida típica difiere: una decisión explicada frente a un modelo repetible.'
+    ref: '#qué-diferencia-a-un-analista-de-un-científico-de-datos'
+
+  - id: ana0-01-q5
+    type: order
+    difficulty: 2
+    prompt: 'Ordena los tramos de la cadena de valor del dato, de las fuentes a la decisión.'
+    options:
+      - 'Análisis y comunicación'
+      - 'Ingesta y almacenamiento'
+      - 'Modelado y capa semántica'
+      - 'Fuentes de datos'
+    answer: [3, 1, 2, 0]
+    explanation: 'Las fuentes se ingieren y almacenan (ingeniería de datos), se modelan y definen (analytics engineering) y se analizan y comunican (análisis) para llegar a la decisión.'
+    ref: '#intuición'
+
+  - id: ana0-01-q6
+    type: single
+    difficulty: 3
+    prompt: 'En una entrevista, ¿cuál de estas preguntas revela mejor cómo de madura es la cultura de datos del equipo?'
+    options:
+      - '¿Cuántos días de vacaciones hay?'
+      - '¿Quién define las métricas clave, dónde están documentadas y cuál fue la última decisión que cambió un análisis del equipo?'
+      - '¿Qué ordenador me darán?'
+      - '¿Hay café gratis?'
+    answer: [1]
+    explanation: 'Quién define y documenta las métricas, y si los análisis cambian decisiones, indica gobierno de datos e impacto real. El resto son preguntas legítimas pero no informan sobre la cultura analítica.'
+    ref: '#en-la-práctica'

@@ -1,0 +1,239 @@
+---
+title: 'Métricas: North Star, árbol de KPIs, guardrails y la ley de Goodhart'
+description: 'Cómo elegir y definir métricas sin ambigüedad, organizarlas en un árbol con una métrica estrella, protegerlas con guardrails y evitar que se conviertan en objetivos que se pervierten.'
+module: pensamiento-negocio
+order: 2
+level: básico
+estimatedMinutes: 40
+objectives:
+  - 'Distinguir métrica estrella (North Star), métricas de entrada, de salida y de control (guardrails) y organizarlas en un árbol de KPIs.'
+  - 'Escribir la ficha de una métrica con grano, filtros, ventana, numerador y denominador, y comprobar que dos definiciones razonables dan cifras distintas.'
+  - 'Explicar la ley de Goodhart con un ejemplo cuantificado de descuentos y márgenes.'
+  - 'Elegir guardrails que protejan frente a optimizar una métrica a costa de otra.'
+prerequisites: ['pensamiento-negocio/01-preguntas-arboles-e-hipotesis']
+tools: ['duckdb']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Amplitude — The North Star Playbook'
+    url: 'https://amplitude.com/books/north-star'
+    type: book
+    authors: 'Amplitude'
+    year: 2026
+  - title: 'dbt — About MetricFlow (métricas definidas una vez)'
+    url: 'https://docs.getdbt.com/docs/build/about-metricflow'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'Thinking with Data (Max Shron)'
+    url: 'https://thinkingwithdata.com/'
+    type: book
+    authors: 'Shron, M.'
+    year: 2014
+relatedLabs: ['py-margen-por-descuento']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Comercial propone un objetivo para el trimestre: "Subir los pedidos un 20 %". Marketing lo
+  consigue con una campaña de descuentos del 30 %. Los pedidos suben y el margen se hunde. Mientras,
+  Producto dice que "la conversión es del 4,2 %" y Marketing "del 27 %". Las cifras son correctas;
+  las métricas, no estaban bien definidas.
+</BusinessContext>
+
+Una métrica es una **decisión sobre qué importa**, disfrazada de número. Elegir mal qué medir, o medirlo
+de forma ambigua, hace que equipos bienintencionados optimicen cosas distintas y se perjudiquen entre sí.
+
+## Intuición
+
+Piensa en el cuadro de mandos de un coche. Si solo miras la velocidad, llegarás antes… hasta que te
+quedes sin gasolina o te multen. Necesitas **una métrica que resume el objetivo** (llegar bien, y a
+tiempo), **palancas que controlas** (acelerador, ruta) y **testigos que avisan de que algo se rompe**
+(combustible, temperatura). En una empresa, son la métrica estrella, las métricas de entrada y los guardrails.
+
+## Cómo funciona
+
+### Tres tipos de métrica
+
+| Tipo                      | Qué es                                                                                                          | Ejemplo en Lumen                                        |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| **North Star** (estrella) | La métrica única que mejor resume el valor que la empresa entrega y que correlaciona con el éxito a largo plazo | Margen de contribución mensual                          |
+| **De entrada** (_input_)  | Palancas que los equipos pueden mover y que **conducen** a la North Star                                        | Tasa de conversión, recompra, descuento medio           |
+| **De salida** (_output_)  | Resultados que miden lo conseguido y se mueven con retraso                                                      | Ingresos, clientes activos, margen                      |
+| **Guardrail** (control)   | Métricas que **no deben empeorar** al optimizar otra                                                            | Margen %, devoluciones, cancelaciones, entregas tardías |
+
+Una buena North Star: refleja **valor para el cliente y para el negocio**, es **medible con frecuencia**, la
+influyen varios equipos y es **difícil de manipular** sin crear valor real. «Pedidos» es una mala estrella
+si se pueden comprar con descuentos; «margen de contribución» es mejor porque obliga a equilibrar volumen y
+rentabilidad.
+
+### El árbol de KPIs
+
+Se descompone la North Star en métricas de entrada, igual que el árbol de problemas de la lección anterior
+(y MECE si es posible):
+
+<Diagram
+  client:visible
+  chart={`flowchart TB
+    N["North Star<br/>Margen de contribución mensual"] --> I["Ingresos netos"]
+    N --> M["Margen % sobre ingresos"]
+    I --> C["Clientes activos"]
+    I --> F["Pedidos por cliente"]
+    I --> T["Ticket medio"]
+    M --> D["Descuento medio"]
+    M --> X["Mezcla de productos"]
+    N -.-> G["Guardrails:<br/>devoluciones, cancelaciones,<br/>entregas tardías"]`}
+  alt="Árbol de KPIs de Lumen: la métrica estrella, margen de contribución mensual, se descompone en ingresos netos (clientes activos, pedidos por cliente y ticket medio) y margen porcentual (descuento medio y mezcla de productos), con guardrails de devoluciones, cancelaciones y entregas tardías."
+/>
+
+Cada equipo se queda con las ramas que **puede mover**: Marketing con clientes activos, Producto con la conversión
+y la frecuencia, Comercial con descuento y mezcla. La North Star los une; los guardrails evitan que uno mejore
+su rama a costa de otro.
+
+### Definir una métrica sin ambigüedad
+
+La conversión es el ejemplo clásico. Con los mismos datos de Lumen (1.000.000 de sesiones web), tres
+definiciones razonables dan cifras muy distintas:
+
+| Definición                                                       | Numerador                 | Denominador        |   Resultado |
+| ---------------------------------------------------------------- | ------------------------- | ------------------ | ----------: |
+| Sesiones con compra / sesiones                                   | 42.277 sesiones           | 1.000.000 sesiones |  **4,23 %** |
+| Eventos de compra / sesiones                                     | 42.352 eventos `purchase` | 1.000.000 sesiones |      4,24 % |
+| Clientes que han comprado / clientes que han visitado (3,5 años) | 16.277 clientes           | 59.966 clientes    | **27,14 %** |
+
+La segunda cuenta eventos en lugar de sesiones (y se infla por el bug de la app que duplicaba eventos de
+compra); la tercera cambia la **unidad** (clientes en lugar de sesiones) y la **ventana** (toda la historia).
+Ninguna está «mal»: miden cosas distintas. El problema es llamarlas todas «conversión».
+
+Una **ficha de métrica** elimina la ambigüedad. Un formato mínimo:
+
+```yaml
+nombre: conversion_sesion
+definicion: Porcentaje de sesiones web que incluyen al menos una compra.
+numerador: sesiones distintas con algún evento event_type = 'purchase'
+denominador: sesiones distintas
+grano: sesion
+filtros: todas las sesiones (incluye bots conocidos: no)   # decidir y escribir
+ventana: periodo de la sesión (started_at), en UTC
+dueno: Producto
+fuente: web_sessions, events
+limitaciones: web_sessions y orders no se reconcilian (ver DATASET.md §8)
+```
+
+Los campos que más errores evitan son el **grano** (¿una fila es una sesión, un cliente, un pedido?), los
+**filtros** (¿cancelados? ¿devoluciones? ¿internos?), la **ventana temporal** (¿cuándo se cuenta un evento?, ¿qué
+zona horaria?) y el **numerador y denominador** por separado. Una ficha así es la entrada natural de una capa
+semántica (módulo de gobierno y capa semántica de este curso).
+
+### La ley de Goodhart
+
+> «Cuando una medida se convierte en un objetivo, deja de ser una buena medida.»
+
+Es decir: en cuanto presionas a la gente para que mueva una métrica, encuentran la forma más barata de
+moverla, que a menudo no es la que querías. En Lumen, «subir los pedidos» se puede conseguir con descuentos.
+El efecto sobre el margen de los pedidos no cancelados, por nivel de descuento:
+
+| Descuento | Pedidos | Margen sobre ingresos | Margen por pedido |
+| --------: | ------: | --------------------: | ----------------: |
+|       0 % | 123.093 |                42,5 % |           142,1 € |
+|       5 % |  48.979 |                39,5 % |           125,5 € |
+|      10 % |  74.152 |                36,0 % |           109,3 € |
+|      15 % |  29.227 |                32,4 % |            92,3 € |
+|      20 % |  58.024 |                28,0 % |            76,1 € |
+|      30 % |  43.670 |                17,7 % |            42,6 € |
+
+Un pedido con un 30 % de descuento deja **un tercio del margen** de uno sin descuento (42,6 € frente a
+142,1 €). Si el objetivo es «pedidos», empujar descuentos funciona y destruye valor. Si el objetivo es
+«margen de contribución» (la North Star), el incentivo cambia. Y un guardrail de «margen %» habría saltado
+antes de que se hundiera.
+
+<Callout type="warning">
+  Cada métrica que conviertes en objetivo se puede degradar. Defensas: **combinar** una métrica de
+  volumen con una de calidad (pedidos y margen), poner **guardrails**, **rotar** o revisar las
+  métricas y fijarse en los resultados finales (cliente que vuelve) y no solo en los intermedios.
+</Callout>
+
+### Elegir guardrails
+
+Un buen guardrail protege lo que una optimización podría dañar:
+
+| Si optimizas...                | Vigila (guardrail)                                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------------- |
+| Pedidos / conversión           | Margen %, devoluciones (6,3 % de los pedidos no cancelados), cancelaciones (4,0 % de los pedidos) |
+| Velocidad de entrega prometida | Entregas tardías (en Lumen, un 10,7 % de los envíos llega con retraso grave)                      |
+| Captación de clientes          | CAC, calidad del cliente captado (recompra)                                                       |
+| Eficiencia del soporte         | Satisfacción del cliente, reaperturas                                                             |
+
+Las métricas de control se fijan **antes** de lanzar la acción, con un umbral que indica cuándo parar.
+
+## En la práctica
+
+Para que una métrica sea la misma en todas partes, escribe su definición como una consulta y reutilízala. La
+conversión por sesión de la ficha anterior:
+
+```sql
+WITH compradores AS (
+  SELECT DISTINCT session_id FROM events WHERE event_type = 'purchase'
+)
+SELECT COUNT(*)                                                    AS sesiones,
+       COUNT(c.session_id)                                         AS sesiones_con_compra,
+       ROUND(100.0 * COUNT(c.session_id) / COUNT(*), 2)            AS conversion_pct
+FROM web_sessions AS ws
+LEFT JOIN compradores AS c USING (session_id);
+-- 1.000.000 | 42.277 | 4,23
+```
+
+Y el margen por nivel de descuento (la tabla de Goodhart) en pandas: ingresos y margen por pedido, agrupados por
+`discount_pct`, con el coste de `products.cost`. En el lab de esta lección lo calculas y compruebas que el margen
+por pedido cae con el descuento.
+
+## Trade-offs y cuándo usarlo
+
+- **Una sola North Star frente a varias**: una sola alinea y simplifica, pero no cubre todo; por eso se
+  acompaña de guardrails y métricas de entrada.
+- **Métricas adelantadas (de entrada) frente a retrasadas (de salida)**: las primeras permiten reaccionar, las
+  segundas miden el resultado; hace falta una evidencia de que las de entrada **conducen** a las de salida.
+- **Precisión de la definición frente a coste de mantenerla**: cuantas más métricas ficha, más hay que mantener.
+  Documenta bien las pocas que gobiernan decisiones.
+- **Objetivos individuales frente a de equipo**: los individuales hacen más fácil la manipulación (Goodhart).
+
+## Errores comunes
+
+- **Llamar igual a métricas distintas** («conversión», «cliente activo», «ingresos») sin ficha ni dueño.
+- **Elegir una North Star manipulable** (pedidos, visitas, descargas) sin métrica de calidad.
+- **Optimizar una métrica sin guardrails.**
+- **Mezclar unidades**: sesiones y clientes, pedidos y líneas, bruto y neto.
+- **Cambiar la definición de una métrica sin avisar** y romper la serie histórica.
+- **No fijar el dueño**: una métrica sin responsable se degrada.
+
+## Con IA
+
+Un asistente de IA es muy útil para **redactar fichas de métricas** a partir de una consulta existente y para
+proponer guardrails, pero no conoce tus incentivos ni tu historia de métricas pervertidas. Pídele que, para cada
+métrica propuesta, liste **cómo se podría manipular** (Goodhart) y qué guardrail la protege. Y comprueba que las
+definiciones que genere coinciden con las oficiales; en caso contrario, dale la ficha como contexto.
+
+## En una entrevista
+
+- _"¿Qué es una North Star y qué hace buena a una?"_ — Pista: resume el valor entregado, es medible,
+  influenciable por varios equipos y difícil de manipular; ejemplo.
+- _"Marketing sube los pedidos un 20 % con descuentos. ¿Qué miras?"_ — Pista: margen por pedido, guardrails,
+  Goodhart; incremental frente a adelantado.
+- _"¿Cómo defines «cliente activo» sin ambigüedad?"_ — Pista: ventana, evento que cuenta, grano, filtros, zona
+  horaria y dueño.
+
+<KeyTakeaways
+  items={[
+    'Una North Star resume el valor entregado; las métricas de entrada son las palancas y los guardrails protegen lo que no debe empeorar.',
+    'La misma «conversión» da 4,23 %, 4,24 % o 27,14 % según la unidad, el numerador y la ventana: la ficha de métrica (grano, filtros, ventana, numerador y denominador) elimina la ambigüedad.',
+    'Ley de Goodhart: una medida convertida en objetivo se pervierte; con un 30 % de descuento un pedido deja 42,6 € de margen frente a 142,1 € sin descuento.',
+    'Elige guardrails antes de actuar: margen %, devoluciones (6,3 %), cancelaciones (4,0 %) y entregas tardías.',
+    'Una métrica sin definición escrita ni dueño se degrada; es la base de una capa semántica.',
+  ]}
+/>

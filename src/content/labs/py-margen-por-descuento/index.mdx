@@ -1,0 +1,30 @@
+---
+title: 'Goodhart en cifras: margen por nivel de descuento'
+description: 'Calcula el margen sobre ingresos y por pedido para cada nivel de descuento y cuantifica cuánto margen se pierde si el objetivo es solo «más pedidos».'
+language: python
+part: 'Parte 0 · Fundamentos del oficio'
+module: pensamiento-negocio
+difficulty: 2
+estimatedMinutes: 25
+concepts: ['ley de Goodhart', 'margen de contribución', 'guardrails', 'agregación por nivel']
+datasets: ['orders', 'order_items', 'products']
+packages: []
+output: console
+hints:
+  - 'El ingreso de una línea es `quantity * unit_price` (el precio ya incluye el descuento) y su margen `quantity * (unit_price - cost)`, con `cost` de la tabla `products`.'
+  - 'Suma ingresos y margen **por pedido** primero, excluye los pedidos cancelados y después agrupa por `discount_pct`.'
+  - 'Margen sobre ingresos = `100 * margen / ingresos` (1 decimal); margen por pedido = `margen / nº de pedidos` (1 decimal).'
+  - '`ratio_margen_goodhart` es el margen por pedido del descuento más alto dividido entre el del descuento 0 (2 decimales).'
+relatedLessons: ['pensamiento-negocio/02-metricas-north-star-y-guardrails']
+businessQuestion: '¿Cuánto margen se pierde por pedido si empujamos descuentos para subir el número de pedidos?'
+---
+
+Implementa dos funciones:
+
+1. **`margen_por_descuento(orders, order_items, products)`** → DataFrame con una fila por nivel de descuento y las
+   columnas `discount_pct`, `pedidos`, `margen_pct` (margen sobre ingresos, 1 decimal) y `margen_por_pedido`
+   (1 decimal), ordenado por descuento. Solo pedidos **no cancelados**.
+2. **`ratio_margen_goodhart(tabla)`** → cociente entre el margen por pedido del nivel de descuento más alto y el del
+   nivel 0 (2 decimales): ¿qué fracción del margen de un pedido sin descuento conserva uno con el máximo descuento?
+
+Cuando lo tengas, piensa qué guardrail habría avisado antes de que el margen se hundiera.

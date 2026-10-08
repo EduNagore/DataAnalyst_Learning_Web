@@ -1,0 +1,219 @@
+---
+title: 'Funnels, cohortes y descomposición precio-volumen-mezcla'
+description: 'Tres marcos mentales para explicar cambios en un negocio: el embudo (dónde se pierde la gente), la cohorte (cómo envejece un grupo) y la descomposición de una variación en volumen, precio y mezcla.'
+module: pensamiento-negocio
+order: 4
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Leer un embudo como una cadena de tasas de paso y localizar el mayor cuello de botella.'
+  - 'Explicar por qué las cohortes evitan los promedios engañosos cuando el negocio crece y envejece.'
+  - 'Descomponer una variación de ingresos en efecto volumen, efecto mezcla y efecto precio, y comprobar que suma exactamente la variación total.'
+  - 'Elegir el marco (embudo, cohorte o PVM) según la pregunta.'
+prerequisites: ['pensamiento-negocio/03-unit-economics-cac-ltv-y-payback']
+tools: ['duckdb', 'pandas']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Thinking with Data (Max Shron)'
+    url: 'https://thinkingwithdata.com/'
+    type: book
+    authors: 'Shron, M.'
+    year: 2014
+  - title: 'Amplitude — The North Star Playbook'
+    url: 'https://amplitude.com/books/north-star'
+    type: book
+    authors: 'Amplitude'
+    year: 2026
+relatedLabs: ['py-precio-volumen-mezcla']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  El comité pregunta tres cosas distintas a la vez: "¿por qué solo compra el 4 % de los
+  visitantes?", "¿los clientes de este año se quedan tanto como los de hace dos?" y "los ingresos
+  han subido 27 millones, ¿es precio, volumen o que vendemos productos distintos?". Cada pregunta
+  pide un marco mental diferente.
+</BusinessContext>
+
+Tras el árbol de problemas, las métricas y los unit economics, esta lección añade tres **marcos de análisis**
+que se usan constantemente y que ordenan el pensamiento antes de abrir los datos.
+
+## Intuición
+
+- El **embudo** (_funnel_) mira un **proceso** en el que la gente va cayendo paso a paso: ¿dónde se pierde más?
+- La **cohorte** mira un **grupo de la misma edad** (los que se dieron de alta el mismo mes) y cómo evoluciona
+  con el tiempo: ¿se quedan?
+- La descomposición **precio-volumen-mezcla** (PVM) mira un **cambio entre dos periodos**: ¿vendimos más
+  unidades, más caras o de otro tipo?
+
+## Cómo funciona
+
+### El embudo: tasas de paso
+
+Un embudo es una secuencia de pasos con un orden. Lo que se mide es cuántas unidades (sesiones, usuarios)
+**llegan** a cada paso y la **tasa de paso** entre pasos consecutivos. Embudo de compra de Lumen (sesiones
+distintas que alcanzan cada paso):
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+    A["Ver página<br/>1.000.000"] -->|"47,3 %"| B["Añadir al carrito<br/>473.364"]
+    B -->|"39,3 %"| C["Checkout<br/>186.148"]
+    C -->|"22,7 %"| D["Compra<br/>42.277"]`}
+  alt="Embudo de compra de Lumen: 1.000.000 de sesiones ven una página; el 47,3 % añade al carrito (473.364), el 39,3 % de estos llega al checkout (186.148) y el 22,7 % de estos compra (42.277)."
+/>
+
+| Paso              |  Sesiones | Tasa de paso | Tasa acumulada |
+| ----------------- | --------: | -----------: | -------------: |
+| Ver página        | 1.000.000 |            — |          100 % |
+| Añadir al carrito |   473.364 |       47,3 % |         47,3 % |
+| Checkout          |   186.148 |       39,3 % |         18,6 % |
+| Compra            |    42.277 |       22,7 % |          4,2 % |
+
+La conversión global (4,2 %) es el producto de las tres tasas de paso. El **mayor cuello de botella en
+términos relativos** es el último paso (de cada cien que llegan al checkout, solo veintitrés compran), y en
+términos absolutos, el primero (más de la mitad nunca añade nada). La respuesta correcta depende de dónde
+sea más barato mejorar: pasar del 22,7 % al 25 % de checkout a compra suma 4.300 compras; pasar del 47,3 % al
+50 % en el primer paso, unas 2.400 (porque después se pierde más gente por el camino). Un embudo no dice qué
+arreglar: dice **dónde mirar**.
+
+Tres reglas para leer embudos:
+
+1. **Unidad constante**: cuenta siempre la misma unidad (sesiones **distintas**, no eventos; los eventos duplicados
+   inflan los pasos, como en el bug de la app).
+2. **Pasos ordenados y excluyentes**: quien llega al paso 3 pasó por el 2.
+3. **Segmenta antes de concluir**: un embudo agregado puede esconder lo contrario de lo que pasa en cada segmento
+   (la paradoja de Simpson del módulo de EDA).
+
+### La cohorte: comparar grupos de la misma edad
+
+Una **cohorte** agrupa a los clientes que comparten un evento de inicio (el mes de alta) y sigue su
+comportamiento con la **edad** (meses desde el alta). Resuelve un problema que los promedios globales no ven:
+cuando un negocio **crece**, el promedio de «clientes activos» está dominado por clientes recientes, que se
+comportan distinto de los antiguos. Comparar «la retención del mes» sin separar cohortes mezcla edades.
+
+Ejemplo: de los 1.721 clientes que hicieron su primera compra en enero de 2025, 799 volvieron a comprar en
+febrero (46,4 %). La tabla de cohortes completa (una fila por mes de alta, una columna por mes de edad) permite
+responder si **las cohortes recientes retienen mejor que las antiguas**, algo imposible de saber con la cifra global.
+
+| Pregunta                                               | Marco                           |
+| ------------------------------------------------------ | ------------------------------- |
+| ¿Dónde pierdo gente en un proceso?                     | Embudo                          |
+| ¿Se quedan los clientes? ¿Mejoran las nuevas cohortes? | Cohorte (retención)             |
+| ¿Cuánto vale un cliente a lo largo del tiempo?         | Cohorte (margen acumulado, LTV) |
+
+### Descomposición precio-volumen-mezcla (PVM)
+
+Cuando los ingresos cambian entre dos periodos (de 22,44 M€ en 2024 a 49,46 M€ en 2025, +27,02 M€), la pregunta
+de negocio es **qué cambió**: ¿vendimos más unidades (**volumen**), de productos distintos (**mezcla**) o a
+otro precio (**precio**)? Con $Q$ las unidades totales, $s_i$ la cuota de unidades de la categoría $i$ y $p_i$ su
+precio medio ($R = Q\sum_i s_i p_i$):
+
+$$
+\underbrace{(Q_1 - Q_0)\sum_i s_{0i}\,p_{0i}}_{\text{volumen}}\;+\;
+\underbrace{Q_1\sum_i (s_{1i}-s_{0i})\,p_{0i}}_{\text{mezcla}}\;+\;
+\underbrace{Q_1\sum_i s_{1i}\,(p_{1i}-p_{0i})}_{\text{precio}}\;=\;R_1-R_0
+$$
+
+Es una **identidad** (suma exactamente la variación) y cada término tiene una lectura directa. Con las ocho
+categorías de Lumen (unidades vendidas en pedidos no cancelados):
+
+| Efecto    |           Importe | % de la variación |
+| --------- | ----------------: | ----------------: |
+| Volumen   |     +26.615.033 € |            98,5 % |
+| Mezcla    |        +123.396 € |             0,5 % |
+| Precio    |        +280.473 € |             1,0 % |
+| **Total** | **+27.018.903 €** |         **100 %** |
+
+Las unidades vendidas pasaron de 278.594 a 608.994 (×2,19) y el precio medio por unidad apenas se movió (80,55 € a
+81,22 €); la mezcla de categorías es casi idéntica (Electrónica pasa del 12,2 % al 12,3 % de las unidades). El
+crecimiento es **casi todo volumen**, lo que coincide con la lección anterior (clientes y frecuencia, no
+ticket). En el caso guiado «Caída de ventas en marzo» usarás este mismo razonamiento para separar una caída de
+**demanda** (volumen) de una de **oferta** (rotura de stock) o de **mezcla** (se vende menos de lo caro).
+
+<Callout type="warning">
+  La descomposición depende del **nivel de detalle** que elijas: con categorías, la «mezcla» recoge
+  solo cambios entre categorías; con productos, la mezcla sería mayor porque capta también los
+  cambios dentro de cada categoría. Fija el nivel antes de ver el resultado y dilo en el informe. Y
+  recuerda: descomponer no es explicar la causa.
+</Callout>
+
+## En la práctica
+
+El embudo por sesiones distintas, en SQL (cuenta sesiones, no eventos):
+
+```sql
+SELECT event_type, COUNT(DISTINCT session_id) AS sesiones
+FROM events
+GROUP BY event_type;
+```
+
+Y la PVM en pandas, con unidades y precio medio por categoría y año:
+
+```python
+a = g[g.anio == 2024].set_index("cat")        # columnas q (unidades) y r (ingresos)
+b = g[g.anio == 2025].set_index("cat")
+Q0, Q1 = a.q.sum(), b.q.sum()
+s0, s1 = a.q / Q0, b.q / Q1
+p0, p1 = a.r / a.q, b.r / b.q
+
+volumen = (Q1 - Q0) * (s0 * p0).sum()
+mezcla = Q1 * ((s1 - s0) * p0).sum()
+precio = Q1 * (s1 * (p1 - p0)).sum()
+assert abs(volumen + mezcla + precio - (b.r.sum() - a.r.sum())) < 1   # la identidad
+```
+
+En el lab de esta lección implementas la descomposición y compruebas la identidad.
+
+## Trade-offs y cuándo usarlo
+
+- **Embudo frente a cohorte**: el embudo es instantáneo y sirve para localizar cuellos de botella; la cohorte necesita tiempo
+  pero responde a «¿mejora el producto con el tiempo?».
+- **PVM con pocas o muchas categorías**: pocas categorías son legibles pero esconden mezcla interna; muchas
+  captan más mezcla pero el resultado es difícil de contar.
+- **Descomposición de dos periodos frente a series**: dos fechas son simples; para una serie larga conviene encadenar
+  periodos o usar un modelo.
+- **Orden de los efectos**: existen varias formas de ordenar volumen, mezcla y precio que reparten la interacción de
+  forma algo distinta. Elige una convención y úsala siempre.
+
+## Errores comunes
+
+- **Contar eventos en lugar de sesiones o clientes distintos en un embudo.**
+- **Comparar retenciones agregadas** de un negocio que crece, sin separar cohortes por edad.
+- **Atribuir una variación a «precio» sin separar volumen y mezcla.**
+- **Cambiar el nivel de detalle de la PVM** entre informes y comparar sus resultados.
+- **Interpretar una descomposición como causal.**
+- **Optimizar el paso con peor tasa** sin ver cuánta gente llega a él.
+
+## Con IA
+
+Un asistente puede generar el SQL de un embudo o la PVM en segundos, pero suele **contar eventos** en lugar de
+unidades distintas y confundir el orden de los efectos. Pídele la fórmula que usa, exige que muestre
+la **comprobación de la identidad** (la suma de efectos igual a la variación total) y que explique qué nivel de
+detalle ha elegido. Si da una cifra de «efecto mezcla» sin cuadrar con la variación, descártala.
+
+## En una entrevista
+
+- _"La conversión es del 4 %. ¿Cómo localizas el problema?"_ — Pista: embudo con sesiones distintas, tasas de paso,
+  segmentos, y dónde es más barato mejorar.
+- _"¿Por qué usarías cohortes en lugar de la retención global?"_ — Pista: el promedio global mezcla edades en un
+  negocio que crece; comparar cohortes de la misma edad.
+- _"Los ingresos suben un 120 %. ¿Es precio o volumen?"_ — Pista: PVM; en Lumen, 98,5 % volumen; identidad;
+  nivel de detalle.
+
+<KeyTakeaways
+  items={[
+    'El embudo se lee con tasas de paso entre pasos consecutivos y con unidades distintas (sesiones, no eventos); no dice qué arreglar sino dónde mirar.',
+    'La conversión de Lumen (4,2 %) es el producto de 47,3 %, 39,3 % y 22,7 %; el último paso es el cuello relativo y el primero el absoluto.',
+    'Las cohortes comparan grupos de la misma edad y evitan los promedios engañosos de un negocio que crece (enero 2025: 799 de 1.721 clientes volvieron en febrero, 46,4 %).',
+    'La PVM descompone la variación en volumen, mezcla y precio y suma exactamente el total: de 2024 a 2025 en Lumen, +27,02 M€ = 98,5 % volumen + 0,5 % mezcla + 1,0 % precio.',
+    'Fija el nivel de detalle y el orden de los efectos antes de ver el resultado, y no interpretes una descomposición como una causa.',
+  ]}
+/>

@@ -1,0 +1,32 @@
+---
+title: 'Simula el teorema central del límite con los importes de Lumen'
+description: 'Genera la distribución muestral de la media, compara su dispersión con el error estándar teórico y mide la cobertura real de un intervalo de confianza «al 95 %».'
+language: python
+part: 'Parte 0 · Fundamentos del oficio'
+module: estadistica-descriptiva
+difficulty: 3
+estimatedMinutes: 30
+concepts:
+  ['teorema central del límite', 'error estándar', 'simulación', 'cobertura de un intervalo']
+datasets: ['orders', 'order_items']
+packages: []
+output: console
+hints:
+  - 'Para `medias_muestrales`: `rng = np.random.default_rng(seed)` y `rng.choice(x, size=(reps, n)).mean(axis=1)` te da `reps` medias de muestras de tamaño `n` (con reemplazo).'
+  - 'El error estándar teórico es `x.std(ddof=0) / sqrt(n)`: la desviación de la **población** (no de una muestra) dividida entre raíz de n.'
+  - 'Cobertura: para cada una de `reps` muestras calcula `media ± 1.96 * s / sqrt(n)` (con `s = std(ddof=1)` de esa muestra) y cuenta cuántas veces contiene la media poblacional `x.mean()`.'
+  - 'Vectoriza: genera todas las muestras de golpe con `rng.choice(x, size=(reps, n))` y calcula medias y desviaciones por filas (`axis=1`).'
+relatedLessons: ['estadistica-descriptiva/04-ley-de-grandes-numeros-y-teorema-central-del-limite']
+businessQuestion: '¿Cuánto varía la media de una muestra de pedidos, y cuántas veces un intervalo «al 95 %» contiene de verdad la media real?'
+---
+
+En el _starter_ tienes `importes`, un array con el importe de cada pedido no cancelado de Lumen (media 301,7 €, desviación 363,8 €).
+Implementa:
+
+1. **`medias_muestrales(x, n, reps, seed)`** → array de `reps` medias de muestras de tamaño `n` (con reemplazo), usando
+   `np.random.default_rng(seed)`.
+2. **`error_estandar_teorico(x, n)`** → `σ/√n` con la desviación de la población (2 decimales).
+3. **`cobertura_ic(x, n, reps, seed)`** → porcentaje (1 decimal) de muestras de tamaño `n` cuyo intervalo
+   `media ± 1,96·s/√n` contiene la media de `x`.
+
+Comprueba que la desviación de las medias se parece al error estándar teórico y que la cobertura mejora con `n`.

@@ -1,0 +1,31 @@
+---
+title: 'Árbol de ingresos: clientes × frecuencia × ticket'
+description: 'Descompón el crecimiento de los ingresos entre dos años en clientes activos, pedidos por cliente y ticket medio, y reparte la variación con logaritmos.'
+language: python
+part: 'Parte 0 · Fundamentos del oficio'
+module: pensamiento-negocio
+difficulty: 2
+estimatedMinutes: 25
+concepts: ['árbol de problemas', 'MECE', 'descomposición multiplicativa', 'logaritmos']
+datasets: ['orders', 'order_items']
+packages: []
+output: console
+hints:
+  - 'Los ingresos de un pedido son la suma de `quantity * unit_price` de sus líneas. Excluye los pedidos cancelados y filtra por año con `order_date.dt.year`.'
+  - 'Clientes activos = `customer_id` distintos con algún pedido en el año; pedidos por cliente = nº de pedidos / clientes activos; ticket = ingresos / pedidos.'
+  - 'El reparto logarítmico de un factor es `log(b[f] / a[f]) / log(b["ingresos"] / a["ingresos"])`. Las tres contribuciones suman 1.'
+  - 'Redondea las contribuciones a 3 decimales; las cantidades (clientes, pedidos) son enteros y los importes se redondean a 2 decimales.'
+relatedLessons: ['pensamiento-negocio/01-preguntas-arboles-e-hipotesis']
+businessQuestion: '¿Qué parte del crecimiento de los ingresos se debe a más clientes, a más frecuencia y a un ticket mayor?'
+---
+
+Implementa dos funciones sobre las tablas de Lumen (ya cargadas como `orders` y `order_items`):
+
+1. **`arbol_ingresos(orders, order_items, anio)`** → diccionario con los factores del año: `clientes_activos` (entero),
+   `pedidos` (entero), `pedidos_por_cliente` (3 decimales), `ticket_medio` (2 decimales) e `ingresos` (2 decimales).
+   Cuenta solo los pedidos **no cancelados**.
+2. **`contribuciones(a, b)`** → diccionario con la contribución de `clientes_activos`, `pedidos_por_cliente` y
+   `ticket_medio` al crecimiento de `ingresos` entre los árboles `a` (año base) y `b` (año comparado), con 3 decimales.
+   Deben sumar 1 (con una tolerancia de redondeo).
+
+Después, mira el resultado de 2024 a 2025: ¿qué propuesta del comité atacaba el factor que menos pesó?

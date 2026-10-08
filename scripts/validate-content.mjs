@@ -124,6 +124,12 @@ async function main() {
     if (Array.isArray(data.sources) && data.sources.length < 2) {
       fail(`Lección "${id}" tiene menos de 2 fuentes`);
     }
+    if (data.level && !['básico', 'intermedio', 'avanzado'].includes(data.level)) {
+      fail(`Lección "${id}": level "${data.level}" no válido (básico, intermedio o avanzado)`);
+    }
+    if (data.volatility && !['low', 'medium', 'high'].includes(data.volatility)) {
+      fail(`Lección "${id}": volatility "${data.volatility}" no válida (low, medium o high)`);
+    }
   }
 
   // --- Labs ---------------------------------------------------------------

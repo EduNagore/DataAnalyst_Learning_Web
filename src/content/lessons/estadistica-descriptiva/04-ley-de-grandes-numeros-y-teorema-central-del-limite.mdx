@@ -1,0 +1,298 @@
+---
+title: 'Ley de los grandes números y teorema central del límite'
+description: 'Por qué la media de una muestra se acerca a la de la población y por qué las medias muestrales se distribuyen como una campana aunque los datos no lo hagan: con simulaciones sobre los importes de Lumen.'
+module: estadistica-descriptiva
+order: 4
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Enunciar la ley de los grandes números y el teorema central del límite y distinguir qué afirma cada uno.'
+  - 'Calcular el error estándar de la media y relacionarlo con el tamaño de la muestra.'
+  - 'Simular la distribución muestral de la media y comprobar el efecto del tamaño de la muestra sobre su forma y su dispersión.'
+  - 'Explicar por qué un intervalo de confianza basado en la normal puede cubrir menos del 95 % con muestras pequeñas y datos asimétricos.'
+prerequisites: ['estadistica-descriptiva/03-probabilidad-condicional-y-bayes']
+tools: ['numpy', 'pandas']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'NIST/SEMATECH e-Handbook of Statistical Methods — Central limit theorem'
+    url: 'https://www.itl.nist.gov/div898/handbook/eda/section3/eda3661.htm'
+    type: docs
+    authors: 'NIST'
+    year: 2013
+  - title: 'NumPy — Random Generator'
+    url: 'https://numpy.org/doc/stable/reference/random/generator.html'
+    type: docs
+    authors: 'NumPy developers'
+    year: 2026
+relatedLabs: ['py-tlc-simulacion']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import VegaChart from '../../../components/content/VegaChart.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Calidad revisa cada semana 30 pedidos al azar para estimar el importe medio y afirma que "la media
+  está en 300 €, con un margen de ±130 €". Un directivo pregunta: "¿Por qué fiarnos de 30 pedidos si
+  los importes van de 1 € a 6.000 € y la distribución es muy asimétrica? ¿Y cuántos pedidos harían
+  falta para ±26 €?".
+</BusinessContext>
+
+Las dos preguntas tienen respuesta gracias a dos resultados centrales de la estadística. Son el puente entre la
+**descripción** de datos (este módulo) y la **inferencia** (módulos siguientes): permiten decir algo fiable sobre
+una población entera a partir de una muestra.
+
+## Intuición
+
+- **Ley de los grandes números (LGN)**: cuantas más observaciones, más se acerca la media de la muestra a la media
+  verdadera. Es el motivo de que un casino gane a largo plazo aunque pierda algunas apuestas.
+- **Teorema central del límite (TLC)**: si tomas muchas muestras del mismo tamaño y calculas la media de cada una,
+  esas medias se distribuyen **como una campana** alrededor de la media verdadera, aunque los datos originales no
+  sean una campana, y su dispersión disminuye con $\sqrt{n}$.
+
+La LGN dice **a dónde va** la media; el TLC dice **cómo de lejos** puede estar y **con qué forma**.
+
+## Cómo funciona
+
+### Ley de los grandes números
+
+Si $\bar X_n$ es la media de $n$ observaciones independientes con media poblacional $\mu$, entonces $\bar X_n \to \mu$ cuando
+$n$ crece. Con los 377.145 importes de pedido de Lumen (media verdadera 301,7 €), la media acumulada de pedidos tomados al
+azar es:
+
+| Pedidos en la muestra | Media de la muestra | Error respecto a 301,7 € |
+| --------------------: | ------------------: | -----------------------: |
+|                    10 |             425,8 € |                  +41,1 % |
+|                   100 |             254,6 € |                  −15,6 % |
+|                 1.000 |             282,5 € |                   −6,4 % |
+|                10.000 |             299,4 € |                   −0,8 % |
+|               100.000 |             302,0 € |                   +0,1 % |
+
+Con 10 pedidos, la media puede estar un 41 % fuera; con 100.000, a un 0,1 %. **No hay garantía de que una muestra concreta
+sea buena**; la ley solo asegura que, al crecer $n$, el error tiende a cero. Y supone que existe media: si la distribución
+tiene colas tan pesadas que no hay media (como la de Cauchy), la media acumulada **no converge** y un solo valor extremo la
+desplaza (en una simulación con semilla fija, las medias acumuladas de 10, 100, 1.000, 10.000 y 100.000 valores de Cauchy son 1,31;
+−1,12; −4,61; 0,87 y 0,30: oscilan sin asentarse).
+
+### Teorema central del límite y error estándar
+
+Si tomas muchas muestras de tamaño $n$ de una población con media $\mu$ y desviación $\sigma$ finitas, la media muestral
+$\bar X_n$ tiene (aproximadamente, y mejor cuanto mayor sea $n$):
+
+$$
+\bar X_n \;\approx\; \mathcal N\!\left(\mu,\ \frac{\sigma}{\sqrt{n}}\right)
+\qquad\text{error estándar}=\frac{\sigma}{\sqrt{n}}
+$$
+
+El **error estándar** (_standard error_, SE) es la desviación típica de la media muestral: cuánto varía la media de
+muestra en muestra. Disminuye con $\sqrt{n}$: **para reducirlo a la mitad hace falta cuadruplicar la muestra**.
+
+Simulación sobre los importes de Lumen (población: $\mu=301{,}7$ €, $\sigma=363{,}8$ €, asimetría 3,02; 20.000 muestras para cada $n$, semilla fija):
+
+| Tamaño $n$ | Media de las medias | Desviación de las medias | SE teórico $\sigma/\sqrt n$ | Asimetría de las medias |
+| ---------: | ------------------: | -----------------------: | --------------------------: | ----------------------: |
+|          1 |             304,2 € |                  370,4 € |                     363,8 € |                    3,11 |
+|          5 |             300,0 € |                  162,4 € |                     162,7 € |                    1,38 |
+|         30 |             301,5 € |                   66,5 € |                      66,4 € |                    0,57 |
+|        200 |             301,7 € |                   25,9 € |                      25,7 € |                    0,23 |
+
+Tres cosas se leen en la tabla: las medias están **centradas** en 301,7 € (insesgadas); su dispersión **coincide con
+$\sigma/\sqrt{n}$**; y su **asimetría** cae de 3,1 a 0,2: la forma tiende a la campana. Y se ve:
+
+<VegaChart
+  minHeight={420}
+  alt="Dos histogramas. Arriba, los importes individuales de pedido (n = 1), con fuerte asimetría y cola larga a la derecha. Abajo, las medias de muestras de 30 pedidos, casi simétricas y con forma de campana centrada en unos 300 euros."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    vconcat: [
+      {
+        title: 'Un pedido (n = 1)',
+        width: 320,
+        height: 150,
+        data: {
+          values: [
+            { x: 0, p: 21.3 },
+            { x: 60, p: 16.2 },
+            { x: 120, p: 12.2 },
+            { x: 180, p: 9.0 },
+            { x: 240, p: 7.3 },
+            { x: 300, p: 6.0 },
+            { x: 360, p: 4.5 },
+            { x: 420, p: 4.1 },
+            { x: 480, p: 3.2 },
+            { x: 540, p: 2.4 },
+            { x: 600, p: 2.1 },
+            { x: 660, p: 1.6 },
+            { x: 720, p: 1.4 },
+            { x: 780, p: 1.1 },
+            { x: 840, p: 1.0 },
+            { x: 900, p: 0.9 },
+            { x: 960, p: 0.7 },
+            { x: 1020, p: 0.6 },
+            { x: 1080, p: 0.6 },
+            { x: 1140, p: 0.3 },
+            { x: 1200, p: 0.4 },
+            { x: 1260, p: 0.3 },
+            { x: 1320, p: 0.3 },
+            { x: 1380, p: 0.2 },
+          ],
+        },
+        transform: [{ calculate: 'datum.x + 60', as: 'x2' }],
+        mark: { type: 'bar', color: '#E45756' },
+        encoding: {
+          x: {
+            field: 'x',
+            type: 'quantitative',
+            title: 'Importe (€)',
+            bin: { binned: true, step: 60 },
+          },
+          x2: { field: 'x2' },
+          y: { field: 'p', type: 'quantitative', title: '% de muestras' },
+        },
+      },
+      {
+        title: 'Media de 30 pedidos (n = 30)',
+        width: 320,
+        height: 150,
+        data: {
+          values: [
+            { x: 100, p: 0.0 },
+            { x: 120, p: 0.0 },
+            { x: 140, p: 0.3 },
+            { x: 160, p: 1.1 },
+            { x: 180, p: 2.8 },
+            { x: 200, p: 5.1 },
+            { x: 220, p: 8.6 },
+            { x: 240, p: 10.7 },
+            { x: 260, p: 12.0 },
+            { x: 280, p: 12.5 },
+            { x: 300, p: 11.4 },
+            { x: 320, p: 9.8 },
+            { x: 340, p: 7.8 },
+            { x: 360, p: 5.9 },
+            { x: 380, p: 4.1 },
+            { x: 400, p: 2.9 },
+            { x: 420, p: 2.0 },
+            { x: 440, p: 1.3 },
+            { x: 460, p: 0.8 },
+            { x: 480, p: 0.4 },
+            { x: 500, p: 0.3 },
+            { x: 520, p: 0.2 },
+          ],
+        },
+        transform: [{ calculate: 'datum.x + 20', as: 'x2' }],
+        mark: { type: 'bar', color: '#4C78A8' },
+        encoding: {
+          x: {
+            field: 'x',
+            type: 'quantitative',
+            title: 'Media de la muestra (€)',
+            bin: { binned: true, step: 20 },
+          },
+          x2: { field: 'x2' },
+          y: { field: 'p', type: 'quantitative', title: '% de muestras' },
+        },
+      },
+    ],
+  }}
+/>
+
+La campana aparece **aunque los pedidos individuales sean muy asimétricos**. Ese es el poder del TLC.
+
+<Callout type="info">
+  El teorema habla de la distribución de la **media muestral** (o de una suma), no de los datos. Los
+  importes individuales siguen siendo asimétricos por muy grande que sea la muestra; lo que se
+  vuelve normal es la media de muestras.
+</Callout>
+
+### Cuánta muestra hace falta
+
+La regla habitual de «con $n \ge 30$ ya es normal» es **una guía, no una ley**. Depende de la asimetría de los datos. Con
+los importes de Lumen (muy asimétricos), a $n=30$ la media aún tiene asimetría 0,57. Un efecto práctico: un intervalo de confianza del
+95 % construido con la normal ($\bar x \pm 1{,}96\,s/\sqrt n$) debería contener la media verdadera el 95 % de las veces
+(cobertura nominal). Simulando 5.000 muestras para cada tamaño:
+
+| Tamaño de la muestra | Cobertura real del intervalo «95 %» |
+| -------------------: | ----------------------------------: |
+|                   10 |                              83,4 % |
+|                   30 |                              89,8 % |
+|                  200 |                              94,0 % |
+
+Con 30 pedidos, el intervalo «al 95 %» solo cubre el 89,8 %, porque la asimetría y la estimación de $\sigma$ con $s$ hacen que
+la normal sea una aproximación pobre. Con 200 se acerca al 94 %. La respuesta a la pregunta del directivo (±26 € de error con 95 % de
+confianza) no es 30 pedidos sino unos $(1{,}96\times 363{,}8/26)^2 \approx 750$; y para un intervalo «de verdad al 95 %»
+con una muestra pequeña hay que usar el bootstrap o el percentil (módulo de inferencia).
+
+## En la práctica
+
+La simulación completa cabe en pocas líneas con NumPy:
+
+```python
+import numpy as np
+
+rng = np.random.default_rng(20240101)          # semilla fija: resultado reproducible
+n, reps = 30, 20_000
+
+medias = rng.choice(importes, size=(reps, n)).mean(axis=1)   # 20.000 medias de 30 pedidos
+medias.mean(), medias.std()                                  # ≈ 301,5 y ≈ 66,5
+importes.std() / np.sqrt(n)                                  # SE teórico ≈ 66,4
+```
+
+Y la cobertura del intervalo, comprobando cuántas veces contiene la media verdadera:
+
+```python
+def cubre(muestra, mu):
+    se = muestra.std(ddof=1) / np.sqrt(len(muestra))
+    return muestra.mean() - 1.96 * se <= mu <= muestra.mean() + 1.96 * se
+
+np.mean([cubre(rng.choice(importes, 30), importes.mean()) for _ in range(5000)])   # ≈ 0,898
+```
+
+En el lab de esta lección implementas la simulación de medias, el error estándar teórico y la cobertura del intervalo.
+
+## Trade-offs y cuándo usarlo
+
+- **Simulación frente a fórmula**: la fórmula $\sigma/\sqrt n$ es instantánea; la simulación sirve cuando no hay fórmula (percentiles, razones, estadísticos complejos).
+- **Muestra grande frente a muestra bien diseñada**: aumentar $n$ reduce el ruido pero **no corrige un sesgo de selección**.
+- **Normal frente a bootstrap**: con $n$ grande y datos moderadamente asimétricos vale la normal; con $n$ pequeño o colas largas, el bootstrap.
+- **Reproducibilidad**: fija siempre la semilla y el número de repeticiones (más repeticiones, menos ruido en la simulación).
+
+## Errores comunes
+
+- **Pensar que la LGN garantiza que una muestra pequeña sea representativa**: solo dice que el error tiende a cero al crecer $n$.
+- **Decir que «los datos se vuelven normales con muestras grandes»**: lo hace la distribución de la media, no los datos.
+- **Usar «$n \ge 30$» como regla fija** con datos muy asimétricos o con colas pesadas.
+- **Confundir la desviación típica de los datos con el error estándar** de la media.
+- **Creer que más datos arreglan una muestra sesgada.**
+- **Olvidar que el TLC exige varianza finita**: con colas muy pesadas, no se aplica.
+
+## Con IA
+
+Un asistente genera simulaciones de TLC en segundos, pero a menudo usa **datos ya normales** (que no demuestran nada) o
+confunde $\sigma$ con el error estándar. Pídele que simule sobre una distribución asimétrica real, que muestre
+la tabla de SE teórico frente a observado y que fije la semilla. Verifica la cobertura de cualquier intervalo
+que te proponga con una simulación como la de esta lección.
+
+## En una entrevista
+
+- _"¿Qué dice el teorema central del límite y por qué importa?"_ — Pista: medias muestrales ≈ normal con SE = σ/√n;
+  base de los intervalos y contrastes; no habla de los datos sino de la media.
+- _"Quiero reducir el error de una estimación a la mitad. ¿Cuánta muestra más necesito?"_ — Pista: cuatro veces más
+  (SE ∝ 1/√n).
+- _"¿Con n = 30 siempre se puede usar la normal?"_ — Pista: depende de la asimetría; en Lumen con n = 30 la
+  cobertura del IC «al 95 %» es 89,8 %.
+
+<KeyTakeaways
+  items={[
+    'LGN: la media muestral converge a la media poblacional al crecer n (en Lumen, la media acumulada pasa de +41 % de error con 10 pedidos a +0,1 % con 100.000); solo si existe media.',
+    'TLC: la media muestral es aproximadamente normal con error estándar σ/√n, aunque los datos no lo sean; hay que cuadruplicar la muestra para reducir el error a la mitad.',
+    'En los importes de Lumen (asimetría 3,0) las medias de 30 pedidos tienen todavía asimetría 0,57; con 200 pedidos baja a 0,23.',
+    'Con n = 30 y datos asimétricos, un intervalo «al 95 %» con la normal cubre solo el 89,8 % de las veces; con n = 200, el 94,0 %.',
+    'Más muestra reduce el ruido pero no corrige un sesgo de selección; fija semilla y repeticiones al simular.',
+  ]}
+/>

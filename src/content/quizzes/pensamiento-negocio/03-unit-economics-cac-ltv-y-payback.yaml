@@ -1,0 +1,71 @@
+lesson: pensamiento-negocio/03-unit-economics-cac-ltv-y-payback
+questions:
+  - id: neg1-03-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué es el CAC?'
+    options:
+      - 'El margen que deja un cliente durante toda su vida'
+      - 'El gasto de captación de un periodo dividido entre los clientes nuevos captados en ese periodo'
+      - 'El número de pedidos por cliente'
+      - 'Los ingresos medios por pedido'
+    answer: [1]
+    explanation: 'CAC (customer acquisition cost) = gasto de captación / clientes nuevos. El margen acumulado por cliente es el LTV; los pedidos por cliente son la frecuencia.'
+    ref: '#las-cuatro-definiciones'
+
+  - id: neg1-03-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'En 2024 Lumen gastó 1.235.375 € en marketing y captó 15.820 clientes. ¿Cuál es el CAC mixto? (dos decimales)'
+    answer: [78.09]
+    tolerance: 0.011
+    explanation: '1.235.375 / 15.820 = 78,09 €. Es un CAC mixto (blended): incluye clientes de todos los canales, de pago y no de pago.'
+    ref: '#cac-en-lumen-mixto-y-por-canal'
+
+  - id: neg1-03-q3
+    type: single
+    difficulty: 3
+    prompt: 'El CAC mixto de Lumen baja de 114,04 € (2023) a 63,50 € (2025), con un gasto casi plano y clientes nuevos que casi se duplican. ¿Qué conclusión es la más prudente?'
+    options:
+      - 'Marketing es un 44 % más eficiente'
+      - 'La cifra por sí sola no distingue entre una mejora de eficiencia y un negocio que crece por otras vías (marca, producto, boca a boca); hay que mirar canales, incrementalidad y el numerador y el denominador por separado'
+      - 'El CAC no sirve para nada'
+      - 'Hay que subir el gasto'
+    answer: [1]
+    explanation: 'Con un numerador plano y un denominador creciente el CAC baja aunque marketing no haya cambiado. Para atribuir la mejora hace falta descomponerlo por canal y medir la incrementalidad.'
+    ref: '#cac-en-lumen-mixto-y-por-canal'
+
+  - id: neg1-03-q4
+    type: single
+    difficulty: 2
+    prompt: 'En una suscripción con un ingreso mensual de 17,71 € y un abandono mensual constante del 4,29 %, ¿cuál es la vida media esperada y el LTV de ingresos aproximado?'
+    options:
+      - '4,29 meses y 76 €'
+      - 'Unos 23 meses (1 / 0,0429) y unos 413 € (17,71 / 0,0429)'
+      - '12 meses y 212 €'
+      - 'No se puede calcular'
+    answer: [1]
+    explanation: 'Con abandono constante c, la vida media es 1/c ≈ 23,3 meses y el LTV = margen por periodo / c. Con ingresos en lugar de margen, es un LTV de ingresos: orden de magnitud, no un valor exacto.'
+    ref: '#dos-formas-de-estimar-el-ltv'
+
+  - id: neg1-03-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las trampas habituales al calcular LTV y CAC.'
+    options:
+      - 'Calcular el LTV con ingresos en lugar de margen de contribución'
+      - 'Comparar cohortes recientes con antiguas como si hubieran tenido el mismo recorrido'
+      - 'Tratar la regla LTV/CAC > 3 como una ley universal'
+      - 'Calcular el CAC por canal con los clientes captados de ese canal'
+    answer: [0, 1, 2]
+    explanation: 'La última es una práctica correcta (con la cautela de que el canal de alta no es atribución causal). Las otras tres son errores habituales.'
+    ref: '#las-trampas-habituales'
+
+  - id: neg1-03-q6
+    type: numeric
+    difficulty: 2
+    prompt: 'La cohorte de 2024 acumula 689 € de margen por cliente y su CAC mixto es 78,09 €. ¿Cuánto vale LTV/CAC? (un decimal)'
+    answer: [8.8]
+    tolerance: 0.06
+    explanation: '689 / 78,09 ≈ 8,8. En el dataset sintético el margen se concentra en los dos primeros meses; en un negocio real no extrapoles esta razón.'
+    ref: '#margen-de-contribución-por-cliente-y-payback'

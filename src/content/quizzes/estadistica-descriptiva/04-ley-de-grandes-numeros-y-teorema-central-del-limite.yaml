@@ -1,0 +1,75 @@
+lesson: estadistica-descriptiva/04-ley-de-grandes-numeros-y-teorema-central-del-limite
+questions:
+  - id: est0-04-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué afirma la ley de los grandes números?'
+    options:
+      - 'Que cualquier muestra pequeña es representativa'
+      - 'Que al aumentar el tamaño de la muestra, la media muestral se acerca a la media de la población (si esta existe)'
+      - 'Que los datos siguen una distribución normal'
+      - 'Que la desviación típica disminuye siempre'
+    answer: [1]
+    explanation: 'Dice a dónde va la media al crecer n; no garantiza que una muestra concreta sea buena ni dice nada de la forma de los datos.'
+    ref: '#ley-de-los-grandes-números'
+
+  - id: est0-04-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Qué afirma el teorema central del límite?'
+    options:
+      - 'Que los datos se vuelven normales cuando hay muchos'
+      - 'Que la media muestral se distribuye aproximadamente como una normal con desviación σ/√n, aunque los datos no sean normales (con varianza finita)'
+      - 'Que la media es siempre igual a la mediana'
+      - 'Que n = 30 basta siempre'
+    answer: [1]
+    explanation: 'El teorema se refiere a la distribución de la media (o de una suma) de muestras, no a la de los datos. Los importes de pedido siguen siendo asimétricos por muchos que sean.'
+    ref: '#teorema-central-del-límite-y-error-estándar'
+
+  - id: est0-04-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'Los importes de Lumen tienen σ = 363,8 €. ¿Cuál es el error estándar de la media de una muestra de 200 pedidos? (un decimal, en €)'
+    answer: [25.7]
+    tolerance: 0.06
+    explanation: 'σ/√n = 363,8 / √200 = 363,8 / 14,142 = 25,7 €. La simulación con 20.000 muestras da 25,9 €.'
+    ref: '#teorema-central-del-límite-y-error-estándar'
+
+  - id: est0-04-q4
+    type: single
+    difficulty: 2
+    prompt: 'Una estimación tiene un error estándar de 66 € con n = 30. ¿Qué n necesitas para reducirlo a la mitad (≈ 33 €)?'
+    options:
+      - 'n = 60'
+      - 'n = 120 (cuatro veces más), porque el error estándar es proporcional a 1/√n'
+      - 'n = 90'
+      - 'n = 900'
+    answer: [1]
+    explanation: 'SE = σ/√n: para dividirlo entre 2 hay que multiplicar n por 4. Los rendimientos decrecen: cada reducción del ruido cuesta cada vez más muestra.'
+    ref: '#teorema-central-del-límite-y-error-estándar'
+
+  - id: est0-04-q5
+    type: single
+    difficulty: 3
+    prompt: 'Con 30 pedidos de Lumen, un intervalo «al 95 %» calculado con la normal cubre la media real solo el 89,8 % de las veces. ¿Por qué?'
+    options:
+      - 'Porque 1,96 es el valor equivocado'
+      - 'Porque los importes son muy asimétricos y con n = 30 la distribución de la media aún no es normal (asimetría 0,57) y la desviación se estima con la propia muestra'
+      - 'Porque hay errores en los datos'
+      - 'Porque el intervalo es demasiado ancho'
+    answer: [1]
+    explanation: 'La regla «n ≥ 30» es una guía que depende de la asimetría. Con datos muy asimétricos hacen falta muestras mayores o métodos como el bootstrap para que la cobertura real se acerque a la nominal.'
+    ref: '#cuánta-muestra-hace-falta'
+
+  - id: est0-04-q6
+    type: single
+    difficulty: 2
+    prompt: 'Una encuesta de 100.000 respuestas solo contesta quien está muy satisfecho. ¿Qué dicen la LGN y el TLC sobre la fiabilidad de su media?'
+    options:
+      - 'Que es fiable porque la muestra es enorme'
+      - 'Nada que arregle el problema: con una muestra sesgada, el error estándar será pequeño pero la media convergerá a la media de la población equivocada'
+      - 'Que hay que dividir entre √n'
+      - 'Que es normal'
+    answer: [1]
+    explanation: 'Más muestra reduce el ruido aleatorio, no el sesgo de selección. Se obtiene una estimación muy precisa de la cosa equivocada.'
+    ref: '#trade-offs-y-cuándo-usarlo'

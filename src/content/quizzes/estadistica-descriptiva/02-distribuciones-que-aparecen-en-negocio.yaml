@@ -1,0 +1,75 @@
+lesson: estadistica-descriptiva/02-distribuciones-que-aparecen-en-negocio
+questions:
+  - id: est0-02-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué mecanismo produce típicamente una distribución log-normal?'
+    options:
+      - 'Sumar muchos efectos pequeños e independientes'
+      - 'Multiplicar muchos efectos (cada paso cambia un porcentaje), lo que da una cola larga a la derecha'
+      - 'Contar sucesos raros'
+      - 'Repetir un ensayo de éxito o fracaso'
+    answer: [1]
+    explanation: 'Los efectos multiplicativos se vuelven aditivos en logaritmos: el logaritmo del valor es aproximadamente normal. Es el caso de importes, ingresos y tamaños.'
+    ref: '#las-cuatro-de-uso-diario'
+
+  - id: est0-02-q2
+    type: single
+    difficulty: 2
+    prompt: 'Los pedidos diarios tienen media 367,7 y varianza 457,8. ¿Qué indica el cociente varianza/media (1,24)?'
+    options:
+      - 'Que siguen exactamente una Poisson'
+      - 'Una ligera sobredispersión respecto a una Poisson (cociente 1): el ritmo diario no es perfectamente constante'
+      - 'Que los datos están mal'
+      - 'Que la distribución es normal'
+    answer: [1]
+    explanation: 'En una Poisson la varianza es igual a la media. Un cociente de 1,24 indica algo más de variación (día de la semana, tendencia). Un cociente de 6,7, como el de las sesiones, indicaría fuerte sobredispersión.'
+    ref: '#encaja-el-modelo-lo-comprobamos-con-lumen'
+
+  - id: est0-02-q3
+    type: numeric
+    difficulty: 3
+    prompt: 'Un día hay 707 sesiones y una conversión media del 4,24 %. ¿Cuál es la desviación típica esperada de la conversión diaria por puro azar binomial, en puntos porcentuales? (dos decimales)'
+    answer: [0.76]
+    tolerance: 0.011
+    explanation: 'sqrt(p(1−p)/n) = sqrt(0,0424 × 0,9576 / 707) = 0,00758, es decir, 0,76 puntos. Una caída diaria del 4,2 % al 3,5 % queda dentro de ese ruido.'
+    ref: '#encaja-el-modelo-lo-comprobamos-con-lumen'
+
+  - id: est0-02-q4
+    type: single
+    difficulty: 2
+    prompt: 'La log-normal ajustada a los importes de Lumen acierta de P10 a P90, pero estima un 2,31 % de pedidos por encima de 2.000 € cuando el dato real es 0,62 %. ¿Cómo debe usarse el modelo?'
+    options:
+      - 'Descartarlo por completo'
+      - 'Usarlo para describir el cuerpo de la distribución y no para predecir la cola alta, donde sobrestima por un factor de ≈ 3,7'
+      - 'Usarlo igual para todo'
+      - 'Cambiar los datos para que encajen'
+    answer: [1]
+    explanation: 'Un modelo sencillo es útil si se conoce dónde falla. Aquí hay un techo natural (cantidades acotadas) que la log-normal ignora. La cola real es unas 3,7 veces menor que la del modelo.'
+    ref: '#encaja-el-modelo-lo-comprobamos-con-lumen'
+
+  - id: est0-02-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las señales de una cola pesada en una variable de negocio.'
+    options:
+      - 'La media está muy por encima de la mediana'
+      - 'El máximo está lejísimos del percentil 99'
+      - 'La media cambia mucho al quitar el 0,1 % superior'
+      - 'La media y la mediana coinciden'
+    answer: [0, 1, 2]
+    explanation: 'Con colas pesadas pocas observaciones dominan el total, la media es inestable y hay que usar medianas, percentiles y recortes. Que media y mediana coincidan sugiere simetría, no cola.'
+    ref: '#colas-pesadas'
+
+  - id: est0-02-q6
+    type: single
+    difficulty: 3
+    prompt: 'Quieres simular el número de incidencias por hora y comprobar si son Poisson. ¿Qué mirarías primero?'
+    options:
+      - 'Si el gráfico parece una campana'
+      - 'El cociente varianza/media de los recuentos por hora: cercano a 1 apoya la Poisson; mucho mayor indica sobredispersión'
+      - 'Solo la media'
+      - 'El valor máximo'
+    answer: [1]
+    explanation: 'La Poisson impone varianza = media. Es una comprobación sencilla y muy informativa. Si es mucho mayor, el ritmo no es constante y hay que modelarlo (binomial negativa, efectos por hora o día).'
+    ref: '#las-cuatro-de-uso-diario'

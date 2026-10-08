@@ -1,0 +1,76 @@
+lesson: analista-2026/03-la-ia-y-el-stack-moderno
+questions:
+  - id: ana0-03-q1
+    type: order
+    difficulty: 2
+    prompt: 'Ordena las capas del stack moderno de datos, desde las fuentes hasta la IA y el consumo.'
+    options:
+      - 'Capa semántica'
+      - 'Almacén o lakehouse'
+      - 'Ingesta'
+      - 'Transformación'
+      - 'Consumo e IA'
+    answer: [2, 1, 3, 0, 4]
+    explanation: 'Fuentes, ingesta (ELT), almacén o lakehouse, transformación, capa semántica y, a partir de ella, consumo (BI, hojas, notebooks) e IA.'
+    ref: '#el-mapa-del-stack-moderno'
+
+  - id: ana0-03-q2
+    type: single
+    difficulty: 2
+    prompt: 'En un flujo ELT, ¿qué ocurre primero?'
+    options:
+      - 'Se transforman los datos fuera del almacén y luego se cargan'
+      - 'Se cargan los datos al almacén y luego se transforman dentro con SQL'
+      - 'Se visualizan y luego se cargan'
+      - 'Se borran los datos crudos'
+    answer: [1]
+    explanation: 'ELT significa extraer, cargar y transformar: primero se copia el dato tal cual al almacén y se transforma dentro. Por eso SQL es el lenguaje central del oficio.'
+    ref: '#el-mapa-del-stack-moderno'
+
+  - id: ana0-03-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'En Lumen, los ingresos históricos son 118,57 M€ contando todas las líneas y 105,79 M€ sin cancelados ni líneas devueltas. ¿Cuál es la diferencia en M€ (un decimal)?'
+    answer: [12.8]
+    tolerance: 0.06
+    explanation: '118,57 − 105,79 = 12,78 ≈ 12,8 M€ (un 12 % sobre la cifra más baja), sin que ninguna de las dos esté mal calculada: son definiciones distintas de «ingresos».'
+    ref: '#por-qué-la-capa-semántica-es-la-base'
+
+  - id: ana0-03-q4
+    type: single
+    difficulty: 2
+    prompt: 'Un asistente de IA da cifras distintas a la misma pregunta («¿cuánto hemos ingresado?») en días distintos. ¿Cuál es la causa más probable y la mejor solución?'
+    options:
+      - 'Los datos cambian cada día; no hay solución'
+      - 'La métrica es ambigua y el asistente elige una definición plausible cada vez; hay que dar una definición oficial (capa semántica) y verificar'
+      - 'El asistente está roto'
+      - 'Hay que preguntar más veces y hacer la media'
+    answer: [1]
+    explanation: 'Sin una definición única, el asistente interpreta «ingresos» de la forma que le parece más probable. Una capa semántica o un diccionario de métricas lo hace determinista y verificable.'
+    ref: '#por-qué-la-capa-semántica-es-la-base'
+
+  - id: ana0-03-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los pasos del protocolo de verificación de un resultado producido con IA.'
+    options:
+      - 'Comprobar la definición de cada métrica'
+      - 'Leer la consulta generada (joins, filtros, fechas, duplicados)'
+      - 'Calcular la cifra clave por otra vía y compararla'
+      - 'Aceptarla si el texto de la respuesta es convincente'
+    answer: [0, 1, 2]
+    explanation: 'Definición, lectura del código, dos vías, cifra de control y plausibilidad. Un texto convincente no es una prueba de que el resultado sea correcto.'
+    ref: '#un-protocolo-de-verificación'
+
+  - id: ana0-03-q6
+    type: single
+    difficulty: 3
+    prompt: 'Conectas un agente de IA al almacén de datos de la empresa. ¿Qué decisión de partida es la más prudente?'
+    options:
+      - 'Darle permisos de escritura para que sea más útil'
+      - 'Empezar con permisos de solo lectura, mínimo de datos sensibles y revisión humana, e ir ampliando según los controles'
+      - 'Darle acceso a todos los datos para evitar errores'
+      - 'No documentar lo que hace para ahorrar tiempo'
+    answer: [1]
+    explanation: 'La especificación de MCP recuerda que las herramientas son ejecución arbitraria de código y exigen consentimiento y control. Se empieza con mínimo privilegio y se amplía con controles y auditoría.'
+    ref: '#tres-niveles-de-ia-en-el-trabajo-del-analista'

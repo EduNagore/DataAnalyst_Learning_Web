@@ -1,0 +1,76 @@
+lesson: analista-2026/02-ciclo-del-analisis-y-que-hace-top-a-un-analista
+questions:
+  - id: ana0-02-q1
+    type: order
+    difficulty: 1
+    prompt: 'Ordena las fases del ciclo del análisis.'
+    options:
+      - 'Decisión'
+      - 'Datos'
+      - 'Seguimiento'
+      - 'Pregunta'
+      - 'Análisis'
+    answer: [3, 1, 4, 0, 2]
+    explanation: 'Pregunta, datos, análisis, decisión y seguimiento. El seguimiento genera nuevas preguntas y cierra el ciclo.'
+    ref: '#las-cinco-fases'
+
+  - id: ana0-02-q2
+    type: single
+    difficulty: 2
+    prompt: '¿En qué fases del ciclo se pierde, según la lección, la mayor parte del valor?'
+    options:
+      - 'En el análisis y los datos'
+      - 'En los extremos: preguntar mal al principio y no hacer seguimiento al final'
+      - 'En la decisión'
+      - 'En ninguna: todas pesan igual'
+    answer: [1]
+    explanation: 'El código del medio es lo más fácil de automatizar. Se pierde valor al responder una pregunta equivocada (fase 1) y al no comprobar si la decisión funcionó (fase 5).'
+    ref: '#las-cinco-fases'
+
+  - id: ana0-02-q3
+    type: single
+    difficulty: 2
+    prompt: 'Te piden «un análisis de las ventas». ¿Cuál es la primera pregunta que más cambia el análisis?'
+    options:
+      - '¿En qué formato lo quieres?'
+      - '¿Qué decisión vas a tomar con esto?'
+      - '¿Puedo usar Excel?'
+      - '¿Cuántas páginas?'
+    answer: [1]
+    explanation: 'Conocer la decisión convierte una petición vaga en una pregunta precisa y define qué evidencia hace falta y cuál es el criterio de éxito.'
+    ref: '#cinco-preguntas-antes-de-empezar'
+
+  - id: ana0-02-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las cualidades que la lección asocia a un analista top.'
+    options:
+      - 'Criterio'
+      - 'Rigor'
+      - 'Comunicación'
+      - 'Conocer el máximo número de herramientas'
+    answer: [0, 1, 2]
+    explanation: 'Criterio, rigor, comunicación e impacto. Conocer muchas herramientas no es una de las cuatro cualidades: las herramientas cambian, la capacidad de elegir y verificar permanece.'
+    ref: '#cuatro-cualidades-de-un-analista-top'
+
+  - id: ana0-02-q5
+    type: single
+    difficulty: 2
+    prompt: '¿Qué diferencia a una respuesta «excelente» de una «senior» a «¿por qué han bajado las ventas?»?'
+    options:
+      - 'Usa SQL más complejo'
+      - 'Además de descomponer y cuantificar la causa, recomienda una acción con su coste, avisa de lo que no se sabe y fija cómo medir el resultado'
+      - 'Entrega más gráficos'
+      - 'Es más larga'
+    answer: [1]
+    explanation: 'La diferencia entre niveles es sobre todo comunicación y criterio: recomendación, límites y seguimiento, no la complejidad técnica.'
+    ref: '#cuatro-cualidades-de-un-analista-top'
+
+  - id: ana0-02-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Un entregable bien comunicado empieza por la evidencia detallada y deja la recomendación para el final.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. La recomendación va primero (en una frase), seguida de tres evidencias y un límite. Quien decide debe poder leer solo el principio y saber qué hacer.'
+    ref: '#cuatro-cualidades-de-un-analista-top'

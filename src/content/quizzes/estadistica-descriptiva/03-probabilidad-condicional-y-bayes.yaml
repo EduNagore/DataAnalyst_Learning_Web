@@ -1,0 +1,75 @@
+lesson: estadistica-descriptiva/03-probabilidad-condicional-y-bayes
+questions:
+  - id: est0-03-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué es la probabilidad condicional P(A|B)?'
+    options:
+      - 'La probabilidad de que ocurran A y B a la vez'
+      - 'La proporción de casos con A dentro de los casos en que ocurre B (el universo se reduce a B)'
+      - 'La probabilidad de B dado A'
+      - 'La suma de P(A) y P(B)'
+    answer: [1]
+    explanation: 'P(A|B) = P(A y B) / P(B): se mira solo el subgrupo donde ocurre B. No es lo mismo que P(B|A), que cambia el denominador.'
+    ref: '#definiciones'
+
+  - id: est0-03-q2
+    type: single
+    difficulty: 2
+    prompt: 'El 11,9 % de las devoluciones de Lumen son de electrónica, que es el 11,8 % de todas las líneas, y P(devuelta | Electrónica) = 7,07 % frente al 7,00 % global. ¿Qué se concluye?'
+    options:
+      - 'La electrónica se devuelve mucho más que el resto'
+      - 'Categoría y devolución son (prácticamente) independientes: conocer la categoría no cambia la probabilidad de devolución'
+      - 'Hay un error en los datos'
+      - 'Las devoluciones solo ocurren en electrónica'
+    answer: [1]
+    explanation: 'Si P(A|B) ≈ P(A) hay independencia. Que una categoría aporte un 11,9 % de las devoluciones es lo esperable si aporta un 11,8 % de las líneas.'
+    ref: '#un-caso-de-independencia-las-devoluciones-y-la-categoría'
+
+  - id: est0-03-q3
+    type: numeric
+    difficulty: 3
+    prompt: 'En Lumen, P(retraso grave | cancela) = 0,595, P(cancela) = 0,565 y P(retraso grave) = 0,534. Aplica Bayes para obtener P(cancela | retraso grave). (tres decimales)'
+    answer: [0.63]
+    tolerance: 0.002
+    explanation: 'P(cancela | retraso) = 0,595 × 0,565 / 0,534 = 0,6296 ≈ 0,630: el 63 % de quienes sufren un retraso grave cancelan, frente al 59,5 % de los que cancelan que tuvieron retraso (otra cifra, otro denominador).'
+    ref: '#un-caso-de-dependencia-retrasos-y-cancelaciones'
+
+  - id: est0-03-q4
+    type: single
+    difficulty: 2
+    prompt: '«El 60 % de los clientes que cancelan habían sufrido un retraso» se oye como «un retraso grave provoca el 60 % de las cancelaciones». ¿Qué errores contiene la segunda frase?'
+    options:
+      - 'Ninguno'
+      - 'Confunde P(retraso | cancela) con P(cancela | retraso) y atribuye una causa a una asociación'
+      - 'Solo un error de redondeo'
+      - 'Usa porcentajes en lugar de probabilidades'
+    answer: [1]
+    explanation: 'Invierte la condicional (cambia el denominador) y lee la asociación como causa. La exposición (más pedidos, más oportunidades de retraso) y otros factores pueden intervenir.'
+    ref: '#la-falacia-de-la-condicional-invertida'
+
+  - id: est0-03-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las frases que expresan la misma condicional (no una condicional invertida).'
+    options:
+      - '«De los pedidos de móvil, el 6,3 % termina con devolución»'
+      - '«La probabilidad de devolución dado que el pedido es de móvil es del 6,3 %»'
+      - '«De los pedidos con devolución, el 6,3 % son de móvil»'
+      - '«P(devolución | móvil) = 6,3 %»'
+    answer: [0, 1, 3]
+    explanation: 'La tercera invierte la condición: habla de qué parte de las devoluciones son de móvil, que depende de cuántos pedidos son de móvil.'
+    ref: '#la-falacia-de-la-condicional-invertida'
+
+  - id: est0-03-q6
+    type: single
+    difficulty: 3
+    prompt: 'Con 700.000 observaciones, una prueba χ² da p < 0,001 para una diferencia de 7,07 % frente a 7,00 %. ¿Qué haces?'
+    options:
+      - 'Concluyo que hay un efecto importante'
+      - 'Miro la magnitud (0,07 puntos): con muestras enormes casi cualquier diferencia es «significativa», así que valoro si es relevante para el negocio'
+      - 'Descarto la prueba'
+      - 'Repito con menos datos hasta que no salga significativo'
+    answer: [1]
+    explanation: 'Significación estadística no es relevancia práctica. Con tamaños de muestra enormes, diferencias minúsculas producen p-valores diminutos. Hay que mirar el tamaño del efecto y su coste de actuar.'
+    ref: '#trade-offs-y-cuándo-usarlo'

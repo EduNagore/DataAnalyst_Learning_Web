@@ -1,0 +1,32 @@
+---
+title: 'Probabilidad condicional, Bayes e independencia con datos de Lumen'
+description: 'Calcula P(A|B) y su inversa, pasa de una a otra con el teorema de Bayes y contrasta si dos sucesos (devolución y categoría; retraso y cancelación) son independientes.'
+language: python
+part: 'Parte 0 · Fundamentos del oficio'
+module: estadistica-descriptiva
+difficulty: 2
+estimatedMinutes: 30
+concepts: ['probabilidad condicional', 'teorema de Bayes', 'independencia', 'chi-cuadrado']
+datasets:
+  ['orders', 'order_items', 'returns', 'products', 'categories', 'shipments', 'subscriptions']
+packages: ['scipy']
+output: console
+hints:
+  - '`P(A|B)` es el porcentaje de filas con `A` verdadero **entre las que tienen `B` verdadero**: `df.loc[df[b], a].mean() * 100`.'
+  - 'Bayes: `P(A|B) = P(B|A) * P(A) / P(B)`. Trabaja con probabilidades entre 0 y 1 y redondea a 3 decimales.'
+  - 'Independencia con una tabla de contingencia: `chi2_contingency(pd.crosstab(df[a], df[b]))[1]` devuelve el p-valor; si es mayor que `alpha`, no hay evidencia de dependencia.'
+  - 'Las columnas `a` y `b` son booleanas. Con tablas 2x2 `chi2_contingency` aplica por defecto la corrección de continuidad; no hace falta cambiarla.'
+relatedLessons: ['estadistica-descriptiva/03-probabilidad-condicional-y-bayes']
+businessQuestion: '¿Se devuelve más la electrónica? ¿Cancelan más los clientes que han sufrido un retraso grave? ¿Y qué significa cada porcentaje?'
+---
+
+El _starter_ construye dos tablas: `lineas` (una fila por línea de pedido no cancelado, con `devuelta` y `es_electronica`) y
+`subs` (una fila por suscripción, con `retraso_grave`: ha sufrido algún envío con 5 o más días de retraso, y
+`cancela`). Implementa:
+
+1. **`p_condicional(df, a, b)`** → `P(A|B)` en porcentaje (2 decimales), con `a` y `b` columnas booleanas.
+2. **`bayes(p_b_dado_a, p_a, p_b)`** → `P(A|B)` como probabilidad (3 decimales).
+3. **`independientes(df, a, b, alpha=0.01)`** → `True` si una prueba χ² **no** rechaza la independencia (p-valor mayor que `alpha`).
+
+Comprueba que `bayes` reproduce `P(cancela | retraso grave)` a partir de `P(retraso | cancela)`, y explica por qué la
+categoría no influye en las devoluciones y el retraso sí en las cancelaciones.

@@ -1,0 +1,203 @@
+---
+title: 'Distribuciones que aparecen en negocio'
+description: 'Normal, log-normal, Poisson, binomial y colas pesadas: de dónde salen, cuándo esperarlas y cómo comprobar con datos de Lumen si un modelo encaja.'
+module: estadistica-descriptiva
+order: 2
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Asociar cada distribución (normal, log-normal, Poisson, binomial) con el mecanismo que la produce y con ejemplos de negocio.'
+  - 'Comprobar con datos si un modelo encaja: comparar medianas, percentiles y colas, y el cociente varianza/media.'
+  - 'Detectar sobredispersión en recuentos y calcular el ruido esperado de una tasa con la binomial.'
+  - 'Reconocer una cola pesada y sus consecuencias para la media y las previsiones.'
+prerequisites: ['estadistica-descriptiva/01-tipos-de-variables-centro-y-dispersion']
+tools: ['pandas', 'scipy']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'NIST/SEMATECH e-Handbook of Statistical Methods — Gallery of distributions'
+    url: 'https://www.itl.nist.gov/div898/handbook/eda/section3/eda366.htm'
+    type: docs
+    authors: 'NIST'
+    year: 2013
+  - title: 'SciPy — scipy.stats (distribuciones)'
+    url: 'https://docs.scipy.org/doc/scipy/reference/stats.html'
+    type: docs
+    authors: 'SciPy developers'
+    year: 2026
+relatedLabs: ['py-ajuste-de-distribuciones']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import DistributionExplorer from '../../../components/content/DistributionExplorer.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Finanzas quiere una regla de alerta: "avísame si un día hay más de 450 pedidos". Logística quiere
+  saber cuántos pedidos de más de 1.000 € esperar al mes. Producto quiere saber cuánto varía la
+  conversión diaria por puro azar antes de alarmarse. Las tres preguntas tienen una respuesta
+  distinta porque las tres variables siguen distribuciones distintas.
+</BusinessContext>
+
+Una **distribución** es el patrón de cuántas veces ocurre cada valor posible. Conocer la familia a la que se
+parece una variable permite hacer cálculos (la probabilidad de superar un umbral), simular, definir alertas y
+saber cuánto ruido es normal. Pero **ningún dato real sigue exactamente un modelo**: hay que comprobarlo.
+
+## Intuición
+
+Cada distribución es la huella de un **mecanismo**:
+
+- **Sumar** muchos efectos pequeños e independientes da una campana: **normal**.
+- **Multiplicar** muchos efectos (cada paso aumenta un porcentaje) da una cola larga a la derecha: **log-normal**.
+- **Contar** sucesos independientes que ocurren a un ritmo constante en un intervalo da **Poisson**.
+- **Contar éxitos** de $n$ intentos independientes con probabilidad $p$ da **binomial**.
+
+Si entiendes el mecanismo de tu variable, eliges la distribución por razones, no por probar suerte.
+
+## Cómo funciona
+
+### Explorador de distribuciones
+
+Cambia de distribución, mueve los parámetros y el umbral de cola, y observa media, mediana, desviación y
+probabilidad de superar el umbral. La log-normal viene con los parámetros de los importes de pedido de Lumen.
+
+<DistributionExplorer client:visible initial="lognormal" />
+
+### Las cuatro de uso diario
+
+| Distribución   | Mecanismo                                   | Parámetros                 | Media y varianza             | Ejemplos de negocio                                 |
+| -------------- | ------------------------------------------- | -------------------------- | ---------------------------- | --------------------------------------------------- |
+| **Normal**     | Suma de muchos efectos pequeños             | $\mu$, $\sigma$            | $\mu$ y $\sigma^2$           | Errores de medida, medias de muestras grandes (TLC) |
+| **Log-normal** | Producto de muchos efectos                  | $\mu$, $\sigma$ de $\ln X$ | $e^{\mu+\sigma^2/2}$ y mayor | Importes de pedido, ingresos, tamaños de fichero    |
+| **Poisson**    | Recuentos de sucesos raros e independientes | $\lambda$                  | $\lambda$ y $\lambda$        | Llamadas por hora, pedidos por minuto, incidencias  |
+| **Binomial**   | Éxitos en $n$ intentos con probabilidad $p$ | $n$, $p$                   | $np$ y $np(1-p)$             | Compras entre $n$ sesiones, aperturas de un email   |
+
+Dos relaciones útiles: la binomial se parece a una Poisson cuando $n$ es grande y $p$ pequeño, y se parece a una
+normal cuando $n\,p$ y $n\,(1-p)$ son grandes. Y el cociente **varianza/media** de una Poisson es 1: si en tus
+datos es mucho mayor, hay **sobredispersión** (el ritmo no es constante).
+
+### ¿Encaja el modelo? Lo comprobamos con Lumen
+
+**Importes de pedido: ¿log-normal?** Los importes de los 377.145 pedidos no cancelados tienen $\ln X$ con media
+$\mu = 5{,}055$ y desviación $\sigma = 1{,}277$, y su asimetría de $\ln X$ es −0,56 (frente a 3,02 sin logaritmo). Compara
+percentiles reales con los del modelo:
+
+| Percentil | Real (€) | Modelo log-normal (€) |
+| --------- | -------: | --------------------: |
+| P10       |     28,0 |                  30,5 |
+| P50       |    180,2 |                 156,8 |
+| P90       |    717,6 |                 805,8 |
+| P99       |  1.766,4 |               3.060,7 |
+
+Y la cola: la proporción de pedidos que superan 1.000 € es del **4,90 %** en los datos y del **7,35 %** según el modelo; los
+que superan 2.000 € son un **0,62 %** reales frente al 2,31 % del modelo. Conclusión: la log-normal describe bien
+el cuerpo (de P10 a P90) pero **sobrestima la cola**: en Lumen un pedido tiene como máximo cuatro unidades por línea y un
+número limitado de líneas, así que hay un techo natural que la log-normal ignora. Un modelo útil no tiene que
+ser perfecto, pero hay que saber **dónde falla**: usarlo para predecir pedidos de más de 2.000 € multiplicaría por
+tres la cifra real.
+
+**Pedidos por día: ¿Poisson?** En abril y mayo de 2025 (61 días), los pedidos diarios tienen media 367,7 y varianza
+457,8: cociente varianza/media de **1,24**. Es algo mayor que el 1 de una Poisson pura: el ritmo diario varía un poco
+(día de la semana, tendencia). Para una alerta, una Poisson con $\lambda=368$ da un ruido de $\sqrt{368}\approx 19$ pedidos;
+los datos muestran una desviación de unos 21. Una alerta «más de 450 pedidos» está a casi 4 desviaciones: es un aviso real. Con sesiones web
+(media 706,7 y varianza 4.707) el cociente es de **6,7**: fuerte sobredispersión por el crecimiento del tráfico, y la
+Poisson sería un mal modelo.
+
+**Conversión diaria: ¿binomial?** Cada día, con unas 707 sesiones y una conversión del 4,24 %, el número de compras se
+parece a una binomial $B(707;\,0{,}0424)$, cuya desviación esperada de la tasa es $\sqrt{p(1-p)/n} = 0{,}758$ puntos
+porcentuales. En los datos de abril-mayo de 2025, la desviación observada de la conversión diaria es de **0,707** puntos: coincide
+con el ruido binomial. Traducción práctica: una conversión que un día cae del 4,2 % al 3,5 % **no es una señal**; está
+a menos de una desviación típica. Producto no debe alarmarse con cambios diarios de esa magnitud.
+
+<Callout type="warning">
+  Cuando la varianza de unos recuentos es mucho mayor que su media, no uses Poisson ni intervalos
+  que la asuman: subestimarás el ruido. La alternativa habitual es la binomial negativa o un modelo
+  que tenga en cuenta la variación del ritmo (día de la semana, tendencia).
+</Callout>
+
+### Colas pesadas
+
+En una distribución de **cola pesada** (_heavy-tailed_) los valores extremos son mucho más frecuentes que en una normal
+y dominan los resultados: unas pocas observaciones aportan buena parte del total. Ejemplos clásicos: riqueza, tamaño
+de ciudades, tráfico de red, ventas de productos. En los casos extremos (leyes de potencias con exponente bajo), la
+**media y la varianza pueden no existir** o ser inestables: la media muestral no converge y cambia mucho con una
+sola observación nueva.
+
+Señales prácticas: la media muy por encima de la mediana, la desviación mayor que la media, el máximo muy lejos del
+percentil 99, y que la media cambie mucho al quitar el 0,1 % superior. En Lumen no hay cola pesada
+(el 1 % de pedidos más grandes suma el 7,6 % del importe, y el 1 % de clientes el 5,0 %), pero sí es frecuente
+en datos reales de negocio, y obliga a usar **medianas, percentiles y recortes**, a ser cautelosos con
+las medias y a revisar las previsiones con intervalos amplios.
+
+## En la práctica
+
+Comprobar un modelo es comparar **percentiles** y **colas**, y calcular el cociente varianza/media. Con scipy:
+
+```python
+import numpy as np
+from scipy import stats
+
+lx = np.log(importes)
+mu, sigma = lx.mean(), lx.std()
+
+# Probabilidad de superar 1.000 € según el modelo y en los datos
+modelo = 1 - stats.norm.cdf((np.log(1000) - mu) / sigma)      # 7,35 %
+real = (importes > 1000).mean()                                # 4,90 %
+
+# Sobredispersión de unos recuentos
+dispersion = pedidos_dia.var() / pedidos_dia.mean()            # 1,24
+
+# Ruido esperado de una tasa binomial
+ruido = np.sqrt(p * (1 - p) / n)                               # 0,758 puntos
+```
+
+En el lab de esta lección ajustas la log-normal, comparas colas y calculas el ruido binomial.
+
+## Trade-offs y cuándo usarlo
+
+- **Modelo simple frente a ajuste perfecto**: un modelo sencillo que se entiende y que falla en un sitio conocido suele
+  ser mejor que uno complejo que nadie puede explicar.
+- **Distribución teórica frente a empírica**: la teórica permite extrapolar y calcular; la empírica (percentiles de
+  los datos) es más fiel pero no sirve fuera del rango observado.
+- **Contrastes formales de normalidad**: con muchos datos rechazan casi siempre; es mejor mirar un gráfico (QQ) y
+  la magnitud de la desviación.
+- **Transformar (logaritmo) frente a modelar la cola**: transformar acerca los datos a una normal; si la cola importa
+  (riesgo, SLA), hay que modelarla aparte.
+
+## Errores comunes
+
+- **Suponer normalidad** de importes, tiempos y recuentos sin mirar la forma.
+- **Usar Poisson en recuentos sobredispersos** y subestimar el ruido.
+- **Alarmarse por cambios dentro del ruido binomial** (conversión diaria) o, al revés, ignorar los que lo superan.
+- **Ajustar la media y la desviación y olvidar comprobar la cola.**
+- **Extrapolar un modelo más allá del rango de los datos** (el techo natural de Lumen).
+- **Confundir «parece una campana» con «es normal»**: muchas distribuciones se parecen en el centro.
+
+## Con IA
+
+Un asistente sugiere «ajusta una normal» o «es una Poisson» con mucha naturalidad. Pídele que explique el
+**mecanismo** que justifica cada distribución y que proponga la **comprobación** (percentiles, cola,
+varianza/media). Si genera código de simulación, revisa los parámetros (n frente a p, $\sigma$ de $\ln X$ frente a de $X$)
+y compara con los datos reales antes de aceptar un resultado.
+
+## En una entrevista
+
+- _"¿Qué distribución esperarías para los importes de pedido y por qué?"_ — Pista: log-normal (producto de efectos,
+  asimetría positiva); comprobar cuerpo y cola.
+- _"¿Cómo sabes si unos recuentos siguen una Poisson?"_ — Pista: varianza/media cercana a 1; si es mayor,
+  sobredispersión.
+- _"La conversión de hoy es un 3,5 % frente al 4,2 % habitual. ¿Es una alarma?"_ — Pista: ruido binomial
+  $\sqrt{p(1-p)/n}$; aquí ≈ 0,76 puntos con 700 sesiones; depende de n.
+
+<KeyTakeaways
+  items={[
+    'Cada distribución es la huella de un mecanismo: suma (normal), producto (log-normal), recuento (Poisson) y éxitos en n intentos (binomial).',
+    'Un modelo se comprueba con percentiles y colas: la log-normal ajustada a los importes de Lumen acierta de P10 a P90 pero estima un 2,31 % por encima de 2.000 € frente al 0,62 % real.',
+    'En una Poisson varianza/media = 1; los pedidos diarios dan 1,24 y las sesiones 6,7 (sobredispersión): no uses Poisson sin comprobar.',
+    'La conversión diaria de Lumen varía 0,71 puntos, igual que el ruido binomial esperado (0,76): un cambio diario dentro de ese ruido no es una señal.',
+    'Las colas pesadas hacen inestables la media y la varianza; usa medianas, percentiles y previsiones con intervalos amplios.',
+  ]}
+/>

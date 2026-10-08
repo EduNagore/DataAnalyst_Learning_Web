@@ -1,0 +1,75 @@
+lesson: estadistica-descriptiva/01-tipos-de-variables-centro-y-dispersion
+questions:
+  - id: est0-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué escala de medida tiene la columna segment (nuevo, ocasional, habitual, vip)?'
+    options:
+      - 'Nominal: las categorías no tienen orden'
+      - 'Ordinal: hay un orden, pero las distancias entre categorías no son iguales'
+      - 'De razón: tiene un cero real'
+      - 'De intervalo'
+    answer: [1]
+    explanation: 'Las categorías se pueden ordenar por vinculación (de nuevo a vip) pero no se puede decir que la distancia de nuevo a ocasional sea la misma que de habitual a vip. Admite recuento, moda y mediana, no media.'
+    ref: '#escalas-de-medida-qué-se-puede-hacer-con-cada-variable'
+
+  - id: est0-01-q2
+    type: single
+    difficulty: 2
+    prompt: 'Los retrasos de envío de Lumen tienen media 0,58 días, mediana 0 y P90 5. ¿Qué indica?'
+    options:
+      - 'Que casi todos los envíos llegan con medio día de retraso'
+      - 'Que la mayoría llega a tiempo o antes y una minoría con cola larga llega muy tarde: la media oculta esa cola'
+      - 'Que hay un error en los datos'
+      - 'Que la distribución es simétrica'
+    answer: [1]
+    explanation: 'Mediana 0 significa que la mitad llega a tiempo o antes. Con un P90 de 5 días, uno de cada diez se retrasa 5 o más días. La media (0,58) no corresponde a ningún envío real.'
+    ref: '#percentiles-el-lenguaje-de-los-sla'
+
+  - id: est0-01-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál es la mejor forma de formular un SLA de entregas?'
+    options:
+      - 'El retraso medio debe ser menor de un día'
+      - 'El 95 % de los envíos debe llegar con menos de X días de retraso, y se vigila con el P95 o el porcentaje que cumple'
+      - 'Que no haya quejas'
+      - 'El máximo retraso es 10 días'
+    answer: [1]
+    explanation: 'Un SLA por percentil (o por porcentaje que cumple) controla el mal caso, que es lo que sufre el cliente. La media puede estar bien mientras una parte importante de los envíos va mal.'
+    ref: '#percentiles-el-lenguaje-de-los-sla'
+
+  - id: est0-01-q4
+    type: numeric
+    difficulty: 2
+    prompt: 'La conversión de Madrid es 7,881 % (149.907 sesiones) y la de Andalucía 2,383 % (180.170 sesiones). ¿Cuál es la conversión global, ponderada por sesiones? (dos decimales)'
+    answer: [4.88]
+    tolerance: 0.011
+    explanation: '(7,881 × 149.907 + 2,383 × 180.170) / 330.077 ≈ 4,88 %. La media simple (5,13 %) pesa igual a las dos regiones aunque Andalucía tiene más sesiones.'
+    ref: '#cuándo-la-media-engaña'
+
+  - id: est0-01-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las medidas de dispersión que son robustas frente a valores extremos.'
+    options:
+      - 'Rango intercuartílico (IQR)'
+      - 'MAD (mediana de las desviaciones absolutas)'
+      - 'Desviación típica'
+      - 'Rango (máximo menos mínimo)'
+    answer: [0, 1]
+    explanation: 'IQR y MAD se calculan con medianas y cuartiles y apenas cambian con un valor extremo. La desviación típica y el rango son muy sensibles a ellos.'
+    ref: '#medidas-de-dispersión'
+
+  - id: est0-01-q6
+    type: single
+    difficulty: 3
+    prompt: 'Calculas la desviación típica de una muestra de clientes (no de toda la población) con pandas y con NumPy y obtienes valores ligeramente distintos. ¿Por qué?'
+    options:
+      - 'Uno de los dos tiene un error'
+      - 'pandas usa n−1 (ddof=1, estimador de la muestra) y NumPy usa n (ddof=0) por defecto'
+      - 'NumPy ignora los nulos'
+      - 'Por el redondeo'
+    answer: [1]
+    explanation: 'La corrección de Bessel (dividir entre n−1) evita subestimar la varianza de la población cuando se calcula con una muestra. Hay que fijar ddof explícitamente cuando se mezclan librerías.'
+    ref: '#medidas-de-dispersión'

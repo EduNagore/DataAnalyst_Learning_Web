@@ -1,0 +1,31 @@
+---
+title: 'Comprueba un modelo: log-normal, sobredispersión y ruido binomial'
+description: 'Ajusta una log-normal a los importes de pedido, compara su cola con la real, mide la sobredispersión de unos recuentos y calcula el ruido esperado de una tasa.'
+language: python
+part: 'Parte 0 · Fundamentos del oficio'
+module: estadistica-descriptiva
+difficulty: 2
+estimatedMinutes: 30
+concepts: ['log-normal', 'cola de una distribución', 'varianza/media', 'binomial', 'ruido muestral']
+datasets: ['orders', 'order_items']
+packages: []
+output: console
+hints:
+  - 'Para ajustar la log-normal calcula la media y la desviación **muestral** de `ln(x)`: `mu = np.log(x).mean()`, `sigma = np.log(x).std()` (pandas usa n-1).'
+  - 'La probabilidad de superar `t` con una log-normal es `1 - Phi((ln t - mu) / sigma)`. Con la librería estándar: `Phi(z) = 0.5 * (1 + math.erf(z / math.sqrt(2)))`.'
+  - 'Sobredispersión = `varianza / media` de los recuentos (varianza muestral). En una Poisson vale 1.'
+  - 'Ruido binomial de una tasa `p` con `n` observaciones: `sqrt(p * (1 - p) / n)`; devuélvelo en puntos porcentuales (multiplica por 100).'
+relatedLessons: ['estadistica-descriptiva/02-distribuciones-que-aparecen-en-negocio']
+businessQuestion: '¿Encaja una log-normal con los importes de pedido, y cuánto ruido es normal en recuentos y tasas diarias?'
+---
+
+En el _starter_ tienes `importes` (el importe de cada pedido no cancelado) y `pedidos_dia` (pedidos por día en abril y
+mayo de 2025). Implementa:
+
+1. **`ajuste_lognormal(x)`** → `{"mu": ..., "sigma": ...}` (3 decimales), con la media y la desviación muestral de `ln(x)`.
+2. **`cola(x, umbral, mu, sigma)`** → `{"real_pct": ..., "modelo_pct": ...}` (2 decimales): el porcentaje de valores
+   de `x` por encima del umbral y la probabilidad (en %) de superarlo según la log-normal.
+3. **`dispersion(conteos)`** → varianza / media (2 decimales).
+4. **`ruido_binomial(p, n)`** → desviación típica de una tasa binomial, en puntos porcentuales (3 decimales).
+
+¿Dónde falla el modelo log-normal? Compara las colas en 1.000 € y 2.000 €.

@@ -1,0 +1,186 @@
+---
+title: 'El ciclo del análisis y qué hace «top» a un analista'
+description: 'De la pregunta a la decisión y al seguimiento: las cinco fases del trabajo analítico, sus fallos típicos y las cuatro cualidades que distinguen a un analista excelente.'
+module: analista-2026
+order: 2
+level: básico
+estimatedMinutes: 35
+objectives:
+  - 'Aplicar el ciclo pregunta, datos, análisis, decisión y seguimiento a una petición de negocio.'
+  - 'Hacer las cinco preguntas de contexto que convierten una petición vaga en un encargo claro.'
+  - 'Describir cuatro cualidades de un analista top (criterio, rigor, comunicación e impacto) con comportamientos observables.'
+  - 'Reconocer qué cambia entre un nivel junior, senior y excelente.'
+prerequisites: ['analista-2026/01-perfiles-de-datos-y-tipos-de-analista']
+tools: []
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'storytelling with data — libros y recursos (Cole Nussbaumer Knaflic)'
+    url: 'https://www.storytellingwithdata.com/books'
+    type: book
+    authors: 'Knaflic, C.'
+    year: 2015
+  - title: 'dbt Labs — Analytics engineering: guía de buenas prácticas'
+    url: 'https://docs.getdbt.com/best-practices'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+relatedLabs: []
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  La directora comercial te escribe: "¿Puedes mirar por qué han bajado las ventas? Lo necesito para
+  el comité del jueves". Es lunes. Tienes SQL, un dataset de 392.906 pedidos y tres días. Si
+  empiezas a escribir consultas ahora mismo, el jueves tendrás muchos números y ninguna
+  recomendación.
+</BusinessContext>
+
+Casi todo el trabajo de un analista se parece a esa petición: **vaga, urgente y con una decisión escondida
+detrás**. Lo que distingue a un analista excelente no es que escriba mejor SQL, sino que sabe convertir
+esa petición en un análisis que cambia una decisión.
+
+## Intuición
+
+Un análisis no es un informe: es un **puente entre una pregunta de negocio y una acción**. Si no hay
+una decisión al otro lado, el análisis es un ejercicio académico; si no hay evidencia al medio, la
+decisión es una corazonada. El ciclo de cinco fases mantiene el puente entero.
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+    A["1. Pregunta<br/>¿qué decisión?"] --> B["2. Datos<br/>¿qué hay y qué fiabilidad?"]
+    B --> C["3. Análisis<br/>¿qué dicen?"]
+    C --> D["4. Decisión<br/>¿qué recomiendo?"]
+    D --> E["5. Seguimiento<br/>¿funcionó?"]
+    E -.->|"nueva pregunta"| A`}
+  alt="Ciclo del análisis en cinco fases: pregunta, datos, análisis, decisión y seguimiento; el seguimiento genera nuevas preguntas y cierra el ciclo."
+/>
+
+## Cómo funciona
+
+### Las cinco fases
+
+| Fase               | Qué se hace                                                    | Entrega                                       | Fallo típico                                       |
+| ------------------ | -------------------------------------------------------------- | --------------------------------------------- | -------------------------------------------------- |
+| **1. Pregunta**    | Entender la decisión, el plazo y el criterio de éxito          | Una pregunta precisa y una hipótesis inicial  | Empezar a consultar sin saber qué decisión se toma |
+| **2. Datos**       | Localizar fuentes, definir métricas, comprobar calidad         | Dataset acotado y definiciones escritas       | Fiarse de una cifra sin saber cómo se calculó      |
+| **3. Análisis**    | Explorar, comparar, contrastar hipótesis, buscar explicaciones | Hallazgos con cifra, gráfico y límites        | Quedarse en «qué» sin llegar al «por qué»          |
+| **4. Decisión**    | Convertir hallazgos en una recomendación con coste y riesgo    | Recomendación (primero) y evidencia (después) | Entregar un informe sin recomendación              |
+| **5. Seguimiento** | Medir si la decisión produjo el efecto esperado                | Una métrica de seguimiento y una fecha        | No volver a mirar: no se aprende ni se corrige     |
+
+La mayoría del valor se pierde en los **extremos**: en la fase 1 (se responde una pregunta equivocada) y en
+la 5 (nadie comprueba si el cambio funcionó). El código del medio es lo más fácil de automatizar con
+herramientas e IA, y por eso lo que más distingue a un analista son las fases de los extremos.
+
+### Cinco preguntas antes de empezar
+
+Cuando recibas una petición como la de la directora comercial, haz estas cinco preguntas (en un correo o
+en cinco minutos de conversación):
+
+1. **¿Qué decisión vas a tomar con esto?** (y entre qué opciones)
+2. **¿Para cuándo lo necesitas y con qué nivel de precisión?** (una aproximación hoy o un número exacto
+   el viernes)
+3. **¿Qué sospechas ya?** (las hipótesis de partida ahorran días)
+4. **¿Qué haría cambiar de opinión?** (el criterio de éxito antes de ver los datos)
+5. **¿Qué sería una sorpresa?** (lo que no se espera es lo más valioso)
+
+La respuesta a la primera convierte «mira por qué han bajado las ventas» en «¿recortamos el presupuesto
+de la campaña de marzo, la reactivamos o no hacemos nada?». Es una pregunta radicalmente más fácil de
+responder y de contestar con evidencia.
+
+### Cuatro cualidades de un analista top
+
+| Cualidad         | Qué significa                                               | Se ve en...                                                         |
+| ---------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- |
+| **Criterio**     | Saber qué merece la pena analizar y qué no; priorizar       | Proponer la pregunta que importa, no solo contestar la que le hacen |
+| **Rigor**        | Que lo que se afirma esté bien medido y se pueda reproducir | Cifras de control, comprobar duplicados, contrastar con otra fuente |
+| **Comunicación** | Que el mensaje llegue y mueva a la acción                   | Recomendación primero, una idea por gráfico, límites explícitos     |
+| **Impacto**      | Que el trabajo cambie decisiones y resultados               | Decisiones tomadas gracias al análisis; seguimiento de resultados   |
+
+Y tres niveles de comportamiento ante la misma petición:
+
+| Nivel         | Cómo responde a «¿por qué han bajado las ventas?»                                                     |
+| ------------- | ----------------------------------------------------------------------------------------------------- |
+| **Junior**    | Entrega una tabla con las ventas por mes y un gráfico, sin interpretación                             |
+| **Senior**    | Descompone la caída (precio, volumen, mezcla, canal), identifica la causa y la cuantifica             |
+| **Excelente** | Además, recomienda una acción con su coste, avisa de lo que no se sabe y fija cómo medir el resultado |
+
+La mayor palanca de mejora entre niveles es la **comunicación y el criterio**, no la técnica. Un
+SQL espléndido en una respuesta que nadie entiende no cambia nada.
+
+<Callout type="tip">
+  Una regla sencilla: cada entregable debe poder resumirse en **una frase que empiece por la
+  recomendación** («Reactivar la campaña de marzo en Electrónica, porque la caída se debe a una
+  rotura de stock, no a la demanda»), seguida de tres evidencias y un límite.
+</Callout>
+
+## En la práctica
+
+Aplica el ciclo a la petición de la directora comercial, con las preguntas y el plazo del jueves:
+
+1. **Pregunta**: tras las cinco preguntas, la decisión es si se reactiva una campaña. La hipótesis inicial
+   del equipo: «bajó la demanda». Criterio: si la caída es de oferta y no de demanda, se reactiva.
+2. **Datos**: pedidos, líneas, inventario y campañas de Lumen; definición escrita de «ventas» (ingresos
+   netos de pedidos no cancelados); cifra de control con Finanzas.
+3. **Análisis**: descomponer la caída (volumen, ticket, categoría, canal) y contrastar la hipótesis de demanda
+   con la de oferta. (En el **caso guiado «Caída de ventas en marzo»** recorrerás este análisis con los datos
+   reales de Lumen.)
+4. **Decisión**: recomendación con coste estimado y riesgo, escrita antes de la evidencia.
+5. **Seguimiento**: métrica de ventas de la categoría en las dos semanas siguientes y la fecha de revisión.
+
+Un cuaderno de análisis ordenado por estas cinco fases (con una sección «Pregunta y decisión» al principio y
+una de «Seguimiento» al final) es, en sí mismo, una forma de comunicar con rigor.
+
+## Trade-offs y cuándo usarlo
+
+- **Rapidez frente a profundidad**: no todo merece cinco fases completas. Una pregunta de cinco minutos
+  puede resolverse con una consulta, pero **siempre** con la decisión en mente.
+- **Preguntar mucho frente a empezar ya**: demasiadas preguntas frenan; la clave es ir directo a la
+  decisión y el plazo. Si la petición es urgente, empieza con una aproximación y afínala.
+- **Seguimiento frente a coste**: medir el resultado cuesta tiempo, pero es la única manera de saber si tus
+  análisis sirven y de ganar credibilidad.
+- **Autonomía frente a alineación**: un analista excelente propone preguntas, pero acuerda el foco con quien
+  decide antes de invertir días.
+
+## Errores comunes
+
+- **Contestar la pregunta literal** sin entender la decisión de fondo.
+- **Entregar «datos» en vez de una recomendación.**
+- **Esconder los límites del análisis** (muestras pequeñas, datos faltantes, sesgos) para parecer más seguro.
+- **No dejar escrita la definición de cada métrica** y descubrir en la reunión que dos personas hablan de cifras distintas.
+- **No hacer seguimiento**: el análisis no se compara con lo que ocurrió después.
+- **Optimizar el análisis, no la decisión**: pulir un modelo perfecto para una decisión que ya está tomada.
+
+## Con IA
+
+La IA acelera mucho las fases 2 y 3 (código, consultas, primeros gráficos) y puede ayudar a redactar la fase 4.
+Pero **no sabe qué decisión te importa** ni la historia de tu negocio: eso es la fase 1, y la comprobación de
+si funcionó es la fase 5. Usa la IA para preparar las cinco preguntas de contexto o para generar hipótesis
+alternativas que contrastar, y exige siempre que cada cifra tenga su código y su cifra de control. Un
+análisis entero generado por IA sin que nadie haya definido la decisión es un informe bonito sin destinatario.
+
+## En una entrevista
+
+- _"Un directivo te pide «un análisis de las ventas». ¿Qué haces?"_ — Pista: las cinco preguntas
+  (decisión, plazo, sospechas, criterio de éxito, sorpresa) antes de abrir los datos.
+- _"¿Qué distingue a un analista senior de uno junior?"_ — Pista: criterio, causa y cuantificación,
+  recomendación, límites y seguimiento; no la técnica.
+- _"Cuéntame un análisis tuyo que cambió una decisión."_ — Pista: pregunta, evidencia, recomendación
+  y resultado medido.
+
+<KeyTakeaways
+  items={[
+    'El análisis es un puente entre una pregunta de negocio y una decisión; el ciclo de cinco fases (pregunta, datos, análisis, decisión, seguimiento) lo mantiene entero.',
+    'El mayor valor se pierde en los extremos: preguntar mal al principio y no hacer seguimiento al final; el código del medio es lo más automatizable.',
+    'Antes de abrir los datos, pregunta qué decisión se toma, para cuándo, qué se sospecha, qué haría cambiar de opinión y qué sería una sorpresa.',
+    'Un analista top combina criterio, rigor, comunicación e impacto; entre niveles lo que más cambia es la comunicación y el criterio, no la técnica.',
+    'Cada entregable debe poder resumirse en una frase que empiece por la recomendación, con tres evidencias y un límite.',
+  ]}
+/>

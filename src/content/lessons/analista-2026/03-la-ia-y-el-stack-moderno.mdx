@@ -1,0 +1,218 @@
+---
+title: 'La IA y el stack moderno de datos'
+description: 'Mapa del stack de datos actual, qué cambia en el trabajo del analista con copilotos y agentes, por qué la capa semántica es la base y cómo verificar lo que produce una IA.'
+module: analista-2026
+order: 3
+level: básico
+estimatedMinutes: 40
+objectives:
+  - 'Describir las capas del stack moderno de datos (ingesta, almacén, transformación, capa semántica, consumo e IA) y el papel de cada una.'
+  - 'Distinguir tres niveles de uso de IA en el trabajo analítico: asistente de código, chat con datos y agentes.'
+  - 'Explicar por qué una métrica ambigua produce respuestas distintas de una IA y cómo una capa semántica lo evita.'
+  - 'Aplicar un protocolo de verificación a cualquier resultado generado por IA.'
+prerequisites: ['analista-2026/02-ciclo-del-analisis-y-que-hace-top-a-un-analista']
+tools: []
+volatility: high
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Model Context Protocol — Specification'
+    url: 'https://modelcontextprotocol.io/specification/latest'
+    type: spec
+    authors: 'Model Context Protocol'
+    year: 2026
+  - title: 'Fivetran y dbt Labs completan su fusión (nota de prensa)'
+    url: 'https://www.fivetran.com/press/fivetran-dbt-labs-complete-merger-to-create-the-data-infrastructure-for-trusted-ai-agents'
+    type: blog
+    authors: 'Fivetran'
+    year: 2026
+  - title: 'dbt Labs — Novedades de la especificación OSI (Open Semantic Interchange)'
+    url: 'https://www.getdbt.com/blog/the-osi-spec-updates'
+    type: blog
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'dbt — About MetricFlow'
+    url: 'https://docs.getdbt.com/docs/build/about-metricflow'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+relatedLabs: []
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  La dirección de Lumen prueba un asistente de IA conectado al almacén de datos y le pregunta:
+  "¿Cuánto hemos ingresado?". El lunes responde 118,6 M€; el martes, otro compañero hace la misma
+  pregunta con otras palabras y obtiene 105,8 M€. Nadie ha cambiado los datos. ¿Qué ha pasado y qué
+  pinta tiene el analista en este mundo?
+</BusinessContext>
+
+Las herramientas de IA han cambiado **cómo se hace** el trabajo analítico y también **qué se espera** del
+analista. Pero la mayor parte de los problemas que causan resultados erróneos con IA no son de la IA: son de
+**definiciones ambiguas y datos sin gobierno**, exactamente lo que un buen analista resuelve.
+
+## Intuición
+
+Un asistente de IA es como un analista junior brillante, rapidísimo y que nunca dice «no lo sé»: escribe la
+consulta en dos segundos, pero hace suposiciones que no te cuenta. Si le dejas elegir qué significa
+«ingresos», elegirá lo más plausible, que no siempre es lo que tu empresa usa. La solución no es no usarlo:
+es **darle definiciones oficiales** y **comprobar lo que devuelve**.
+
+## Cómo funciona
+
+### El mapa del stack moderno
+
+Casi todos los equipos de datos actuales organizan sus herramientas en capas. Los nombres de producto
+cambian cada pocos años; las capas, mucho menos:
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+    A["Fuentes<br/>apps, ERP, CRM, ficheros"] --> B["Ingesta<br/>(ELT)"]
+    B --> C["Almacén o lakehouse<br/>SQL + Parquet"]
+    C --> D["Transformación<br/>modelos SQL versionados y tests"]
+    D --> E["Capa semántica<br/>métricas y dimensiones definidas una vez"]
+    E --> F["Consumo<br/>BI, hojas, notebooks"]
+    E --> G["IA<br/>copilotos y agentes"]`}
+  alt="Capas del stack moderno de datos: fuentes, ingesta, almacén o lakehouse, transformación, capa semántica, y desde esta, consumo (BI, hojas de cálculo, notebooks) e IA (copilotos y agentes)."
+/>
+
+| Capa                    | Qué hace                                                                       | Ejemplos de categoría                              |
+| ----------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------- |
+| **Ingesta**             | Copia datos de las fuentes al almacén (ELT: primero cargar, luego transformar) | Conectores gestionados o de código abierto         |
+| **Almacén / lakehouse** | Guarda los datos y ejecuta SQL a escala (columnar, ver SQL III)                | Almacenes en la nube, lakehouses, DuckDB en local  |
+| **Transformación**      | Convierte los datos crudos en modelos limpios, probados y documentados         | Herramientas de transformación SQL con Git y tests |
+| **Capa semántica**      | Define las métricas y dimensiones una sola vez                                 | Modelos semánticos, MetricFlow, LookML, DAX        |
+| **Consumo**             | Dashboards, hojas de cálculo, notebooks, informes                              | Herramientas de BI, Excel, Python                  |
+| **IA**                  | Copilotos y agentes que consultan el almacén o la capa semántica               | Asistentes de IA con acceso a datos                |
+
+Dos ideas del mapa importan más que cualquier producto: el flujo es **ELT** (se carga primero y se transforma
+dentro del almacén con SQL, que es por lo que SQL es el lenguaje central del oficio) y la **capa semántica**
+es el punto único donde se define qué significa cada métrica.
+
+### Tres niveles de IA en el trabajo del analista
+
+| Nivel                      | Qué hace la IA                                                          | Qué haces tú                                              | Riesgo principal                                   |
+| -------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------- |
+| **1. Asistente de código** | Autocompleta, explica y refactoriza SQL o Python                        | Revisas y ejecutas; decides qué calcular                  | Código que parece correcto y no lo es              |
+| **2. Chat con los datos**  | Traduce una pregunta en lenguaje natural a una consulta (_text-to-SQL_) | Formulas la pregunta, compruebas la definición y la cifra | Suposiciones silenciosas sobre las definiciones    |
+| **3. Agentes**             | Encadenan pasos (consultar, analizar, graficar, avisar) con autonomía   | Defines objetivos, permisos y controles; auditas          | Acciones y conclusiones sin supervisión suficiente |
+
+Los niveles 2 y 3 se apoyan cada vez más en un protocolo abierto, **MCP** (_Model Context Protocol_), que
+estandariza cómo una aplicación de IA se conecta a herramientas y datos. La especificación recuerda que los
+servidores MCP exponen herramientas que son «ejecución arbitraria de código» y que exigen consentimiento y
+control del usuario: el analista que conecta un agente a un almacén toma decisiones de **seguridad y
+gobierno**, no solo de productividad.
+
+### Por qué la capa semántica es la base
+
+Vuelve a la pregunta de la dirección, «¿cuánto hemos ingresado?». Con los mismos datos de Lumen, estas
+definiciones son todas razonables:
+
+| Definición de «ingresos»                              | Importe (histórico completo) |
+| ----------------------------------------------------- | ---------------------------: |
+| Todas las líneas de todos los pedidos                 |                    118,57 M€ |
+| Excluyendo pedidos cancelados                         |                    113,79 M€ |
+| Solo pedidos completados (sin devoluciones parciales) |                    106,66 M€ |
+| Sin cancelados y sin las líneas devueltas             |                    105,79 M€ |
+
+Entre la más alta y la más baja hay **12,8 M€ de diferencia** (un 12 % sobre la más baja), sin que nadie se haya
+equivocado. Un asistente que elige una definición al azar según cómo suene la pregunta dará respuestas
+distintas en días distintos: exactamente lo que pasó el lunes y el martes. Una **capa semántica** define
+«ingresos» una vez (por ejemplo, «ingresos netos = líneas de pedidos no cancelados menos devoluciones»),
+y tanto el dashboard como el asistente la usan. Es la diferencia entre una IA que improvisa y una que
+consulta.
+
+<Snapshot date="2026-10">
+  Algunos hechos verificados de este momento, dados como contexto y no como recomendación. Fivetran
+  y dbt Labs completaron su fusión el 1 de junio de 2026; con ella se presentó dbt Core v2.0, que
+  incorpora el motor Fusion de dbt con licencia Apache 2.0. La especificación MCP vigente es la
+  versión 2026-07-28, con extensiones opcionales como _Tasks_ (operaciones largas) y _MCP Apps_
+  (interfaces interactivas). Y el intercambio de modelos semánticos OSI (_Open Semantic
+  Interchange_), con apoyo de dbt Labs, Snowflake, Databricks y Salesforce, publicó su primera
+  versión (Apache 2.0) el 29 de enero de 2026. El mercado de herramientas se mueve muy deprisa: lo
+  que dura son las capas y los principios.
+</Snapshot>
+
+### Qué cambia (y qué no) para el analista
+
+- **Se automatiza**: escribir consultas rutinarias, código de gráficos, documentación, primeras exploraciones,
+  limpieza repetitiva. El coste de «hacer un primer borrador» cae hacia cero.
+- **Gana valor**: formular la pregunta correcta, conocer el negocio, definir métricas sin ambigüedad,
+  **verificar** lo producido, comunicar y decidir con criterio, y diseñar los controles de los sistemas con IA.
+- **No cambia**: la responsabilidad de la cifra que sale con tu nombre. «Lo ha dicho la IA» no es una
+  fuente.
+
+### Un protocolo de verificación
+
+Para cualquier resultado producido (o ayudado) por IA, aplica estos cinco pasos antes de enviarlo:
+
+1. **Definición**: ¿qué significa cada métrica? ¿Coincide con la oficial? (la capa semántica o un diccionario)
+2. **Código**: lee la consulta generada; mira joins, filtros, fechas, duplicados y el grano.
+3. **Dos vías**: calcula la cifra clave de otra forma (otra consulta, otra herramienta) y compara.
+4. **Cifra de control**: compara con un total que conozcas (Finanzas, otro informe).
+5. **Rareza**: pregúntate si el resultado es plausible; las cifras redondas y las conclusiones demasiado limpias son sospechosas.
+
+## En la práctica
+
+Un ejercicio que puedes repetir con cualquier asistente (los pasos importan más que la herramienta):
+
+1. Hazle la misma pregunta de negocio con tres formulaciones distintas («ingresos», «ventas netas», «lo
+   que hemos facturado») y compara las consultas y las cifras.
+2. Dale la definición oficial por escrito («ingresos netos = ...») y repite. ¿Convergen las respuestas?
+3. Introduce un error trampa (pídele el «ticket medio» y comprueba si divide por pedidos o por líneas).
+4. Verifica la cifra final con tu propia consulta.
+
+Lo que observarás en casi todos los asistentes: sin contexto, cada respuesta es plausible y distinta; con
+la definición, convergen. Esa es la justificación operativa de la capa semántica y de los módulos de
+«Capa semántica» y «Analítica agéntica» de la última parte de este curso.
+
+## Trade-offs y cuándo usarlo
+
+- **IA en datos sensibles**: antes de pegar datos en una herramienta externa, comprueba la política de la
+  empresa y de privacidad (RGPD). Una IA local o corporativa evita fugas, pero hay que comprobar sus garantías.
+- **Autonomía del agente frente a control**: más autonomía ahorra tiempo y aumenta el riesgo de acciones o
+  conclusiones erróneas; empieza con permisos de solo lectura y revisión humana.
+- **Una sola herramienta frente a varias**: pocas herramientas bien dominadas son mejores que todas a medias.
+- **Invertir en gobierno antes que en IA**: sin definiciones y calidad, la IA solo acelera los errores.
+
+## Errores comunes
+
+- **Aceptar una cifra de un asistente sin leer la consulta.**
+- **No dar contexto** (definiciones, grano, filtros) y esperar la respuesta correcta.
+- **Pensar que la IA sustituye al analista**: sustituye tareas, no la responsabilidad ni el criterio.
+- **Conectar un agente al almacén con permisos de escritura** o a datos sensibles sin controles.
+- **Confiar en la memoria del modelo para hechos de herramientas y versiones**: pueden estar desfasados.
+- **No documentar qué se hizo con IA** y no poder reproducirlo.
+
+## Con IA
+
+Este es el módulo sobre IA, así que la recomendación aquí es la meta: **trata a la IA como a un compañero
+muy rápido y poco fiable**. Dale contexto, pídele que explique sus suposiciones, revisa lo que produce
+y asume tú la responsabilidad. El resto del curso incorpora, en cada lección, cómo acelerar la tarea con
+IA y cómo verificar el resultado.
+
+## En una entrevista
+
+- _"¿Cómo usas IA en tu trabajo y cómo compruebas que no se equivoca?"_ — Pista: asistente de código,
+  definiciones por escrito, dos vías y cifra de control; ejemplo de un error que detectaste.
+- _"¿Qué es una capa semántica y por qué importa con IA?"_ — Pista: definir métricas una vez para que dashboards y
+  asistentes den la misma cifra; ejemplo de ingresos con definiciones distintas.
+- _"¿Qué riesgos ves al conectar un agente de IA a tu almacén de datos?"_ — Pista: permisos mínimos,
+  datos sensibles, inyección de instrucciones, auditoría y revisión humana.
+
+<KeyTakeaways
+  items={[
+    'El stack moderno se organiza en capas (ingesta, almacén, transformación, capa semántica, consumo e IA); los productos cambian y las capas, mucho menos.',
+    'La IA se usa en tres niveles (asistente de código, chat con los datos, agentes) y en todos la responsabilidad de la cifra sigue siendo tuya.',
+    'En Lumen, «ingresos» da entre 105,8 y 118,6 M€ según la definición: una IA sin definiciones oficiales responde distinto cada día; la capa semántica lo evita.',
+    'Se automatiza el borrador y gana valor el criterio: preguntar bien, conocer el negocio, definir métricas y verificar.',
+    'Verifica todo resultado de IA con cinco pasos: definición, lectura del código, dos vías, cifra de control y plausibilidad.',
+  ]}
+/>

@@ -1,0 +1,186 @@
+---
+title: 'Perfiles de datos y tipos de analista'
+description: 'Qué hace cada perfil del equipo de datos (ingeniería, analytics engineering, análisis, ciencia de datos), qué tipos de analista existen y cómo leer una oferta sin dejarte engañar por el título.'
+module: analista-2026
+order: 1
+level: básico
+estimatedMinutes: 30
+objectives:
+  - 'Distinguir los perfiles de datos (data engineer, analytics engineer, data analyst, data scientist) por el tramo de la cadena de valor del dato que cubren.'
+  - 'Describir cinco tipos de analista (producto, marketing/growth, BI, finanzas y operaciones) con sus preguntas, métricas y datos típicos.'
+  - 'Leer una oferta de trabajo y deducir qué se hará de verdad y qué preguntar en la entrevista.'
+prerequisites: []
+tools: []
+volatility: medium
+lastReviewed: 2026-10-08
+sources:
+  - title: 'dbt Labs — What is analytics engineering?'
+    url: 'https://www.getdbt.com/blog/what-is-analytics-engineering'
+    type: blog
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'Data Scientist: The Sexiest Job of the 21st Century (Davenport y Patil, HBR)'
+    url: 'https://hbr.org/2012/10/data-scientist-the-sexiest-job-of-the-21st-century'
+    type: paper
+    authors: 'Davenport, T. y Patil, DJ.'
+    year: 2012
+relatedLabs: []
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Lumen (la tienda ficticia con la que trabajarás todo el curso) abre cuatro vacantes de datos:
+  "Data Analyst", "Analytics Engineer", "Business Intelligence Specialist" y "Data Scientist". Te
+  presentas a las cuatro, y en las entrevistas descubres que dos de ellas describen casi el mismo
+  puesto y que la que se llama "Data Analyst" pide más programación que la de "Data Scientist".
+  ¿Cómo orientarte?
+</BusinessContext>
+
+Los títulos de los puestos de datos son **inconsistentes entre empresas**: el mismo trabajo recibe
+nombres distintos y el mismo nombre esconde trabajos distintos. La brújula fiable no es el título, sino
+**qué tramo de la cadena de valor del dato cubre el puesto** y qué entrega.
+
+## Intuición
+
+Piensa en el dato como en el agua de una ciudad. Alguien capta y transporta el agua (ingeniería de datos),
+alguien la depura y la deja potable y lista para el grifo (analytics engineering), alguien la usa para
+responder preguntas concretas de los vecinos (análisis) y alguien investiga cómo predecir el consumo del
+próximo verano (ciencia de datos). En una empresa pequeña una sola persona hace casi todo; en una grande
+cada tramo tiene un equipo.
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+    A["Fuentes<br/>(web, app, ERP, CRM)"] --> B["Ingesta y almacenamiento<br/>Data engineer"]
+    B --> C["Modelado y capa semántica<br/>Analytics engineer"]
+    C --> D["Análisis y comunicación<br/>Data analyst"]
+    C --> E["Modelos predictivos<br/>Data scientist"]
+    D --> F["Decisión de negocio"]
+    E --> F`}
+  alt="Cadena de valor del dato: de las fuentes a la ingesta y almacenamiento (ingeniero de datos), al modelado y capa semántica (analytics engineer), y de ahí al análisis y comunicación (analista) o a los modelos predictivos (científico de datos), que acaban en una decisión de negocio."
+/>
+
+## Cómo funciona
+
+### Cuatro perfiles, cuatro preguntas
+
+| Perfil                 | Pregunta que responde                                    | Entrega típica                                                | Herramientas habituales                              |
+| ---------------------- | -------------------------------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------- |
+| **Data engineer**      | ¿Llegan los datos, a tiempo y completos?                 | Pipelines, almacenes, fiabilidad y coste de la plataforma     | SQL, Python, orquestadores, almacenes                |
+| **Analytics engineer** | ¿Están los datos limpios, modelados y definidos una vez? | Modelos SQL versionados, tests, capa semántica, documentación | SQL, dbt (u otra herramienta de transformación), Git |
+| **Data analyst**       | ¿Qué está pasando, por qué y qué hacemos?                | Análisis, dashboards, recomendaciones, métricas               | SQL, hojas de cálculo, BI, Python                    |
+| **Data scientist**     | ¿Qué pasará o qué acción tomar? (predicción, causalidad) | Modelos, experimentos, estimaciones de impacto                | Python/R, estadística, aprendizaje automático        |
+
+El **analytics engineer** es el perfil más reciente: ocupa el hueco entre ingeniería y análisis. Aplica
+prácticas de ingeniería de software (control de versiones, pruebas, revisión de código) al modelado de
+datos para que cada métrica se defina **una vez** y todos la usen. Muchas empresas lo cubren con un analista
+senior o con un ingeniero de datos orientado a negocio.
+
+Existen más perfiles vecinos (ingeniero de aprendizaje automático, desarrollador de BI, ingeniero de IA)
+que no desarrollamos aquí. Lo que importa es cómo te mueves entre ellos: un analista top entiende lo
+suficiente de los tramos vecinos para **pedir bien** (a ingeniería) y **entregar bien** (a negocio).
+
+<Callout type="info">
+  La frontera entre perfiles se difumina con el tamaño de la empresa. En una startup de diez
+  personas, «el analista» extrae los datos, los modela, hace el dashboard y propone el experimento.
+  En un banco grande, cada uno de esos pasos pertenece a un equipo distinto. Pregunta siempre
+  cuántas personas hay en los tramos vecinos.
+</Callout>
+
+### Cinco tipos de analista
+
+El analista se distingue sobre todo por el **área de negocio** a la que sirve, porque cada una tiene
+sus preguntas, sus métricas y sus interlocutores. Con ejemplos de Lumen:
+
+| Tipo                   | Preguntas típicas                                            | Métricas y datos                                                             | Interlocutores               |
+| ---------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------- | ---------------------------- |
+| **Producto**           | ¿Dónde abandonan los usuarios? ¿Funcionó el cambio?          | Funnel, retención, experimentos (`web_sessions`, `events`, `experiments`)    | Producto, diseño, ingeniería |
+| **Marketing / growth** | ¿Qué campaña aporta clientes rentables? ¿Qué es incremental? | CAC, ROAS, atribución (`campaigns`, `marketing_spend`)                       | Marketing, adquisición       |
+| **BI**                 | ¿Tiene la dirección los KPI correctos y fiables?             | Cuadros de mando, definiciones de métricas, modelo semántico                 | Dirección, todas las áreas   |
+| **Finanzas (FP&A)**    | ¿Cumplimos el presupuesto? ¿Qué desvía las previsiones?      | Ingresos, márgenes, previsiones, escenarios                                  | Finanzas, dirección general  |
+| **Operaciones**        | ¿Llegan los pedidos a tiempo? ¿Hay stock?                    | SLA, rotura de stock, costes logísticos (`shipments`, `inventory_snapshots`) | Logística, tiendas, compras  |
+
+Un mismo analista pasa de un área a otra con facilidad técnica (SQL, estadística, comunicación) pero tarda
+en dominar el **negocio** de la nueva área. Por eso el conocimiento de dominio es una de las ventajas
+competitivas más duraderas.
+
+### Qué diferencia a un analista de un científico de datos
+
+La diferencia no es el nivel, sino el **tipo de salida**. El analista explica el pasado y el presente y
+recomienda una acción apoyándose en datos; el científico de datos construye **modelos** (predicciones,
+clasificaciones, estimaciones causales) que se ejecutan de forma repetida. Los dos usan estadística y los dos
+programan; en la práctica, muchos analistas hacen modelado ligero y muchos científicos de datos pasan
+la mayor parte del tiempo preparando datos y comunicando resultados. Este curso cubre el trabajo del
+analista y llega hasta la inferencia, la experimentación y la causalidad, que son lo que separa a un
+buen analista de un generador de informes.
+
+## En la práctica
+
+**Cómo leer una oferta.** Ignora el título y busca estas pistas en la descripción:
+
+1. **Verbos**: «construir pipelines» (ingeniería), «modelar y testear transformaciones» (analytics
+   engineering), «analizar y recomendar» (análisis), «entrenar y desplegar modelos» (ciencia de datos).
+2. **Herramientas**: dbt y Git apuntan a analytics engineering; Excel y Power BI a un perfil de negocio/BI;
+   Airflow y Spark a ingeniería.
+3. **Entregables**: «informe mensual» frente a «análisis ad hoc» frente a «producto de datos».
+4. **Interlocutores**: ¿a quién reporta y a quién sirve?
+
+**Preguntas para la entrevista** (te hacen parecer, con razón, alguien con criterio):
+
+- ¿Quién define las métricas clave y dónde están documentadas?
+- ¿Cómo de fiables son los datos? ¿Hay tests de calidad?
+- ¿Qué decisión concreta cambió el último análisis del equipo?
+- ¿Qué herramientas de IA se usan y con qué reglas de verificación?
+- ¿Cuántas personas hay en ingeniería de datos y quién mantiene el almacén?
+
+## Trade-offs y cuándo usarlo
+
+- **Generalista frente a especialista**: un perfil en forma de T (base amplia, una especialidad profunda) es
+  muy valorado; un generalista puro tarda más en destacar y un especialista puro depende de que exista su nicho.
+- **Empresa pequeña frente a grande**: la pequeña da amplitud y responsabilidad rápida pero menos mentoría;
+  la grande da especialización, procesos y mentores.
+- **Orientarse a negocio frente a técnico**: más negocio da más influencia en decisiones; más técnica abre
+  más puertas hacia ingeniería o ciencia de datos. Se puede mover la balanza con los años.
+
+## Errores comunes
+
+- **Fiarse del título** y descubrir en la entrevista que el puesto es otra cosa.
+- **Creer que solo vale la herramienta de moda**: las herramientas cambian cada pocos años; la estadística,
+  el SQL y el criterio no.
+- **Subestimar el dominio**: dominar SQL no basta si no entiendes el negocio del que analizas los datos.
+- **Pensar que el analista «no programa»** o que el científico «no comunica»: ambos hacen ambas cosas.
+- **Ignorar los tramos vecinos**: pedir un dato sin saber cómo se produce garantiza malentendidos.
+
+## Con IA
+
+Pide a un asistente que te explique una oferta concreta y que enumere sus ambigüedades, pero **no le
+dejes decidir** si encaja contigo: no conoce tus intereses ni la cultura real de la empresa. Y úsalo para
+preparar preguntas de entrevista sobre los tramos vecinos (por ejemplo, cómo se prueban las
+transformaciones en ese equipo). Verifica siempre el contenido sobre empresas y salarios con fuentes
+actuales: los modelos suelen tener datos de mercado desfasados.
+
+## En una entrevista
+
+- _"¿Qué diferencia hay entre un analista de datos y un analytics engineer?"_ — Pista: el segundo
+  modela y define las métricas una vez, con prácticas de ingeniería de software; el primero responde preguntas
+  de negocio sobre ellas.
+- _"¿En qué se parece y en qué se diferencia un analista de un científico de datos?"_ — Pista: tipo de salida
+  (decisión explicada frente a modelo repetible), no nivel.
+- _"¿Qué tipo de analista eres y qué te gustaría aprender del dominio?"_ — Pista: ejemplo concreto de
+  preguntas de negocio que te interesan.
+
+<KeyTakeaways
+  items={[
+    'Los títulos de datos son inconsistentes: oriéntate por el tramo de la cadena de valor del dato que cubre el puesto y por lo que entrega.',
+    'Ingeniería mueve y almacena, analytics engineering modela y define una vez, el análisis responde preguntas de negocio y la ciencia de datos construye modelos.',
+    'Hay cinco tipos de analista según el negocio (producto, marketing/growth, BI, finanzas y operaciones), cada uno con sus métricas e interlocutores.',
+    'Lee una oferta por sus verbos, herramientas, entregables e interlocutores, y pregunta en la entrevista quién define las métricas y qué decisión cambió el último análisis.',
+    'El dominio de negocio es una ventaja que se acumula: la técnica se traslada entre áreas, el contexto no.',
+  ]}
+/>

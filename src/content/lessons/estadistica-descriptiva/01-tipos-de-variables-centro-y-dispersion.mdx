@@ -1,0 +1,205 @@
+---
+title: 'Tipos de variables, centro, dispersión y percentiles'
+description: 'Qué operaciones tienen sentido con cada tipo de variable, cómo resumir una distribución con medidas de centro y dispersión y por qué un SLA se mide con percentiles y no con la media.'
+module: estadistica-descriptiva
+order: 1
+level: básico
+estimatedMinutes: 40
+objectives:
+  - 'Clasificar una variable por su escala (nominal, ordinal, de intervalo o de razón) y decidir qué resúmenes admite.'
+  - 'Calcular y comparar media, mediana, moda, desviación típica, rango intercuartílico y MAD, y explicar cuándo cada una es robusta.'
+  - 'Leer una distribución con percentiles y usarlos para definir y vigilar un SLA.'
+  - 'Evitar la media simple de tasas y la media de medias sin ponderar.'
+prerequisites: []
+tools: ['pandas', 'duckdb']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: 'NIST/SEMATECH e-Handbook of Statistical Methods — Measures of location and scale'
+    url: 'https://www.itl.nist.gov/div898/handbook/eda/section3/eda351.htm'
+    type: docs
+    authors: 'NIST'
+    year: 2013
+  - title: 'pandas — Computational tools (describe, quantile)'
+    url: 'https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.describe.html'
+    type: docs
+    authors: 'pandas development team'
+    year: 2026
+  - title: 'DuckDB — Aggregate functions (quantile_cont)'
+    url: 'https://duckdb.org/docs/stable/sql/functions/aggregates'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+relatedLabs: ['py-retrasos-y-percentiles']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Operaciones informa a la dirección: "El retraso medio de nuestros envíos es de 0,6 días. Estamos
+  bien". Pero Atención al cliente recibe cientos de quejas por paquetes que llegan una semana tarde.
+  ¿Cómo pueden ser ciertas las dos cosas?
+</BusinessContext>
+
+Las dos son ciertas. La media resume **un número** de una distribución que tiene mucha más forma que un
+número, y cuando la forma es asimétrica o con colas, la media puede ocultar justo lo que importa.
+
+## Intuición
+
+Resumir datos es comprimir: pasar de 365.198 envíos a unos pocos números. Cada número conserva una cosa
+y pierde otras. La media conserva el **total** (útil para sumar); la mediana conserva el **punto medio**
+(útil para describir al típico); el percentil 95 conserva **lo malo que es el mal caso**. Elegir el resumen
+es decidir qué información sobrevive.
+
+## Cómo funciona
+
+### Escalas de medida: qué se puede hacer con cada variable
+
+| Escala           | Qué permite                                | Ejemplo en Lumen                                   | Resúmenes válidos                                     |
+| ---------------- | ------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------- |
+| **Nominal**      | Distinguir categorías, sin orden           | `channel`, `device`, `acquisition_channel`         | Recuento, moda, proporciones                          |
+| **Ordinal**      | Ordenar categorías, sin distancias iguales | `segment` (nuevo, ocasional, habitual, vip)        | Anteriores + mediana, percentiles                     |
+| **De intervalo** | Diferencias con sentido, sin cero real     | Fechas (`order_date`)                              | Anteriores + media, desviación; diferencias de fechas |
+| **De razón**     | Diferencias y cocientes, con cero real     | `quantity`, `unit_price`, importe, días de retraso | Todo lo anterior + razones y % de cambio              |
+
+Dos consecuencias prácticas. Una: **no tiene sentido promediar un identificador** o un código (el `customer_id`
+es nominal aunque parezca un número). Dos: una fecha es de intervalo, así que «el doble de una fecha» no existe, pero
+«30 días más tarde» sí.
+
+### Medidas de centro
+
+| Medida              | Qué es                       | Sensible a extremos  | Cuándo usarla                               |
+| ------------------- | ---------------------------- | -------------------- | ------------------------------------------- |
+| **Media**           | Suma ÷ n                     | Mucho                | Totales, simulaciones, variables simétricas |
+| **Mediana**         | Valor central (percentil 50) | Poco                 | Distribuciones asimétricas, «típico»        |
+| **Moda**            | Valor más frecuente          | No                   | Categorías y variables discretas            |
+| **Media ponderada** | $\sum w_i x_i / \sum w_i$    | Depende de los pesos | Cuando los grupos tienen tamaños distintos  |
+
+En los 365.198 envíos de Lumen, el **retraso** (días entre la fecha prometida y la real) tiene media 0,58, mediana 0
+y moda 0 (con un pico casi idéntico en −1: 149.449 envíos llegan un día antes y 149.971 el día prometido). La
+media es mayor que la mediana porque una minoría llega tarde: eso es una cola a la derecha.
+
+### Medidas de dispersión
+
+| Medida                           | Definición                                                  | Robusta |
+| -------------------------------- | ----------------------------------------------------------- | ------- |
+| **Rango**                        | Máximo − mínimo                                             | No      |
+| **Varianza / desviación típica** | $s^2 = \frac{1}{n-1}\sum (x_i-\bar x)^2$; $s=\sqrt{s^2}$    | No      |
+| **Rango intercuartílico (IQR)**  | $Q_3 - Q_1$ (la mitad central de los datos)                 | Sí      |
+| **MAD**                          | Mediana de $\lvert x_i - \text{mediana}\rvert$              | Sí      |
+| **Coeficiente de variación**     | $s / \bar x$ (dispersión relativa, solo en escala de razón) | No      |
+
+La desviación típica usa $n-1$ en el denominador cuando los datos son una **muestra** de una población
+mayor (corrección de Bessel); pandas lo hace por defecto (`ddof=1`), NumPy no (`ddof=0`). En los envíos:
+desviación típica 2,64 días, IQR 1 día, MAD 1 día. Que la desviación sea mucho mayor que el IQR indica que hay una cola
+que la infla. El coeficiente de variación (4,57) es tan alto porque la media está muy cerca de cero: no lo uses
+cuando la media puede ser 0 o negativa.
+
+### Percentiles: el lenguaje de los SLA
+
+El **percentil** $p$ es el valor por debajo del cual queda el $p\,\%$ de los datos. Los percentiles responden a
+«¿cómo de malo es el mal caso?», que es la pregunta de un acuerdo de nivel de servicio (SLA):
+
+| Estadístico   | Retraso (días) | Lectura                                            |
+| ------------- | -------------: | -------------------------------------------------- |
+| Media         |           0,58 | «medio día tarde, de media»                        |
+| Mediana (P50) |              0 | la mitad llega el día prometido o antes            |
+| P90           |              5 | uno de cada diez llega con 5 o más días de retraso |
+| P95           |              8 | uno de cada veinte, con 8 o más                    |
+| P99           |             10 | el peor 1 %, con 10 días                           |
+
+Y tres porcentajes que la media no da: **82,0 %** llega a tiempo, **7,3 %** con retraso leve (1-4 días) y
+**10,7 %** con retraso grave (5 o más). La media (0,58 días) cuenta que «casi todo va bien»; los percentiles
+y el porcentaje con retraso grave cuentan que **uno de cada diez clientes** sufre una espera larga. Por eso
+un SLA se formula como «el 95 % de los envíos llega con menos de X días de retraso» y se vigila con el
+P95 o el porcentaje que cumple, **nunca con la media**.
+
+<Callout type="warning">
+  Los percentiles de una **muestra pequeña** son inestables (el P99 de 50 datos es casi el máximo).
+  Con pocos datos, informa también del tamaño y de un intervalo de incertidumbre (módulo de
+  inferencia).
+</Callout>
+
+### Cuándo la media engaña
+
+1. **Colas largas**: ingresos, tamaños de pedido, latencias y retrasos. Usa mediana y percentiles.
+2. **Valores acotados o mezclas**: los retrasos de Lumen son una mezcla (un 82 % a tiempo y un 18 % tarde uniforme
+   entre 1 y 10 días); el «retraso medio» no corresponde a ningún envío real.
+3. **La media simple de tasas**: la conversión de Madrid (7,88 %) y de Andalucía (2,38 %) promedia 5,13 %; la
+   conversión global de las dos regiones, ponderada por sesiones, es **4,88 %**, porque Andalucía tiene más
+   sesiones. Promediar tasas sin ponderar pesa igual a un grupo grande que a uno pequeño.
+4. **Media de medias**: la media de las medias de grupos de distinto tamaño no es la media global.
+
+## En la práctica
+
+Todo lo anterior en una llamada de pandas y su equivalente en SQL:
+
+```python
+retraso = (envios["actual_date"] - envios["promised_date"]).dt.days
+
+retraso.describe(percentiles=[.5, .9, .95, .99])      # n, media, std, mínimo, percentiles, máximo
+(retraso <= 0).mean()                                 # % a tiempo: 0.820
+(retraso >= 5).mean()                                 # % con retraso grave: 0.107
+```
+
+```sql
+SELECT AVG(d)                       AS media,
+       MEDIAN(d)                    AS mediana,
+       STDDEV_SAMP(d)               AS desviacion,
+       QUANTILE_CONT(d, 0.95)       AS p95,
+       AVG((d >= 5)::INT)           AS pct_retraso_grave
+FROM (SELECT date_diff('day', promised_date, actual_date) AS d FROM shipments);
+```
+
+En el lab de esta lección construyes el resumen de retrasos y el porcentaje que cumple un SLA.
+
+## Trade-offs y cuándo usarlo
+
+- **Media o mediana**: la media permite reconstruir el total (ingresos = pedidos × media); la mediana describe al
+  típico. Informa de ambas si difieren.
+- **Percentil exacto o aproximado**: con millones de filas, las aproximaciones (por ejemplo, `approx_quantile`) son
+  mucho más baratas y suficientes para vigilancia.
+- **Desviación típica o MAD/IQR**: la desviación es la base de muchos métodos (intervalos, regresión); MAD e IQR
+  resisten extremos. Con colas largas, empieza por las robustas.
+- **SLA por percentil o por porcentaje que cumple**: son equivalentes («P95 ≤ 8 días» ≈ «95 % cumple 8 días»); el
+  porcentaje es más fácil de explicar a negocio.
+
+## Errores comunes
+
+- **Reportar solo la media** de una variable con cola o mezcla.
+- **Promediar tasas** sin ponderar por el tamaño de cada grupo.
+- **Calcular la desviación con $n$ en vez de $n-1$** sobre una muestra (o ignorar que NumPy y pandas difieren).
+- **Usar el coeficiente de variación** cuando la media es cercana a 0.
+- **Promediar identificadores o códigos** (variables nominales con apariencia numérica).
+- **Definir un SLA con la media**: un 18 % de envíos tardíos puede esconderse detrás de un promedio «aceptable».
+- **Percentiles de muestras diminutas** presentados como exactos.
+
+## Con IA
+
+Un asistente suele devolver `describe()` y concluir «la distribución está centrada alrededor de la media» sin
+mirar la forma. Pídele que, para cada variable, **diga la escala de medida**, justifique mediana frente a media y
+calcule los percentiles relevantes para el caso de uso (SLA, presupuesto). Y revisa que no promedie tasas ni
+identificadores. Para SLAs, exige siempre el **porcentaje que cumple** además de la media.
+
+## En una entrevista
+
+- _"El retraso medio es de 0,6 días. ¿Podemos decir que el servicio va bien?"_ — Pista: no; mediana, percentiles
+  y % de retraso grave; la media oculta la cola (aquí, 10,7 % con 5 o más días).
+- _"¿Cuándo usarías la mediana en lugar de la media?"_ — Pista: colas largas o extremos; para «típico»; la media
+  para totales.
+- _"La conversión es del 7,9 % en una región y del 2,4 % en otra. ¿Cuál es la global?"_ — Pista: media
+  ponderada por sesiones, no la media simple.
+
+<KeyTakeaways
+  items={[
+    'La escala de medida (nominal, ordinal, de intervalo, de razón) decide qué resúmenes tienen sentido; un identificador numérico sigue siendo nominal.',
+    'La media conserva el total y la mediana el punto medio; con colas o mezclas pueden diferir mucho y hay que informar de ambas.',
+    'Con n−1 en el denominador la desviación típica de una muestra no se sesga; IQR y MAD son medidas de dispersión robustas.',
+    'Los envíos de Lumen tienen retraso medio 0,58 días, pero el P90 es 5 y el 10,7 % llega con 5 o más días de retraso: un SLA se mide con percentiles o con el porcentaje que cumple.',
+    'Promediar tasas sin ponderar por tamaño da una cifra distinta de la global (5,13 % frente a 4,88 % en el ejemplo de conversión).',
+  ]}
+/>

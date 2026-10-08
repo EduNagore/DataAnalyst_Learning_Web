@@ -1,0 +1,196 @@
+---
+title: 'Probabilidad condicional, independencia y Bayes'
+description: 'Cómo cambia una probabilidad al conocer otra información, cómo comprobar si dos sucesos son independientes y cómo invertir una probabilidad condicional con el teorema de Bayes, con datos de Lumen.'
+module: estadistica-descriptiva
+order: 3
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Calcular probabilidades condicionales a partir de una tabla de frecuencias y distinguirlas de su inversa.'
+  - 'Comprobar si dos sucesos son independientes comparando P(A|B) con P(A) y con una prueba χ².'
+  - 'Aplicar el teorema de Bayes y la probabilidad total, y razonar con frecuencias naturales.'
+  - 'Evitar la falacia de confundir P(A|B) con P(B|A) en informes de negocio.'
+prerequisites: ['estadistica-descriptiva/02-distribuciones-que-aparecen-en-negocio']
+tools: ['pandas', 'scipy']
+volatility: low
+lastReviewed: 2026-10-08
+sources:
+  - title: "Stanford Encyclopedia of Philosophy — Bayes' Theorem"
+    url: 'https://plato.stanford.edu/entries/bayes-theorem/'
+    type: docs
+    authors: 'Joyce, J.'
+    year: 2019
+  - title: 'scipy.stats.chi2_contingency'
+    url: 'https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.chi2_contingency.html'
+    type: docs
+    authors: 'SciPy developers'
+    year: 2026
+relatedLabs: ['py-probabilidad-condicional']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Atención al cliente dice: "El 60 % de los clientes que cancelan su suscripción habían sufrido un
+  retraso grave". El responsable de logística lo oye como "un retraso grave provoca el 60 % de las
+  cancelaciones" y pide un plan de urgencia. Mientras, Producto cree que "la electrónica se devuelve
+  más" porque "casi un 12 % de las devoluciones son de electrónica". ¿Qué está mal en cada frase?
+</BusinessContext>
+
+Casi todas las preguntas de negocio son probabilidades condicionales disfrazadas: «de los que ocurre B, ¿cuántos
+ocurre A?». Y casi todos los errores vienen de **dar la vuelta a la condición** sin darse cuenta.
+
+## Intuición
+
+Cuando sabes algo, las probabilidades cambian. La probabilidad de que llueva hoy es una; la de que llueva **dado que
+el cielo está negro** es otra. Esa información adicional **reduce el universo** al que miras: ya no hablas de
+todos los días, sino de los días con cielo negro. Una probabilidad condicional es, literalmente, una proporción
+calculada **dentro de un subgrupo**.
+
+## Cómo funciona
+
+### Definiciones
+
+| Concepto               | Notación                                    | En palabras                                                               |
+| ---------------------- | ------------------------------------------- | ------------------------------------------------------------------------- |
+| Probabilidad de $A$    | $P(A)$                                      | Proporción de casos en que ocurre $A$                                     |
+| **Condicional**        | $P(A\mid B)=\dfrac{P(A\cap B)}{P(B)}$       | Proporción de $A$ **dentro de los casos en que ocurre $B$**               |
+| **Independencia**      | $P(A\mid B)=P(A)$                           | Saber $B$ no cambia nada sobre $A$                                        |
+| **Probabilidad total** | $P(A)=\sum_i P(A\mid B_i)\,P(B_i)$          | $A$ como media de sus condicionales ponderada por el tamaño de cada $B_i$ |
+| **Teorema de Bayes**   | $P(A\mid B)=\dfrac{P(B\mid A)\,P(A)}{P(B)}$ | Cómo invertir una condicional                                             |
+
+### Un caso de independencia: las devoluciones y la categoría
+
+En Lumen hay 974.190 líneas de pedidos no cancelados y el 7,00 % se devuelve. ¿Se devuelve más la electrónica?
+
+| Categoría           | % de las líneas $P(\text{cat})$ | $P(\text{devuelta}\mid\text{cat})$ | % de las devoluciones $P(\text{cat}\mid\text{devuelta})$ |
+| ------------------- | ------------------------------: | ---------------------------------: | -------------------------------------------------------: |
+| Alimentación        |                          13,5 % |                             7,12 % |                                                   13,7 % |
+| Belleza             |                          12,5 % |                             7,00 % |                                                   12,5 % |
+| Deporte             |                          12,5 % |                             7,07 % |                                                   12,6 % |
+| **Electrónica**     |                      **11,8 %** |                         **7,07 %** |                                               **11,9 %** |
+| Hogar               |                          13,2 % |                             6,94 % |                                                   13,0 % |
+| Juguetes y bebé     |                          12,2 % |                             6,98 % |                                                   12,2 % |
+| Moda                |                          11,7 % |                             6,98 % |                                                   11,6 % |
+| Papelería y oficina |                          12,6 % |                             6,87 % |                                                   12,4 % |
+
+La frase de Producto («casi un 12 % de las devoluciones son de electrónica») es **$P(\text{Electrónica}\mid\text{devuelta})=11{,}9\,\%$**.
+Pero electrónica es el 11,8 % de **todas** las líneas: lo esperable. La pregunta correcta es la inversa,
+**$P(\text{devuelta}\mid\text{Electrónica})=7{,}07\,\%$**, casi igual al 7,00 % global. Todas las categorías están entre
+el 6,87 % y el 7,12 %: **la categoría y la devolución son independientes** (χ² de independencia: p = 0,26). Conocer
+la categoría no dice nada sobre la probabilidad de devolución.
+
+### Un caso de dependencia: retrasos y cancelaciones
+
+Para 25.000 suscripciones de Lumen, ¿se cancela más quien ha sufrido un retraso grave (5 o más días) en algún pedido?
+
+| Grupo               | Suscripciones | $P(\text{cancela}\mid\text{grupo})$ |
+| ------------------- | ------------: | ----------------------------------: |
+| Algún retraso grave |        13.347 |                          **63,0 %** |
+| Ninguno             |        11.653 |                          **49,1 %** |
+
+Una diferencia de 14 puntos, con una prueba χ² de p ≈ 10⁻¹⁰⁸: **no son independientes**. Las frases del contexto
+mezclan además dos condicionales distintas:
+
+- Atención al cliente dijo $P(\text{retraso grave}\mid\text{cancela})\approx 59{,}5\,\%$ (de los que cancelan, el 59,5 % tuvo
+  un retraso). Es un hecho cierto.
+- Logística lo oyó como $P(\text{cancela}\mid\text{retraso grave})=63{,}0\,\%$ (de los que tuvieron un retraso, el 63 % cancela), que es
+  **otra cifra**, y como causa («un retraso provoca el 60 % de las cancelaciones»), que no se deduce de ninguna.
+
+Se pasa de una a otra con Bayes: $P(\text{cancela}\mid\text{retraso}) = P(\text{retraso}\mid\text{cancela})\cdot P(\text{cancela}) / P(\text{retraso}) = 0{,}595 \times 0{,}565 / 0{,}534 = 0{,}630$. Las tres
+cifras de entrada son: 59,5 % (de los que cancelan, con retraso), 56,5 % (cancelan en total) y 53,4 % (tuvieron algún
+retraso grave).
+
+<Callout type="warning">
+  La asociación es real, pero **no** prueba causalidad: los clientes con más pedidos tienen más
+  ocasiones de sufrir un retraso y también de cancelar por otros motivos (exposición). Para estimar
+  cuánta cancelación se debe a retrasos hace falta un diseño causal (módulos de causalidad e
+  inferencia).
+</Callout>
+
+### Frecuencias naturales: razonar sin fórmulas
+
+El teorema de Bayes se entiende mejor con **recuentos** que con probabilidades. Sobre 1.000 suscripciones de Lumen:
+
+- 534 han tenido algún retraso grave y 466 no.
+- De las 534, cancelan 336 (63,0 %); de las 466, cancelan 229 (49,1 %). En total cancelan 565.
+- Entre los 565 que cancelan, 336 tuvieron retraso: $336/565 = 59{,}5\,\%$.
+
+Con la tabla de recuentos a la vista, es fácil ver que «de los que cancelan, 59,5 % tuvo retraso» y «de los que tuvieron
+retraso, 63,0 % cancela» miran el mismo grupo cruzado (336) desde dos denominadores distintos (565 y 534). La
+condicional cambia el **denominador**; por eso nunca son la misma cifra salvo por casualidad.
+
+### La falacia de la condicional invertida
+
+Confundir $P(A\mid B)$ con $P(B\mid A)$ es el error más común con probabilidades. Ejemplos de negocio:
+
+- «La mayoría de los pedidos fraudulentos son de móvil» ≠ «la mayoría de los pedidos de móvil son fraudulentos».
+- «El 90 % de los clientes que compran con cupón vuelven» ≠ «el 90 % de los que vuelven compraron con cupón».
+- «El 95 % de las alertas del modelo acierta» (precisión) ≠ «el modelo detecta el 95 % de los casos» (sensibilidad).
+
+Antes de escribir una frase con un porcentaje, pregúntate: **«¿porcentaje de qué sobre qué?»**.
+
+## En la práctica
+
+Todas las cifras de la lección salen de una tabla de contingencia. En pandas:
+
+```python
+# P(devuelta | categoría) y P(categoría | devuelta)
+tabla = pd.crosstab(lineas["cat"], lineas["devuelta"])
+p_dev_dado_cat = tabla[True] / tabla.sum(axis=1)              # por filas
+p_cat_dado_dev = tabla[True] / tabla[True].sum()              # por columnas
+
+# ¿Independientes?
+from scipy.stats import chi2_contingency
+chi2, p, gl, esperado = chi2_contingency(tabla)               # p = 0,26 → compatibles con independencia
+```
+
+Con `normalize="index"` (por filas) obtienes $P(\text{columna}\mid\text{fila})$ y con `normalize="columns"` la inversa. En el lab
+de esta lección calculas condicionales, las inviertes con Bayes y compruebas la independencia.
+
+## Trade-offs y cuándo usarlo
+
+- **Tablas de contingencia frente a modelos**: la tabla basta con una o dos variables; con muchas, un modelo
+  (regresión logística) ajusta por las demás a la vez.
+- **Prueba χ² frente a magnitud**: con muchos datos, diferencias mínimas salen «significativas»; mira siempre la
+  diferencia de proporciones (aquí, 7,07 % frente a 7,00 %: irrelevante).
+- **Frecuencias naturales frente a fórmulas**: para comunicar a negocio, los recuentos sobre 1.000 casos son más
+  claros que las probabilidades.
+- **Independencia en la práctica**: casi nunca es exacta; la pregunta útil es si la dependencia es lo bastante grande para actuar.
+
+## Errores comunes
+
+- **Invertir la condicional** ($P(A\mid B)$ por $P(B\mid A)$) o leerla como causa.
+- **Ignorar la tasa base** al interpretar una probabilidad condicional (lección anterior de EDA).
+- **Afirmar dependencia por una diferencia diminuta** en una muestra enorme, o independencia por una prueba sin potencia en una pequeña.
+- **Confundir independencia con exclusión mutua** (si dos sucesos no pueden ocurrir a la vez, son dependientes).
+- **Olvidar la exposición**: más pedidos, más oportunidades de cualquier suceso.
+- **Calcular porcentajes por filas cuando la pregunta pide por columnas.**
+
+## Con IA
+
+Un asistente redacta con soltura frases como «los clientes con retrasos cancelan un 63 %», sin aclarar el denominador. Pídele
+siempre que escriba la probabilidad con notación condicional ($P(\cdot\mid\cdot)$) y la **tabla de recuentos** que la
+sostiene. Exige que distinga la condicional directa y la inversa y que no deduzca causalidad de una asociación.
+
+## En una entrevista
+
+- _"El 60 % de los que cancelan tuvieron un retraso. ¿Cuántos de los que tienen un retraso cancelan?"_ — Pista: no se puede
+  decir sin la tasa base; Bayes con $P(\text{cancela})$ y $P(\text{retraso})$.
+- _"¿Qué significa que dos sucesos sean independientes y cómo lo compruebas?"_ — Pista: $P(A\mid B)=P(A)$; tabla de
+  contingencia y χ²; magnitud del efecto.
+- _"Explícame el teorema de Bayes con un ejemplo de negocio."_ — Pista: frecuencias naturales sobre 1.000 casos.
+
+<KeyTakeaways
+  items={[
+    'Una probabilidad condicional es una proporción calculada dentro de un subgrupo; cambiar la condición cambia el denominador.',
+    'Dos sucesos son independientes si P(A|B) = P(A): en Lumen, la categoría no influye en la devolución (todas rondan el 7,0 %; p = 0,26), aunque el 11,9 % de las devoluciones sean de electrónica.',
+    'Retraso grave y cancelación sí están asociados (63,0 % frente al 49,1 %), pero asociación no es causa: la exposición y otros factores intervienen.',
+    'Bayes invierte una condicional: P(cancela|retraso) = P(retraso|cancela)·P(cancela)/P(retraso) = 0,595·0,565/0,534 = 0,630.',
+    'Antes de escribir un porcentaje, pregunta «¿de qué sobre qué?»; confundir P(A|B) con P(B|A) es el error más frecuente.',
+  ]}
+/>
