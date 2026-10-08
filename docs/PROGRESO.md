@@ -12,7 +12,7 @@ Registro de qué fase del `PLAN.md` está hecha, verificada y pendiente. Se actu
 | F3 — Motor de tests (quiz, examen, Leitner, progreso) | ⬜ Siguiente                                    |
 | F4 — Laboratorios (DuckDB-WASM, Pyodide, `datakit`)   | ⬜                                              |
 | F5 — Casos guiados                                    | ⬜ → luego PAUSA de revisión (la marca el PLAN) |
-| F6 (en curso: M04-M06 hechos)                      | 🟡                                              |
+| F6 (en curso: M04-M06 hechos)                         | 🟡                                              |
 | F7-F10                                                | ⬜                                              |
 
 Repo: `https://github.com/EduNagore/DataAnalyst_Learning_Web` (rama `main`). Sitio: `https://edunagore.github.io/DataAnalyst_Learning_Web/`.
@@ -83,7 +83,7 @@ Estado: **M04 ✅, M05 ✅ (5 lecciones, 8 labs), M06 ✅ (3 lecciones, lab SCD2
 
 PLAN §7.1. Por módulo: 3-5 lecciones (estructura de `docs/CONTENT_GUIDELINES.md`), quizzes (6+ preguntas/lección), labs, libros Excel (`scripts/build-workbooks.py`, openpyxl), widgets (JoinVisualizer, WindowFrameVisualizer, ChartChooser, DistributionExplorer, SimpsonExplorer...). Contenido `volatility: high` (M03 IA en Excel, M07 pandas 3/Polars 2.0, M11 Power BI/Tableau): **verificar con búsqueda web antes de escribir** y usar `<Snapshot>`. Orden: M08 → M09 → M00-M02 → M10-M12 → M03.
 
-Hechos verificados para M07 (2026-10): pandas 3.0.6 (última; local 3.0.2), Polars **2.0.0 estable el 2026-10-06**,  DuckDB 1.5.x; Pyodide trae Polars 1.33.1 (labs usan solo API común 1.x/2.0). Los labs Python se verifican también en Pyodide con `tests/e2e/all-py-labs.spec.ts`. Notas previas: pandas 3.0.2 (str dtype por defecto, Copy-on-Write: la asignación encadenada lanza `ChainedAssignmentError` y no modifica, `pd.col()`, datetime64[us]), Polars 2.0.0 instalado localmente (Pyodide trae 1.33.1), DuckDB 1.5.x.
+Hechos verificados para M07 (2026-10): pandas 3.0.6 (última; local 3.0.2), Polars **2.0.0 estable el 2026-10-06**, DuckDB 1.5.x; Pyodide trae Polars 1.33.1 (labs usan solo API común 1.x/2.0). Los labs Python se verifican también en Pyodide con `tests/e2e/all-py-labs.spec.ts`. Notas previas: pandas 3.0.2 (str dtype por defecto, Copy-on-Write: la asignación encadenada lanza `ChainedAssignmentError` y no modifica, `pd.col()`, datetime64[us]), Polars 2.0.0 instalado localmente (Pyodide trae 1.33.1), DuckDB 1.5.x.
 
 **Regla de uso (ver `docs/USAGE_GUARD.md`)**: tras cada lección/fase ejecutar `node scripts/usage-guard.mjs status`; al ≥95 % el hook bloquea herramientas: guardar progreso, lanzar `node scripts/usage-guard.mjs wait` en segundo plano y terminar el turno.
 
