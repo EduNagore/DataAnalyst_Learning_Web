@@ -1,0 +1,75 @@
+lesson: python-analisis/04-duckdb-desde-python-y-como-elegir-herramienta
+questions:
+  - id: py1-04-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué es DuckDB cuando se usa desde Python?'
+    options:
+      - 'Un servidor de bases de datos que hay que instalar y mantener aparte'
+      - 'Un motor SQL que se ejecuta dentro del propio proceso de Python y consulta DataFrames y ficheros'
+      - 'Una librería de gráficos'
+      - 'Un sustituto de Python'
+    answer: [1]
+    explanation: 'DuckDB es un motor analítico embebido: sin servidor ni configuración. Le pasas DataFrames o ficheros Parquet/CSV y le haces consultas SQL.'
+    ref: '#sql-sobre-dataframes'
+
+  - id: py1-04-q2
+    type: single
+    difficulty: 2
+    prompt: 'Quieres filtrar pedidos por un estado que llega de fuera (por ejemplo, de un formulario). ¿Qué forma es la correcta?'
+    options:
+      - 'con.execute(f"SELECT * FROM orders WHERE status = ''{estado}''")'
+      - 'con.execute("SELECT * FROM orders WHERE status = ?", [estado])'
+      - 'con.execute("SELECT * FROM orders WHERE status = " + estado)'
+      - 'Las tres son equivalentes'
+    answer: [1]
+    explanation: 'Los parámetros enlazados (`?`) pasan el valor aparte del texto SQL, evitando la inyección SQL y los problemas de comillas y tipos. Las otras dos construyen el SQL concatenando texto externo.'
+    ref: '#parámetros-enlazados'
+
+  - id: py1-04-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Qué ocurre con `con.execute("SELECT * FROM ? LIMIT 1", ["orders"])`?'
+    options:
+      - 'Funciona y devuelve una fila de orders'
+      - 'Da un error de sintaxis: los parámetros sustituyen valores, no nombres de tabla'
+      - 'Devuelve la tabla vacía'
+      - 'Crea la tabla orders'
+    answer: [1]
+    explanation: 'Un parámetro enlazado representa un valor. Para variar el nombre de una tabla hay que elegirlo desde una lista cerrada en tu propio código y construir el SQL con ese nombre validado.'
+    ref: '#parámetros-enlazados'
+
+  - id: py1-04-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las afirmaciones correctas sobre mover datos entre pandas, Polars, DuckDB y Arrow.'
+    options:
+      - 'Arrow es el formato en memoria común que facilita el intercambio entre las tres'
+      - '`relación.df()` devuelve un DataFrame de pandas y `relación.pl()` uno de Polars'
+      - 'Tras una conversión no hace falta comprobar tipos ni recuentos'
+      - '`pl.from_pandas(df)` convierte un DataFrame de pandas en uno de Polars'
+    answer: [0, 1, 3]
+    explanation: 'La tercera es falsa: las conversiones pueden cambiar la resolución de fechas, pasar enteros a flotante cuando hay nulos o alterar el tipo del texto. Comprueba dtypes y recuentos tras convertir.'
+    ref: '#resultados-pandas-polars-y-arrow'
+
+  - id: py1-04-q5
+    type: single
+    difficulty: 3
+    prompt: 'Un compañero propone reescribir todo el pipeline de pandas a Polars «porque es más rápido». ¿Qué haces primero?'
+    options:
+      - 'Aceptar: Polars siempre es mejor'
+      - 'Medir dónde está el cuello de botella real con tus datos y valorar tamaño, ecosistema, mantenimiento y cómo validar las cifras tras el cambio'
+      - 'Rechazar: pandas siempre es mejor'
+      - 'Reescribirlo a medias y ver qué pasa'
+    answer: [1]
+    explanation: 'La diferencia de rendimiento depende del tamaño y de la consulta. Con un millón de filas, las tres herramientas son rápidas para una persona. El cambio solo compensa si hay un problema medido, y exige validar que las cifras no cambian.'
+    ref: '#qué-herramienta-uso'
+
+  - id: py1-04-q6
+    type: numeric
+    difficulty: 2
+    prompt: 'De los 14.324 clientes «ocasional» registrados antes del 1 de enero de 2026, 7.165 no han comprado desde esa fecha. ¿Qué porcentaje están inactivos? (Un decimal.)'
+    answer: [50.0]
+    tolerance: 0.06
+    explanation: '100 × 7.165 / 14.324 ≈ 50,02 %, es decir, 50,0 %. La base de cálculo son los clientes registrados antes de la fecha, no todos los clientes del segmento.'
+    ref: '#en-la-práctica'

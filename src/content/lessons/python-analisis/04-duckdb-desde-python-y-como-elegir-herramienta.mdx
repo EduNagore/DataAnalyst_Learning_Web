@@ -1,0 +1,279 @@
+---
+title: 'DuckDB desde Python y cómo elegir herramienta'
+description: 'Ejecuta SQL sobre DataFrames y ficheros Parquet desde Python, mueve datos entre pandas, Polars y Arrow, y decide qué herramienta usar en cada caso.'
+module: python-analisis
+order: 4
+level: intermedio
+estimatedMinutes: 35
+objectives:
+  - 'Ejecutar SQL con DuckDB sobre DataFrames de pandas o Polars y sobre ficheros Parquet, con parámetros enlazados.'
+  - 'Convertir resultados entre pandas, Polars y Arrow sin perder tipos.'
+  - 'Comparar pandas, Polars y DuckDB resolviendo la misma consulta y comprobar que dan las mismas cifras.'
+  - 'Elegir herramienta con criterios (tamaño, ecosistema, equipo, mantenimiento) y no por moda.'
+prerequisites: ['python-analisis/03-polars-expresiones-y-ejecucion-perezosa']
+tools: ['duckdb', 'pandas', 'polars']
+volatility: high
+lastReviewed: 2026-10-08
+sources:
+  - title: 'DuckDB — Python client overview'
+    url: 'https://duckdb.org/docs/stable/clients/python/overview'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'DuckDB — SQL on pandas'
+    url: 'https://duckdb.org/docs/stable/guides/python/sql_on_pandas'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'Apache Arrow — documentación de PyArrow'
+    url: 'https://arrow.apache.org/docs/python/'
+    type: docs
+    authors: 'Apache Arrow contributors'
+    year: 2026
+  - title: 'Polars — Guía de migración desde pandas'
+    url: 'https://docs.pola.rs/user-guide/migration/pandas/'
+    type: docs
+    authors: 'Polars contributors'
+    year: 2026
+relatedLabs: ['py-duckdb-desde-python']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  CRM quiere saber qué porcentaje de cada segmento lleva meses sin comprar para lanzar una campaña
+  de reactivación. Tú ya tienes el SQL en la cabeza, los datos están en DataFrames de pandas y tu
+  compañera prefiere Polars. ¿Hay que reescribirlo todo en una sola herramienta?
+</BusinessContext>
+
+No. Las tres herramientas intercambian datos con facilidad (comparten el formato en memoria Apache
+Arrow) y se pueden combinar. Lo importante es saber **cuál usar para cada parte** y comprobar que
+todas dan el mismo resultado.
+
+## Intuición
+
+Un analista con buen SQL no necesita abandonarlo al pasar a Python. DuckDB es un motor SQL que
+vive **dentro de tu proceso de Python**: sin servidor, sin instalar nada aparte. Le pasas
+DataFrames o ficheros y le haces consultas SQL; te devuelve un DataFrame. Lo que haces con
+pandas o Polars (limpiar, calcular, modelar) y lo que haces mejor en SQL (uniones, ventanas,
+antijoins) conviven en el mismo script.
+
+## Cómo funciona
+
+### SQL sobre DataFrames
+
+DuckDB encuentra los DataFrames de tu código **por el nombre de la variable** y los trata como tablas:
+
+```python
+import duckdb
+import pandas as pd
+import polars as pl
+
+R = "public/data/lumen/"
+orders = pd.read_parquet(R + "orders.parquet")          # pandas
+customers = pl.read_parquet(R + "customers.parquet")    # Polars
+
+duckdb.sql("""
+    SELECT c.segment, COUNT(*) AS pedidos
+    FROM orders AS o
+    JOIN customers AS c USING (customer_id)
+    WHERE year(o.order_date) = 2025
+    GROUP BY 1 ORDER BY 2 DESC
+""").df()
+```
+
+La consulta une un DataFrame de pandas con otro de Polars en la misma sentencia. Esa búsqueda por
+nombre es cómoda en un notebook, pero **implícita**: dentro de una función es más claro registrar
+las tablas de forma explícita.
+
+```python
+con = duckdb.connect()                      # base de datos en memoria
+con.register("orders", orders)              # expone el DataFrame con ese nombre
+con.register("customers", customers)
+```
+
+### Parámetros enlazados
+
+Nunca pegues valores dentro del texto SQL con f-strings si vienen de fuera (fecha de un formulario,
+texto de un usuario): es la puerta de la inyección SQL y de errores de comillas. Usa **parámetros
+enlazados** (`?`):
+
+```python
+con.execute(
+    "SELECT COUNT(*) FROM orders WHERE status = ? AND discount_pct >= ?",
+    ["completado", 0.2],
+).fetchone()          # (95704,)
+```
+
+Los parámetros sustituyen **valores**, no nombres de tablas ni columnas: `SELECT * FROM ?` da un error de
+sintaxis. Si necesitas variar un nombre de tabla, elígelo de una lista cerrada en tu código.
+
+### Leer ficheros directamente
+
+DuckDB lee Parquet y CSV sin cargarlos antes en pandas, y solo lee las columnas y los bloques que
+la consulta necesita (lo que viste en la lección de planes):
+
+```python
+con.sql("SELECT channel, COUNT(*) FROM read_parquet('public/data/lumen/orders.parquet') GROUP BY 1")
+```
+
+Es la manera más rápida de explorar un fichero grande sin esperar a cargarlo entero.
+
+### Resultados: pandas, Polars y Arrow
+
+Una consulta (relación) de DuckDB se materializa en el formato que necesites:
+
+```python
+rel = con.sql("SELECT * FROM read_parquet('public/data/lumen/customers.parquet')")
+rel.df()                 # DataFrame de pandas
+rel.pl()                 # DataFrame de Polars
+rel.to_arrow_table()     # tabla de Arrow (pyarrow.Table)
+```
+
+Entre librerías también: `pl.from_pandas(df)`, `polars_df.to_pandas()`, `pl.from_arrow(tabla)`,
+`pa.Table.from_pandas(df)`. Arrow es el idioma común; muchas conversiones evitan copiar los datos,
+aunque no todas (por ejemplo, las que cambian el tipo del texto o de las fechas).
+
+### La misma consulta, tres formas
+
+Ingresos por año de los pedidos no cancelados, con 1.033.042 líneas de pedido y 400.000 pedidos.
+Las tres versiones devuelven las mismas cifras:
+
+| Año  | Pedidos |     Ingresos |
+| ---- | ------: | -----------: |
+| 2023 |  17.597 |  5.299.401 € |
+| 2024 |  73.981 | 22.441.854 € |
+| 2025 | 161.706 | 49.460.757 € |
+| 2026 | 130.679 | 38.777.030 € |
+
+El 2026 es un año parcial (hasta el 30 de junio). Ahora, el tiempo en un portátil con los
+ficheros Parquet de Lumen (mejor de cinco ejecuciones, leyendo solo las columnas necesarias):
+
+| Herramienta | Tiempo aproximado |
+| ----------- | ----------------: |
+| pandas      |           ~770 ms |
+| DuckDB      |           ~260 ms |
+| Polars      |            ~80 ms |
+
+<Callout type="warning">
+  Estas cifras son de **una máquina y un tamaño** (un millón de filas): sirven para fijar el orden
+  de magnitud, no para sentenciar. Con tablas así de pequeñas las tres son «instantáneas» para una
+  persona; la diferencia importa cuando el análisis se repite miles de veces o los datos crecen cien
+  veces. Mide siempre con tus datos antes de decidir.
+</Callout>
+
+## En la práctica
+
+Clientes inactivos por segmento desde el 1 de enero de 2026: SQL con un parámetro enlazado,
+ejecutado desde Python y devuelto como DataFrame de pandas.
+
+```python
+def inactivos_por_segmento(customers, orders, desde):
+    con = duckdb.connect()
+    con.register("customers", customers)
+    con.register("orders", orders)
+    return con.execute("""
+        WITH base AS (
+            SELECT customer_id, segment FROM customers WHERE signup_date < CAST(? AS DATE)
+        ), activos AS (
+            SELECT DISTINCT customer_id FROM orders
+            WHERE status <> 'cancelado' AND order_date >= CAST(? AS DATE)
+        )
+        SELECT b.segment, COUNT(*) AS clientes,
+               COUNT(*) FILTER (WHERE a.customer_id IS NULL) AS inactivos,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE a.customer_id IS NULL) / COUNT(*), 1) AS pct_inactivos
+        FROM base AS b LEFT JOIN activos AS a USING (customer_id)
+        GROUP BY 1 ORDER BY 1
+    """, [desde, desde]).df()
+```
+
+| Segmento  | Clientes | Inactivos | % inactivos |
+| --------- | -------: | --------: | ----------: |
+| habitual  |   12.026 |     2.655 |        22,1 |
+| nuevo     |   16.687 |    11.288 |        67,6 |
+| ocasional |   14.324 |     7.165 |        50,0 |
+| vip       |    4.663 |       219 |         4,7 |
+
+Lectura: dos de cada tres clientes «nuevos» no han vuelto a comprar en el semestre, frente a menos
+del 5 % de los VIP. La campaña de reactivación tiene más margen en «nuevo» y «ocasional». Antes de
+enviarlo, comprueba la definición con el cliente interno (¿«inactivo» es no haber comprado en seis
+meses, o en doce?) y contrasta la cifra con una segunda vía, por ejemplo la misma lógica en pandas.
+
+### ¿Qué herramienta uso?
+
+| Situación                                                              | Buena opción                            |
+| ---------------------------------------------------------------------- | --------------------------------------- |
+| Exploración rápida y modelos (statsmodels, scikit-learn, gráficos)     | pandas                                  |
+| Uniones, ventanas y antijoins complejos; piensas en SQL                | DuckDB (SQL)                            |
+| Pipeline repetible, muchas transformaciones encadenadas, datos grandes | Polars (lazy)                           |
+| Ficheros Parquet/CSV grandes que no quieres cargar enteros             | DuckDB o Polars (`scan_*`)              |
+| Tu equipo ya usa una herramienta y el código funciona y se entiende    | La que ya usa el equipo                 |
+| Datos que viven en un almacén (BigQuery, Snowflake...)                 | SQL en el almacén; Python para el resto |
+
+La regla práctica: **empieza por lo que tu equipo puede leer y mantener**. Cambia de herramienta cuando
+midas un problema real (tiempo, memoria, claridad), no por moda.
+
+<Snapshot date="2026-10">
+  DuckDB se encuentra en la serie 1.5 (1.5.6 instalada para este curso) y Polars acaba de publicar
+  su versión 2.0.0 (6 de octubre de 2026), mientras pandas está en la 3.0.x. Los tres se actualizan
+  con frecuencia: fija las versiones en el lockfile y revisa las notas de cada versión mayor antes
+  de subir.
+</Snapshot>
+
+## Trade-offs y cuándo usarlo
+
+- **DuckDB desde Python**: ideal si dominas SQL o necesitas uniones y ventanas complejas sobre
+  ficheros o DataFrames. Menos adecuado para lógica muy procedimental o cuando el resto de tu código
+  ya es una cadena de pandas clara.
+- **Mezclar herramientas** da lo mejor de cada una, pero cada conversión es un punto donde pueden cambiar
+  los tipos (fechas, enteros con nulos, texto). Comprueba `dtypes` y recuentos tras convertir.
+- **Una sola herramienta** reduce la carga cognitiva del equipo. Más herramientas solo si el
+  beneficio es claro.
+- **Resultados siempre contrastables**: si dos herramientas dan cifras distintas, uno de los dos
+  cálculos tiene un error de definición (un `INNER` en lugar de `LEFT`, nulos, duplicados). Es una
+  buena prueba, no un problema.
+
+## Errores comunes
+
+- **Pegar valores en el SQL con f-strings** en vez de usar parámetros (`?`).
+- **Depender de la búsqueda implícita por nombre** dentro de funciones: si renombras una variable,
+  la consulta falla o, peor, usa otra con el mismo nombre. Usa `register`.
+- **Convertir sin comprobar tipos**: fechas que cambian de resolución, enteros que pasan a flotante
+  por tener nulos, texto que pasa a `object`.
+- **Comparar tiempos sin medir bien** (una sola ejecución, caché de disco caliente, tamaños triviales)
+  y sacar conclusiones generales.
+- **Reescribir todo por moda** cuando el problema era una unión mal hecha.
+- **Olvidar `DISTINCT`** al contar clientes tras unir con pedidos: cuenta filas, no clientes.
+
+## Con IA
+
+Un asistente traduce muy bien entre pandas, Polars y SQL, y esa es una de sus mejores aplicaciones:
+«reescribe esta cadena de pandas como una consulta de DuckDB y viceversa». Úsalo **para obtener una
+segunda implementación y comparar**: si los resultados no coinciden, has encontrado un error
+antes de que lo vea nadie. Exige parámetros enlazados en lugar de f-strings y dile la versión de
+cada librería para que no mezcle APIs antiguas.
+
+## En una entrevista
+
+- _"¿Cuándo usarías DuckDB desde Python en lugar de pandas?"_ — Pista: uniones y ventanas complejas,
+  ficheros grandes sin cargarlos enteros, equipo que domina SQL; sin servidor.
+- _"¿Por qué usar parámetros enlazados en vez de f-strings en SQL?"_ — Pista: inyección SQL,
+  comillas y tipos; los parámetros son valores, no identificadores.
+- _"Un compañero quiere reescribir todo el pipeline en Polars porque «es más rápido». ¿Qué le preguntas?"_ —
+  Pista: dónde está el cuello de botella medido, tamaño de los datos, ecosistema, coste de mantenimiento
+  y cómo se validarán las cifras tras el cambio.
+
+<KeyTakeaways
+  items={[
+    'DuckDB ejecuta SQL dentro de Python sobre DataFrames de pandas y Polars y sobre ficheros Parquet o CSV, sin servidor.',
+    'Usa parámetros enlazados (`?`) para los valores; solo sustituyen valores, no nombres de tabla o columna. Dentro de funciones, registra las tablas con `register`.',
+    'pandas, Polars y DuckDB intercambian datos mediante Arrow; tras cada conversión comprueba tipos y recuentos.',
+    'En un millón de filas las tres son rápidas; las diferencias (≈ 0,8 s, 0,3 s y 0,08 s en una consulta con unión y agregación) importan al escalar o repetir. Mide con tus datos.',
+    'Que tres implementaciones den la misma cifra es la mejor validación; si no coinciden, hay un error de definición que encontrar.',
+  ]}
+/>

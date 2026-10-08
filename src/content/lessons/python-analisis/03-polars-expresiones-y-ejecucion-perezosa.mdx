@@ -1,0 +1,275 @@
+---
+title: 'Polars: expresiones y ejecución perezosa'
+description: 'Cómo piensa Polars (expresiones, lazy y plan optimizado), cómo traducir un análisis de pandas y qué trae Polars 2.0.'
+module: python-analisis
+order: 3
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Escribir consultas con expresiones de Polars (`select`, `with_columns`, `filter`, `group_by().agg()`).'
+  - 'Distinguir ejecución inmediata (_eager_) de perezosa (_lazy_), leer un plan con `explain()` y reconocer la optimización por filtro y columnas empujados.'
+  - 'Usar funciones de ventana con `over()` y entender la diferencia entre `null` y `NaN`.'
+  - 'Traducir una cadena de pandas a Polars y comprobar que da las mismas cifras.'
+prerequisites: ['python-analisis/02-pandas-3-copy-on-write-y-cadenas']
+tools: ['polars', 'duckdb']
+volatility: high
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Polars — documentación oficial'
+    url: 'https://docs.pola.rs/'
+    type: docs
+    authors: 'Polars contributors'
+    year: 2026
+  - title: 'Polars — Lazy API'
+    url: 'https://docs.pola.rs/user-guide/lazy/'
+    type: docs
+    authors: 'Polars contributors'
+    year: 2026
+  - title: 'Polars — Guía de migración desde pandas'
+    url: 'https://docs.pola.rs/user-guide/migration/pandas/'
+    type: docs
+    authors: 'Polars contributors'
+    year: 2026
+  - title: 'Polars — Guía de actualización a la versión 2'
+    url: 'https://docs.pola.rs/releases/upgrade/2/'
+    type: docs
+    authors: 'Polars contributors'
+    year: 2026
+relatedLabs: ['py-polars-ingresos-mensuales']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Dirección quiere ver cada lunes los ingresos mensuales de 2025 con su crecimiento sobre el mes
+  anterior y el producto más vendido de cada categoría. El notebook actual en pandas tarda varios
+  minutos cuando se amplía a todo el histórico de eventos. ¿Hay una forma de escribirlo que sea
+  rápida y, sobre todo, fácil de mantener?
+</BusinessContext>
+
+Polars es una librería de DataFrames escrita en Rust. Con las tablas de Lumen (unas decenas de MB)
+cualquier herramienta es suficientemente rápida; su valor está en **cómo te obliga a escribir las
+transformaciones**: como expresiones declarativas, sin índices y sin copias ocultas, con un
+optimizador que decide qué leer y en qué orden. Aprender ese modelo mejora también tu SQL y tu pandas.
+
+## Intuición
+
+En pandas escribes **pasos**: «filtra, luego añade una columna, luego agrupa». En Polars (y en SQL)
+describes **qué quieres** y dejas que el motor decida cómo. La pieza clave es la _expresión_: una
+receta de cálculo sobre columnas que no se ejecuta hasta que la colocas en un contexto (`select`,
+`filter`, `group_by`...). `pl.col("quantity") * pl.col("unit_price")` no calcula nada por sí sola: es
+la descripción de un cálculo reutilizable.
+
+La segunda idea es la **ejecución perezosa** (_lazy_). Con `scan_parquet` no lees el fichero; construyes
+un plan. Solo cuando pides `collect()` el motor optimiza el plan completo y lo ejecuta. Es lo mismo
+que hace un almacén SQL con la consulta entera.
+
+## Cómo funciona
+
+### Expresiones y contextos
+
+Los cuatro contextos que necesitas casi siempre:
+
+```python
+import polars as pl
+
+pl.col("quantity") * pl.col("unit_price")            # expresión: no calcula nada todavía
+
+df.select(...)                                       # elige o calcula columnas (devuelve solo esas)
+df.with_columns(...)                                 # añade o reemplaza columnas, conserva el resto
+df.filter(pl.col("status") != "cancelado")           # filtra filas
+df.group_by("segment").agg(...)                      # agrega por grupo
+```
+
+Todo lo que pasas a un contexto es una expresión, así que puedes darle nombre con `.alias()` y
+combinar varias a la vez; Polars las ejecuta **en paralelo** cuando son independientes.
+
+### Eager y lazy
+
+```python
+# Eager: lee el fichero entero y devuelve un DataFrame
+customers = pl.read_parquet("customers.parquet")
+
+# Lazy: construye un plan; no lee nada hasta collect()
+orders = pl.scan_parquet("orders.parquet")
+```
+
+Con una consulta perezosa sobre Lumen, el optimizador empuja el filtro al escaneo del Parquet y
+solo lee las columnas necesarias. Este es el plan (resumido) de «ingresos por año sin pedidos
+cancelados» sobre `order_items` unido a `orders`:
+
+```text
+INNER JOIN:
+  LEFT PLAN ON: [col("order_id")]
+    Parquet SCAN [order_items.parquet]
+    PROJECT 3/5 COLUMNS                     <- lee 3 columnas de 5
+  RIGHT PLAN ON: [col("order_id")]
+    Parquet SCAN [orders.parquet]
+    PROJECT 3/9 COLUMNS                     <- lee 3 columnas de 9
+    SELECTION: col("status") != "cancelado" <- el filtro se aplica en el escaneo
+```
+
+Es exactamente lo que viste en la lección de SQL sobre planes: _projection pushdown_ (leer solo las
+columnas necesarias) y _predicate pushdown_ (filtrar lo antes posible). Con `lazy.explain()` ves el
+plan; con `lazy.collect()` obtienes el resultado.
+
+### Funciones de ventana con `over`
+
+Lo que en SQL es `OVER (PARTITION BY ...)`, en Polars es `.over(...)` sobre una expresión:
+
+```python
+(
+    ingresos_por_producto
+    .with_columns(
+        pl.col("ingresos").rank("dense", descending=True).over("category_id").alias("pos")
+    )
+    .filter(pl.col("pos") == 1)          # el producto líder de cada categoría
+)
+```
+
+El equivalente en SQL es un `RANK() OVER (PARTITION BY category_id ORDER BY ingresos DESC)` filtrado
+con `QUALIFY`. Con los datos de Lumen ambos devuelven lo mismo (por ejemplo, el líder de `cat-00-0`
+es `prod-00306` con 180.434,94 € en 2025).
+
+### `null` no es `NaN`
+
+En pandas, un hueco en una columna numérica es `NaN` y a veces `NA`. En Polars hay dos conceptos
+separados: **`null`** (dato ausente, en cualquier tipo) y **`NaN`** (un valor de coma flotante
+inválido, como `0/0`).
+
+```python
+s = pl.Series([1.0, None, float("nan")])
+s.is_null().to_list()   # [False, True, False]
+s.is_nan().to_list()    # [False, None, True]
+```
+
+Conviene separarlos: un `NaN` suele indicar un cálculo roto; un `null`, un dato que no existe. Las
+agregaciones (`sum`, `mean`) ignoran los `null`, pero un `NaN` contamina el resultado.
+
+### De pandas a Polars: tabla de equivalencias
+
+| Quieres...              | pandas                                       | Polars                                               |
+| ----------------------- | -------------------------------------------- | ---------------------------------------------------- |
+| Filtrar filas           | `df[df["x"] > 1]` / `df.loc[...]`            | `df.filter(pl.col("x") > 1)`                         |
+| Añadir columna          | `df.assign(c=pd.col("a") * 2)`               | `df.with_columns((pl.col("a") * 2).alias("c"))`      |
+| Agregar por grupo       | `df.groupby("g").agg(n=("a", "sum"))`        | `df.group_by("g").agg(pl.col("a").sum().alias("n"))` |
+| Valor por grupo en fila | `df.groupby("g")["a"].transform("mean")`     | `pl.col("a").mean().over("g")`                       |
+| Unir tablas             | `a.merge(b, on="k", validate="many_to_one")` | `a.join(b, on="k", validate="m:1")`                  |
+| Contar distintos        | `nunique()`                                  | `n_unique()`                                         |
+| Año de una fecha        | `df["f"].dt.year`                            | `pl.col("f").dt.year()`                              |
+| Ordenar                 | `df.sort_values("x")`                        | `df.sort("x")`                                       |
+
+Diferencia importante: **Polars no tiene índice**. Las filas se identifican por posición y las
+columnas por nombre; no existe nada equivalente a `set_index`, `reset_index` o `.loc` por etiqueta.
+Esto elimina toda una categoría de errores de alineación.
+
+## En la práctica
+
+Ingresos mensuales de 2025 con crecimiento sobre el mes anterior, en una sola consulta perezosa:
+
+```python
+import polars as pl
+
+R = "public/data/lumen/"
+orders = pl.scan_parquet(R + "orders.parquet")
+items = pl.scan_parquet(R + "order_items.parquet")
+
+mensual = (
+    items
+    .join(orders.select("order_id", "order_date", "status"), on="order_id", validate="m:1")
+    .filter(pl.col("status") != "cancelado", pl.col("order_date").dt.year() == 2025)
+    .group_by(pl.col("order_date").dt.truncate("1mo").alias("mes"))
+    .agg((pl.col("quantity") * pl.col("unit_price")).sum().alias("ingresos"))
+    .sort("mes")
+    .with_columns((pl.col("ingresos").pct_change() * 100).round(1).alias("crec_pct"))
+)
+
+print(mensual.explain())    # revisa el plan
+print(mensual.collect())    # ejecuta
+```
+
+Los primeros meses: enero 2.944.462 €, febrero 2.887.507 € (−1,9 %), marzo 3.539.714 € (+22,6 %) y abril
+3.520.237 € (−0,6 %). El salto de marzo coincide con el fin de rebajas, no con una mejora del
+negocio; ese es el tipo de contexto que debes añadir al informe.
+
+Para cualquier resultado que vayas a enviar, **cruza la cifra con otra herramienta**. Aquí, por
+ejemplo, el líder por categoría de Polars coincide con el de SQL:
+
+```sql
+SELECT category_id, product_id, SUM(quantity * unit_price) AS ing
+FROM read_parquet('order_items.parquet') AS oi
+JOIN read_parquet('orders.parquet') AS o USING (order_id)
+JOIN read_parquet('products.parquet') USING (product_id)
+WHERE o.status <> 'cancelado' AND year(order_date) = 2025
+GROUP BY 1, 2
+QUALIFY RANK() OVER (PARTITION BY category_id ORDER BY SUM(quantity * unit_price) DESC) = 1
+```
+
+<Snapshot date="2026-10">
+  Polars **2.0.0** se publicó el 6 de octubre de 2026 (con candidatas desde el 2 de septiembre). Es
+  una versión mayor con cambios que rompen compatibilidad: entre otros, la API perezosa usa por
+  defecto el motor de _streaming_ (procesa por bloques, útil para datos mayores que la memoria),
+  `pl.read_csv` pasa a ejecutarse como `scan_csv(...).collect()`, `cut`/`qcut` quedan en desuso, se
+  elimina `LazyFrame.profile()` y varios casts y comparaciones se vuelven estrictos. La guía oficial
+  de actualización marca como _peligrosos_ los cambios que pueden alterar resultados sin lanzar
+  error: por ejemplo, `pl.datetime(...)` y `pl.repeat(...)` ahora nombran la columna con el primer
+  argumento, y combinar un selector con `pl.col(...)` mediante `&` pasa de ser una operación de
+  conjuntos a una operación bit a bit. Los labs de este curso, que se ejecutan en el navegador, usan
+  Polars 1.33 (la versión que incluye Pyodide) y se limitan a la API común a 1.x y 2.0.
+</Snapshot>
+
+## Trade-offs y cuándo usarlo
+
+- **Polars** brilla en pipelines largos y repetibles, datos grandes y lecturas desde Parquet. Su API
+  explícita (sin índice, sin `inplace`) lo hace predecible.
+- **Coste de entrada**: la sintaxis de expresiones es distinta a la de pandas, y parte del ecosistema
+  (statsmodels, scikit-learn, muchos paquetes de gráficos) espera DataFrames de pandas. Convertir con
+  `df.to_pandas()` al final es habitual.
+- **Lazy no siempre gana**: para exploración interactiva, ver el resultado de cada paso (eager)
+  suele ser más cómodo. Pasa a lazy cuando la consulta ya está clara.
+- **Versión mayor recién salida**: fija la versión en el lockfile y lee la guía de actualización
+  antes de subir; los cambios silenciosos importan más que los que fallan.
+
+## Errores comunes
+
+- **Pensar en pandas**: buscar un índice, escribir `df["c"] = ...` (no funciona igual) o recorrer filas
+  con un bucle en vez de una expresión.
+- **Confundir `select` con `with_columns`**: `select` devuelve **solo** las columnas que nombras;
+  `with_columns` conserva el resto.
+- **Mezclar `null` y `NaN`**: filtrar `is_null()` y esperar quitar también los `NaN`.
+- **Llamar a `collect()` demasiado pronto** y perder la optimización; o dentro de un bucle.
+- **No fijar la versión** y que una actualización cambie un nombre de columna o un tipo sin avisar.
+- **Dar por buena una cifra sin contrastarla**: una consulta correcta en apariencia puede estar mal
+  unida; compara `COUNT(*)` y sumas con otra vía (SQL).
+
+## Con IA
+
+Los modelos conocen bien la API de Polars 0.x y 1.x, pero pueden mezclar nombres antiguos (por
+ejemplo `groupby` en lugar de `group_by`, `with_column` en singular, `apply` en lugar de
+`map_elements`) y desconocer los cambios de la versión 2. Indica la versión exacta, pide que use
+la API perezosa y que explique el plan, y **valida la cifra con una consulta SQL equivalente**. Si
+el asistente produce un bucle `for` sobre filas, pídele una expresión: casi siempre existe.
+
+## En una entrevista
+
+- _"¿Qué diferencia hay entre `scan_parquet` y `read_parquet`?"_ — Pista: perezoso (plan) frente a
+  inmediato; el optimizador solo puede empujar filtros y columnas en el primero.
+- _"¿Cómo harías en Polars un `groupby().transform('mean')` de pandas?"_ — Pista: `.over("grupo")`
+  sobre la expresión de agregación.
+- _"¿Qué diferencia hay entre `null` y `NaN`?"_ — Pista: ausente frente a coma flotante inválida;
+  las agregaciones ignoran los nulos, no los NaN.
+
+<KeyTakeaways
+  items={[
+    'Una expresión (`pl.col(...)`) describe un cálculo; se ejecuta al ponerla en un contexto (`select`, `with_columns`, `filter`, `group_by().agg()`).',
+    'Con `scan_*` y `collect()` construyes un plan que el optimizador reescribe: lee solo las columnas necesarias y filtra en el propio escaneo.',
+    '`.over(...)` es el equivalente en Polars de `OVER (PARTITION BY ...)` y de `groupby().transform()`.',
+    'En Polars `null` (ausente) y `NaN` (coma flotante inválida) son cosas distintas, y no hay índice.',
+    'Polars 2.0.0 (6 de octubre de 2026) rompe compatibilidad, con cambios silenciosos: fija versiones, lee la guía de actualización y contrasta las cifras con otra vía.',
+  ]}
+/>

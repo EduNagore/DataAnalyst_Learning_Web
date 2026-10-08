@@ -1,0 +1,79 @@
+lesson: python-analisis/03-polars-expresiones-y-ejecucion-perezosa
+questions:
+  - id: py1-03-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué hace `pl.col("quantity") * pl.col("unit_price")` por sí sola, fuera de cualquier contexto?'
+    options:
+      - 'Calcula el producto y devuelve una serie'
+      - 'Nada todavía: es una expresión, la descripción de un cálculo que se ejecuta al usarla en select, with_columns, filter o agg'
+      - 'Lanza un error'
+      - 'Modifica el DataFrame original'
+    answer: [1]
+    explanation: 'Una expresión es una receta reutilizable. Solo se evalúa cuando la colocas en un contexto, lo que permite al motor optimizarla y ejecutar varias en paralelo.'
+    ref: '#expresiones-y-contextos'
+
+  - id: py1-03-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Qué diferencia hay entre `pl.read_parquet(...)` y `pl.scan_parquet(...)`?'
+    options:
+      - 'Ninguna, son sinónimos'
+      - 'read lee el fichero y devuelve un DataFrame; scan construye un plan perezoso que se optimiza y se ejecuta con collect()'
+      - 'scan solo funciona con CSV'
+      - 'read es perezoso y scan es inmediato'
+    answer: [1]
+    explanation: 'scan_* devuelve un LazyFrame: el optimizador puede empujar filtros al escaneo y leer solo las columnas necesarias. read_* carga todo de inmediato.'
+    ref: '#eager-y-lazy'
+
+  - id: py1-03-q3
+    type: single
+    difficulty: 2
+    prompt: 'En el plan de una consulta perezosa ves `PROJECT 3/9 COLUMNS` y `SELECTION: col("status") != "cancelado"` dentro del escaneo de orders. ¿Qué indica?'
+    options:
+      - 'Que la consulta ha fallado'
+      - 'Que solo se leen 3 de las 9 columnas y que el filtro se aplica en el propio escaneo (projection y predicate pushdown)'
+      - 'Que faltan 6 columnas en el fichero'
+      - 'Que el filtro se aplica después de cargar todo en memoria'
+    answer: [1]
+    explanation: 'Es la señal de una buena optimización: menos columnas leídas y filtro aplicado lo antes posible. Es el mismo principio que en los almacenes columnares de SQL.'
+    ref: '#eager-y-lazy'
+
+  - id: py1-03-q4
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál es el equivalente en Polars de `df.groupby("g")["a"].transform("mean")` de pandas?'
+    options:
+      - 'df.group_by("g").agg(pl.col("a").mean())'
+      - 'pl.col("a").mean().over("g")'
+      - 'df.transform("mean")'
+      - 'df["a"].mean()'
+    answer: [1]
+    explanation: '`.over("g")` calcula la agregación por grupo y la devuelve en cada fila, como `OVER (PARTITION BY g)` en SQL. `group_by().agg()` devolvería una fila por grupo.'
+    ref: '#funciones-de-ventana-con-over'
+
+  - id: py1-03-q5
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODAS las afirmaciones correctas sobre Polars.'
+    options:
+      - '`select` devuelve solo las columnas que nombras; `with_columns` conserva las demás'
+      - 'En Polars `null` y `NaN` son conceptos distintos'
+      - 'Polars usa un índice de filas, como pandas, para alinear datos'
+      - 'Las agregaciones como `sum` ignoran los `null`'
+    answer: [0, 1, 3]
+    explanation: 'Polars no tiene índice: las filas se identifican por posición y las columnas por nombre, lo que elimina los errores de alineación. Lo demás es correcto: select frente a with_columns, null (ausente) frente a NaN (coma flotante inválida) y suma que ignora nulos.'
+    ref: '#de-pandas-a-polars-tabla-de-equivalencias'
+
+  - id: py1-03-q6
+    type: single
+    difficulty: 3
+    prompt: 'Tu equipo va a actualizar de Polars 1.x a 2.0. Según la guía de actualización, ¿qué cambios son los más peligrosos?'
+    options:
+      - 'Los que lanzan un error, porque rompen el pipeline'
+      - 'Los que alteran el resultado sin lanzar error (por ejemplo, un cambio en el nombre de una columna de salida o una operación que pasa de selección a bit a bit)'
+      - 'Ninguno: las versiones mayores son siempre compatibles'
+      - 'Solo los de rendimiento'
+    answer: [1]
+    explanation: 'Un error es visible y se arregla; un cambio silencioso puede producir una cifra equivocada sin que nadie lo note. Por eso conviene fijar versiones, leer la guía y contrastar las cifras clave con otra vía antes y después de actualizar.'
+    ref: '#en-la-práctica'

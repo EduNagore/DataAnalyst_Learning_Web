@@ -1,0 +1,75 @@
+lesson: python-analisis/01-entorno-notebooks-y-reproducibilidad
+questions:
+  - id: py1-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué diferencia hay entre `pyproject.toml` y `uv.lock`?'
+    options:
+      - 'Son el mismo fichero con dos nombres'
+      - 'pyproject.toml declara lo que pides (con rangos de versión); uv.lock fija las versiones exactas resueltas'
+      - 'pyproject.toml guarda los datos y uv.lock el código'
+      - 'uv.lock solo sirve para publicar paquetes'
+    answer: [1]
+    explanation: 'El primero expresa tus dependencias directas; el segundo congela la versión exacta de cada paquete, incluidas las dependencias de las dependencias, para que `uv sync` reconstruya el mismo entorno en cualquier máquina.'
+    ref: '#un-proyecto-un-entorno-uv'
+
+  - id: py1-01-q2
+    type: single
+    difficulty: 2
+    prompt: 'En un notebook de Jupyter cambias `descuento = 0.15` en la celda 1 y ejecutas solo esa celda. La celda 2 (`ingresos_brutos * (1 - descuento)`) no se vuelve a ejecutar. ¿Qué problema ilustra?'
+    options:
+      - 'Un error de sintaxis'
+      - 'Estado oculto: la celda 2 sigue mostrando el resultado calculado con el valor anterior'
+      - 'Un fallo de la librería pandas'
+      - 'Que Jupyter no admite variables globales'
+    answer: [1]
+    explanation: 'Las celdas comparten variables en memoria y solo se ejecutan cuando tú lo decides. El código visible (0,15) y el resultado mostrado (calculado con 0,20) dejan de coincidir. La solución es ejecutar de arriba abajo con _Restart & Run All_ o usar un cuaderno reactivo.'
+    ref: '#notebooks-jupyter-y-marimo'
+
+  - id: py1-01-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las prácticas que ayudan a que un análisis sea reproducible.'
+    options:
+      - 'Fijar las versiones de las librerías en un lockfile'
+      - 'Usar semillas explícitas en muestras y simulaciones'
+      - 'Usar rutas absolutas como C:\Users\ana\datos.csv'
+      - 'Ejecutar el notebook entero desde cero antes de entregarlo'
+    answer: [0, 1, 3]
+    explanation: 'El lockfile, la semilla y la ejecución completa desde cero reducen las fuentes de variación. Las rutas absolutas solo funcionan en el ordenador de quien las escribió; hay que usar rutas relativas al proyecto.'
+    ref: '#seis-hábitos-de-reproducibilidad'
+
+  - id: py1-01-q4
+    type: truefalse
+    difficulty: 2
+    prompt: 'Si fijas la semilla de una muestra aleatoria, el resultado del análisis pasa a ser correcto.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. La semilla hace el resultado repetible, no correcto. Una muestra pequeña con semilla fija sigue siendo una muestra pequeña; conviene probar varias semillas y comprobar que la conclusión no cambia.'
+    ref: '#en-la-práctica'
+
+  - id: py1-01-q5
+    type: single
+    difficulty: 1
+    prompt: 'Quieres compartir por mensaje un script de una sola vez que usa pandas, para que otra persona lo ejecute sin instalar nada a mano. ¿Qué opción ofrece `uv`?'
+    options:
+      - 'Escribir las dependencias en un bloque de comentarios `# /// script` al principio y ejecutar `uv run script.py`'
+      - 'Enviar también la carpeta del entorno virtual de tu ordenador'
+      - 'No es posible: siempre hace falta un proyecto completo'
+      - 'Convertir el script a un notebook'
+    answer: [0]
+    explanation: 'Los metadatos de script en línea permiten declarar las dependencias dentro del propio fichero; `uv run` crea un entorno temporal con ellas. Copiar un entorno virtual entre ordenadores no es fiable.'
+    ref: '#scripts-de-una-sola-vez'
+
+  - id: py1-01-q6
+    type: single
+    difficulty: 3
+    prompt: 'Un compañero te pasa un notebook que a ti te da una cifra distinta a la de su informe. Hay semilla fija y las rutas son relativas. ¿Qué compruebas primero?'
+    options:
+      - 'Que las versiones de Python y de las librerías son las mismas (y que el notebook se ejecuta entero desde cero)'
+      - 'Que tu ordenador es más rápido'
+      - 'Que el fichero se llama igual'
+      - 'Nada: las diferencias pequeñas son normales'
+    answer: [0]
+    explanation: 'Con semilla y rutas controladas, las causas más probables son una versión distinta de una librería (tratamiento de nulos, tipos, redondeo) o celdas ejecutadas fuera de orden en el original. Una diferencia en una cifra de negocio nunca es "normal" hasta que se explica.'
+    ref: '#seis-hábitos-de-reproducibilidad'

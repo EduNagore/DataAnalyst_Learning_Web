@@ -1,4 +1,4 @@
-"""Integridad de todos los quizzes (los errores de clave de respuesta son los más caros: se enseña algo falso)."""
+"""Integridad de todos los quizzes (una clave de respuesta errónea enseña algo falso)."""
 
 from pathlib import Path
 

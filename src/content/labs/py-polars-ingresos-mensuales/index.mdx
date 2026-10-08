@@ -1,0 +1,32 @@
+---
+title: 'Polars: ingresos mensuales y crecimiento con una consulta perezosa'
+description: 'Traduce un análisis a expresiones de Polars: une, filtra, agrupa por mes y calcula el crecimiento sobre el mes anterior.'
+language: python
+part: 'Parte I · Herramientas núcleo'
+module: python-analisis
+difficulty: 2
+estimatedMinutes: 25
+concepts: ['LazyFrame', 'expresiones', 'group_by', 'pct_change', 'join validate']
+datasets: ['orders', 'order_items']
+packages: ['polars', 'pyarrow']
+output: console
+hints:
+  - 'Empieza con `order_items.join(orders.select("order_id", "order_date", "status"), on="order_id", validate="m:1")`.'
+  - 'Filtra con `.filter(pl.col("status") != "cancelado", pl.col("order_date").dt.year() == anio)`.'
+  - 'Agrupa por `pl.col("order_date").dt.month().alias("mes")` y suma `pl.col("quantity") * pl.col("unit_price")` con `.sum().alias("ingresos")`.'
+  - 'Ordena por `mes` y añade `crec_pct` con `with_columns((pl.col("ingresos").pct_change() * 100).round(1).alias("crec_pct"))`. El primer mes queda a `null`.'
+relatedLessons: ['python-analisis/03-polars-expresiones-y-ejecucion-perezosa']
+businessQuestion: '¿Cuánto ingresamos cada mes de un año y cuánto creció cada mes sobre el anterior?'
+---
+
+Dirección quiere el informe mensual. Las tablas `orders` y `order_items` ya están cargadas como
+**LazyFrames de Polars** en el _starter_. Implementa
+**`ingresos_mensuales(orders, order_items, anio)`**, que devuelve un `LazyFrame` (o `DataFrame`) con:
+
+- **`mes`**: número de mes (1-12) de la fecha del pedido,
+- **`ingresos`**: suma de `quantity * unit_price` de las líneas de pedidos **no cancelados** de ese año,
+- **`crec_pct`**: crecimiento porcentual de `ingresos` sobre el mes anterior, redondeado a 1 decimal
+  (el primer mes es `null`).
+
+El resultado debe estar ordenado por `mes`. Usa la API perezosa: no llames a `collect()` dentro de
+tu función (el test lo hace por ti).

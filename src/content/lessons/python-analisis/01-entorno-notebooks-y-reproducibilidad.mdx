@@ -1,0 +1,281 @@
+---
+title: 'Entorno, notebooks y reproducibilidad'
+description: 'Cómo montar un proyecto de análisis en Python que otra persona (o tú dentro de seis meses) pueda ejecutar y obtener las mismas cifras.'
+module: python-analisis
+order: 1
+level: intermedio
+estimatedMinutes: 35
+objectives:
+  - 'Crear un proyecto con `uv`, fijar versiones con un lockfile y ejecutar scripts sueltos con dependencias declaradas.'
+  - 'Explicar por qué un notebook puede dar resultados distintos según el orden de ejecución y cómo evitarlo.'
+  - 'Comparar Jupyter y marimo (estado oculto frente a ejecución reactiva) y elegir según el caso.'
+  - 'Aplicar seis hábitos de reproducibilidad: versiones fijadas, semillas, rutas relativas, datos de origen, ejecución de arriba abajo y formateo automático.'
+prerequisites: []
+tools: ['python']
+volatility: high
+lastReviewed: 2026-10-07
+sources:
+  - title: 'uv — documentación (proyectos, lockfile y scripts)'
+    url: 'https://docs.astral.sh/uv/'
+    type: docs
+    authors: 'Astral'
+    year: 2026
+  - title: 'uv — Running scripts (metadatos de script en línea)'
+    url: 'https://docs.astral.sh/uv/guides/scripts/'
+    type: docs
+    authors: 'Astral'
+    year: 2026
+  - title: 'marimo — documentación del cuaderno reactivo de Python'
+    url: 'https://docs.marimo.io/'
+    type: docs
+    authors: 'marimo team'
+    year: 2026
+  - title: 'marimo — Running cells (orden de ejecución y reactividad)'
+    url: 'https://docs.marimo.io/guides/reactivity/'
+    type: docs
+    authors: 'marimo team'
+    year: 2026
+  - title: 'Project Jupyter'
+    url: 'https://jupyter.org/'
+    type: docs
+    authors: 'Project Jupyter'
+    year: 2026
+  - title: 'Ruff — documentación (linter y formateador)'
+    url: 'https://docs.astral.sh/ruff/'
+    type: docs
+    authors: 'Astral'
+    year: 2026
+relatedLabs: []
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Finanzas te envía el notebook del cierre trimestral que preparó un compañero, y al ejecutarlo te
+  sale un ingreso distinto al del informe: 49,46 M€ en vez de 49,31 M€. Nadie sabe por qué. Tú
+  tienes que decidir qué cifra es la correcta antes de la reunión de las cuatro.
+</BusinessContext>
+
+Casi nunca se discute si una fórmula está bien escrita; se discute **por qué dos ejecuciones dan
+números distintos**. La causa suele ser el entorno (otra versión de una librería), el orden en que
+se ejecutaron las celdas, una muestra aleatoria sin semilla o una ruta que solo existe en el
+ordenador de quien lo escribió. Esta lección no enseña pandas todavía: enseña a que tu código sea
+**ejecutable por otra persona y repetible**, que es lo que convierte un análisis en algo auditable.
+
+## Intuición
+
+Piensa en una receta. Una receta reproducible dice qué ingredientes (con cantidades), en qué orden y
+a qué temperatura. Un análisis reproducible dice lo mismo: **qué versiones** de Python y de las
+librerías, **en qué orden** se ejecuta el código, **qué datos** de entrada y **qué azar** (con su
+semilla). Si cualquiera de las cuatro cosas cambia sin que lo sepas, la cifra cambia sin que sepas por
+qué.
+
+La buena noticia es que casi todo esto se resuelve con herramientas y hábitos baratos, y que se
+configuran una vez por proyecto.
+
+## Cómo funciona
+
+### Un proyecto, un entorno: `uv`
+
+Un _entorno virtual_ (_virtual environment_) es una carpeta con su propio intérprete de Python y sus
+propias librerías, separado del resto del ordenador. Así, instalar una versión nueva de pandas para
+un proyecto no rompe otro. `uv` es una herramienta que crea y gestiona esos entornos, instala
+dependencias y mantiene un fichero de versiones exactas.
+
+Los comandos que usarás a diario son pocos:
+
+```bash
+uv init informe-trimestral          # crea el proyecto con su pyproject.toml
+cd informe-trimestral
+uv add pandas polars duckdb         # añade dependencias y las anota
+uv add --dev ruff pytest            # dependencias solo de desarrollo
+uv run python analisis.py           # ejecuta dentro del entorno del proyecto
+uv sync                             # reconstruye el entorno exacto desde el lockfile
+```
+
+Tras `uv add`, el proyecto contiene dos ficheros que debes versionar con Git:
+
+- **`pyproject.toml`**: lo que pides ("pandas, polars, duckdb") con rangos de versión.
+- **`uv.lock`**: lo que resolvió el instalador, **versión exacta de cada paquete**, también de las
+  dependencias de las dependencias.
+
+Quien clone el repositorio y ejecute `uv sync` obtiene el mismo entorno que tú. Ese lockfile es lo
+que habría respondido a la pregunta de Finanzas: dos versiones de una librería pueden tratar de
+forma distinta los nulos, los tipos o el redondeo.
+
+### Scripts de una sola vez
+
+Para un análisis pequeño no hace falta un proyecto entero. `uv` permite declarar las dependencias
+**dentro del propio fichero**, con un bloque de comentarios especial (metadatos de script en línea):
+
+```python
+# /// script
+# requires-python = ">=3.12"
+# dependencies = ["pandas", "pyarrow"]
+# ///
+import pandas as pd
+
+orders = pd.read_parquet("orders.parquet")
+print(orders["status"].value_counts())
+```
+
+Se ejecuta con `uv run informe.py`: `uv` crea un entorno temporal con esas dependencias y lanza el
+script. Con `uv add --script informe.py pandas` puedes escribir ese bloque sin editarlo a mano. Es
+ideal para compartir una consulta puntual por mensaje sin pedir "instala esto y lo otro".
+
+<Snapshot date="2026-10">
+  `uv` (versión 0.12 a esta fecha) se ha convertido en la opción más extendida para proyectos
+  nuevos, pero no es la única: `pip` + `venv`, `conda`/`mamba` y `poetry` siguen en uso, y muchos
+  equipos tienen ya su convención. Lo importante no es la herramienta, sino que existan **un fichero
+  de dependencias y un lockfile** y que estén en el repositorio.
+</Snapshot>
+
+### Notebooks: Jupyter y marimo
+
+Un _notebook_ (cuaderno) mezcla código, resultados y texto. Es excelente para **explorar**, porque
+ves el resultado de cada paso, y mediocre para **entregar**, porque su estado no es transparente.
+
+**Jupyter** es el estándar histórico. Cada celda se ejecuta cuando tú lo decides y comparte variables
+con las demás en memoria. Eso produce el problema clásico del _estado oculto_ (_hidden state_):
+
+```python
+# Celda 1
+descuento = 0.20
+
+# Celda 2
+ingresos_netos = ingresos_brutos * (1 - descuento)
+
+# Más tarde cambias la celda 1 a descuento = 0.15 y ejecutas solo esa celda.
+# La celda 2 sigue mostrando el resultado calculado con 0.20.
+```
+
+El notebook se ve correcto y el resultado es incoherente con el código visible. Además, el fichero
+`.ipynb` es un JSON que guarda también las salidas, lo que hace que en Git las diferencias sean
+ilegibles.
+
+**marimo** es un cuaderno reactivo: al cambiar una celda, se vuelven a ejecutar automáticamente las
+que dependen de las variables que define. Su documentación explica tres reglas que lo sostienen: el
+orden de ejecución lo determina el grafo de dependencias entre celdas y no su posición en pantalla;
+cada variable global debe definirse en una sola celda; y los cuadernos se guardan como ficheros de
+Python puros, que Git compara bien y que se pueden ejecutar como un script.
+
+| Aspecto          | Jupyter                                      | marimo                                              |
+| ---------------- | -------------------------------------------- | --------------------------------------------------- |
+| Ejecución        | Manual, en el orden que elijas               | Reactiva, según dependencias entre celdas           |
+| Estado oculto    | Posible (celdas obsoletas)                   | Evitado por diseño                                  |
+| Formato en disco | `.ipynb` (JSON con salidas)                  | `.py` (Python normal)                               |
+| Ecosistema       | Enorme (extensiones, servicios, cursos)      | Más reciente y en crecimiento                       |
+| Cuándo encaja    | Exploración, docencia, servicios ya montados | Informes repetibles, apps de datos, revisión en Git |
+
+No tienes que elegir una vez y para siempre. Una práctica sensata: **explora donde te sientas
+cómodo y entrega código ordenado** (un script o módulo, o un notebook que se ejecute entero sin
+errores desde cero).
+
+### Seis hábitos de reproducibilidad
+
+1. **Fija versiones.** Mantén `pyproject.toml` y `uv.lock` (o `requirements.txt` con versiones
+   exactas) en el repositorio.
+2. **Controla el azar.** Cualquier muestra o simulación lleva semilla explícita.
+3. **Usa rutas relativas.** Nada de `C:\Users\ana\Descargas\datos.csv`; usa rutas relativas al
+   proyecto con `pathlib`.
+4. **Parte siempre del dato de origen.** No sobrescribas el fichero original. Los datos crudos se
+   leen; las transformaciones producen ficheros nuevos.
+5. **Ejecuta de arriba abajo antes de entregar.** En Jupyter: _Restart Kernel and Run All_. Si falla o
+   cambia una cifra, tenías estado oculto.
+6. **Formatea y revisa con una herramienta.** `ruff format` y `ruff check` eliminan las discusiones de
+   estilo y detectan errores típicos (variables no usadas, imports rotos).
+
+## En la práctica
+
+Un patrón mínimo, con semilla y ruta relativa, sobre la tabla de clientes de Lumen:
+
+```python
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+
+DATOS = Path(__file__).parent / "data" / "lumen"
+
+customers = pd.read_parquet(DATOS / "customers.parquet")
+
+rng = np.random.default_rng(20240101)           # semilla fija
+muestra = customers["customer_id"].iloc[rng.choice(len(customers), size=3, replace=False)]
+print(muestra.tolist())
+# ['cust-036387', 'cust-035444', 'cust-044960']  <- siempre las mismas tres
+```
+
+Si ejecutas este código dos veces (o lo ejecuta otra persona con la misma versión de NumPy) obtienes
+las mismas tres filas. Sin la semilla, cada ejecución daría una muestra distinta y no podrías
+reproducir una cifra calculada sobre ella.
+
+Para comprobar que un notebook de Jupyter es ejecutable de principio a fin, desde la terminal:
+
+```bash
+uv run jupyter nbconvert --to notebook --execute informe.ipynb --output informe_ejecutado.ipynb
+```
+
+Si termina sin error, las celdas funcionan en orden. Con marimo, un cuaderno es un fichero de Python
+y se puede lanzar sin interfaz con `uv run python informe.py`.
+
+<Callout type="warning">
+  Fijar la semilla hace el resultado **repetible**, no **correcto**. Una muestra de tres clientes
+  con semilla fija sigue siendo una muestra de tres clientes: si el análisis depende de qué clientes
+  salen, prueba varias semillas y comprueba que la conclusión no cambia.
+</Callout>
+
+## Trade-offs y cuándo usarlo
+
+- **Proyecto con `uv` y lockfile**: úsalo en cuanto el análisis se vaya a ejecutar más de una vez o por
+  más de una persona. Para una consulta de cinco minutos, un script con metadatos en línea basta.
+- **Jupyter**: ideal para explorar y enseñar, y es el formato que muchos servicios (plataformas de
+  datos, Colab) esperan. Cuesta más hacerlo auditable.
+- **marimo**: útil si te importan la revisión en Git y que el resultado no dependa del orden de
+  ejecución. Menos ecosistema y menos gente que lo conozca en tu equipo.
+- **Fijar todas las versiones** da repetibilidad hoy, pero obliga a actualizar de forma deliberada;
+  reserva un rato cada trimestre para subir versiones y volver a ejecutar los tests.
+
+## Errores comunes
+
+- **Entregar un notebook ejecutado a medias**: celdas obsoletas, resultados de una versión antigua del
+  código, celdas ejecutadas fuera de orden.
+- **No guardar la versión de las librerías** y descubrir seis meses después que `pip install pandas`
+  instala otra versión mayor con cambios de comportamiento.
+- **Muestreo sin semilla** y cifras que cambian cada vez que se refresca el informe.
+- **Rutas absolutas** que solo funcionan en tu ordenador.
+- **Modificar el fichero de origen** (limpiar el CSV "a mano" y guardarlo encima del original), de modo
+  que nadie puede reconstruir qué se hizo.
+- **Subir datos sensibles al repositorio** junto con el código: el `.gitignore` es parte del entorno.
+
+## Con IA
+
+Un asistente de IA genera código que "funciona" en su contexto, pero no conoce tu entorno: puede
+usar una función que no existe en tu versión de pandas o mezclar convenciones antiguas con nuevas.
+Pasa al asistente la versión de Python y de las librerías clave (`uv pip list` o el `uv.lock`), pídele
+que **cite la función de la documentación** que usa y ejecuta siempre el resultado desde un entorno
+limpio (`uv run`) antes de fiarte. Si el asistente propone `pip install` de algo que no pediste,
+revisa el paquete antes de instalarlo.
+
+## En una entrevista
+
+- _"Me pasas un notebook que no puedo ejecutar. ¿Qué miras primero?"_ — Pista: versiones de Python y
+  librerías, orden de celdas, rutas absolutas y datos que faltan.
+- _"¿Qué es el estado oculto de un notebook y cómo lo evitas?"_ — Pista: variables en memoria de
+  celdas antiguas; _Restart & Run All_, notebooks reactivos o pasar el código a scripts.
+- _"¿Para qué sirve un lockfile y qué diferencia hay con `pyproject.toml`?"_ — Pista: el segundo
+  declara lo que pides; el primero fija las versiones exactas resueltas.
+
+<KeyTakeaways
+  items={[
+    'Un análisis reproducible fija cuatro cosas: versiones, orden de ejecución, datos de origen y semilla del azar.',
+    'Con `uv`, `pyproject.toml` declara lo que pides y `uv.lock` fija las versiones exactas; ambos van a Git y `uv sync` reconstruye el entorno.',
+    'Un script puede declarar sus dependencias en un bloque `# /// script` y ejecutarse con `uv run`.',
+    'Jupyter es excelente para explorar pero admite estado oculto; marimo ejecuta de forma reactiva y guarda `.py`. Antes de entregar, ejecuta todo desde cero.',
+    'Una semilla fija hace el resultado repetible, no correcto: comprueba que la conclusión aguanta con otras semillas.',
+  ]}
+/>

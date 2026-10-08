@@ -1,0 +1,33 @@
+---
+title: 'DuckDB desde Python: clientes inactivos por segmento'
+description: 'Ejecuta SQL sobre DataFrames desde Python, con parámetros enlazados, y devuelve el resultado como DataFrame de pandas.'
+language: python
+part: 'Parte I · Herramientas núcleo'
+module: python-analisis
+difficulty: 2
+estimatedMinutes: 25
+concepts: ['DuckDB en Python', 'register', 'parámetros enlazados', 'anti-join', 'DataFrame']
+datasets: ['customers', 'orders']
+packages: ['duckdb', 'pyarrow']
+output: console
+hints:
+  - 'Crea una conexión con `con = duckdb.connect()` y expón los DataFrames con `con.register("customers", customers)` y `con.register("orders", orders)`.'
+  - 'Clientes «activos» son los que tienen algún pedido no cancelado con `order_date >= desde`. Los inactivos son los que se registraron antes de `desde` y NO están en ese conjunto: usa `NOT EXISTS` o un `LEFT JOIN ... IS NULL`.'
+  - 'Pasa `desde` como parámetro enlazado: escribe `?` en el SQL y `con.execute(sql, [desde])`. No lo pegues dentro del texto del SQL.'
+  - 'Termina con `.df()` para obtener un DataFrame de pandas. `pct_inactivos` es `ROUND(100.0 * inactivos / clientes, 1)`.'
+relatedLessons: ['python-analisis/04-duckdb-desde-python-y-como-elegir-herramienta']
+businessQuestion: '¿Qué porcentaje de los clientes de cada segmento no ha comprado desde una fecha dada?'
+---
+
+CRM quiere saber qué parte de cada segmento está **inactiva**: clientes registrados antes de una
+fecha `desde` que **no han hecho ningún pedido no cancelado** desde esa fecha. Implementa
+**`inactivos_por_segmento(customers, orders, desde)`**, que usa DuckDB y devuelve un DataFrame de
+pandas con:
+
+- **`segment`**,
+- **`clientes`**: clientes del segmento registrados **antes** de `desde` (`signup_date < desde`),
+- **`inactivos`**: de esos, los que no tienen ningún pedido no cancelado con `order_date >= desde`,
+- **`pct_inactivos`**: `100 * inactivos / clientes` redondeado a 1 decimal.
+
+`desde` llega como texto `'AAAA-MM-DD'`. Recibe los DataFrames como argumentos: no uses variables
+globales dentro de la función.

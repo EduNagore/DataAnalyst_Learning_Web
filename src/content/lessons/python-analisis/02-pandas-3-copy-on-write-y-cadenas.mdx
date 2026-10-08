@@ -1,0 +1,281 @@
+---
+title: 'pandas 3: strings, Copy-on-Write y métodos encadenados'
+description: 'Qué cambió en pandas 3 y cómo escribir transformaciones claras y seguras: dtype str, Copy-on-Write, pd.col, fechas y uniones validadas.'
+module: python-analisis
+order: 2
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Explicar qué cambia en pandas 3: dtype `str` por defecto, Copy-on-Write y resolución de fechas.'
+  - 'Reconocer y reescribir una asignación encadenada, que en pandas 3 ya no modifica el original.'
+  - 'Escribir un análisis completo como una cadena de métodos con `merge(validate=...)`, `assign`, `groupby().agg()` y `pd.col()`.'
+  - 'Comprobar un resultado de pandas contra la misma consulta en SQL.'
+prerequisites: ['python-analisis/01-entorno-notebooks-y-reproducibilidad']
+tools: ['pandas', 'duckdb']
+volatility: high
+lastReviewed: 2026-10-08
+sources:
+  - title: "pandas 3.0.0 — What's new"
+    url: 'https://pandas.pydata.org/docs/whatsnew/v3.0.0.html'
+    type: docs
+    authors: 'pandas development team'
+    year: 2026
+  - title: 'pandas — Copy-on-Write (CoW)'
+    url: 'https://pandas.pydata.org/docs/user_guide/copy_on_write.html'
+    type: docs
+    authors: 'pandas development team'
+    year: 2026
+  - title: 'pandas — Migración a strings nativos (pandas 3)'
+    url: 'https://pandas.pydata.org/docs/user_guide/migration-3-strings.html'
+    type: docs
+    authors: 'pandas development team'
+    year: 2026
+relatedLabs: ['py-pandas-primeros-pasos', 'py-pandas-cadena-ingresos-segmento']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Marketing pide el ingreso y el ticket medio de 2025 por segmento de cliente (nuevo, ocasional,
+  habitual, vip) para repartir el presupuesto del año que viene. Tienes las tablas de líneas de
+  pedido, pedidos y clientes en Parquet. ¿Cómo lo calculas en pandas de forma que se pueda leer,
+  revisar y comprobar?
+</BusinessContext>
+
+pandas sigue siendo la biblioteca más usada para análisis en Python y la que entiende casi todo el
+ecosistema (statsmodels, scikit-learn, librerías de gráficos). Su versión 3 cambió reglas de fondo
+que rompen código antiguo y que, bien entendidas, hacen el código **más seguro y predecible**.
+
+## Intuición
+
+Un `DataFrame` es una tabla en memoria. Hasta pandas 2, a veces dos variables compartían los mismos
+datos por debajo y a veces no, y el resultado de modificar una dependía de detalles internos. Eso
+causaba el famoso `SettingWithCopyWarning`. La idea de pandas 3 es sencilla: **cada objeto derivado
+se comporta como una copia independiente** (aunque por dentro comparta memoria hasta que lo
+modifiques, de ahí el nombre _Copy-on-Write_, «copiar al escribir»). Con esa regla, el código es más
+fácil de razonar: si modificas `b`, que viene de `a`, `a` no cambia.
+
+## Cómo funciona
+
+### Texto: el dtype `str`
+
+En pandas 3, las columnas de texto tienen por defecto el tipo `str` (antes `object`, una columna de
+objetos de Python genéricos). Si tienes PyArrow instalado, `str` lo usa por debajo. Los valores
+ausentes siguen siendo `NaN`:
+
+```python
+import io
+import pandas as pd
+
+df = pd.read_csv(io.StringIO("id,region\n1,Madrid\n2,\n3,Andalucía"))
+print(df.dtypes.to_dict())      # {'id': int64, 'region': str}
+print(df["region"].isna().tolist())   # [False, True, False]
+```
+
+Ventajas prácticas: menos memoria y operaciones de texto más rápidas (en la columna `channel` de
+`orders`, 400.000 filas, ocupa 5,6 MB como `str` frente a 25,2 MB como `object`), y errores más
+claros: una columna `str` no acepta que le asignes un número por accidente.
+
+### Copy-on-Write
+
+La regla: **un objeto derivado nunca modifica el original**.
+
+```python
+a = pd.DataFrame({"x": [1, 2, 3]})
+b = a[["x"]]              # b se obtiene de a
+b.loc[0, "x"] = 99
+print(a["x"].tolist())    # [1, 2, 3]   <- a no cambia
+print(b["x"].tolist())    # [99, 2, 3]
+```
+
+Consecuencias que te afectan:
+
+- Los arrays obtenidos con `.to_numpy()` o `.values` son de **solo lectura** por defecto; si necesitas
+  modificarlos, haz una copia explícita con `.copy()`.
+- Los métodos con `inplace=True` ya no aportan ventaja y se desaconsejan; usa la forma funcional
+  (`df = df.sort_values(...)`).
+
+<Callout type="warning">
+  Copy-on-Write protege los objetos **derivados**, no al objeto que recibe una función. Si una
+  función hace `df["nueva"] = 1` sobre el argumento, estás modificando el DataFrame del que llama.
+  Dentro de funciones, devuelve una copia con `assign` en vez de modificar el argumento.
+</Callout>
+
+### Asignación encadenada: ya no funciona
+
+Antes, `df[df["x"] > 1]["y"] = "Z"` a veces cambiaba `df` y a veces no. En pandas 3 **nunca** cambia
+el original, porque `df[df["x"] > 1]` es un objeto derivado. pandas avisa con un
+`ChainedAssignmentError`. La forma correcta es una sola operación con `.loc`:
+
+```python
+d = pd.DataFrame({"x": [1, 2, 3], "y": ["a", "b", "c"]})
+
+# Mal: modifica una copia temporal y la tira
+d[d["x"] > 1]["y"] = "Z"                 # ChainedAssignmentError
+
+# Bien: una sola asignación con .loc
+d.loc[d["x"] > 1, "y"] = "Z"
+print(d["y"].tolist())                   # ['a', 'Z', 'Z']
+```
+
+### Encadenar métodos y `pd.col`
+
+Un análisis legible es una **cadena de métodos**: cada línea hace una transformación y devuelve un
+nuevo DataFrame. Dentro de la cadena necesitas referirte al DataFrame «de ese momento»; hasta ahora
+se hacía con `lambda`:
+
+```python
+df.assign(total=lambda d: d["quantity"] * d["unit_price"])
+```
+
+pandas 3 introduce `pd.col()`, una expresión que se evalúa sobre el DataFrame actual:
+
+```python
+df.assign(total=pd.col("quantity") * pd.col("unit_price"))
+df.loc[pd.col("discount_pct") > 0.2]
+```
+
+Hace lo mismo, con menos ruido. Las `lambda` siguen funcionando y son necesarias para lógica más
+compleja.
+
+### Fechas y frecuencias
+
+- Al leer o convertir fechas, pandas 3 **infiere la resolución** del dato; por defecto suele ser
+  microsegundos (`datetime64[us]`), no nanosegundos como antes. Puede afectar a código que asumía `ns`.
+- Los alias de frecuencia antiguos de fin de periodo ya no existen: usa `ME` (fin de mes), `QE` (fin
+  de trimestre) y `YE` (fin de año). `resample("M")` lanza un `ValueError`.
+
+```python
+orders.set_index("order_date")["order_id"].resample("ME").count()   # pedidos por mes
+```
+
+### Unir sin duplicar: `validate`
+
+Un `merge` mal planteado multiplica filas (el fan-out de SQL). pandas permite **declarar la relación
+que esperas** y falla si no se cumple:
+
+```python
+# Cada línea de pedido pertenece a un pedido: relación muchos-a-uno
+lineas.merge(pedidos, on="order_id", validate="many_to_one")
+```
+
+Si `pedidos` tuviera `order_id` duplicados (aquí, 1.000 pedidos repetidos por error añaden 2.612
+líneas de más), pandas lanza `MergeError: Merge keys are not unique in right dataset`. Es una
+aserción gratuita contra el error más caro de un join.
+
+## En la práctica
+
+Ingresos y ticket medio de 2025 por segmento, de principio a fin:
+
+```python
+import pandas as pd
+
+R = "public/data/lumen/"
+orders = pd.read_parquet(R + "orders.parquet")
+items = pd.read_parquet(R + "order_items.parquet")
+customers = pd.read_parquet(R + "customers.parquet")
+
+por_segmento = (
+    items
+    .merge(orders[["order_id", "customer_id", "order_date", "status"]],
+           on="order_id", validate="many_to_one")
+    .merge(customers[["customer_id", "segment"]],
+           on="customer_id", validate="many_to_one")
+    .loc[lambda d: (d["status"] != "cancelado") & (d["order_date"].dt.year == 2025)]
+    .assign(ingresos=pd.col("quantity") * pd.col("unit_price"))
+    .groupby("segment", as_index=False)
+    .agg(pedidos=("order_id", "nunique"), ingresos=("ingresos", "sum"))
+    .assign(ticket_medio=lambda d: (d["ingresos"] / d["pedidos"]).round(2))
+    .sort_values("ingresos", ascending=False)
+)
+```
+
+| segmento  | pedidos |     ingresos | ticket medio |
+| --------- | ------: | -----------: | -----------: |
+| habitual  |  60.519 | 18.524.725 € |     306,10 € |
+| vip       |  47.226 | 14.461.809 € |     306,23 € |
+| ocasional |  32.684 |  9.986.315 € |     305,54 € |
+| nuevo     |  21.277 |  6.487.908 € |     304,93 € |
+
+Fíjate en que el ticket medio es casi idéntico entre segmentos (≈ 305 €): la diferencia de ingresos
+viene del **número de pedidos**, no del importe por pedido. Esa es la conclusión útil para Marketing.
+
+**Comprueba siempre el resultado con una segunda vía.** La misma consulta en SQL sobre los mismos
+datos (con DuckDB sobre los DataFrames) devuelve exactamente las mismas cifras:
+
+```python
+import duckdb
+
+duckdb.sql("""
+    SELECT c.segment, COUNT(DISTINCT o.order_id) AS pedidos,
+           ROUND(SUM(oi.quantity * oi.unit_price)) AS ingresos
+    FROM items AS oi
+    JOIN orders AS o USING (order_id)
+    JOIN customers AS c USING (customer_id)
+    WHERE o.status <> 'cancelado' AND year(o.order_date) = 2025
+    GROUP BY 1 ORDER BY 3 DESC
+""").df()
+```
+
+El lab «Ingresos por segmento con una cadena de métodos» (en «Ponlo en práctica», al final) te hace construir esta misma cadena.
+
+<Snapshot date="2026-10">
+  La última versión estable de pandas es la 3.0.x (3.0.6 publicada el 17 de septiembre de 2026). La
+  versión 3.0.0 apareció en enero de 2026 y exige Python 3.11 o superior. Si tu equipo usa pandas
+  2.x, revisa la guía de migración antes de actualizar: el cambio a `str` y a Copy-on-Write puede
+  romper código que dependía del comportamiento antiguo.
+</Snapshot>
+
+## Trade-offs y cuándo usarlo
+
+- **pandas** es la opción por defecto cuando necesitas el ecosistema (estadística, modelos,
+  gráficos) o trabajas con datos que caben cómodamente en memoria.
+- Las cadenas de métodos son más legibles y fáciles de depurar (puedes cortar la cadena y mirar un
+  paso intermedio), pero una cadena de veinte pasos también es ilegible: parte en funciones con nombre.
+- `validate=` añade una comprobación de unicidad; en tablas muy grandes cuesta tiempo, pero casi
+  siempre compensa frente a un fan-out silencioso.
+- Para datos grandes o transformaciones pesadas, mira Polars o DuckDB (siguientes lecciones).
+
+## Errores comunes
+
+- **Asignación encadenada** (`df[mask]["col"] = valor`): no hace nada en pandas 3. Usa `.loc[mask, "col"]`.
+- **Modificar el DataFrame que recibe una función**: el que llama ve el cambio. Devuelve una copia.
+- **Unir sin `validate`** y dar por buena una suma inflada por un fan-out.
+- **`resample("M")`** u otros alias antiguos: usa `ME`, `QE`, `YE`.
+- **Asumir `datetime64[ns]`**: la resolución ahora se infiere; no mezcles resoluciones sin comprobarlo.
+- **Contar con `count()` cuando querías `nunique()`**: sobre líneas de pedido, `count` cuenta líneas, no pedidos.
+- **No comparar con una segunda fuente**: una cifra que solo sale de una cadena de pandas sin
+  contraste es una hipótesis, no un dato.
+
+## Con IA
+
+Los modelos de lenguaje se entrenaron con mucho código de pandas 1.x y 2.x, así que suelen escribir
+`inplace=True`, asignaciones encadenadas, `resample("M")` o `df.append`. Indícale la versión
+(«pandas 3.0, Copy-on-Write») y pídele que no use patrones obsoletos. Tras generar una cadena, exige
+que añada `validate=` en cada `merge` y **compara la cifra con una consulta SQL independiente**,
+como en la sección anterior. Si el asistente no sabe qué relación tiene cada unión, no puede saber si
+suma bien.
+
+## En una entrevista
+
+- _"¿Qué es Copy-on-Write y qué problema resuelve?"_ — Pista: objetos derivados independientes; el
+  fin de `SettingWithCopyWarning` y de resultados que dependían de detalles internos.
+- _"Tienes `df[df.a > 0]['b'] = 1`. ¿Qué pasa en pandas 3 y cómo lo arreglas?"_ — Pista:
+  `ChainedAssignmentError`, no modifica el original; `.loc[mask, 'b'] = 1`.
+- _"Tu `merge` devuelve más filas de las esperadas. ¿Cómo lo investigas?"_ — Pista: cardinalidad de
+  las claves, duplicados, `validate=`, comparar `len` y sumas antes y después.
+
+<KeyTakeaways
+  items={[
+    'pandas 3 usa el tipo `str` para el texto y Copy-on-Write: un objeto derivado nunca modifica el original.',
+    'La asignación encadenada (`df[mask]["col"] = x`) no funciona; usa `.loc[mask, "col"] = x`.',
+    'Copy-on-Write no protege el argumento de una función: devuelve una copia con `assign` en lugar de modificarlo.',
+    '`merge(validate="many_to_one")` es una aserción gratuita contra el fan-out; úsala siempre.',
+    'Una cadena de métodos con `assign`, `groupby().agg()` y `pd.col()` se lee de arriba abajo; comprueba el resultado con una segunda vía (SQL).',
+  ]}
+/>

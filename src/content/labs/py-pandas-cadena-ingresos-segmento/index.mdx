@@ -1,0 +1,31 @@
+---
+title: 'pandas: ingresos por segmento con una cadena de métodos'
+description: 'Une líneas de pedido, pedidos y clientes con merges validados y calcula ingresos y ticket medio por segmento en una cadena legible.'
+language: python
+part: 'Parte I · Herramientas núcleo'
+module: python-analisis
+difficulty: 2
+estimatedMinutes: 25
+concepts: ['merge validate', 'assign', 'groupby.agg', 'nunique', 'cadena de métodos']
+datasets: ['orders', 'order_items', 'customers']
+packages: []
+output: console
+hints:
+  - 'Primero une `order_items` con `orders` por `order_id` (muchos a uno) y el resultado con `customers` por `customer_id` (también muchos a uno). Usa `validate="many_to_one"` en ambos.'
+  - 'Excluye los pedidos con `status == "cancelado"` y filtra el año con `order_date.dt.year == anio`.'
+  - 'Los ingresos son `quantity * unit_price` por línea. Los pedidos se cuentan con `nunique` sobre `order_id`, no con `count` (una línea no es un pedido).'
+  - 'El ticket medio es `ingresos / pedidos`, redondeado a 2 decimales. Devuelve las columnas `segment`, `pedidos`, `ingresos` y `ticket_medio`.'
+relatedLessons: ['python-analisis/02-pandas-3-copy-on-write-y-cadenas']
+businessQuestion: '¿Cuánto ingresó cada segmento de cliente en un año y cuál fue su ticket medio?'
+---
+
+Marketing quiere los ingresos de un año por segmento de cliente. Implementa
+**`ingresos_por_segmento(orders, order_items, customers, anio)`**, que devuelve un DataFrame con:
+
+- **`segment`**: segmento del cliente,
+- **`pedidos`**: número de pedidos distintos (sin contar los cancelados),
+- **`ingresos`**: suma de `quantity * unit_price` de sus líneas,
+- **`ticket_medio`**: `ingresos / pedidos` redondeado a 2 decimales.
+
+La función **no debe modificar** los DataFrames que recibe. Pruébala con `print()` en el editor y
+pulsa «Comprobar» para ejecutar los tests, incluido uno con otro conjunto de datos.

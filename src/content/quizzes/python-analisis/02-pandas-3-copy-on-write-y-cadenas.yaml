@@ -1,0 +1,75 @@
+lesson: python-analisis/02-pandas-3-copy-on-write-y-cadenas
+questions:
+  - id: py1-02-q1
+    type: single
+    difficulty: 1
+    prompt: 'En pandas 3, ¿qué tipo tiene por defecto una columna de texto?'
+    options:
+      - 'object, como en pandas 1 y 2'
+      - 'str, un tipo propio para texto (con PyArrow por debajo si está instalado)'
+      - 'bytes'
+      - 'category'
+    answer: [1]
+    explanation: 'pandas 3 infiere el dtype `str` para el texto. Ocupa menos memoria que `object` (en la columna channel de orders, 5,6 MB frente a 25,2 MB) y evita mezclar tipos sin querer.'
+    ref: '#texto-el-dtype-str'
+
+  - id: py1-02-q2
+    type: single
+    difficulty: 2
+    prompt: 'Ejecutas `b = a[["x"]]` y luego `b.loc[0, "x"] = 99`. En pandas 3, ¿qué le pasa a `a`?'
+    options:
+      - 'a también cambia, porque comparten los datos'
+      - 'a no cambia: b se comporta como una copia independiente (Copy-on-Write)'
+      - 'Se lanza un error'
+      - 'a se borra'
+    answer: [1]
+    explanation: 'Con Copy-on-Write, un objeto derivado nunca modifica el original. Por dentro puede compartir memoria hasta que se escribe, pero el comportamiento observable es el de una copia.'
+    ref: '#copy-on-write'
+
+  - id: py1-02-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Cómo reescribes correctamente `df[df["x"] > 1]["y"] = "Z"` en pandas 3?'
+    options:
+      - 'df[df["x"] > 1]["y"] = "Z" funciona igual, solo avisa'
+      - 'df.loc[df["x"] > 1, "y"] = "Z"'
+      - 'df["y"][df["x"] > 1] = "Z"'
+      - 'df.inplace["y"] = "Z"'
+    answer: [1]
+    explanation: 'La asignación encadenada modifica un objeto temporal derivado y se pierde (ChainedAssignmentError). `.loc[máscara, columna]` hace una única asignación sobre el DataFrame original. La tercera forma es otra asignación encadenada.'
+    ref: '#asignación-encadenada-ya-no-funciona'
+
+  - id: py1-02-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las afirmaciones correctas sobre pandas 3.'
+    options:
+      - '`resample("ME")` agrupa por fin de mes; el alias antiguo "M" ya no es válido'
+      - '`pd.col("a") * pd.col("b")` es una expresión que se evalúa sobre el DataFrame actual de la cadena'
+      - 'Copy-on-Write impide que una función modifique el DataFrame que recibe como argumento si haces df["nueva"] = 1'
+      - 'Los arrays de `.to_numpy()` son de solo lectura por defecto'
+    answer: [0, 1, 3]
+    explanation: 'La tercera es falsa: Copy-on-Write protege los objetos derivados, no al objeto que recibe la función. Si haces `df["nueva"] = 1` sobre el argumento, el que llama ve la columna nueva. Devuelve una copia con `assign`.'
+    ref: '#cómo-funciona'
+
+  - id: py1-02-q5
+    type: single
+    difficulty: 3
+    prompt: 'Unes order_items con orders por order_id con `validate="many_to_one"` y obtienes `MergeError: Merge keys are not unique in right dataset`. ¿Qué indica?'
+    options:
+      - 'Que order_items tiene líneas duplicadas'
+      - 'Que orders tiene order_id repetidos: el join habría multiplicado las líneas de esos pedidos'
+      - 'Que faltan columnas en orders'
+      - 'Que pandas no soporta uniones de muchos a uno'
+    answer: [1]
+    explanation: 'many_to_one significa que la clave debe ser única en la tabla derecha (orders). Si no lo es, cada línea casaría con varios pedidos duplicados y los ingresos se inflarían: el validate detecta ese fan-out antes de que llegue a la cifra.'
+    ref: '#unir-sin-duplicar-validate'
+
+  - id: py1-02-q6
+    type: numeric
+    difficulty: 2
+    prompt: 'En 2025, el segmento «nuevo» tuvo 21.277 pedidos y 6.487.908 € de ingresos. ¿Cuál es su ticket medio en euros, redondeado a un decimal? (Usa el punto o la coma decimal.)'
+    answer: [304.9]
+    tolerance: 0.06
+    explanation: 'Ticket medio = ingresos / pedidos = 6.487.908 / 21.277 ≈ 304,93 €, es decir, 304,9. Fíjate en que se divide por pedidos distintos (nunique), no por el número de líneas.'
+    ref: '#en-la-práctica'
