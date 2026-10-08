@@ -1,0 +1,33 @@
+---
+title: 'Auditoría de un modelo con siete errores sembrados'
+description: 'Un modelo de resultados 2025 con siete errores clásicos: rango corto, valor pegado, referencia sin anclar, número como texto, porcentaje mal calculado, tipo impositivo mal escrito y doble recuento.'
+difficulty: 3
+estimatedMinutes: 60
+skills: ['Auditoría de fórmulas', 'Controles', 'Modelado en hojas', 'Detección de errores']
+functions:
+  - { en: 'SUM', es: 'SUMA' }
+  - { en: 'MAX', es: 'MAX' }
+commonMistakes:
+  - 'Arreglar un total pegando el valor correcto en lugar de corregir la fórmula.'
+  - 'Corregir solo la celda con el síntoma y no la causa (el error está en otra hoja o columna).'
+  - 'No volver a revisar el resto del modelo después de corregir un error: uno puede esconder a otro.'
+  - 'Confiar en que un total «parece razonable».'
+downloadUrl: 'workbooks/auditoria-de-un-modelo.xlsx'
+solutionUrl: 'workbooks/auditoria-de-un-modelo-solucion.xlsx'
+relatedLessons: ['hojas-de-calculo/04-modelado-auditoria-y-python-en-excel']
+---
+
+## Qué vas a practicar
+
+El modelo `Modelo` calcula ingresos, costes, margen, EBIT, impuestos y resultado neto de 2025 mes a mes. Alguien lo ha dejado con **siete errores**. La hoja `Comprobacion` te dice qué controles no cuadran, pero no dónde está el fallo: tienes que encontrarlo.
+
+## Método sugerido
+
+1. Muestra las fórmulas (_Fórmulas > Mostrar fórmulas_) y busca filas o columnas que cambien de patrón.
+2. Usa _Fórmulas > Rastrear precedentes_ en los totales que no cuadran.
+3. Selecciona el bloque de fórmulas y usa _Ir a Especial > Constantes_ para encontrar valores pegados.
+4. Revisa los supuestos: ¿están en la unidad correcta (porcentaje frente a número)?
+5. Comprueba que los números son números (alineados a la derecha, sin triángulo verde).
+6. Corrige las **fórmulas** (no pegues valores) y vuelve a mirar `Comprobacion`.
+
+Cuando termines, abre el libro de solución: la hoja `Errores` lista cada fallo y su corrección.

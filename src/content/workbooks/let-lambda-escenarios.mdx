@@ -1,0 +1,39 @@
+---
+title: 'LET, LAMBDA y un escenario de descuentos'
+description: 'Reescribe cálculos de margen con LET, define la función MARGEN con LAMBDA y construye un escenario de menor descuento sobre 2.000 pedidos de Lumen.'
+difficulty: 2
+estimatedMinutes: 45
+skills: ['LET', 'LAMBDA', 'Funciones con nombre', 'Análisis de escenarios']
+functions:
+  - { en: 'LET', es: 'LET' }
+  - { en: 'LAMBDA', es: 'LAMBDA' }
+  - { en: 'FILTER', es: 'FILTRAR' }
+  - { en: 'UNIQUE', es: 'UNICOS' }
+  - { en: 'SUMIF', es: 'SUMAR.SI' }
+commonMistakes:
+  - 'Escribir la LAMBDA en una celda sin llamarla: devuelve #CALC!. Pruébala con valores: =LAMBDA(a;b;a-b)(5;3).'
+  - 'Dar a una variable de LET un nombre que parece una celda (A1, C, R2).'
+  - 'Olvidar que el importe ya es neto del descuento: el escenario se calcula con importe × (1 − nuevo descuento) / (1 − descuento actual).'
+  - 'Mezclar fracciones y porcentajes: el descuento es 0,2, no 20.'
+downloadUrl: 'workbooks/let-lambda-escenarios.xlsx'
+solutionUrl: 'workbooks/let-lambda-escenarios-solucion.xlsx'
+relatedLessons: ['hojas-de-calculo/02-let-lambda-y-funciones-de-matriz']
+---
+
+## Qué vas a practicar
+
+Con los mismos 2.000 pedidos, calcularás el **margen bruto** de tres maneras (total, de los pedidos con descuento alto y mediante una función propia) y un **escenario**: ¿cuánto subirían los ingresos si cada descuento bajara cinco puntos?
+
+## Pasos
+
+1. Escribe en `Trabajo` el margen total con `LET`, dando nombre a los ingresos y a los costes.
+2. Repite el cálculo solo para los pedidos con descuento igual o superior al 20 % usando `FILTRAR` dentro de `LET`.
+3. Crea la función `MARGEN` en _Fórmulas > Administrador de nombres_ con `=LAMBDA(importe; coste; (importe-coste)/importe)` y escribe en la tarea 3 el resultado de `MARGEN(200; 130)`.
+4. Resuelve el escenario con una sola fórmula `LET`.
+5. Cuenta los clientes con más de 500 € acumulados.
+
+## Ayudas
+
+- `SUMAR.SI(rango_criterio; matriz_de_criterios; rango_suma)` devuelve una matriz si los criterios son una matriz.
+- Para «mínimo 0» en el escenario usa `SI(d>0,05; d-0,05; 0)`.
+- Después de crear `MARGEN`, úsala también en las tareas 1 y 2 y comprueba que el resultado no cambia.

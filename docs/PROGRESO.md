@@ -4,16 +4,16 @@ Registro de qué fase del `PLAN.md` está hecha, verificada y pendiente. Se actu
 
 ## Resumen rápido
 
-| Fase                                                  | Estado                                          |
-| ----------------------------------------------------- | ----------------------------------------------- |
-| F0 — Setup y despliegue                               | ✅ Hecha (deploy: ver "Despliegue" abajo)       |
-| F1 — Dataset Lumen (+ página `/datos/`)               | ✅ Hecha y verificada                           |
-| F2 — Núcleo de teoría + módulo M04                    | ✅ Hecha                                        |
-| F3 — Motor de tests (quiz, examen, Leitner, progreso) | ⬜ Siguiente                                    |
-| F4 — Laboratorios (DuckDB-WASM, Pyodide, `datakit`)   | ⬜                                              |
-| F5 — Casos guiados                                    | ⬜ → luego PAUSA de revisión (la marca el PLAN) |
-| F6 (en curso: M04-M06 hechos)                         | 🟡                                              |
-| F7-F10                                                | ⬜                                              |
+| Fase                                                  | Estado                                           |
+| ----------------------------------------------------- | ------------------------------------------------ |
+| F0 — Setup y despliegue                               | ✅ Hecha (deploy: ver "Despliegue" abajo)        |
+| F1 — Dataset Lumen (+ página `/datos/`)               | ✅ Hecha y verificada                            |
+| F2 — Núcleo de teoría + módulo M04                    | ✅ Hecha                                         |
+| F3 — Motor de tests (quiz, examen, Leitner, progreso) | ✅ Hecha                                         |
+| F4 — Laboratorios (DuckDB-WASM, Pyodide, `datakit`)   | ✅ Hecha                                         |
+| F5 — Casos guiados                                    | ✅ Hecha (la pausa de revisión la marca el PLAN) |
+| F6 (Contenido Partes 0-II, M00-M12)                   | ✅                                               |
+| F7-F10                                                | ⬜                                               |
 
 Repo: `https://github.com/EduNagore/DataAnalyst_Learning_Web` (rama `main`). Sitio: `https://edunagore.github.io/DataAnalyst_Learning_Web/`.
 
@@ -77,11 +77,11 @@ Pendiente menor: job de CI que regenere el dataset y compare `data-gen/checksums
 
 ---
 
-## F6 — en curso (Contenido Partes 0-II, M00-M12)
+## F6 ✅ (Contenido Partes 0-II, M00-M12)
 
-Estado: **M04 ✅, M05 ✅ (5 lecciones, 8 labs), M06 ✅ (3 lecciones, lab SCD2), M07 ✅ (4 lecciones, 3 labs nuevos), M08 ✅ (4 lecciones, 4 labs sobre `lumen_raw`), M09 ✅ (4 lecciones, 3 labs Python + 1 SQL, widget `SimpsonExplorer`, primer uso de `VegaChart` con tema claro/oscuro)**. M00 ✅ (3 lecciones), M01 ✅ (4 lecciones, 4 labs), M02 ✅ (4 lecciones, 4 labs, widget `DistributionExplorer`). M10 ✅ (4 lecciones, 4 labs de especificación Vega-Lite/contraste/factor de mentira, widget `ChartChooser`, test e2e que renderiza todos los gráficos Vega). M11 ✅ (4 lecciones, 3 labs: tarjetas KPI, modelo en estrella, inteligencia de tiempo; hechos de Power BI/Fabric/Looker/Tableau verificados en fuentes oficiales, ver Snapshots). M12 ✅ (3 lecciones, 3 labs: revisar resumen ejecutivo, comunicar cifras, priorización RICE; RICE verificado en Intercom). Pendiente: M03.
+Estado: **M04 ✅, M05 ✅ (5 lecciones, 8 labs), M06 ✅ (3 lecciones, lab SCD2), M07 ✅ (4 lecciones, 3 labs nuevos), M08 ✅ (4 lecciones, 4 labs sobre `lumen_raw`), M09 ✅ (4 lecciones, 3 labs Python + 1 SQL, widget `SimpsonExplorer`, primer uso de `VegaChart` con tema claro/oscuro)**. M00 ✅ (3 lecciones), M01 ✅ (4 lecciones, 4 labs), M02 ✅ (4 lecciones, 4 labs, widget `DistributionExplorer`). M10 ✅ (4 lecciones, 4 labs de especificación Vega-Lite/contraste/factor de mentira, widget `ChartChooser`, test e2e que renderiza todos los gráficos Vega). M11 ✅ (4 lecciones, 3 labs: tarjetas KPI, modelo en estrella, inteligencia de tiempo; hechos de Power BI/Fabric/Looker/Tableau verificados en fuentes oficiales, ver Snapshots). M12 ✅ (3 lecciones, 3 labs: revisar resumen ejecutivo, comunicar cifras, priorización RICE; RICE verificado en Intercom). M03 ✅ (5 lecciones, 2 labs Python: auditoría de fórmulas y tabla dinámica en pandas, 5 libros Excel con autocomprobación generados por `scripts/build-workbooks.py`, páginas `/practica/hojas-de-calculo/`; verificado: nombres ES de función en Microsoft Support, Python en Excel, Copilot/Agent Mode, Claude para Excel, Gemini en Sheets; **`=COPILOT()` retirada el 2026-09-14**). Los libros se prueban sin Excel con la librería `formulas` (`tests/workbooks`); el error «número como texto» solo se ve en Excel real. **F6 completa.**
 
-PLAN §7.1. Por módulo: 3-5 lecciones (estructura de `docs/CONTENT_GUIDELINES.md`), quizzes (6+ preguntas/lección), labs, libros Excel (`scripts/build-workbooks.py`, openpyxl), widgets (JoinVisualizer, WindowFrameVisualizer, ChartChooser, DistributionExplorer, SimpsonExplorer...). Contenido `volatility: high` (M03 IA en Excel, M07 pandas 3/Polars 2.0, M11 Power BI/Tableau): **verificar con búsqueda web antes de escribir** y usar `<Snapshot>`. Orden: M03 (último de F6).
+PLAN §7.1. Por módulo: 3-5 lecciones (estructura de `docs/CONTENT_GUIDELINES.md`), quizzes (6+ preguntas/lección), labs, libros Excel (`scripts/build-workbooks.py`, openpyxl), widgets (JoinVisualizer, WindowFrameVisualizer, ChartChooser, DistributionExplorer, SimpsonExplorer...). Contenido `volatility: high` (M03 IA en Excel, M07 pandas 3/Polars 2.0, M11 Power BI/Tableau): **verificar con búsqueda web antes de escribir** y usar `<Snapshot>`.
 
 **Corrección del dataset (2026-10-08)**: detectado un artefacto del generador (7.094 pedidos apilados el 30-jun-2026, 10× un día normal, por recortar con `np.minimum` los pedidos relocalizados tras el alta). Ahora se descartan al final de `build_lumen` (con líneas, envíos y devoluciones) sin alterar el resto del azar: solo cambia junio-2026. `orders` pasa de 400.000 a **392.906** filas, `order_items` 1.014.555, `shipments` 365.198. Se actualizaron las cifras de SQL I/II y M07, `docs/DATASET.md` y `data-gen/checksums.json`. Los CSV se escriben ahora con `
 ` (checksums idénticos en Windows y Linux). **Al escribir contenido nuevo, usar siempre cifras recalculadas con el dataset actual.**

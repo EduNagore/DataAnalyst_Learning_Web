@@ -1,0 +1,72 @@
+lesson: hojas-de-calculo/02-let-lambda-y-funciones-de-matriz
+questions:
+  - id: hoj-02-q1
+    type: formula-output
+    difficulty: 1
+    prompt: '¿Qué devuelve esta fórmula?'
+    code: '=LET(x; 5; y; x*2; y+1)'
+    options:
+      - '5'
+      - '10'
+      - '11'
+      - '#NOMBRE?'
+    answer: [2]
+    explanation: 'x vale 5, y vale x*2 = 10 y el último argumento es el cálculo: y+1 = 11. El último argumento de LET es siempre el resultado.'
+    ref: '#let-nombrar-los-cálculos-intermedios'
+
+  - id: hoj-02-q2
+    type: single
+    difficulty: 2
+    prompt: 'Escribes =LAMBDA(a; b; a-b) en una celda y obtienes #CALC!. ¿Por qué?'
+    options:
+      - 'LAMBDA no existe en español'
+      - 'Has definido la función pero no la has llamado con valores'
+      - 'Los parámetros deben escribirse en mayúsculas'
+      - 'LAMBDA solo funciona dentro del Administrador de nombres'
+    answer: [1]
+    explanation: 'Para probarla, llámala: =LAMBDA(a; b; a-b)(5; 3). Una vez comprobada, guárdala con nombre en el Administrador de nombres.'
+    ref: '#lambda-tus-propias-funciones'
+
+  - id: hoj-02-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'Con MARGEN = LAMBDA(importe; coste; (importe-coste)/importe), ¿cuánto vale MARGEN(200; 130)? (como fracción, dos decimales)'
+    answer: [0.35]
+    tolerance: 0.001
+    explanation: '(200 − 130) / 200 = 70 / 200 = 0,35, es decir, un margen del 35 %.'
+    ref: '#lambda-tus-propias-funciones'
+
+  - id: hoj-02-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los beneficios de reescribir una fórmula larga con LET.'
+    options:
+      - 'Cada cálculo repetido se evalúa una vez'
+      - 'Los nombres explican la intención de cada paso'
+      - 'Puedes depurar devolviendo un cálculo intermedio en lugar del resultado final'
+      - 'La fórmula funciona en cualquier versión de Excel, incluso en las más antiguas'
+    answer: [0, 1, 2]
+    explanation: 'LET mejora rendimiento, legibilidad y depuración, pero no existe en versiones antiguas: figura como disponible en Microsoft 365, Excel 2024 y Excel 2021.'
+    ref: '#let-nombrar-los-cálculos-intermedios'
+
+  - id: hoj-02-q5
+    type: single
+    difficulty: 2
+    prompt: '¿Qué hace TOMAR(ORDENAR(A2:B100; 2; -1); 5)?'
+    options:
+      - 'Las 5 filas con el valor más bajo de la columna 2'
+      - 'Las 5 filas con el valor más alto de la columna 2'
+      - 'Las 5 primeras filas del rango sin ordenar'
+      - 'Las 5 últimas filas del rango sin ordenar'
+    answer: [1]
+    explanation: 'ORDENAR(…; 2; -1) ordena por la columna 2 de mayor a menor y TOMAR(…; 5) se queda con las cinco primeras filas: las mayores.'
+    ref: '#let-nombrar-los-cálculos-intermedios'
+
+  - id: hoj-02-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Las funciones de expresiones regulares de Excel (REGEXPRUEBA, REGEXEXTRACCION, REGEXREEMPLAZAR) están disponibles en todas las versiones de Excel 2021 y posteriores.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. La documentación de Microsoft las lista para Excel para Microsoft 365 (Windows y Mac). Comprueba la versión de quien reciba el libro.'
+    ref: '#expresiones-regulares-en-la-celda'

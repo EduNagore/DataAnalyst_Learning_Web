@@ -162,6 +162,30 @@ async function main() {
     }
   }
 
+  // --- Libros Excel ---------------------------------------------------------
+  const workbookFiles = await walk(path.join(CONTENT_DIR, 'workbooks'), ['.mdx']);
+  const workbookIds = new Set();
+  for (const file of workbookFiles) {
+    const { data } = parseFrontmatter(await readFile(file, 'utf-8'));
+    const id = path.basename(file, '.mdx');
+    workbookIds.add(id);
+    for (const key of ['downloadUrl', 'solutionUrl']) {
+      const target = path.join(ROOT, 'public', data[key] ?? '');
+      try {
+        await readFile(target);
+      } catch {
+        fail(
+          `Libro "${id}": ${key} apunta a un archivo inexistente (${data[key]}). ¿Has ejecutado scripts/build-workbooks.py?`,
+        );
+      }
+    }
+    for (const lessonId of data.relatedLessons ?? []) {
+      if (lessons.size > 0 && !lessons.has(lessonId)) {
+        fail(`Libro "${id}" referencia la lección inexistente "${lessonId}"`);
+      }
+    }
+  }
+
   // relatedLabs / relatedCases de las lecciones
   for (const [id, { data }] of lessons) {
     for (const labId of data.relatedLabs ?? []) {
@@ -172,6 +196,11 @@ async function main() {
     for (const caseId of data.relatedCases ?? []) {
       if (caseIds.size > 0 && !caseIds.has(caseId)) {
         fail(`Lección "${id}" referencia el caso inexistente "${caseId}"`);
+      }
+    }
+    for (const wbId of data.relatedWorkbooks ?? []) {
+      if (!workbookIds.has(wbId)) {
+        fail(`Lección "${id}" referencia el libro Excel inexistente "${wbId}"`);
       }
     }
   }

@@ -1,0 +1,38 @@
+---
+title: 'Matrices dinámicas y BUSCARX con pedidos de Lumen'
+description: 'Cinco preguntas sobre 2.000 pedidos resueltas con FILTRAR, UNICOS, BUSCARX y SUMAR.SI: pedidos con descuento alto, clientes distintos, segmento del pedido más grande, clientes sin ficha e importe del mejor cliente.'
+difficulty: 1
+estimatedMinutes: 40
+skills: ['Tablas estructuradas', 'Fórmulas dinámicas', 'BUSCARX', 'Datos incompletos']
+functions:
+  - { en: 'FILTER', es: 'FILTRAR' }
+  - { en: 'UNIQUE', es: 'UNICOS' }
+  - { en: 'XLOOKUP', es: 'BUSCARX' }
+  - { en: 'SUMIF', es: 'SUMAR.SI' }
+  - { en: 'COUNTA', es: 'CONTARA' }
+commonMistakes:
+  - 'Escribir las fórmulas con «,» en un Excel en español: el separador de argumentos es «;».'
+  - 'Olvidar el argumento «si no se encuentra» de BUSCARX y arrastrar #N/A hasta los totales.'
+  - 'Dejar texto o espacios sobrantes en los identificadores de cliente: BUSCARX no encuentra lo que «se ve igual».'
+  - 'Escribir una fórmula derramada con datos debajo: aparece #DESBORDAMIENTO!.'
+downloadUrl: 'workbooks/matrices-dinamicas-y-buscarx.xlsx'
+solutionUrl: 'workbooks/matrices-dinamicas-y-buscarx-solucion.xlsx'
+relatedLessons: ['hojas-de-calculo/01-tablas-estructuradas-y-formulas-dinamicas']
+---
+
+## Qué vas a practicar
+
+Trabajarás con una muestra reproducible de **2.000 pedidos** de Lumen (hoja `Pedidos`, tabla `tblPedidos`) y sus clientes (hoja `Clientes`, tabla `tblClientes`). Las fichas de cliente están **incompletas a propósito**: alrededor de un 5 % de los clientes no aparece, como ocurre en la vida real al cruzar una exportación con un maestro desactualizado.
+
+## Pasos
+
+1. Abre el libro y revisa las dos tablas. Comprueba los tipos (fechas, números, texto) y el nombre de cada tabla.
+2. En la hoja `Trabajo`, escribe tu fórmula para cada pregunta en la **celda amarilla**.
+3. Vigila la hoja `Comprobacion`: ✔ si coincide con el valor esperado, ✘ si no, y «—» mientras la celda esté vacía.
+4. Cuando termines, abre el libro de solución: cada fila incluye la **fórmula moderna** equivalente.
+
+## Ayudas
+
+- Una fórmula que devuelve una matriz se puede envolver en `FILAS(...)`, `CONTARA(...)` o `SUMA(...)` para obtener un número.
+- Para el segmento del pedido más grande necesitas dos búsquedas: primero el cliente del importe máximo y luego su segmento.
+- Para los clientes sin ficha, `BUSCARX` con un valor distinto en el argumento «si no se encuentra» te ayuda a contarlos.

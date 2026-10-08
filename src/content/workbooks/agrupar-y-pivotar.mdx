@@ -1,0 +1,37 @@
+---
+title: 'Agrupar y pivotar: AGRUPARPOR, PIVOTARPOR y tabla dinámica'
+description: 'Resume 2.000 pedidos de Lumen por canal y estado con una tabla dinámica y con las fórmulas AGRUPARPOR y PIVOTARPOR, y comprueba que los totales cuadran.'
+difficulty: 2
+estimatedMinutes: 40
+skills: ['Tablas dinámicas', 'AGRUPARPOR', 'PIVOTARPOR', 'Cuadre de totales']
+functions:
+  - { en: 'GROUPBY', es: 'AGRUPARPOR' }
+  - { en: 'PIVOTBY', es: 'PIVOTARPOR' }
+  - { en: 'SUMIFS', es: 'SUMAR.SI.CONJUNTO' }
+  - { en: 'COUNTIF', es: 'CONTAR.SI' }
+commonMistakes:
+  - 'Crear la tabla dinámica sobre un rango fijo en lugar de sobre la tabla estructurada.'
+  - 'Olvidar actualizar la tabla dinámica después de cambiar los datos.'
+  - 'Usar un campo calculado para razones o medias: usa una medida o una fórmula.'
+  - 'No cuadrar los totales con la suma del origen.'
+downloadUrl: 'workbooks/agrupar-y-pivotar.xlsx'
+solutionUrl: 'workbooks/agrupar-y-pivotar-solucion.xlsx'
+relatedLessons: ['hojas-de-calculo/03-agrupar-pivotar-y-power-query']
+---
+
+## Qué vas a practicar
+
+Resumir es el centro del análisis en una hoja de cálculo. Aquí lo haces de tres maneras y verificas que coinciden: una **tabla dinámica**, una fórmula **AGRUPARPOR** (un eje) y una fórmula **PIVOTARPOR** (dos ejes).
+
+## Pasos
+
+1. Inserta una tabla dinámica desde `tblPedidos` en una hoja nueva: canal en filas, estado en columnas, importe en valores.
+2. Escribe la fórmula `PIVOTARPOR` equivalente en otra zona y compara las dos tablas.
+3. Responde las cinco preguntas de `Trabajo` (puedes leerlas de la tabla dinámica o con fórmulas).
+4. La última pregunta es un **cuadre**: la suma de los totales por canal menos la suma del origen debe ser 0.
+
+## Ayudas
+
+- `AGRUPARPOR(tblPedidos[channel]; tblPedidos[importe]; SUMA)` da el total por canal; añade un argumento de orden para ordenar.
+- `PIVOTARPOR(filas; columnas; valores; función)` admite `SUMA`, `PROMEDIO`, `CONTARA`…
+- Si tu Excel no tiene estas funciones, hazlo solo con la tabla dinámica: la hoja de comprobación acepta cualquier método.

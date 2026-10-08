@@ -1,0 +1,225 @@
+---
+title: 'Tablas estructuradas y fórmulas dinámicas: FILTRAR, ORDENAR, UNICOS y BUSCARX'
+description: 'Cómo convertir un rango en una tabla estructurada y usar las matrices dinámicas de Excel (derrame, FILTRAR, ORDENAR, ORDENARPOR, UNICOS, SECUENCIA, BUSCARX, COINCIDIRX) con sus nombres en español e inglés.'
+module: hojas-de-calculo
+order: 1
+level: básico
+estimatedMinutes: 45
+objectives:
+  - 'Convertir un rango en una tabla estructurada y escribir referencias estructuradas que se amplían solas.'
+  - 'Explicar el comportamiento de derrame (spill) y usar el operador # para referirse a un resultado completo.'
+  - 'Resolver con FILTRAR, ORDENAR, ORDENARPOR y UNICOS lo que antes exigía fórmulas matriciales o columnas auxiliares.'
+  - 'Sustituir BUSCARV y la pareja INDICE/COINCIDIR por BUSCARX y COINCIDIRX, controlando el caso «no encontrado» y la coincidencia aproximada.'
+  - 'Reconocer el efecto del separador de argumentos y del separador decimal en una configuración regional española.'
+prerequisites: ['pensamiento-negocio/01-preguntas-arboles-e-hipotesis']
+tools: ['excel', 'google-sheets']
+volatility: medium
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Microsoft — Dynamic array formulas and spilled array behavior'
+    url: 'https://support.microsoft.com/en-us/office/dynamic-array-formulas-and-spilled-array-behavior-205c6b06-03ba-4151-89a1-87a7eb36e531'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft — Using structured references with Excel tables'
+    url: 'https://support.microsoft.com/en-us/office/using-structured-references-with-excel-tables-f5ed2452-2337-4f71-bed3-c8ae6d2b276e'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft — Función BUSCARX'
+    url: 'https://support.microsoft.com/es-ES/Excel/functions/xlookup-function'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft — Función FILTRAR'
+    url: 'https://support.microsoft.com/es-ES/Excel/functions/filter-function'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+relatedLabs: []
+relatedWorkbooks: ['matrices-dinamicas-y-buscarx']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import ExcelFn from '../../../components/content/ExcelFn.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Marketing te envía cada lunes un libro con los pedidos de la semana y te pide tres cosas: la lista
+  de pedidos con descuento superior al 20 % ordenada por importe, los clientes distintos que han
+  comprado y el segmento de cada cliente. Hasta hace pocos años esto eran filtros manuales, columnas
+  auxiliares y `BUSCARV`. Con las fórmulas dinámicas son tres fórmulas que se actualizan solas
+  cuando llegan filas nuevas.
+</BusinessContext>
+
+Las hojas de cálculo son la herramienta de análisis más extendida del mundo empresarial y, bien usadas, siguen siendo la mejor manera de **explorar un conjunto pequeño**, **prototipar un cálculo** y **entregar algo que el negocio entienda**. Mal usadas, son una fuente de errores silenciosos (lo verás en la lección 4). Esta lección fija la base moderna: datos en tablas y fórmulas que devuelven matrices.
+
+## Intuición
+
+Piensa en una hoja antigua como un lienzo de celdas sueltas: cada fórmula mira celdas concretas y, si añades una fila, hay que arrastrar la fórmula. Una **tabla estructurada** convierte los datos en un objeto con nombre, columnas con nombre y tamaño variable. Una **fórmula dinámica** devuelve varios valores y los «derrama» en las celdas vecinas. Juntas hacen que una hoja se comporte más como una consulta que como un papel cuadriculado.
+
+## Cómo funciona
+
+### Tablas estructuradas
+
+Selecciona el rango y pulsa `Ctrl+T` (_Insertar > Tabla_). Excel crea una tabla con nombre (por ejemplo `tblPedidos`) y:
+
+- las **fórmulas se rellenan solas** para toda la columna (columna calculada);
+- al añadir filas debajo, la tabla **crece** y todo lo que la referencia se actualiza;
+- puedes escribir **referencias estructuradas** en lugar de rangos: `=SUMA(tblPedidos[importe])` o, dentro de la misma fila, `=[@cantidad]*[@precio]`.
+
+| Referencia                             | Qué devuelve                                                                           |
+| -------------------------------------- | -------------------------------------------------------------------------------------- |
+| `tblPedidos[importe]`                  | La columna `importe` (sin cabecera)                                                    |
+| `tblPedidos[[#Encabezados],[importe]]` | La cabecera de la columna (en Excel en español, `#Encabezados`; en inglés, `#Headers`) |
+| `tblPedidos[@importe]`                 | El valor de la fila actual                                                             |
+| `tblPedidos[#Todo]`                    | Toda la tabla con cabeceras (en inglés, `[#All]`)                                      |
+
+<Callout type="tip">
+  Nombra las tablas con un prefijo (`tbl`) y las columnas sin espacios ni caracteres raros. Una
+  fórmula como `=SUMAR.SI.CONJUNTO(tblPedidos[importe];tblPedidos[segmento];"Premium")` se lee sola;
+  `=SUMAR.SI.CONJUNTO($F$2:$F$9000;$C$2:$C$9000;"Premium")` no.
+</Callout>
+
+### Derrame (_spill_) y el operador `#`
+
+En Excel para Microsoft 365, Excel 2021 y versiones posteriores, una fórmula que devuelve varios valores los escribe automáticamente en las celdas contiguas: es el **derrame**. La celda con la fórmula es la celda ancla; el rango derramado se marca con un borde azul y no se puede sobrescribir a mano. Si algo bloquea el espacio, aparece el error `#DESBORDAMIENTO!` (en inglés, `#SPILL!`).
+
+Para referirte al resultado completo desde otra fórmula, añade `#` a la celda ancla: `=SUMA(F2#)` suma todo lo derramado desde `F2`, aunque crezca o encoja.
+
+### Las funciones que cambian el trabajo
+
+<ExcelFn en="FILTER" es="FILTRAR" /> devuelve las filas que cumplen una condición:
+
+```text
+=FILTRAR(tblPedidos; tblPedidos[descuento]>0,2; "Sin resultados")
+```
+
+<ExcelFn en="SORT" es="ORDENAR" /> y <ExcelFn en="SORTBY" es="ORDENARPOR" /> ordenan; la segunda
+permite ordenar por una columna que no se muestra:
+
+```text
+=ORDENAR(FILTRAR(tblPedidos; tblPedidos[descuento]>0,2); 5; -1)
+=ORDENARPOR(tblClientes[nombre]; tblClientes[ingresos]; -1)
+```
+
+<ExcelFn en="UNIQUE" es="UNICOS" /> devuelve los valores distintos (y, con el tercer argumento, los
+que aparecen exactamente una vez):
+
+```text
+=UNICOS(tblPedidos[customer_id])
+=CONTARA(UNICOS(tblPedidos[customer_id]))      ← número de clientes distintos
+```
+
+<ExcelFn en="SEQUENCE" es="SECUENCIA" /> genera una serie (`=SECUENCIA(12)` o una cuadrícula con
+filas y columnas), útil para calendarios y para índices.
+
+Se combinan: «los cinco clientes con más ingresos» es
+
+```text
+=TOMAR(ORDENARPOR(UNICOS(tblPedidos[customer_id]); ... ); 5)
+```
+
+(<ExcelFn en="TAKE" es="TOMAR" />; los ingresos por cliente se calculan en la lección 2 con `LET`).
+
+### BUSCARX y COINCIDIRX
+
+<ExcelFn en="XLOOKUP" es="BUSCARX" /> sustituye a `BUSCARV` (<ExcelFn en="VLOOKUP" es="BUSCARV" />
+), `BUSCARH` y a la pareja `INDICE`/`COINCIDIR`. Sintaxis en español, con `;` como separador:
+
+```text
+=BUSCARX(valor_buscado; matriz_buscada; matriz_devuelta; [si_no_se_encuentra]; [modo_de_coincidencia]; [modo_de_búsqueda])
+```
+
+Ventajas frente a `BUSCARV`:
+
+| Aspecto                    | `BUSCARV`                                   | `BUSCARX`                                       |
+| -------------------------- | ------------------------------------------- | ----------------------------------------------- |
+| Dirección                  | Solo a la derecha de la columna de búsqueda | Cualquier dirección (dos rangos independientes) |
+| Rompe al insertar columnas | Sí (índice numérico de columna)             | No (devuelves un rango, no un número)           |
+| Coincidencia por defecto   | Aproximada (si olvidas `FALSO`)             | **Exacta**                                      |
+| No encontrado              | `#N/A`; hay que envolver en `SI.ERROR`      | Cuarto argumento: `"Sin segmento"`              |
+| Varias columnas            | Una por fórmula                             | `matriz_devuelta` de varias columnas se derrama |
+| Búsqueda de abajo arriba   | No                                          | `modo_de_búsqueda = -1`                         |
+
+```text
+=BUSCARX([@customer_id]; tblClientes[customer_id]; tblClientes[segmento]; "Sin segmento")
+```
+
+<ExcelFn en="XMATCH" es="COINCIDIRX" /> devuelve la **posición** del valor, con los mismos modos de
+coincidencia; sirve para `INDICE(…; COINCIDIRX(…))` cuando necesitas la posición y no el valor.
+
+<Snapshot date="2026-10">
+  `BUSCARX`, `FILTRAR`, `ORDENAR`, `UNICOS` y `SECUENCIA` están disponibles en Excel para Microsoft
+  365 y en Excel 2021 y posteriores; `BUSCARX` figura también como disponible en Excel 2019 en la
+  documentación de Microsoft, pero las funciones de matriz dinámica no forman parte de esa versión.
+  En Excel 2016 y anteriores no existen: un libro creado con ellas se abre, pero verás `#¿NOMBRE?`.
+  Comprueba la versión de quien recibe el libro antes de entregarlo.
+</Snapshot>
+
+### Separadores y configuración regional
+
+El idioma de Excel cambia el **nombre de las funciones** (`SUM` ↔ `SUMA`) y la configuración regional cambia los **separadores**:
+
+| Configuración    | Separador de argumentos | Separador decimal | Separador de miles |
+| ---------------- | ----------------------- | ----------------- | ------------------ |
+| Español (España) | `;`                     | `,`               | `.`                |
+| Inglés (EE. UU.) | `,`                     | `.`               | `,`                |
+
+Un archivo `.xlsx` guarda las fórmulas **siempre en inglés y con comas**; Excel las traduce al abrirlas. Por eso un libro viaja bien entre idiomas, pero una fórmula copiada de un blog en inglés no funciona al pegarla en un Excel español: cambia los nombres y los `,` por `;`. Si trabajas con CSV, la misma coma decimal explica muchos «números que son texto» (lección 2 del módulo de limpieza).
+
+### Y en Hojas de cálculo de Google
+
+Hojas de cálculo de Google incluye `FILTER`, `SORT`, `UNIQUE`, `XLOOKUP`, `LET`, `LAMBDA`, `QUERY` y `ARRAYFORMULA` en su lista oficial de funciones. `QUERY` (un lenguaje parecido a SQL dentro de la celda) y `ARRAYFORMULA` no existen en Excel. El nombre que ves al escribir puede depender del idioma de la hoja: confía en el autocompletado.
+
+## En la práctica
+
+Un flujo de trabajo para el ejemplo del lunes:
+
+1. Convierte la exportación en una tabla (`tblPedidos`) y comprueba los tipos (fechas, números y texto).
+2. Escribe una fórmula `FILTRAR` para la lista de descuentos altos y envuélvela en `ORDENAR` para el orden por importe.
+3. Cuenta clientes distintos con `CONTARA(UNICOS(...))`.
+4. Añade el segmento con `BUSCARX` y un valor para «no encontrado» (así detectas los clientes sin ficha en lugar de arrastrar `#N/A`).
+5. Revisa los totales con una tabla dinámica (lección 3) por si alguna fórmula se ha desalineado.
+
+El libro de práctica de esta lección te da una muestra de 2.000 pedidos de Lumen con las tablas ya creadas, las fórmulas para escribir y una hoja de autocomprobación que marca ✔/✘ cada resultado.
+
+## Trade-offs y cuándo usarlo
+
+- **Tabla frente a rango:** las tablas añaden robustez y legibilidad; el coste es que las referencias estructuradas se vuelven más largas y no todas las herramientas externas las entienden igual.
+- **Fórmulas dinámicas frente a Power Query:** para transformaciones **repetibles** sobre datos externos o con muchas filas, Power Query (lección 3) es más trazable; para cálculos ligeros sobre datos ya en el libro, una fórmula es más rápida de escribir.
+- **Compatibilidad:** las funciones dinámicas no existen en versiones antiguas; si entregas a clientes externos, valora entregar un PDF o valores pegados.
+- **Rendimiento:** `FILTRAR` y `BUSCARX` sobre cientos de miles de filas pueden ralentizar el libro; allí conviene Power Query, el modelo de datos o la base de datos.
+
+## Errores comunes
+
+- **Pegar valores sobre un rango derramado** (`#DESBORDAMIENTO!`) o poner datos justo debajo de una fórmula que necesita crecer.
+- **Olvidar el caso vacío** en `FILTRAR` (devuelve `#CALC!` sin resultados si no pones el tercer argumento).
+- **Usar `BUSCARX` con una coincidencia aproximada** sin ordenar y sin quererlo: el modo por defecto es exacto, así que cualquier modo distinto debe ser deliberado.
+- **Rangos fijos** (`$A$2:$A$500`) que se quedan cortos cuando llegan más filas: usa tablas.
+- **Números guardados como texto** (llegan con coma decimal o espacios): `BUSCARX` no los encuentra aunque «se vean iguales».
+- **Copiar fórmulas entre idiomas** sin traducir nombres y separadores.
+
+## Con IA
+
+Un asistente puede escribir `FILTRAR(...)` o `BUSCARX(...)` en un segundo, pero a menudo mezcla idioma y separadores, inventa nombres de columna que no existen o usa funciones no disponibles en tu versión. Dale **el nombre de la tabla y de las columnas**, el **idioma de tu Excel** y la versión, y pídele la fórmula **con un ejemplo de resultado esperado** que puedas comprobar. La lección 5 detalla el protocolo de verificación.
+
+## En una entrevista
+
+- _"¿Qué ventajas tiene BUSCARX sobre BUSCARV?"_ — Pista: dirección libre, coincidencia exacta por defecto, argumento de «no encontrado», no se rompe al insertar columnas, devuelve varias columnas.
+- _"¿Qué es el derrame y qué significa `#`?"_ — Pista: resultados de matriz que ocupan celdas vecinas; `F2#` es el rango derramado completo.
+- _"¿Cómo cuentas los clientes distintos sin tabla dinámica?"_ — Pista: `CONTARA(UNICOS(rango))`.
+
+<KeyTakeaways
+  items={[
+    'Convierte los datos en tablas estructuradas (Ctrl+T): las fórmulas se rellenan solas, el rango crece con los datos y las referencias estructuradas se leen como frases.',
+    'Las fórmulas dinámicas devuelven matrices que se derraman; el operador # (F2#) apunta al resultado completo y #DESBORDAMIENTO! indica que algo bloquea el espacio.',
+    'FILTRAR, ORDENAR, ORDENARPOR, UNICOS y SECUENCIA sustituyen columnas auxiliares y fórmulas matriciales; combinadas con TOMAR responden a «los N mejores».',
+    'BUSCARX supera a BUSCARV: coincidencia exacta por defecto, argumento de no encontrado, cualquier dirección y sin índices de columna frágiles; COINCIDIRX devuelve la posición.',
+    'Los archivos guardan fórmulas en inglés; el nombre en español y el separador ; solo cambian al mostrarlas, y la disponibilidad depende de la versión de Excel del lector.',
+  ]}
+/>

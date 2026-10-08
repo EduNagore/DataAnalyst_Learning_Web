@@ -46,6 +46,11 @@ const labs = (lesson.data.relatedLabs ?? [])
   .map((id: string) => allLabs.find((l) => labIdOf(l.id) === id))
   .filter((l): l is NonNullable<typeof l> => Boolean(l))
   .map((l) => ({ id: labIdOf(l.id), title: l.data.title }));
+const allWorkbooks = await getCollection('workbooks');
+const workbooks = (lesson.data.relatedWorkbooks ?? [])
+  .map((id: string) => allWorkbooks.find((w) => w.id === id))
+  .filter((w): w is NonNullable<typeof w> => Boolean(w))
+  .map((w) => ({ id: w.id, title: w.data.title }));
 const questions = (await loadAllQuestions()).filter((q) => q.lessonId === lesson.id);
 ---
 
@@ -59,6 +64,7 @@ const questions = (await loadAllQuestions()).filter((q) => q.lessonId === lesson
   prevLesson={prev}
   nextLesson={next}
   labs={labs}
+  workbooks={workbooks}
 >
   <Content />
   <Fragment slot="after">

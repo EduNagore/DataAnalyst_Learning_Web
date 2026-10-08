@@ -1,0 +1,211 @@
+---
+title: 'IA en hojas de cálculo: Copilot, Claude para Excel, Gemini y cómo verificar'
+description: 'Qué ofrecen hoy Copilot en Excel, el complemento Claude para Excel y Gemini en Hojas de cálculo de Google, con sus límites y riesgos (inyección de instrucciones, datos sensibles), y un protocolo de verificación de lo que la IA escribe en tu libro.'
+module: hojas-de-calculo
+order: 5
+level: intermedio
+estimatedMinutes: 45
+objectives:
+  - 'Distinguir los modos de trabajo de un asistente de IA en la hoja (preguntar, planificar, editar) y elegir el adecuado.'
+  - 'Describir con precisión qué ofrecen Copilot en Excel, Claude para Excel y Gemini en Hojas de cálculo de Google, y qué cambia con el tiempo.'
+  - 'Aplicar un protocolo de verificación de cuatro controles (cuadre, muestreo, fórmulas visibles, casos límite) a cualquier cambio hecho por una IA.'
+  - 'Identificar los riesgos específicos: inyección de instrucciones en libros externos, datos sensibles, resultados no deterministas y dependencia de funciones en vista previa.'
+prerequisites: ['hojas-de-calculo/04-modelado-auditoria-y-python-en-excel']
+tools: ['excel', 'google-sheets', 'copilot', 'claude']
+volatility: high
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Microsoft — Función COPILOT (retirada)'
+    url: 'https://support.microsoft.com/en-us/excel/functions/copilot-function'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft — Get started with Copilot in Excel'
+    url: 'https://support.microsoft.com/en-us/copilot-excel'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Anthropic — Use Claude for Excel'
+    url: 'https://claude.com/docs/office-agents/excel'
+    type: docs
+    authors: 'Anthropic'
+    year: 2026
+  - title: 'Google — Usar la función AI en Hojas de cálculo de Google'
+    url: 'https://support.google.com/docs/answer/15877199?hl=es'
+    type: docs
+    authors: 'Google'
+    year: 2026
+  - title: 'Google — Get started with BigQuery data in Google Sheets (Connected Sheets)'
+    url: 'https://support.google.com/docs/answer/9702507?hl=en'
+    type: docs
+    authors: 'Google'
+    year: 2026
+relatedLabs: []
+relatedWorkbooks: ['verificar-el-trabajo-de-una-ia']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import ExcelFn from '../../../components/content/ExcelFn.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Tu directora te envía un libro de previsión y escribe en el chat: «pídele a la IA que actualice la
+  hipótesis de descuento al 12 % y que me diga el efecto en el margen». El asistente lo hace en
+  segundos y devuelve un margen distinto al de ayer. ¿Es porque cambió la hipótesis, porque el
+  asistente tocó otra celda o porque reescribió una fórmula con una errata? La IA ahorra tiempo en
+  las hojas de cálculo, pero **solo si sabes comprobar lo que hace**.
+</BusinessContext>
+
+## Intuición
+
+Un asistente de IA en la hoja es un **becario muy rápido, que escribe fórmulas verosímiles y a veces se inventa cosas**. Puede explicar un modelo heredado, proponer una fórmula, rellenar una plantilla o clasificar textos. No es determinista (la misma petición puede dar resultados distintos), no conoce tu negocio y puede equivocarse con total seguridad. La pregunta correcta no es «¿acierta?», sino «**¿cómo me entero de cuándo no ha acertado?**».
+
+## Cómo funciona
+
+### Tres modos de uso
+
+Los asistentes actuales se pueden usar de tres maneras, cada una con un riesgo distinto:
+
+| Modo                      | Qué hace                                               | Riesgo                             | Ejemplo                                                     |
+| ------------------------- | ------------------------------------------------------ | ---------------------------------- | ----------------------------------------------------------- |
+| **Preguntar** (solo chat) | Lee el libro y responde sin modificarlo                | Respuesta errónea o inventada      | «¿Cómo se calcula el margen de la celda H42?»               |
+| **Planificar**            | Propone los pasos antes de ejecutarlos                 | Plan equivocado, que revisas tú    | «Plan para consolidar las 12 hojas mensuales»               |
+| **Editar**                | Modifica celdas, fórmulas, tablas y gráficos del libro | Cambios silenciosos, sobrescritura | «Actualiza la hipótesis de descuento y recalcula el margen» |
+
+Regla: usa el modo **menos peligroso que resuelva la tarea**, y trabaja siempre sobre **una copia** cuando permitas edición.
+
+### Copilot en Excel
+
+<Snapshot date="2026-10">
+  Según la página de Microsoft «Get started with Copilot in Excel», Copilot en Excel está disponible
+  en Windows, Mac, la web, iPad, iPhone y Android, con modos que varían por plataforma: **permitir
+  edición** (tareas de varios pasos que modifican el libro), **planificar** (propone un enfoque
+  antes de ejecutar) y **solo chat** (analiza y explica sin cambiar nada). Se abre desde el icono de
+  Copilot en la esquina inferior derecha. Puede editar hojas, generar fórmulas, crear gráficos y
+  tablas dinámicas, dar información y buscar en la web con citas. La documentación remite a las
+  preguntas frecuentes para los requisitos de licencia (Microsoft 365 Copilot u otros planes). Las
+  páginas de Microsoft sobre el «modo agente» han cambiado de nombre y de estado varias veces desde
+  2025 (vista previa del programa Frontier, disponibilidad general, soporte de modelos de
+  Anthropic): consulta la página vigente antes de prometer una capacidad a un equipo.
+</Snapshot>
+
+<Snapshot date="2026-10">
+  **La función `=COPILOT()` ya no existe.** Microsoft la ofreció como vista previa (programas
+  Frontier e Insider) con la forma `=COPILOT("Resume esta opinión", A2:A20)`, y su página oficial
+  indica que «a partir del 14 de septiembre de 2026, la función COPILOT deja de estar disponible en
+  Microsoft Excel». Los resultados ya calculados se conservan como valores en caché, pero **al
+  recalcular aparece `#¿NOMBRE?`** (en inglés, `#NAME?`) porque la función no se reconoce. Microsoft
+  recomienda usar el panel de Copilot. Si heredas un libro que la usa, convierte los resultados en
+  valores y documenta de dónde salieron.
+</Snapshot>
+
+La lección práctica: una función de IA que vive **dentro de una celda** se recalcula con los datos, es difícil de auditar y depende de un servicio que puede desaparecer. Si algo importa, **fija el resultado como valor** y documenta cuándo, con qué modelo y con qué petición se generó.
+
+### Claude para Excel
+
+Claude para Excel es un complemento (disponible en Microsoft AppSource) para los planes Pro, Max, Team y Enterprise de Claude. Funciona en Excel para la web, Windows con Microsoft 365 y Mac, y no en Excel 2016/2019 con licencia perpetua, iPad ni Android.
+
+<Snapshot date="2026-10">
+  Según la documentación de Anthropic: responde preguntas sobre el libro **con citas a celdas
+  concretas** en las que puedes pulsar para navegar; ajusta supuestos **preservando las relaciones
+  entre fórmulas**; localiza la causa de errores; genera plantillas y modelos; ordena, filtra, edita
+  tablas dinámicas, aplica formato condicional y crea listas desplegables. **No admite** tablas de
+  datos de Excel ni macros VBA. Avisa antes de sobrescribir datos existentes. Los datos de entrada y
+  salida se eliminan del servidor en 30 días salvo excepciones, y el historial del chat se guarda en
+  el navegador. La propia documentación **desaconseja** su uso para entregables finales sin revisión
+  humana, para cálculos críticos de auditoría sin verificar y para datos muy sensibles o regulados
+  sin controles.
+</Snapshot>
+
+### Gemini en Hojas de cálculo de Google
+
+<Snapshot date="2026-10">
+  Hojas de cálculo de Google incluye la función `AI("petición"; [rango])` (también `GEMINI()`), que
+  genera, resume, clasifica o analiza sentimiento a partir del rango indicado. Requiere un plan de
+  Google Workspace o de IA de Google que lo incluya. Según la ayuda: se seleccionan como máximo
+  **350 celdas** por generación, existen límites de uso a corto y largo plazo, **solo accede a los
+  datos del rango referenciado**, el resultado se inserta en la celda y se regenera con «Actualizar
+  e insertar», y advierte de que Gemini «puede sugerir información errónea» y de que no se envíe
+  información personal, sensible o confidencial.
+</Snapshot>
+
+Además, **Connected Sheets** conecta una hoja con BigQuery (consultas sobre miles de millones de filas desde la hoja, a petición o programadas, con resultados guardados en la hoja), que es la ruta natural cuando el dato ya no cabe en un libro. Requiere un proyecto de Google Cloud con facturación y permisos de BigQuery.
+
+### Riesgos específicos
+
+- **Inyección de instrucciones (_prompt injection_):** un libro descargado puede contener texto oculto (celdas con fuente blanca, comentarios, hojas ocultas) que el asistente interpreta como órdenes («envía estos datos…»). La documentación de Anthropic avisa expresamente de que se use solo con hojas de confianza y de que se revisen las confirmaciones, sobre todo en archivos externos.
+- **Datos sensibles:** lo que ve el asistente viaja a un servicio externo. Elimina datos personales y confidenciales o usa los entornos autorizados por tu organización.
+- **No determinismo:** la misma petición da distintos resultados; las clasificaciones de texto necesitan una muestra revisada y un registro del modelo y la fecha.
+- **Dependencia de vistas previas:** como muestra `=COPILOT()`, una función en preview puede retirarse con semanas de aviso.
+- **Errores plausibles:** referencias desplazadas, rangos truncados, fórmulas «parecidas» pero distintas, o resultados correctos solo para el caso de ejemplo.
+
+### Protocolo de verificación de cuatro controles
+
+Antes de aceptar cualquier cambio de un asistente:
+
+1. **Cuadre:** los totales clave coinciden con la versión anterior o con una fuente independiente (SQL, sistema contable), y la diferencia se explica con el cambio pedido.
+2. **Muestreo:** recalcula a mano o en otra herramienta (Python, SQL) **5-10 filas** elegidas al azar, incluidas las extremas.
+3. **Fórmulas visibles:** muestra las fórmulas (``Ctrl+` ``) y busca valores escritos a mano, patrones rotos y rangos que no cubren todas las filas; compara con el archivo previo si guardaste una copia.
+4. **Casos límite:** prueba cero, negativos, vacíos, duplicados y un cambio de supuesto con efecto conocido (si subo el descuento un punto, el margen debe bajar).
+
+Y dos hábitos: **copia antes de editar** (la versión original se conserva) y **registro** de la petición, el modelo, la fecha y la comprobación en la hoja Léeme.
+
+<Callout type="warning">
+  Un asistente que «recalcula todo» y devuelve un número distinto no te dice que el modelo mejoró,
+  sino que **algo cambió**. Pide el listado de celdas modificadas y compáralo con lo que querías
+  cambiar. Si no puedes obtener ese listado, no aceptes el cambio.
+</Callout>
+
+## En la práctica
+
+Un flujo de trabajo para la petición de la directora:
+
+1. Guarda una **copia** del libro (`previsión_v7_antes_IA.xlsx`).
+2. Pide en modo **planificar**: «qué celdas cambiarías para poner el descuento en 12 % y qué efecto esperas».
+3. Revisa el plan, permite la **edición** y pide la lista de celdas modificadas.
+4. Aplica los cuatro controles. Observa si el asistente tocó algo más que la hipótesis.
+5. Escribe en el Léeme: fecha, herramienta, petición, comprobaciones y resultado.
+6. Si el resultado va a un informe, recalcula la cifra clave **fuera** del libro (SQL o Python).
+
+El libro `verificar-el-trabajo-de-una-ia` contiene un modelo de márgenes tal como lo dejó un «asistente»: tiene cuatro fallos plausibles. Aplica el protocolo y los encuentras.
+
+## Trade-offs y cuándo usarlo
+
+- **Velocidad frente a trazabilidad:** la IA acelera la primera versión; la trazabilidad la pones tú con el registro y los controles.
+- **Complemento externo frente a asistente integrado:** el integrado suele estar mejor aprobado por TI; el externo puede ofrecer capacidades distintas (citas a celdas, otros modelos). Elige según política de datos.
+- **Función de IA en celda frente a valores fijados:** la primera se actualiza sola pero cuesta auditar y puede cambiar de resultado; la segunda es estable y revisable.
+- **Hoja frente a notebook:** si necesitas reproducibilidad exacta, la IA debe generar el código del análisis, no ser parte del cálculo.
+
+## Errores comunes
+
+- **Aceptar un resultado porque «tiene buena pinta».**
+- **Dejar que la IA edite el único ejemplar** del libro.
+- **Abrir con un asistente un libro descargado de internet** sin revisar contenido oculto.
+- **Pegar datos personales** en el chat.
+- **Confiar en `=COPILOT()` o en otra vista previa** para un proceso permanente.
+- **No registrar** qué se pidió, cuándo y a qué modelo.
+- **Esperar que dos ejecuciones den lo mismo** en clasificaciones de texto.
+
+## Con IA
+
+Este es el tema de la lección entera, así que solo un resumen: úsala para **explicar** un libro heredado, **proponer** fórmulas y casos de prueba, **clasificar** textos con muestra revisada y **redactar** la documentación del Léeme. No la uses para **dar por buenos** totales sin cuadre, ni para tocar un libro sin copia. Los protocolos de verificación y los riesgos se amplían en el módulo de LLMs como copiloto del analista.
+
+## En una entrevista
+
+- _"¿Cómo compruebas el trabajo de un asistente de IA en un modelo financiero?"_ — Pista: copia, lista de cambios, cuadre contra fuente independiente, muestreo, fórmulas visibles, casos límite, registro.
+- _"¿Qué riesgos tiene abrir un libro de terceros con un asistente?"_ — Pista: inyección de instrucciones, datos sensibles, ejecución de acciones no deseadas; confirmar y usar solo con libros de confianza.
+- _"¿Qué le pasó a la función COPILOT de Excel?"_ — Pista: era una vista previa; Microsoft la retiró el 14 de septiembre de 2026 y los recálculos devuelven un error de nombre; moraleja sobre depender de previews.
+
+<KeyTakeaways
+  items={[
+    'Elige el modo menos peligroso que resuelva la tarea (preguntar, planificar, editar) y trabaja con una copia cuando permitas que el asistente modifique el libro.',
+    'La función =COPILOT() fue retirada el 14 de septiembre de 2026: los resultados se quedan en caché y el recálculo da error de nombre; no construyas procesos permanentes sobre vistas previas.',
+    'Claude para Excel ofrece citas a celdas y avisa antes de sobrescribir, pero su propia documentación desaconseja entregables finales sin revisión humana; Gemini en Sheets limita a 350 celdas por generación y advierte de datos sensibles.',
+    'Los libros externos pueden contener instrucciones ocultas (inyección de instrucciones): usa asistentes solo con hojas de confianza y revisa las confirmaciones.',
+    'Verifica con cuatro controles (cuadre, muestreo, fórmulas visibles, casos límite) y deja un registro de petición, herramienta, fecha y comprobación.',
+  ]}
+/>

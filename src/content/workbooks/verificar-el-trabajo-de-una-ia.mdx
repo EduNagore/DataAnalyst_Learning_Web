@@ -1,0 +1,30 @@
+---
+title: 'Verificar el trabajo de una IA en un modelo de previsión'
+description: 'Un asistente de IA actualizó la hipótesis de descuento de un modelo por segmento y cometió cuatro errores plausibles. Aplica el protocolo de cuatro controles para encontrarlos.'
+difficulty: 2
+estimatedMinutes: 40
+skills: ['Verificación de IA', 'Cuadre de totales', 'Muestreo', 'Casos límite']
+functions:
+  - { en: 'SUM', es: 'SUMA' }
+commonMistakes:
+  - 'Aceptar el resultado porque «tiene buena pinta».'
+  - 'No comparar con la versión anterior ni pedir la lista de celdas modificadas.'
+  - 'Corregir un síntoma sin buscar la causa (la hipótesis mal escrita).'
+  - 'No dejar registro de la comprobación.'
+downloadUrl: 'workbooks/verificar-el-trabajo-de-una-ia.xlsx'
+solutionUrl: 'workbooks/verificar-el-trabajo-de-una-ia-solucion.xlsx'
+relatedLessons: ['hojas-de-calculo/05-ia-en-hojas-de-calculo-y-verificacion']
+---
+
+## Qué vas a practicar
+
+Un asistente de IA ha cambiado la hipótesis de descuento del modelo `Prevision` (ingresos y costes de 2025 por segmento, en miles de euros) y ha recalculado el margen. Aplica el **protocolo de cuatro controles**:
+
+1. **Cuadre:** ¿el total es la suma de las filas?
+2. **Muestreo:** recalcula a mano una fila (por ejemplo, el segmento ocasional).
+3. **Fórmulas visibles:** muestra las fórmulas y busca patrones rotos y valores pegados.
+4. **Casos límite:** ¿qué pasa con el supuesto de descuento? ¿Tiene sentido un descuento del 1200 %?
+
+## Entregable
+
+Deja `Comprobacion` en ✔ y escribe en una hoja nueva `Registro` la fecha, qué se pidió a la IA, qué errores encontraste y cómo los corregiste. La solución incluye la hoja `Errores` con los cuatro fallos y cómo se detectan.

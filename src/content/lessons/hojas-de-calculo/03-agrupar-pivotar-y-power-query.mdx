@@ -1,0 +1,213 @@
+---
+title: 'Agrupar y pivotar: AGRUPARPOR, tablas dinámicas, Power Query y modelo de datos'
+description: 'Cuándo usar AGRUPARPOR y PIVOTARPOR, tablas dinámicas, Power Query o el modelo de datos para resumir datos en Excel, con sus ventajas, límites y la ruta de escalado hacia Power BI.'
+module: hojas-de-calculo
+order: 3
+level: intermedio
+estimatedMinutes: 50
+objectives:
+  - 'Resumir datos con AGRUPARPOR y PIVOTARPOR y con una tabla dinámica, y elegir entre ambas según el caso.'
+  - 'Construir una consulta de Power Query (importar, limpiar, combinar y cargar) y explicar por qué sus pasos son reproducibles.'
+  - 'Explicar para qué sirve el modelo de datos (Power Pivot) y cuándo una medida DAX supera a una fórmula de celda.'
+  - 'Decidir con criterios de volumen, repetibilidad y colaboración si un análisis debe quedarse en Excel o pasar a Power BI o SQL.'
+prerequisites: ['hojas-de-calculo/02-let-lambda-y-funciones-de-matriz']
+tools: ['excel', 'power-query', 'power-bi']
+volatility: medium
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Microsoft — Función AGRUPARPOR'
+    url: 'https://support.microsoft.com/es-ES/Excel/functions/groupby-function'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft — Función PIVOTARPOR'
+    url: 'https://support.microsoft.com/es-ES/Excel/functions/pivotby-function'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft — Crear una tabla dinámica para analizar datos de una hoja de cálculo'
+    url: 'https://support.microsoft.com/es-es/office/crear-una-tabla-din%C3%A1mica-para-analizar-datos-de-una-hoja-de-c%C3%A1lculo-a9a84538-bfe9-40a9-a8e9-f99134456576'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft Learn — ¿Qué es Power Query?'
+    url: 'https://learn.microsoft.com/es-es/power-query/power-query-what-is-power-query'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft Learn — Conceptos básicos del plegado de consultas'
+    url: 'https://learn.microsoft.com/es-es/power-query/query-folding-basics'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+relatedLabs: ['py-tabla-dinamica-pandas']
+relatedWorkbooks: ['agrupar-y-pivotar']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import ExcelFn from '../../../components/content/ExcelFn.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Cada mes el equipo comercial pega un nuevo CSV de pedidos en un libro, rehace a mano las mismas
+  limpiezas y actualiza tres tablas dinámicas. Tarda una mañana y alguna vez se olvida de un paso.
+  Lo que necesitan es una **cadena que se repite sola**: importar, limpiar, combinar, resumir y
+  actualizar con un clic.
+</BusinessContext>
+
+Resumir datos es el centro del análisis en hoja de cálculo. Excel ofrece cuatro herramientas con filosofías distintas; elegir bien ahorra horas y errores.
+
+## Intuición
+
+Hay una escalera de herramientas: **fórmula** (rápida, visible, sin pasos guardados), **tabla dinámica** (exploración interactiva), **Power Query** (cadena de transformaciones reproducible) y **modelo de datos** (varias tablas relacionadas con medidas). Cada peldaño añade potencia y también un poco de complejidad. La regla práctica: usa el peldaño más bajo que resuelva el problema **y** sea repetible.
+
+## Cómo funciona
+
+### AGRUPARPOR y PIVOTARPOR
+
+<ExcelFn en="GROUPBY" es="AGRUPARPOR" /> agrupa y agrega **a lo largo de un eje** (filas);
+<ExcelFn en="PIVOTBY" es="PIVOTARPOR" /> lo hace a lo largo de **dos ejes** (filas y columnas).
+Ambas son fórmulas: se actualizan solas y se derraman.
+
+```text
+=AGRUPARPOR(campos_de_fila; valores; función; [encabezados_de_campo]; [profundidad_total]; [orden]; [matriz_de_filtro]; [relación_de_campo])
+=PIVOTARPOR(campos_de_fila; campos_de_columna; valores; función; ...)
+```
+
+El argumento `función` es una `LAMBDA` o una función ya «reducida» (`SUMA`, `PROMEDIO`, `CONTARA`…). Valores de apoyo según la documentación:
+
+| Argumento            | Valores                                                                                  |
+| -------------------- | ---------------------------------------------------------------------------------------- |
+| `field_headers`      | 0 (no), 1 (sí, sin mostrar), 2 (no, generar), 3 (sí, mostrar) o automático               |
+| `total_depth`        | 0 sin totales; 1 total general; 2 total general y subtotales; −1 / −2 los mismos, arriba |
+| `sort_order`         | Números de columna; negativo = descendente                                               |
+| `filter_array`       | Matriz booleana que incluye o excluye filas                                              |
+| `field_relationship` | 0 jerarquía (por defecto); 1 tabla (ordena cada columna de forma independiente)          |
+
+Ingresos por segmento y por canal, ordenados por total:
+
+```text
+=PIVOTARPOR(tblPedidos[segmento]; tblPedidos[canal]; tblPedidos[importe]; SUMA)
+```
+
+<Snapshot date="2026-10">
+  Según Microsoft, `AGRUPARPOR` está disponible en Excel para Microsoft 365, y `PIVOTARPOR` en
+  Microsoft 365, Excel 2024 y Excel 2021 (incluido Mac). Verifica la versión de los destinatarios
+  antes de depender de ellas. Ambas admiten pasar varias funciones de agregación como un vector de
+  `LAMBDA`.
+</Snapshot>
+
+**Frente a una tabla dinámica:** las fórmulas se recalculan sin actualizar, se pueden encadenar con otras funciones (`TOMAR`, `ORDENAR`, un gráfico sobre `F2#`) y no necesitan caché; pero no tienen la interfaz de arrastrar y soltar, ni agrupación de fechas automática, ni segmentaciones. Para explorar, tabla dinámica; para un informe automatizado, fórmulas.
+
+### Tablas dinámicas
+
+Una tabla dinámica (_Insertar > Tabla dinámica_) resume una tabla o un modelo de datos arrastrando campos a **Filas**, **Columnas**, **Valores** y **Filtros**. Puntos que conviene dominar:
+
+- **Origen = tabla estructurada**: así incluye las filas nuevas al actualizar.
+- **Actualizar** (_Datos > Actualizar todo_) recalcula; no es automático.
+- **Valores como porcentaje** del total o de la fila (_Mostrar valores como_), diferencias respecto a un periodo anterior y totales acumulados.
+- **Agrupar fechas** por mes, trimestre o año; **segmentaciones** para filtrar de forma visual.
+- **Campos calculados**: fórmulas sobre los campos de la tabla. Dan resultados incorrectos con razones y medias (calculan sobre totales), por lo que casi siempre es mejor una medida en el modelo de datos.
+
+### Power Query
+
+Power Query es el motor de **obtener y transformar datos** (_Datos > Obtener datos_). Cada acción del Editor de Power Query se registra como un **paso aplicado** y se guarda en el lenguaje M. Al actualizar, la cadena se vuelve a ejecutar sobre el origen nuevo.
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+  A["Origen<br/>(CSV, carpeta, base de datos)"] --> B["Limpiar<br/>(tipos, nulos, texto)"]
+  B --> C["Combinar<br/>(anexar y combinar consultas)"]
+  C --> D["Resumir<br/>(agrupar y dinamizar)"]
+  D --> E["Cargar<br/>(tabla o modelo de datos)"]
+  E --> F["Tabla dinámica, gráfico o Power BI"]`}
+  alt="Cadena de una consulta de Power Query: origen, limpiar, combinar, resumir y cargar a una tabla o modelo de datos, de donde parten las tablas dinámicas, los gráficos o Power BI."
+/>
+
+Transformaciones que sustituyen a horas de trabajo manual:
+
+| Necesidad                                | Transformación                                  |
+| ---------------------------------------- | ----------------------------------------------- |
+| Unir los CSV de una carpeta              | Obtener datos > De carpeta > Combinar           |
+| Corregir tipos y números con coma        | Cambiar tipo > Usando la configuración regional |
+| Eliminar espacios, normalizar mayúsculas | Transformar > Recortar / Limpiar / Mayúsculas   |
+| Duplicados, nulos                        | Quitar duplicados / Reemplazar valores          |
+| Una columna por cada mes                 | Dinamizar columna                               |
+| Una fila por cada mes (de ancho a largo) | Anular dinamización de columnas                 |
+| Cruzar con otra tabla                    | Combinar consultas (left/inner/anti join)       |
+
+Dos ideas de ingeniería que llegan de las bases de datos: **plegado de consultas** (_query folding_: Power Query traduce los pasos a SQL y la base de datos hace el trabajo, siempre que el origen y los pasos lo permitan) y **separar la carga de la transformación** (conexiones solo de consulta para los pasos intermedios). Como en SQL, los joins ocultan errores si las claves están sucias: comprueba filas antes y después.
+
+<Callout type="tip">
+  Si tu limpieza se hace «a mano» en una hoja, no es reproducible. Si se hace en Power Query, **es
+  un guion**: puedes revisarlo, versionar el libro y volver a ejecutarlo con datos nuevos. Es el
+  equivalente de un script de pandas dentro de Excel.
+</Callout>
+
+### Modelo de datos (Power Pivot) y medidas DAX
+
+Cuando cargas varias tablas **al modelo de datos** y las relacionas (clave primaria ↔ clave externa, como en el módulo de SQL), obtienes un modelo en estrella dentro del libro: una tabla de hechos (`pedidos`) y dimensiones (`clientes`, `productos`, `calendario`). Las tablas dinámicas sobre el modelo:
+
+- mezclan campos de varias tablas **sin `BUSCARX`**;
+- soportan **recuentos distintos** y millones de filas (compresión en columnas);
+- permiten **medidas DAX** como `Ingresos := SUM(pedidos[importe])` o `Margen % := DIVIDE([Margen]; [Ingresos])`, que se recalculan en el contexto de cada celda (la misma lógica que verás en Power BI en el módulo de dashboards).
+
+El paso siguiente es natural: el modelo y las medidas que construyes en Excel se pueden **importar a Power BI** (_Importar libro de Excel_) para publicar un informe con seguridad y actualización programada.
+
+## En la práctica
+
+Para el caso del equipo comercial:
+
+1. **Power Query** lee la carpeta de CSV mensuales, corrige tipos, normaliza el texto, quita duplicados y carga el resultado como tabla.
+2. Una **tabla dinámica** (o `PIVOTARPOR`) resume ingresos por segmento y canal; las medidas viven en el modelo si hay varias tablas.
+3. El libro tiene una hoja **Léeme** con el origen, la fecha de actualización y los pasos para actualizar (_Datos > Actualizar todo_).
+4. Una **hoja de comprobación** compara el total de la tabla dinámica con la suma del origen y con el número de filas.
+
+En el libro de práctica abres los datos de Lumen, escribes `AGRUPARPOR` y `PIVOTARPOR` y verificas el resultado contra una tabla dinámica. El lab de Python replica el mismo resumen con `pivot_table` de pandas para que veas la equivalencia.
+
+## Trade-offs y cuándo usarlo
+
+| Criterio                      | Fórmulas dinámicas | Tabla dinámica     | Power Query   | Modelo de datos + DAX |
+| ----------------------------- | ------------------ | ------------------ | ------------- | --------------------- |
+| Exploración rápida            | Media              | **Alta**           | Baja          | Alta                  |
+| Reproducible con datos nuevos | Alta               | Media (actualizar) | **Alta**      | Alta                  |
+| Volumen (cientos de miles+)   | Baja               | Media              | **Alta**      | **Alta**              |
+| Varias tablas relacionadas    | Baja (`BUSCARX`)   | Baja               | Media (merge) | **Alta**              |
+| Colaboración y control        | Media              | Media              | Media         | Baja (hasta Power BI) |
+
+Criterio de salida de Excel: millones de filas, varias personas editando, refresco programado, seguridad por fila o necesidad de auditoría → **Power BI y SQL**. La frontera clásica es el límite de **1.048.576 filas por hoja**, aunque el rendimiento se resiente mucho antes.
+
+## Errores comunes
+
+- **Tablas dinámicas con rangos fijos** que no incluyen las filas nuevas.
+- **Olvidar actualizar** antes de enviar el informe.
+- **Campos calculados** para razones y medias: los resultados son incorrectos; usa medidas.
+- **Combinar consultas con claves sucias** (espacios, mayúsculas, ceros a la izquierda) y perder filas sin darse cuenta.
+- **Cambiar de configuración regional** y que las fechas y decimales se interpreten distinto al cargar.
+- **Copiar y pegar valores sobre el resultado** de una consulta o de una fórmula derramada.
+- **Cargar al libro más datos de los necesarios** (usa conexión solo de consulta y el modelo de datos).
+
+## Con IA
+
+Un asistente es útil para **proponer la cadena de pasos** de Power Query o escribir una expresión M o DAX a partir de una descripción, pero la sintaxis exacta (M distingue mayúsculas; DAX depende del contexto de filtro) conviene **ejecutarla y comprobar el total contra el origen**. Pídele que explique cada paso y que sugiera comprobaciones (recuento de filas, suma de importes). No le pegues datos personales o confidenciales del cliente (lección 5).
+
+## En una entrevista
+
+- _"¿Cuándo usarías Power Query en lugar de fórmulas?"_ — Pista: transformaciones repetibles sobre datos externos, volumen, trazabilidad; «un script dentro de Excel».
+- _"¿Qué ventaja tiene el modelo de datos sobre una tabla dinámica normal?"_ — Pista: varias tablas relacionadas, recuento distinto, millones de filas y medidas DAX.
+- _"¿Cuándo dejarías de usar Excel?"_ — Pista: volumen, colaboración concurrente, refresco programado, seguridad y auditoría; Power BI o SQL.
+
+<KeyTakeaways
+  items={[
+    'AGRUPARPOR (un eje) y PIVOTARPOR (dos ejes) resumen datos con fórmulas que se recalculan solas; la tabla dinámica es mejor para explorar, y las fórmulas para informes automatizados.',
+    'Una tabla dinámica debe partir de una tabla estructurada o del modelo de datos y se actualiza a mano; los campos calculados fallan con razones y medias, y una medida DAX es la alternativa correcta.',
+    'Power Query registra cada transformación como un paso aplicado: la cadena es reproducible, revisable y se vuelve a ejecutar al actualizar; es el equivalente a un script de pandas dentro de Excel.',
+    'El modelo de datos relaciona varias tablas, soporta millones de filas y recuentos distintos, y sus medidas DAX se reutilizan en Power BI.',
+    'Se sale de Excel por volumen, colaboración, refresco programado, seguridad o auditoría: el siguiente destino es Power BI y SQL.',
+  ]}
+/>

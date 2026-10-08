@@ -1,0 +1,72 @@
+lesson: hojas-de-calculo/05-ia-en-hojas-de-calculo-y-verificacion
+questions:
+  - id: hoj-05-q1
+    type: single
+    difficulty: 2
+    prompt: 'Un libro heredado usa =COPILOT("Clasifica", D2:D50). ¿Qué ocurre al recalcular hoy?'
+    options:
+      - 'Se recalcula con normalidad'
+      - 'Aparece un error de nombre: la función se retiró el 14 de septiembre de 2026 y los resultados antiguos solo quedan como valores en caché'
+      - 'Excel pide una licencia adicional'
+      - 'Se convierte automáticamente en una consulta de Power Query'
+    answer: [1]
+    explanation: 'Microsoft retiró la función COPILOT (que era una vista previa). Los resultados ya calculados se conservan en caché, pero el recálculo da #¿NOMBRE?. Convierte los resultados en valores y documenta de dónde salieron.'
+    ref: '#copilot-en-excel'
+
+  - id: hoj-05-q2
+    type: order
+    difficulty: 2
+    prompt: 'Ordena el flujo recomendado para pedir un cambio a un asistente de IA en un modelo.'
+    options:
+      - 'Aplicar los cuatro controles de verificación'
+      - 'Guardar una copia del libro'
+      - 'Pedir un plan y revisarlo'
+      - 'Permitir la edición y pedir la lista de celdas modificadas'
+      - 'Registrar petición, herramienta, fecha y comprobación'
+    answer: [1, 2, 3, 0, 4]
+    explanation: 'Primero se protege el original, luego se planifica, se edita con trazabilidad de cambios, se verifica y por último se deja registro.'
+    ref: '#en-la-práctica'
+
+  - id: hoj-05-q3
+    type: single
+    difficulty: 2
+    prompt: 'Descargas un libro de un proveedor y lo abres con un asistente de IA con permiso de edición. ¿Qué riesgo específico debes considerar?'
+    options:
+      - 'Que el libro pese demasiado'
+      - 'La inyección de instrucciones: texto oculto en el archivo que el asistente puede interpretar como órdenes'
+      - 'Que el libro no tenga tablas'
+      - 'Que Excel cambie el idioma'
+    answer: [1]
+    explanation: 'La documentación de Claude para Excel avisa de que los archivos de fuentes externas pueden contener instrucciones ocultas que manipulen al asistente. Úsalo solo con hojas de confianza y revisa las confirmaciones.'
+    ref: '#riesgos-específicos'
+
+  - id: hoj-05-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los controles del protocolo de verificación.'
+    options:
+      - 'Cuadre de totales con una fuente independiente'
+      - 'Muestreo: recalcular a mano varias filas, incluidas las extremas'
+      - 'Mostrar las fórmulas y buscar valores pegados y patrones rotos'
+      - 'Aceptar el resultado si el asistente lo explica con seguridad'
+    answer: [0, 1, 2]
+    explanation: 'El cuarto control es probar casos límite. La seguridad con la que habla un asistente no es evidencia de que el resultado sea correcto.'
+    ref: '#protocolo-de-verificación-de-cuatro-controles'
+
+  - id: hoj-05-q5
+    type: numeric
+    difficulty: 2
+    prompt: 'Según la ayuda de Google, ¿cuántas celdas como máximo se pueden seleccionar a la vez para una generación con la función AI de Hojas de cálculo?'
+    answer: [350]
+    tolerance: 0
+    explanation: 'La ayuda indica un máximo de 350 celdas por generación, además de límites de uso a corto y largo plazo, y advierte de no enviar información personal, sensible o confidencial.'
+    ref: '#gemini-en-hojas-de-cálculo-de-google'
+
+  - id: hoj-05-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'La documentación de Claude para Excel recomienda usarlo para entregables finales a clientes sin revisión humana.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. La propia documentación desaconseja su uso para entregables finales sin revisión humana, para cálculos críticos de auditoría sin verificar y para datos muy sensibles sin controles.'
+    ref: '#claude-para-excel'

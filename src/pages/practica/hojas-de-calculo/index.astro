@@ -1,9 +1,41 @@
 ---
-import ComingSoon from '../../../components/layout/ComingSoon.astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import { url } from '../../../lib/url';
+
+const workbooks = (await getCollection('workbooks')).sort(
+  (a, b) => a.data.difficulty - b.data.difficulty || a.data.title.localeCompare(b.data.title, 'es'),
+);
+const difficultyLabel = ['', 'Fácil', 'Media', 'Difícil'];
 ---
 
-<ComingSoon
+<BaseLayout
   title="Hojas de cálculo"
-  description="Libros Excel descargables con autocomprobación: Power Query, matrices dinámicas, LET/LAMBDA, tablas dinámicas y más, con los nombres de función en español e inglés."
-  phase="Fase 6 · Contenido Partes 0-II"
-/>
+  description="Libros Excel descargables con autocomprobación: matrices dinámicas, LET y LAMBDA, tablas dinámicas, auditoría de modelos y verificación del trabajo de una IA, con los nombres de función en español e inglés."
+>
+  <section class="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Hojas de cálculo</h1>
+    <p class="mt-2 mb-8 text-[var(--color-text-muted)]">
+      Libros de Excel (.xlsx) con una muestra reproducible del dataset Lumen, una hoja de{' '}
+      <strong>autocomprobación</strong> que marca ✔/✘ y un libro de solución. Funcionan en Excel
+      para Microsoft 365 (algunas tareas usan funciones dinámicas) y se corrigen en tu equipo, sin
+      subir nada a ningún servidor.
+    </p>
+    <ul class="grid gap-4 sm:grid-cols-2">
+      {workbooks.map((w) => (
+        <li class="flex flex-col rounded-lg border border-[var(--color-border)] bg-[var(--color-bg)] p-4">
+          <a
+            href={url(`/practica/hojas-de-calculo/${w.id}/`)}
+            class="font-semibold text-[var(--color-text)] hover:text-[var(--color-accent)]"
+          >
+            {w.data.title}
+          </a>
+          <p class="mt-1 flex-1 text-sm text-[var(--color-text-muted)]">{w.data.description}</p>
+          <p class="mt-3 text-xs text-[var(--color-text-muted)]">
+            {difficultyLabel[w.data.difficulty]} · {w.data.estimatedMinutes} min
+          </p>
+        </li>
+      ))}
+    </ul>
+  </section>
+</BaseLayout>

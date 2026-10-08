@@ -1,0 +1,103 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import ExcelFn from '../../../components/content/ExcelFn.astro';
+import { url } from '../../../lib/url';
+
+export async function getStaticPaths() {
+  const workbooks = await getCollection('workbooks');
+  return workbooks.map((w) => ({ params: { id: w.id }, props: { workbook: w } }));
+}
+
+const { workbook } = Astro.props;
+const d = workbook.data;
+const { Content } = await render(workbook);
+const lessons = await getCollection('lessons');
+const related = (d.relatedLessons ?? [])
+  .map((lid: string) => lessons.find((l) => l.id === lid))
+  .filter((l): l is NonNullable<typeof l> => Boolean(l));
+const difficultyLabel = ['', 'Fácil', 'Media', 'Difícil'][d.difficulty];
+---
+
+<BaseLayout title={`Libro: ${d.title}`} description={d.description}>
+  <div class="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
+    <a
+      href={url('/practica/hojas-de-calculo/')}
+      class="text-xs text-[var(--color-accent)] hover:underline"
+    >
+      ← Todos los libros
+    </a>
+    <h1 class="mt-2 text-3xl font-bold text-[var(--color-text)]">{d.title}</h1>
+    <p class="mt-2 text-xs text-[var(--color-text-muted)]">
+      Excel (.xlsx) · {difficultyLabel} · {d.estimatedMinutes} min
+    </p>
+
+    <div class="mt-6 flex flex-wrap gap-3">
+      <a
+        href={url(d.downloadUrl)}
+        download
+        class="rounded-md bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90"
+      >
+        Descargar el libro de trabajo
+      </a>
+      <a
+        href={url(d.solutionUrl)}
+        download
+        class="rounded-md border border-[var(--color-border)] px-4 py-2 text-sm font-semibold text-[var(--color-text)] hover:border-[var(--color-accent)]"
+      >
+        Descargar la solución
+      </a>
+    </div>
+    <p class="mt-2 text-xs text-[var(--color-text-muted)]">
+      Intenta resolverlo antes de abrir la solución. Datos sintéticos de Lumen, sin información
+      real.
+    </p>
+
+    <article class="prose prose-neutral dark:prose-invert mt-8 max-w-none">
+      <Content />
+    </article>
+
+    {d.functions && d.functions.length > 0 && (
+      <section class="mt-8">
+        <h2 class="text-lg font-semibold text-[var(--color-text)]">Funciones (español / inglés)</h2>
+        <ul class="mt-2 flex flex-wrap gap-2">
+          {d.functions.map((f) => (
+            <li>
+              <ExcelFn en={f.en} es={f.es} />
+            </li>
+          ))}
+        </ul>
+        <p class="mt-2 text-xs text-[var(--color-text-muted)]">
+          En un Excel en español de España los argumentos se separan con «;» y el decimal es «,». El
+          archivo guarda siempre los nombres en inglés.
+        </p>
+      </section>
+    )}
+
+    <section class="mt-8">
+      <h2 class="text-lg font-semibold text-[var(--color-text)]">Errores comunes</h2>
+      <ul class="mt-2 list-inside list-disc space-y-1 text-sm text-[var(--color-text)]">
+        {d.commonMistakes.map((m: string) => (
+          <li>{m}</li>
+        ))}
+      </ul>
+    </section>
+
+    {related.length > 0 && (
+      <p class="mt-8 text-xs text-[var(--color-text-muted)]">
+        Teoría relacionada:{' '}
+        {related.map((l, i) => (
+          <>
+            {i > 0 && ', '}
+            <a
+              class="text-[var(--color-accent)] hover:underline"
+              href={url(`/teoria/${l.data.module}/${l.id.split('/').pop()}/`)}
+            >
+              {l.data.title}
+            </a>
+          </>
+        ))}
+      </p>
+    )}
+  </div>
+</BaseLayout>

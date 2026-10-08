@@ -21,7 +21,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8.3", "ruff>=0.8"]
+dev = ["pytest>=8.3", "ruff>=0.8", "formulas>=1.2"]
 
 [tool.ruff]
 line-length = 110
@@ -35,5 +35,6 @@ testpaths = ["tests/labs"]
 
 [tool.ruff.lint.per-file-ignores]
 "scripts/gen-modules.py" = ["E501"]
+"scripts/build-workbooks.py" = ["E501"]
 "public/py/**" = ["E501", "B", "SIM"]
 "src/content/labs/**/*.py" = ["E501", "F401"]

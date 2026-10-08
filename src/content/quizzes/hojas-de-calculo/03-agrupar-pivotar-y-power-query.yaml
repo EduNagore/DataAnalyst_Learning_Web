@@ -1,0 +1,73 @@
+lesson: hojas-de-calculo/03-agrupar-pivotar-y-power-query
+questions:
+  - id: hoj-03-q1
+    type: formula-output
+    difficulty: 2
+    prompt: 'Con estos datos, ¿qué devuelve la fórmula (sin cabeceras ni totales)?'
+    code: '=AGRUPARPOR(A2:A6; B2:B6; SUMA; 0; 0)'
+    table: "A2:A6 = x, y, x, y, x\nB2:B6 = 1, 2, 3, 4, 5"
+    options:
+      - 'x → 9 ; y → 6'
+      - 'x → 3 ; y → 2'
+      - 'x → 1 ; y → 2'
+      - 'x → 15 ; y → 15'
+    answer: [0]
+    explanation: 'Agrupa por A y suma B: x = 1 + 3 + 5 = 9 e y = 2 + 4 = 6. Los argumentos 0 y 0 indican sin cabeceras de campo y sin totales.'
+    ref: '#agruparpor-y-pivotarpor'
+
+  - id: hoj-03-q2
+    type: single
+    difficulty: 1
+    prompt: 'Cada mes recibes un CSV nuevo que hay que limpiar con los mismos pasos. ¿Qué herramienta de Excel registra esos pasos para repetirlos al actualizar?'
+    options:
+      - 'Una tabla dinámica'
+      - 'Power Query'
+      - 'BUSCARX'
+      - 'Formato condicional'
+    answer: [1]
+    explanation: 'Power Query guarda cada transformación como un paso aplicado en M y vuelve a ejecutar la cadena sobre el origen nuevo: es un guion reproducible dentro de Excel.'
+    ref: '#power-query'
+
+  - id: hoj-03-q3
+    type: truefalse
+    difficulty: 1
+    prompt: 'Una tabla dinámica se actualiza sola en cuanto cambian los datos de origen.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Hay que actualizarla (Datos > Actualizar todo). Por eso conviene que el origen sea una tabla estructurada y que el libro indique cómo actualizar.'
+    ref: '#tablas-dinámicas'
+
+  - id: hoj-03-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODO lo que aporta el modelo de datos (Power Pivot) frente a una tabla dinámica sobre una sola hoja.'
+    options:
+      - 'Relacionar varias tablas sin BUSCARX'
+      - 'Recuentos distintos y más filas gracias a la compresión'
+      - 'Medidas DAX que se recalculan en el contexto de cada celda'
+      - 'Que los campos calculados dejen de dar resultados erróneos con las medias'
+    answer: [0, 1, 2]
+    explanation: 'Las medidas DAX corrigen el problema de los campos calculados (que operan sobre totales), pero el campo calculado en sí no «deja de fallar»: se sustituye por una medida.'
+    ref: '#modelo-de-datos-power-pivot-y-medidas-dax'
+
+  - id: hoj-03-q5
+    type: numeric
+    difficulty: 1
+    prompt: '¿Cuántas filas como máximo admite una hoja de Excel?'
+    answer: [1048576]
+    tolerance: 0
+    explanation: 'Una hoja tiene 1.048.576 filas. En la práctica, el rendimiento se resiente mucho antes; por eso se usa Power Query, el modelo de datos o una base de datos con volúmenes altos.'
+    ref: '#trade-offs-y-cuándo-usarlo'
+
+  - id: hoj-03-q6
+    type: single
+    difficulty: 2
+    prompt: 'Una combinación de consultas en Power Query pierde filas sin avisar. ¿Cuál es la causa más probable?'
+    options:
+      - 'Power Query no soporta combinaciones'
+      - 'Las claves tienen espacios, mayúsculas o ceros a la izquierda distintos en cada tabla'
+      - 'El libro tiene demasiadas hojas'
+      - 'La tabla dinámica está ordenada'
+    answer: [1]
+    explanation: 'Igual que en SQL, un join con claves sucias descarta o desalinea filas. Normaliza las claves y comprueba el recuento de filas antes y después.'
+    ref: '#power-query'

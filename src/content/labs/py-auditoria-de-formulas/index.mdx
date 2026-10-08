@@ -1,0 +1,30 @@
+---
+title: 'Auditoría de fórmulas: patrones inconsistentes, rangos cortos y números como texto'
+description: 'Programa tres detectores de los errores de hoja de cálculo más frecuentes: celdas cuya fórmula rompe el patrón de su fila, sumas que no llegan a la última celda y números guardados como texto.'
+language: python
+part: 'Parte I · Herramientas núcleo'
+module: hojas-de-calculo
+difficulty: 3
+estimatedMinutes: 35
+concepts:
+  ['notación R1C1', 'expresiones regulares', 'detección de inconsistencias', 'auditoría de modelos']
+datasets: []
+packages: []
+output: console
+hints:
+  - 'Una referencia como `F7` o `$B$2` se puede escribir en notación relativa: si la fila y la columna son relativas, cámbialas por su desplazamiento respecto a la celda donde está la fórmula (`R[-1]C[0]`); si llevan `$`, déjalas absolutas (`R2C2`). Dos fórmulas copiadas de una celda a otra tienen el mismo texto en R1C1.'
+  - 'Usa `re.sub` con una expresión como `(\$?)([A-Z]{1,3})(\$?)(\d+)` y una función que reciba cada coincidencia. Convierte las letras de columna a número con `sum((ord(c) - 64) * 26 ** i for i, c in enumerate(reversed(letras)))`.'
+  - 'Para `celdas_inconsistentes`, normaliza cada fórmula, toma el patrón más frecuente (`collections.Counter`) y devuelve, en el orden original, las celdas con otro patrón y las que no son fórmulas (no empiezan por `=`).'
+  - 'Para `suma_incompleta`, busca `SUM(` o `SUMA(` con un rango `X1:Y2` y compara la celda final del rango con la última celda esperada. Para `numeros_como_texto`, un `str` que se convierte a número con `float` tras quitar espacios y cambiar la coma decimal por punto es sospechoso.'
+relatedLessons: ['hojas-de-calculo/04-modelado-auditoria-y-python-en-excel']
+businessQuestion: '¿Qué celdas de este modelo rompen el patrón y pueden estar falseando los totales?'
+---
+
+Imagina una fila de un modelo (`B8` a `M8`) con la misma fórmula copiada hacia la derecha. Si una celda tiene otra fórmula, un valor pegado o una referencia sin anclar, algo falla. Implementa:
+
+1. **`a_r1c1(formula, celda)`** → la fórmula con las referencias relativas convertidas a desplazamientos y las absolutas a números. Ejemplos desde `F8`: `"=F7*Supuestos!$B$2"` → `"=R[-1]C[0]*Supuestos!R2C2"`; `"=SUM(B8:E8)"` → `"=SUM(R[0]C[-4]:R[0]C[-1])"`.
+2. **`celdas_inconsistentes(serie)`** → recibe un diccionario `{celda: contenido}` y devuelve la lista de celdas (en el orden del diccionario) cuya fórmula tiene un patrón distinto del más frecuente o que no son fórmulas.
+3. **`suma_incompleta(formula, ultima_celda)`** → `True` si es una suma (`SUM` o `SUMA`) sobre un rango que termina antes de `ultima_celda` en la misma fila o columna (por ejemplo `"=SUM(B9:L9)"` con `"M9"`).
+4. **`numeros_como_texto(valores)`** → recibe `{celda: valor}` y devuelve las celdas cuyo valor es un `str` que representa un número (`"1.250"`, `"12,5"`, `" 7 "`) y que, por tanto, una suma ignoraría.
+
+La salida de tu código al final debe mostrar los errores del ejemplo.

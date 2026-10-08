@@ -1,0 +1,202 @@
+---
+title: 'Modelado, auditoría de fórmulas y Python en Excel'
+description: 'Cómo estructurar un libro (entradas, cálculos, salidas), auditarlo con las herramientas de Excel y comprobaciones propias, y cuándo usar Python en Excel, con sus requisitos y su modelo de seguridad.'
+module: hojas-de-calculo
+order: 4
+level: avanzado
+estimatedMinutes: 45
+objectives:
+  - 'Separar entradas, cálculos y salidas en un libro y documentar supuestos y comprobaciones.'
+  - 'Auditar un libro con rastreo de precedentes y dependientes, evaluación paso a paso y comprobaciones de consistencia.'
+  - 'Reconocer las clases típicas de error de hoja de cálculo (valores fijos, rangos incompletos, conversiones automáticas, referencias cruzadas) y cómo prevenirlas.'
+  - 'Explicar cómo funciona Python en Excel (función PY, ejecución en la nube, restricciones, licencias) y decidir cuándo conviene frente a fórmulas o a un notebook.'
+prerequisites: ['hojas-de-calculo/03-agrupar-pivotar-y-power-query']
+tools: ['excel', 'python']
+volatility: high
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Ziemann, Eren & El-Osta (2016) — Gene name errors are widespread in the scientific literature'
+    url: 'https://genomebiology.biomedcentral.com/articles/10.1186/s13059-016-1044-7'
+    type: paper
+    authors: 'Ziemann, M., Eren, Y., El-Osta, A.'
+    year: 2016
+  - title: 'EUSPRIG — Horror stories (European Spreadsheet Risks Interest Group)'
+    url: 'https://www.eusprig.org/horror-stories/'
+    type: docs
+    authors: 'EUSPRIG'
+    year: 2026
+  - title: 'FAST Standard — Flexible Appropriate Structured Transparent'
+    url: 'https://www.fast-standard.org/'
+    type: docs
+    authors: 'FAST Standard Organisation'
+    year: 2026
+  - title: 'Microsoft — Display the relationships between formulas and cells'
+    url: 'https://support.microsoft.com/en-us/office/display-the-relationships-between-formulas-and-cells-a59bef2b-3701-46bf-8ff1-d3518771d507'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft — Python in Excel availability'
+    url: 'https://support.microsoft.com/en-us/office/python-in-excel-availability-781383e6-86b9-4156-84fb-93e786f7cab0'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft — Data security and Python in Excel'
+    url: 'https://support.microsoft.com/en-us/office/data-security-and-python-in-excel-33cc88a4-4a87-485e-9ff9-f35958278327'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+relatedLabs: ['py-auditoria-de-formulas']
+relatedWorkbooks: ['auditoria-de-un-modelo']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import ExcelFn from '../../../components/content/ExcelFn.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Te heredan el libro con el que Finanzas calcula el plan de márgenes del año: 14 hojas, fórmulas de
+  otra persona y un total que no cuadra con el del sistema contable por 38.000 €. Nadie sabe de
+  dónde viene la diferencia. Antes de usar el libro hay que **entenderlo y auditarlo**, y antes de
+  crear uno nuevo hay que **estructurarlo** para que el siguiente no sufra lo mismo.
+</BusinessContext>
+
+## Intuición
+
+Un libro es un **programa escrito sin editor, sin tests y sin control de versiones**. Las hojas de cálculo fallan en silencio: una fórmula con un rango de menos devuelve un número plausible, no un error. Por eso un buen analista trata un libro como código: estructura clara, comprobaciones incorporadas y revisión.
+
+## Cómo funciona
+
+### Estructura: entradas, cálculos y salidas
+
+Las guías de modelado financiero (por ejemplo el estándar FAST: _Flexible, Appropriate, Structured, Transparent_) coinciden en lo básico:
+
+| Zona          | Contiene                                            | Reglas                                                                                              |
+| ------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| **Entradas**  | Supuestos, parámetros, datos externos               | Una sola vez, con unidad y fuente; formato visible (por ejemplo, celda azul); validación de datos   |
+| **Cálculos**  | Fórmulas que transforman las entradas               | Sin números escritos a mano; **una fórmula por fila o columna** (consistente); un cálculo por celda |
+| **Salidas**   | Tablas y gráficos para quien decide                 | Solo referencian los cálculos; con título, unidad y fecha                                           |
+| **Controles** | Comprobaciones que deben dar «OK»                   | Sumas de control, cuadres con el origen, contadores de filas                                        |
+| **Léeme**     | Propósito, versión, autor, fuentes, cómo actualizar | Una hoja al principio                                                                               |
+
+Prácticas que previenen la mayoría de los fallos:
+
+- **Cero números mágicos:** `=B5*1,21` es un fallo esperando a pasar. El IVA va en una celda de entrada con nombre (`tasa_iva`) y la fórmula dice `=B5*(1+tasa_iva)`.
+- **Un cálculo, una fórmula consistente:** la misma fórmula de arriba abajo de la columna (en una tabla estructurada es automático).
+- **Nombres con sentido** para las entradas clave y las tablas; evita rangos de otras hojas con referencias del tipo `Hoja7!$C$12`.
+- **Validación de datos** (lista desplegable, rango permitido) en las celdas de entrada.
+- **Controles visibles**, con una celda resumen en la portada: «Controles: OK / 2 errores».
+- **Sin celdas combinadas** en las zonas de datos, sin filas ocultas con datos, sin colores como único significado.
+- **Versiones:** guarda con fecha en el nombre o usa el historial de versiones del servicio donde se aloje el libro.
+
+### Auditoría de un libro
+
+Herramientas de Excel (pestaña _Fórmulas > Auditoría de fórmulas_):
+
+- **Rastrear precedentes / dependientes:** flechas hacia las celdas que alimentan a una fórmula o que dependen de ella. Azules si no hay errores; rojas si causan error.
+- **Evaluar fórmula:** ejecuta una fórmula anidada paso a paso, subrayando la referencia que se evalúa.
+- **Mostrar fórmulas** (``Ctrl+` ``): ves todas las fórmulas de la hoja de golpe y detectas las que cambian de patrón.
+- **Comprobación de errores:** marca fórmulas incoherentes con las vecinas, rangos que omiten celdas adyacentes y números guardados como texto.
+- **Ir a Especial** (`F5` > Especial): selecciona todas las constantes dentro de un bloque de fórmulas, es decir, valores escritos a mano que alguien pegó encima.
+
+Un método de revisión en siete pasos:
+
+1. **Lee** el Léeme y las entradas: ¿qué hace el modelo y con qué supuestos?
+2. **Recorre** las hojas de entrada a salida; mira el tamaño y las dependencias entre hojas.
+3. **Busca constantes** dentro de bloques de fórmulas y números mágicos en fórmulas.
+4. **Comprueba la consistencia** de cada columna calculada (copiar la fórmula de una fila a otra debe dar lo esperado).
+5. **Rastrea** las celdas críticas hasta las entradas con precedentes/dependientes.
+6. **Cuadra** los totales con una fuente independiente (el sistema, el origen en SQL).
+7. **Prueba** con casos extremos: cero, negativo, vacío, una fila, un millón.
+
+En el lab de Python de esta lección programas parte de este método: detectas constantes dentro de bloques de fórmulas, patrones inconsistentes y rangos que no llegan a la última fila.
+
+### Cuando falla un libro: errores reales documentados
+
+Los errores de hoja de cálculo no son anécdotas: están estudiados.
+
+- **Conversión automática de datos.** Un análisis programático de revistas de genómica encontró que **aproximadamente una quinta parte** de los artículos con listas génicas suplementarias en Excel contenían nombres de genes corrompidos (por ejemplo, símbolos como _SEPT2_ o _MARCH1_ convertidos en fechas). Excel «ayudó» con su configuración por defecto y nadie lo notó en la revisión.
+- **Colección de casos de EUSPRIG.** El grupo europeo de riesgo de hojas de cálculo mantiene un archivo de incidentes reales con consecuencias económicas; los patrones se repiten: rangos truncados, copiar y pegar mal, fórmulas distintas en una misma columna y modelos que nadie revisó.
+
+Moraleja: **el riesgo no está en la complejidad de la fórmula, sino en la falta de revisión y de comprobaciones**. Los tres controles más baratos son una suma de control contra el origen, un contador de filas y una revisión por una segunda persona.
+
+<Callout type="warning">
+  Para datos con identificadores que «parecen» fechas o números (códigos de producto, genes, ceros a
+  la izquierda), importa con **Power Query indicando el tipo texto**, o formatea la columna como
+  texto **antes** de pegar. Abrir un CSV con doble clic es la manera más rápida de corromper un
+  identificador.
+</Callout>
+
+### Python en Excel
+
+<Snapshot date="2026-10">
+  **Qué es:** código Python dentro de las celdas, escrito con la función `PY` (en una celda, escribe `=PY(` o usa _Fórmulas > Insertar Python_) y con la función `xl()` para leer rangos y tablas del libro, por ejemplo `xl("tblPedidos[#All]", headers=True)`. Los resultados pueden devolverse como DataFrame de pandas o como valores de Excel.<br />
+  **Dónde se ejecuta:** en un contenedor seguro en la nube de Microsoft, aislado por hipervisor, con la distribución de Anaconda; el código no tiene acceso a tu equipo, a la red ni a tu token, y los datos no se conservan en la nube. En la UE, los contenedores se ejecutan en la UE.<br />
+  **Restricciones:** funciones de lectura externa como `pandas.read_csv` o `read_excel` no son compatibles; los datos deben venir de las hojas o de Power Query. No está disponible en iPad, iPhone ni Android.<br />
+  **Disponibilidad y licencias:** requiere una suscripción de pago de Microsoft 365 y un canal de actualización compatible (Windows: Current Channel desde la versión 2408 en empresa; consulta la tabla de Microsoft para Mac, web y consumo). Las suscripciones incluyen una asignación mensual de cómputo «premium»; al agotarla se pasa a cómputo estándar, y existe una licencia complementaria de Python con cómputo premium ilimitado y modos de cálculo manual y parcial.
+</Snapshot>
+
+Cuándo tiene sentido:
+
+| Situación                                                              | Mejor herramienta                          |
+| ---------------------------------------------------------------------- | ------------------------------------------ |
+| Un resumen o un cruce sencillo                                         | Fórmulas dinámicas o tabla dinámica        |
+| Limpieza repetible de datos externos                                   | Power Query                                |
+| Gráfico estadístico (distribución, regresión) dentro del libro         | **Python en Excel** (matplotlib, seaborn)  |
+| Análisis estadístico sobre una tabla del libro con pandas              | **Python en Excel**                        |
+| Modelos, simulaciones, datos de millones de filas, pruebas automáticas | Notebook / script con control de versiones |
+
+Python en Excel acerca pandas y gráficos estadísticos a quien ya vive en Excel; **no sustituye** a un entorno de análisis reproducible (sin `pip install` libre, con límites de cómputo, dependiente de licencia y de la nube). Si tu equipo trabaja con repositorios y notebooks, mantén ahí el análisis y deja el libro como entrega.
+
+## En la práctica
+
+Antes de enviar o heredar un libro:
+
+1. Revisa el **Léeme** (propósito, versión, supuestos) y añade uno si no existe.
+2. Ejecuta los siete pasos de la auditoría y registra los hallazgos en una hoja «Revisión».
+3. Añade **controles** (suma de control, recuento de filas, cuadres) y una celda de resumen visible.
+4. Quita datos sensibles que no hagan falta y **protege** las celdas de fórmulas (la protección evita errores accidentales, no es una medida de seguridad).
+5. Guarda una **versión congelada** de las salidas (valores) y otra con fórmulas; indica la fecha.
+
+En el libro de práctica `auditoria-de-un-modelo` hay un modelo de márgenes con **siete errores sembrados** (un total con rango corto, una constante pegada sobre una fórmula, una referencia absoluta incorrecta, un número guardado como texto…). Encuéntralos y corrígelos; la hoja de comprobación te dice si cuadra.
+
+## Trade-offs y cuándo usarlo
+
+- **Hoja de cálculo frente a código:** la hoja es visual y universal, pero el código se puede versionar, revisar y probar. Para un cálculo que se repetirá y que influye en decisiones importantes, valora pasarlo a un script o a dbt.
+- **Documentación frente a velocidad:** un Léeme y cinco controles cuestan diez minutos y evitan días de dudas.
+- **Protección frente a flexibilidad:** bloquear fórmulas evita accidentes, pero frena a quien sabe lo que hace; documenta cómo desbloquear.
+- **Python en Excel frente a Python local:** comodidad e integración frente a control de entorno, versiones y reproducibilidad.
+
+## Errores comunes
+
+- **Números escritos dentro de fórmulas** (`*1,21`, `-38000`).
+- **Rangos que no incluyen las últimas filas** (`SUMA(B2:B99)` cuando hay 120).
+- **Fórmulas distintas dentro de una misma columna** sin que nada lo señale.
+- **Referencias relativas y absolutas mezcladas** al copiar (`$A2` frente a `A$2`).
+- **Valores pegados sobre fórmulas** («para arreglarlo rápido»).
+- **Abrir CSV con doble clic** y perder ceros o convertir códigos en fechas.
+- **Circularidades** activadas «para que funcione» (iteraciones activadas sin documentar).
+- **Compartir un libro con datos personales** o con vínculos a archivos de tu carpeta.
+
+## Con IA
+
+La IA es buena **auditora de primera pasada**: puede pedirte las fórmulas de una columna y señalar las que no siguen el patrón, listar los números mágicos o proponer controles. Pero también introduce errores plausibles al editar un libro (ver lección 5). Regla: **la IA propone, tú compruebas**: los controles del libro (sumas de control, cuadres) son el árbitro, no la confianza del asistente.
+
+## En una entrevista
+
+- _"¿Cómo estructuras un modelo en Excel?"_ — Pista: entradas, cálculos, salidas, controles y Léeme; sin números mágicos; fórmulas consistentes.
+- _"Te entregan un libro heredado con un total que no cuadra. ¿Qué haces?"_ — Pista: método de auditoría: constantes, consistencia, precedentes, cuadre con fuente independiente, casos extremos.
+- _"¿Cuándo Python en Excel y cuándo un notebook?"_ — Pista: Python en Excel para análisis y gráficos sobre datos del libro; notebook para reproducibilidad, volumen y control de entorno.
+
+<KeyTakeaways
+  items={[
+    'Un libro es un programa sin tests: separa entradas, cálculos, salidas, controles y Léeme; evita los números mágicos y mantén una fórmula consistente por columna.',
+    'Audita con precedentes y dependientes, Evaluar fórmula, Mostrar fórmulas, Ir a Especial (constantes) y un cuadre contra una fuente independiente; no confíes en que un número plausible sea correcto.',
+    'Los errores de hoja de cálculo están documentados: hasta una quinta parte de los artículos genómicos con listas en Excel tenían nombres de genes corrompidos por conversiones automáticas.',
+    'Importa identificadores como texto (Power Query) y no abras CSV con doble clic: es la forma más rápida de corromper códigos y ceros a la izquierda.',
+    'Python en Excel (función PY, contenedor seguro en la nube, sin lecturas externas, licencia de Microsoft 365) acerca pandas a la hoja, pero no sustituye a un entorno reproducible.',
+  ]}
+/>

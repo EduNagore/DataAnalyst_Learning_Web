@@ -1,0 +1,30 @@
+---
+title: 'De AGRUPARPOR y PIVOTARPOR a pandas: ingresos por canal y estado'
+description: 'Replica en pandas lo que hacen AGRUPARPOR y PIVOTARPOR en Excel: agrupa por un eje, pivota por dos con totales y comprueba que los totales cuadran con el origen.'
+language: python
+part: 'Parte I · Herramientas núcleo'
+module: hojas-de-calculo
+difficulty: 2
+estimatedMinutes: 25
+concepts:
+  ['groupby', 'pivot_table', 'totales con margins', 'cuadre de totales', 'equivalencia con Excel']
+datasets: ['orders', 'order_items']
+packages: []
+output: console
+hints:
+  - 'Los ingresos de cada pedido son la suma de `quantity * unit_price` de sus líneas: calcula la suma por `order_id` con `groupby` y asígnala a `orders` con `map` (los pedidos sin líneas valen 0 con `fillna`). No modifiques la tabla de entrada: trabaja sobre una copia.'
+  - '`agrupar_por` es un `groupby(campo)[valor].agg(funcion)` con `reset_index()` y la función por nombre (`"sum"`, `"mean"`, `"count"`), ordenado con `sort_values(valor, ascending=False, ignore_index=True)`.'
+  - '`pivotar_por` es `pivot_table(index=filas, columns=columnas, values=valor, aggfunc=funcion, margins=totales, margins_name="Total", fill_value=0)`.'
+  - 'El cuadre compara el total general de la tabla (`pivot.loc["Total", "Total"]`) con la suma del origen y devuelve la diferencia absoluta redondeada a 2 decimales.'
+relatedLessons: ['hojas-de-calculo/03-agrupar-pivotar-y-power-query']
+businessQuestion: '¿Cuánto ingresa cada canal en cada estado de pedido y cuadran los totales con el origen?'
+---
+
+Estás reproduciendo en Python un informe que antes se hacía con una tabla dinámica de Excel. Implementa cuatro funciones sin tocar los datos de entrada:
+
+1. **`ingresos_por_pedido(orders, order_items)`** → DataFrame con las columnas de `orders` y una columna `ingresos` (suma de `quantity * unit_price` de sus líneas; los pedidos sin líneas tienen 0).
+2. **`agrupar_por(df, campo, valor, funcion="sum")`** → equivalente de `AGRUPARPOR`: columnas `campo` y `valor`, ordenado por `valor` de mayor a menor.
+3. **`pivotar_por(df, filas, columnas, valor, funcion="sum", totales=True)`** → equivalente de `PIVOTARPOR`: tabla con `filas` en el índice, `columnas` en las columnas y, si `totales`, la fila y la columna `Total`. Las celdas vacías se rellenan con 0.
+4. **`diferencia_cuadre(pivot, df, valor)`** → diferencia absoluta (redondeada a 2 decimales) entre el total general de la tabla y la suma de `valor` en `df`.
+
+Al final, imprime los ingresos por canal y estado.

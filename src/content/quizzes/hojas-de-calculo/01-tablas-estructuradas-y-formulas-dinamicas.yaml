@@ -1,0 +1,77 @@
+lesson: hojas-de-calculo/01-tablas-estructuradas-y-formulas-dinamicas
+questions:
+  - id: hoj-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué ventaja principal tiene convertir un rango en una tabla estructurada (Ctrl+T)?'
+    options:
+      - 'Los datos se cifran automáticamente'
+      - 'Las fórmulas se rellenan solas y la tabla crece al añadir filas, de modo que lo que la referencia se actualiza'
+      - 'Excel deja de recalcular las fórmulas para ir más rápido'
+      - 'Se pueden usar más de 1.048.576 filas'
+    answer: [1]
+    explanation: 'Las tablas son objetos con nombre y tamaño variable: columnas calculadas que se propagan, referencias estructuradas legibles y rangos que crecen con los datos.'
+    ref: '#tablas-estructuradas'
+
+  - id: hoj-01-q2
+    type: formula-output
+    difficulty: 2
+    prompt: 'En el rango A2:A6 hay estos clientes. ¿Qué devuelve la fórmula?'
+    code: '=CONTARA(UNICOS(A2:A6))'
+    table: "A2: c1\nA3: c2\nA4: c1\nA5: c3\nA6: c2"
+    options:
+      - '5'
+      - '3'
+      - '2'
+      - 'c1, c2, c3 (en celdas distintas, sin contar)'
+    answer: [1]
+    explanation: 'UNICOS devuelve los valores distintos (c1, c2, c3) y CONTARA los cuenta: 3.'
+    ref: '#las-funciones-que-cambian-el-trabajo'
+
+  - id: hoj-01-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál es el modo de coincidencia por defecto de BUSCARX?'
+    options:
+      - 'Aproximada, igual que BUSCARV'
+      - 'Exacta'
+      - 'El valor más cercano por debajo'
+      - 'Depende de si la columna está ordenada'
+    answer: [1]
+    explanation: 'BUSCARX busca coincidencia exacta salvo que indiques otro modo; BUSCARV es aproximada por defecto si olvidas FALSO, una fuente clásica de errores.'
+    ref: '#buscarx-y-coincidirx'
+
+  - id: hoj-01-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las ventajas reales de BUSCARX frente a BUSCARV.'
+    options:
+      - 'Puede devolver valores a la izquierda de la columna de búsqueda'
+      - 'Tiene un argumento para el caso «no encontrado», sin envolver en SI.ERROR'
+      - 'No se rompe al insertar columnas, porque devuelves un rango y no un número de columna'
+      - 'Funciona en todas las versiones de Excel, incluida la 2016'
+    answer: [0, 1, 2]
+    explanation: 'BUSCARX no existe en Excel 2016 y anteriores: un libro con ella se abre, pero muestra #¿NOMBRE?. Las otras tres son ventajas reales.'
+    ref: '#buscarx-y-coincidirx'
+
+  - id: hoj-01-q5
+    type: single
+    difficulty: 1
+    prompt: 'Un blog en inglés da la fórmula =FILTER(A2:C100, C2:C100>0.2). ¿Qué tienes que cambiar para usarla en un Excel en español de España?'
+    options:
+      - 'Nada: Excel traduce lo que pegas'
+      - 'El nombre (FILTRAR), los separadores de argumentos (;) y el decimal (0,2)'
+      - 'Solo el nombre de la función'
+      - 'Solo los separadores'
+    answer: [1]
+    explanation: 'Los nombres y separadores dependen del idioma y la configuración regional: =FILTRAR(A2:C100; C2:C100>0,2). El archivo .xlsx guarda siempre la versión en inglés.'
+    ref: '#separadores-y-configuración-regional'
+
+  - id: hoj-01-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Si creas un libro en un Excel en español, el archivo .xlsx guarda las fórmulas con los nombres en español.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. El archivo guarda los nombres de función en inglés y con comas; Excel los muestra traducidos según el idioma de quien lo abre.'
+    ref: '#separadores-y-configuración-regional'

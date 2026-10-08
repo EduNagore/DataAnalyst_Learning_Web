@@ -21,6 +21,7 @@ interface Props {
   prevLesson?: { slug: string; title: string } | null;
   nextLesson?: { slug: string; title: string } | null;
   labs?: { id: string; title: string }[];
+  workbooks?: { id: string; title: string }[];
 }
 
 const {
@@ -33,6 +34,7 @@ const {
   prevLesson,
   nextLesson,
   labs = [],
+  workbooks = [],
 } = Astro.props;
 const { title, description, level, estimatedMinutes, objectives, sources, volatility } =
   lesson.data;
@@ -110,7 +112,7 @@ const levelLabels = { básico: 'Básico', intermedio: 'Intermedio', avanzado: 'A
         <slot />
       </article>
 
-      {labs.length > 0 && (
+      {(labs.length > 0 || workbooks.length > 0) && (
         <aside class="my-6 rounded-lg border border-[var(--color-accent)]/40 bg-[var(--color-accent)]/5 p-4">
           <h3 class="text-sm font-semibold tracking-wide text-[var(--color-text)] uppercase">
             Ponlo en práctica
@@ -123,6 +125,16 @@ const levelLabels = { básico: 'Básico', intermedio: 'Intermedio', avanzado: 'A
                   class="text-[var(--color-accent)] hover:underline"
                 >
                   {lab.title}
+                </a>
+              </li>
+            ))}
+            {workbooks.map((wb) => (
+              <li>
+                <a
+                  href={url(`/practica/hojas-de-calculo/${wb.id}/`)}
+                  class="text-[var(--color-accent)] hover:underline"
+                >
+                  {wb.title} <span class="text-[var(--color-text-muted)]">(libro Excel)</span>
                 </a>
               </li>
             ))}

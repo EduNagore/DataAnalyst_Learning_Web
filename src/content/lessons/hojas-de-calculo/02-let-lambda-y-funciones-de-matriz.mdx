@@ -1,0 +1,207 @@
+---
+title: 'LET, LAMBDA y funciones de matriz: fórmulas legibles y reutilizables'
+description: 'Cómo nombrar cálculos intermedios con LET, crear funciones propias con LAMBDA, combinar matrices con APILARV, APILARH y TOMAR y limpiar texto con las funciones de expresiones regulares de Excel.'
+module: hojas-de-calculo
+order: 2
+level: intermedio
+estimatedMinutes: 45
+objectives:
+  - 'Reescribir una fórmula larga con LET para nombrar los cálculos intermedios y evitar repeticiones.'
+  - 'Definir una función propia con LAMBDA, probarla en la celda y guardarla con nombre en el Administrador de nombres.'
+  - 'Combinar matrices con APILARV, APILARH y TOMAR para construir tablas de resultado con una sola fórmula.'
+  - 'Usar REGEXEXTRACCION, REGEXREEMPLAZAR y REGEXPRUEBA para limpiar y validar texto, conociendo su disponibilidad.'
+  - 'Decidir cuándo una fórmula compleja debe pasar a Power Query o a una base de datos.'
+prerequisites: ['hojas-de-calculo/01-tablas-estructuradas-y-formulas-dinamicas']
+tools: ['excel', 'google-sheets']
+volatility: medium
+lastReviewed: 2026-10-08
+sources:
+  - title: 'Microsoft — Función LET'
+    url: 'https://support.microsoft.com/es-ES/Excel/functions/let-function'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft — Función LAMBDA'
+    url: 'https://support.microsoft.com/en-us/excel/functions/lambda-function'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft — Función REGEXEXTRACCION'
+    url: 'https://support.microsoft.com/es-ES/Excel/functions/regexextract-function'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft — Función APILARV'
+    url: 'https://support.microsoft.com/es-ES/Excel/functions/vstack-function'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+relatedLabs: []
+relatedWorkbooks: ['let-lambda-escenarios']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import ExcelFn from '../../../components/content/ExcelFn.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Finanzas te pide el margen por pedido y el margen medio ponderado de cada segmento, y que la misma
+  fórmula sirva en tres libros distintos. La fórmula que escribiste la semana pasada ocupa dos
+  líneas de la barra, repite el mismo `SUMAR.SI` cuatro veces y nadie, ni tú, sabe qué hace. Con
+  `LET` y `LAMBDA` esa fórmula se parece a un programa corto: nombres con sentido, una sola vez cada
+  cálculo y una función que puedes reutilizar.
+</BusinessContext>
+
+## Intuición
+
+`LET` es la **variable local** de la hoja de cálculo: das nombre a un valor o a un cálculo y lo reutilizas dentro de la misma fórmula. `LAMBDA` es la **función definida por ti**: das nombre a una fórmula con parámetros y la llamas como cualquier otra función. Ambas hacen lo mismo que en cualquier lenguaje: reducir repeticiones, nombrar ideas y permitir probar por partes.
+
+## Cómo funciona
+
+### LET: nombrar los cálculos intermedios
+
+<ExcelFn en="LET" es="LET" /> (en español conserva su nombre) se escribe como parejas nombre-valor
+seguidas de un cálculo final:
+
+```text
+=LET(nombre1; valor1; nombre2; valor2; ...; cálculo)
+```
+
+El último argumento es siempre el resultado. Se pueden usar hasta 126 parejas, los nombres deben empezar por una letra y no pueden parecerse a una referencia de celda (`C`, `R`, `A1`).
+
+Sin `LET`, el margen de un segmento exige repetir el filtro:
+
+```text
+=(SUMAR.SI(tblPedidos[segmento];"Premium";tblPedidos[importe]) - SUMAR.SI(tblPedidos[segmento];"Premium";tblPedidos[coste]))
+ / SUMAR.SI(tblPedidos[segmento];"Premium";tblPedidos[importe])
+```
+
+Con `LET`, cada cálculo aparece una vez y tiene nombre:
+
+```text
+=LET(
+  seg;     "Premium";
+  ingresos; SUMAR.SI(tblPedidos[segmento]; seg; tblPedidos[importe]);
+  costes;   SUMAR.SI(tblPedidos[segmento]; seg; tblPedidos[coste]);
+  (ingresos - costes) / ingresos
+)
+```
+
+Tres beneficios: **legibilidad** (el nombre explica la intención), **rendimiento** (el cálculo se evalúa una vez) y **depuración** (puedes devolver `ingresos` en vez del resultado final para inspeccionarlo). Con `Alt+Intro` se escriben saltos de línea dentro de la barra de fórmulas y con `Ctrl+Mayús+U` se expande la barra.
+
+Un ejemplo con matrices: los cinco clientes con más ingresos.
+
+```text
+=LET(
+  clientes;  UNICOS(tblPedidos[customer_id]);
+  ingresos;  SUMAR.SI(tblPedidos[customer_id]; clientes; tblPedidos[importe]);
+  tabla;     APILARH(clientes; ingresos);
+  TOMAR(ORDENARPOR(tabla; ingresos; -1); 5)
+)
+```
+
+<ExcelFn en="HSTACK" es="APILARH" /> junta matrices en horizontal,
+<ExcelFn en="VSTACK" es="APILARV" /> en vertical y <ExcelFn en="TAKE" es="TOMAR" /> se queda con las
+primeras (o últimas, con un número negativo) filas o columnas. Aquí el criterio de `SUMAR.SI` es una
+matriz y devuelve una matriz de resultados: no hace falta ninguna columna auxiliar.
+
+### LAMBDA: tus propias funciones
+
+<ExcelFn en="LAMBDA" es="LAMBDA" /> recibe parámetros y un cálculo:
+
+```text
+=LAMBDA(importe; coste; (importe - coste) / importe)
+```
+
+Escrita así en una celda, devuelve `#CALC!` porque falta llamarla. Para **probarla**, llámala al final con valores:
+
+```text
+=LAMBDA(importe; coste; (importe - coste) / importe)(100; 65)     → 0,35
+```
+
+Cuando funcione, guárdala con nombre: _Fórmulas > Administrador de nombres > Nuevo_, nombre `MARGEN`, y en «Se refiere a» pega la `LAMBDA` (sin la llamada). Desde entonces, `=MARGEN(200; 130)` funciona en todo el libro como una función nativa. Hasta 253 parámetros, y los nombres de los parámetros no pueden contener puntos. Las funciones con nombre **viajan con el libro**, no con tu Excel: otro usuario que abra el archivo las tendrá.
+
+### Funciones auxiliares de LAMBDA
+
+Las funciones «con lambdas» aplican una `LAMBDA` a cada elemento o fila: `MAP` (a cada elemento), `BYROW` y `BYCOL` (por filas o columnas), `REDUCE` y `SCAN` (acumular) y `MAKEARRAY` (construir una matriz). Por ejemplo, clasificar cada pedido:
+
+```text
+=MAP(tblPedidos[importe]; LAMBDA(x; SI(x >= 1000; "alto"; "normal")))
+```
+
+<Callout type="note">
+  La ayuda en español de Microsoft muestra algunas funciones recientes (`MAP`, `REDUCE`, `SCAN`,
+  `BYROW`…) con su nombre en inglés; el nombre que acepta tu Excel puede depender de la versión.
+  Escribe las primeras letras y **fíate del autocompletado** o consulta la ayuda de tu versión antes
+  de redactar un procedimiento para otras personas.
+</Callout>
+
+### Expresiones regulares en la celda
+
+<Snapshot date="2026-10">
+  Excel para Microsoft 365 (Windows y Mac) incorpora tres funciones de expresiones regulares:{' '}
+  <ExcelFn en="REGEXTEST" es="REGEXPRUEBA" />, <ExcelFn en="REGEXEXTRACT" es="REGEXEXTRACCION" /> y{' '}
+  <ExcelFn en="REGEXREPLACE" es="REGEXREEMPLAZAR" />. Usan el «sabor» **PCRE2**. La documentación de
+  Microsoft solo las lista para Excel para Microsoft 365; si compartes el libro, comprueba que los
+  destinatarios lo usan.
+</Snapshot>
+
+```text
+=REGEXPRUEBA(A2; "^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")            → VERDADERO si parece un correo
+=REGEXEXTRACCION(A2; "\d+")                                      → primer grupo de dígitos
+=REGEXREEMPLAZAR(A2; "\s+"; " ")                                 → colapsa espacios repetidos
+```
+
+`REGEXEXTRACCION` devuelve **texto**: envuélvelo en `VALOR(...)` si esperas un número. Un `LET` con una regex bien nombrada sustituye a docenas de `IZQUIERDA`, `EXTRAE` y `HALLAR` anidadas.
+
+## En la práctica
+
+Un patrón de trabajo para libros que otros mantendrán:
+
+1. **Escribe primero la lógica simple** (una celda, un valor) y comprueba el resultado a mano.
+2. **Conviértela en `LET`** con nombres de negocio (`ingresos`, `costes`, `margen`) y comprueba que da lo mismo.
+3. **Extrae lo que se repite** a una `LAMBDA` con nombre (`MARGEN`, `PORC_CAMBIO`) y documenta su propósito en una hoja «Funciones».
+4. **Prueba los bordes**: división por cero, texto en lugar de números, tablas vacías (`SI.ERROR` o el argumento de «no encontrado»).
+5. **Decide si sigue siendo una fórmula**: si ocupa más de diez líneas, se evalúa sobre cientos de miles de filas o la usa más de una persona a la vez, pasa a Power Query (lección 3) o a la base de datos.
+
+En el libro de práctica reescribes fórmulas largas con `LET`, defines `MARGEN` y `PORC_CAMBIO` como `LAMBDA` y construyes una tabla de escenarios (precio, descuento y volumen) con una sola fórmula.
+
+## Trade-offs y cuándo usarlo
+
+- **Legibilidad frente a depuración:** una sola fórmula larga con `LET` se lee mejor que tres columnas auxiliares, pero las columnas auxiliares se pueden inspeccionar celda a celda. Para fórmulas críticas, deja una hoja de comprobación.
+- **`LAMBDA` con nombre frente a macros VBA:** las `LAMBDA` no ejecutan código arbitrario ni piden activar macros, pero son más difíciles de depurar y solo funcionan en versiones que las soportan.
+- **Fórmulas frente a Power Query:** las fórmulas se recalculan siempre y son visibles en la celda; Power Query registra pasos reproducibles y trabaja mejor con volumen.
+- **Compatibilidad:** `LET` figura como disponible en Microsoft 365, Excel 2024 y Excel 2021; comprueba en la ayuda de tu versión la disponibilidad de `LAMBDA` y sus funciones auxiliares antes de depender de ellas.
+
+## Errores comunes
+
+- **Olvidar llamar a la `LAMBDA`** al probarla en una celda (resultado `#CALC!`).
+- **Nombrar una variable como una celda** (`A1`, `C`, `R2`): error de nombre.
+- **Poner el cálculo final antes de las parejas** o dejar un número impar de argumentos.
+- **Recursividad sin condición de parada** (`#NUM!` por superar el límite).
+- **Dar por hecho que el destinatario tiene la misma versión:** las funciones regex solo existen en Microsoft 365.
+- **Fórmulas imposibles de auditar:** nombres como `x1`, `x2`, `tmp`.
+
+## Con IA
+
+Pide al asistente que **refactorice** una fórmula a `LET` con nombres de negocio y que explique cada paso; es una tarea en la que acierta con frecuencia. Pídele también casos de prueba (entradas y salidas esperadas) y **verifícalos tú**. Cuidado con los nombres de función en español y con los separadores: indica en el mensaje que tu Excel está en español de España y usa `;`.
+
+## En una entrevista
+
+- _"¿Para qué sirve LET?"_ — Pista: nombrar cálculos intermedios; legibilidad, rendimiento (se calcula una vez) y depuración.
+- _"¿Cómo creas una función propia sin VBA?"_ — Pista: `LAMBDA` probada en la celda y guardada en el Administrador de nombres.
+- _"Tienes 300.000 filas y una fórmula que tarda un minuto. ¿Qué haces?"_ — Pista: mover la transformación a Power Query o al modelo de datos, o a la base de datos; las fórmulas por fila no escalan.
+
+<KeyTakeaways
+  items={[
+    'LET asigna nombres a valores y cálculos dentro de una fórmula: mejora la legibilidad, evita repetir cálculos y permite depurar devolviendo un paso intermedio.',
+    'LAMBDA crea funciones propias; pruébala llamándola en la celda y guárdala con nombre en el Administrador de nombres para usarla en todo el libro.',
+    'APILARV, APILARH y TOMAR combinan y recortan matrices; con UNICOS, SUMAR.SI y ORDENARPOR construyen un ranking con una sola fórmula, sin columnas auxiliares.',
+    'REGEXPRUEBA, REGEXEXTRACCION y REGEXREEMPLAZAR (PCRE2) figuran en la documentación solo para Excel para Microsoft 365: comprueba la versión de quien recibe el libro.',
+    'Cuando una fórmula es muy larga, lenta o compartida por varias personas, el siguiente paso es Power Query, el modelo de datos o la base de datos.',
+  ]}
+/>

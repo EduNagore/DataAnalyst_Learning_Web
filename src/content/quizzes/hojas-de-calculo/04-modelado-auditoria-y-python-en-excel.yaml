@@ -1,0 +1,71 @@
+lesson: hojas-de-calculo/04-modelado-auditoria-y-python-en-excel
+questions:
+  - id: hoj-04-q1
+    type: single
+    difficulty: 1
+    prompt: 'Una celda del modelo contiene =B5*1,21. ¿Cuál es el problema de modelado?'
+    options:
+      - 'Ninguno: es una fórmula válida'
+      - 'El IVA está escrito dentro de la fórmula (número mágico): debería estar en una celda de supuestos con nombre'
+      - 'No debería multiplicarse'
+      - 'Falta el símbolo $'
+    answer: [1]
+    explanation: 'Los valores de negocio van en celdas de entrada visibles y documentadas; así se cambian en un sitio y se auditan.'
+    ref: '#estructura-entradas-cálculos-y-salidas'
+
+  - id: hoj-04-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las herramientas o técnicas que ayudan a auditar un libro heredado.'
+    options:
+      - 'Rastrear precedentes y dependientes'
+      - 'Evaluar fórmula, que ejecuta una fórmula anidada paso a paso'
+      - 'Ir a Especial > Constantes para encontrar valores escritos a mano dentro de bloques de fórmulas'
+      - 'Confiar en que un total «parece razonable»'
+    answer: [0, 1, 2]
+    explanation: 'Las tres primeras son herramientas de Excel o prácticas de auditoría. Un total plausible no es un control: hay que cuadrarlo con una fuente independiente.'
+    ref: '#auditoría-de-un-libro'
+
+  - id: hoj-04-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'Un análisis de revistas de genómica encontró que aproximadamente una quinta parte de los artículos con listas génicas en Excel contenían nombres de genes corrompidos. ¿Qué porcentaje es aproximadamente?'
+    answer: [20]
+    tolerance: 2
+    explanation: 'Una quinta parte es el 20 %. Excel, con la configuración por defecto, convierte símbolos como SEPT2 o MARCH1 en fechas.'
+    ref: '#cuando-falla-un-libro-errores-reales-documentados'
+
+  - id: hoj-04-q4
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál es la forma más segura de importar un CSV con identificadores como 00123 o MARCH1?'
+    options:
+      - 'Abrirlo con doble clic y corregir lo que salga mal'
+      - 'Importarlo con Power Query indicando el tipo texto para esas columnas'
+      - 'Pegarlo en una hoja nueva'
+      - 'Guardarlo como PDF'
+    answer: [1]
+    explanation: 'Con doble clic, Excel adivina los tipos y puede quitar ceros o convertir códigos en fechas. Power Query permite fijar el tipo y deja la importación reproducible.'
+    ref: '#cuando-falla-un-libro-errores-reales-documentados'
+
+  - id: hoj-04-q5
+    type: truefalse
+    difficulty: 2
+    prompt: 'En Python en Excel puedes leer un CSV de tu disco con pandas.read_csv.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Funciones de lectura externa como read_csv o read_excel no son compatibles por motivos de seguridad: los datos deben venir de las hojas o de Power Query.'
+    ref: '#python-en-excel'
+
+  - id: hoj-04-q6
+    type: single
+    difficulty: 2
+    prompt: '¿Dónde se ejecuta el código de Python en Excel?'
+    options:
+      - 'En tu equipo, con tu instalación de Python'
+      - 'En un contenedor seguro en la nube de Microsoft, aislado y con una distribución de Anaconda'
+      - 'En el navegador, con Pyodide'
+      - 'En un servidor de tu empresa'
+    answer: [1]
+    explanation: 'Según Microsoft, se ejecuta en un contenedor aislado por hipervisor en la nube de Microsoft, sin acceso a tu equipo, a la red ni a tu token.'
+    ref: '#python-en-excel'

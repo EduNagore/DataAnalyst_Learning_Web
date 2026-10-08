@@ -77,6 +77,7 @@ const lessons = defineCollection({
     lastReviewed: z.coerce.date(),
     sources: z.array(sourceSchema).min(2),
     relatedLabs: z.array(z.string()).optional(),
+    relatedWorkbooks: z.array(z.string()).optional(),
     relatedCases: z.array(z.string()).optional(),
   }),
 });
@@ -167,6 +168,7 @@ const workbooks = defineCollection({
     commonMistakes: z.array(z.string()),
     downloadUrl: z.string(),
     solutionUrl: z.string(),
+    relatedLessons: z.array(z.string()).optional(),
   }),
 });
 
