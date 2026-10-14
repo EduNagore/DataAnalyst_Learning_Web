@@ -1,1 +1,1225 @@
-[]
+# Glosario bilingüe. Cada término: id (ancla), termEs, termEn, definition (en español), relatedLessons (módulo/lección).
+
+- id: grano
+  termEs: >-
+    Grano de una tabla
+  termEn: >-
+    Grain
+  definition: >-
+    Qué representa exactamente una fila de una tabla (una línea de pedido, un pedido, un cliente-día). Declararlo evita errores al unir y agregar.
+  relatedLessons: ['sql-i/03-joins-y-fan-out', 'sql-iii/02-modelado-dimensional']
+
+- id: fan-out
+  termEs: >-
+    Multiplicación de filas (fan-out)
+  termEn: >-
+    Fan-out
+  definition: >-
+    Duplicación de filas al unir una tabla con otra en relación uno-a-muchos, que repite importes del lado «uno» y falsea las sumas.
+  relatedLessons: ['sql-i/03-joins-y-fan-out']
+
+- id: anti-join
+  termEs: >-
+    Anti-join
+  termEn: >-
+    Anti-join
+  definition: >-
+    Patrón que devuelve las filas de una tabla sin correspondencia en otra, con LEFT JOIN ... IS NULL o NOT EXISTS.
+  relatedLessons: ['sql-i/03-joins-y-fan-out']
+
+- id: funcion-de-ventana
+  termEs: >-
+    Función de ventana
+  termEn: >-
+    Window function
+  definition: >-
+    Cálculo sobre un conjunto de filas relacionado con la fila actual (OVER, PARTITION BY, ORDER BY) que no colapsa las filas, como rankings, acumulados o medias móviles.
+  relatedLessons: ['sql-ii/01-funciones-de-ventana-y-top-n']
+
+- id: cte
+  termEs: >-
+    Expresión de tabla común (CTE)
+  termEn: >-
+    Common table expression (CTE)
+  definition: >-
+    Resultado intermedio con nombre definido con WITH, que se puede reutilizar en la consulta principal para hacerla legible.
+  relatedLessons: ['sql-ii/03-cohortes-funnels-y-sesiones']
+
+- id: cohorte
+  termEs: >-
+    Cohorte
+  termEn: >-
+    Cohort
+  definition: >-
+    Grupo de usuarios que comparten un hecho inicial en un periodo (alta, primera compra), útil para comparar su evolución en la misma etapa de vida.
+  relatedLessons:
+    [
+      'sql-ii/03-cohortes-funnels-y-sesiones',
+      'analitica-producto/03-retencion-cohortes-y-growth-accounting',
+    ]
+
+- id: retencion
+  termEs: >-
+    Retención
+  termEn: >-
+    Retention
+  definition: >-
+    Porcentaje de usuarios de una cohorte que vuelve a realizar la acción clave en periodos posteriores.
+  relatedLessons: ['analitica-producto/03-retencion-cohortes-y-growth-accounting']
+
+- id: churn
+  termEs: >-
+    Tasa de baja (churn)
+  termEn: >-
+    Churn
+  definition: >-
+    Proporción de clientes o ingresos que se pierde en un periodo. Complemento de la retención en suscripciones.
+  relatedLessons: ['finanzas-operaciones/02-metricas-de-suscripcion-mrr-churn-grr-y-nrr']
+
+- id: mrr
+  termEs: >-
+    Ingreso recurrente mensual (MRR)
+  termEn: >-
+    Monthly recurring revenue (MRR)
+  definition: >-
+    Ingresos recurrentes normalizados a un mes: base de las métricas de suscripción (nuevo, expansión, contracción y perdido).
+  relatedLessons: ['finanzas-operaciones/02-metricas-de-suscripcion-mrr-churn-grr-y-nrr']
+
+- id: nrr
+  termEs: >-
+    Retención neta de ingresos (NRR)
+  termEn: >-
+    Net revenue retention (NRR)
+  definition: >-
+    Ingresos actuales de una cohorte de clientes entre sus ingresos iniciales, incluyendo expansión y contracción; GRR excluye la expansión.
+  relatedLessons: ['finanzas-operaciones/02-metricas-de-suscripcion-mrr-churn-grr-y-nrr']
+
+- id: cac
+  termEs: >-
+    Coste de adquisición de clientes (CAC)
+  termEn: >-
+    Customer acquisition cost (CAC)
+  definition: >-
+    Gasto de adquisición dividido entre los nuevos clientes conseguidos; se compara con el valor de vida del cliente.
+  relatedLessons: ['marketing-clientes/04-clv-cac-y-unit-economics-de-clientes']
+
+- id: clv
+  termEs: >-
+    Valor de vida del cliente (CLV/LTV)
+  termEn: >-
+    Customer lifetime value (CLV/LTV)
+  definition: >-
+    Margen esperado que aportará un cliente durante su relación con la empresa, descontado y estimado por cohorte o con modelos probabilísticos.
+  relatedLessons: ['marketing-clientes/04-clv-cac-y-unit-economics-de-clientes']
+
+- id: unit-economics
+  termEs: >-
+    Economía unitaria
+  termEn: >-
+    Unit economics
+  definition: >-
+    Análisis de los ingresos y costes por unidad (cliente, pedido) para saber si crecer es rentable.
+  relatedLessons: ['marketing-clientes/04-clv-cac-y-unit-economics-de-clientes']
+
+- id: embudo
+  termEs: >-
+    Embudo de conversión
+  termEn: >-
+    Funnel
+  definition: >-
+    Secuencia de pasos (visita, carrito, checkout, compra) con el porcentaje de usuarios que pasa de uno al siguiente.
+  relatedLessons:
+    ['sql-ii/03-cohortes-funnels-y-sesiones', 'analitica-producto/02-embudos-de-conversion']
+
+- id: ticket-medio
+  termEs: >-
+    Ticket medio
+  termEn: >-
+    Average order value (AOV)
+  definition: >-
+    Ingresos entre número de pedidos. Se calcula con pedidos distintos, no con líneas.
+  relatedLessons: ['pensamiento-negocio/01-preguntas-arboles-e-hipotesis']
+
+- id: arbol-de-metricas
+  termEs: >-
+    Árbol de métricas (KPI tree)
+  termEn: >-
+    KPI tree
+  definition: >-
+    Descomposición de una métrica de negocio en sus factores con identidades (suma o producto), hasta llegar a palancas que alguien puede mover.
+  relatedLessons: ['pensamiento-negocio/01-preguntas-arboles-e-hipotesis']
+
+- id: kpi
+  termEs: >-
+    Indicador clave (KPI)
+  termEn: >-
+    Key performance indicator (KPI)
+  definition: >-
+    Métrica ligada a un objetivo estratégico, con propietario, objetivo y umbrales de acción.
+  relatedLessons: ['pensamiento-negocio/01-preguntas-arboles-e-hipotesis']
+
+- id: metrica-de-contrapeso
+  termEs: >-
+    Métrica de contrapeso
+  termEn: >-
+    Guardrail metric
+  definition: >-
+    Métrica que no se quiere empeorar mientras se optimiza la principal (por ejemplo, devoluciones o latencia en un experimento).
+  relatedLessons: ['experimentacion/01-diseno-de-un-experimento-metricas-potencia-y-duracion']
+
+- id: media
+  termEs: >-
+    Media
+  termEn: >-
+    Mean
+  definition: >-
+    Suma de los valores dividida entre su número. Sensible a valores extremos.
+  relatedLessons: ['estadistica-descriptiva/01-tipos-de-variables-centro-y-dispersion']
+
+- id: mediana
+  termEs: >-
+    Mediana
+  termEn: >-
+    Median
+  definition: >-
+    Valor central de los datos ordenados; robusta frente a extremos y apropiada para distribuciones asimétricas.
+  relatedLessons: ['estadistica-descriptiva/01-tipos-de-variables-centro-y-dispersion']
+
+- id: desviacion-tipica
+  termEs: >-
+    Desviación típica
+  termEn: >-
+    Standard deviation
+  definition: >-
+    Medida de dispersión alrededor de la media (raíz de la varianza).
+  relatedLessons: ['estadistica-descriptiva/01-tipos-de-variables-centro-y-dispersion']
+
+- id: percentil
+  termEs: >-
+    Percentil
+  termEn: >-
+    Percentile
+  definition: >-
+    Valor por debajo del cual se encuentra un porcentaje dado de los datos (p90, p95).
+  relatedLessons: ['estadistica-descriptiva/01-tipos-de-variables-centro-y-dispersion']
+
+- id: iqr
+  termEs: >-
+    Rango intercuartílico (IQR)
+  termEn: >-
+    Interquartile range (IQR)
+  definition: >-
+    Diferencia entre el tercer y el primer cuartil; mide la dispersión del 50 % central y es robusto.
+  relatedLessons: ['estadistica-descriptiva/01-tipos-de-variables-centro-y-dispersion']
+
+- id: asimetria
+  termEs: >-
+    Asimetría
+  termEn: >-
+    Skewness
+  definition: >-
+    Falta de simetría de una distribución; con cola larga a la derecha, la media supera a la mediana.
+  relatedLessons: ['estadistica-descriptiva/01-tipos-de-variables-centro-y-dispersion']
+
+- id: outlier
+  termEs: >-
+    Valor atípico (outlier)
+  termEn: >-
+    Outlier
+  definition: >-
+    Observación muy alejada del resto. Puede ser un error o un caso real extremo; se investiga antes de tratarlo.
+  relatedLessons: ['limpieza-calidad/03-valores-ausentes-y-outliers']
+
+- id: ley-grandes-numeros
+  termEs: >-
+    Ley de los grandes números
+  termEn: >-
+    Law of large numbers
+  definition: >-
+    La media de una muestra se acerca a la media poblacional al aumentar el tamaño de la muestra.
+  relatedLessons: ['estadistica-descriptiva/04-ley-de-grandes-numeros-y-teorema-central-del-limite']
+
+- id: tcl
+  termEs: >-
+    Teorema central del límite
+  termEn: >-
+    Central limit theorem
+  definition: >-
+    La distribución de la media muestral tiende a una normal al crecer n, con error estándar σ/√n, aunque los datos no sean normales.
+  relatedLessons: ['estadistica-descriptiva/04-ley-de-grandes-numeros-y-teorema-central-del-limite']
+
+- id: error-estandar
+  termEs: >-
+    Error estándar
+  termEn: >-
+    Standard error
+  definition: >-
+    Desviación típica de un estimador (por ejemplo, de la media muestral); mide su precisión.
+  relatedLessons: ['inferencia/01-muestreo-error-estandar-e-intervalos-de-confianza']
+
+- id: intervalo-de-confianza
+  termEs: >-
+    Intervalo de confianza
+  termEn: >-
+    Confidence interval
+  definition: >-
+    Rango calculado con un procedimiento que, repetido muchas veces, contiene el valor verdadero con la probabilidad nominal (por ejemplo, 95 %).
+  relatedLessons: ['inferencia/01-muestreo-error-estandar-e-intervalos-de-confianza']
+
+- id: p-valor
+  termEs: >-
+    Valor p
+  termEn: >-
+    p-value
+  definition: >-
+    Probabilidad de observar un resultado igual o más extremo si la hipótesis nula fuera cierta. No es la probabilidad de que la nula sea cierta.
+  relatedLessons: ['inferencia/02-contrastes-p-valor-errores-y-potencia']
+
+- id: hipotesis-nula
+  termEs: >-
+    Hipótesis nula
+  termEn: >-
+    Null hypothesis
+  definition: >-
+    Afirmación de ausencia de efecto o de diferencia que se contrasta con los datos.
+  relatedLessons: ['inferencia/02-contrastes-p-valor-errores-y-potencia']
+
+- id: error-tipo-i
+  termEs: >-
+    Error de tipo I
+  termEn: >-
+    Type I error
+  definition: >-
+    Rechazar la hipótesis nula siendo cierta (falso positivo); su probabilidad máxima es α.
+  relatedLessons: ['inferencia/02-contrastes-p-valor-errores-y-potencia']
+
+- id: error-tipo-ii
+  termEs: >-
+    Error de tipo II
+  termEn: >-
+    Type II error
+  definition: >-
+    No rechazar la hipótesis nula siendo falsa (falso negativo); su probabilidad es β.
+  relatedLessons: ['inferencia/02-contrastes-p-valor-errores-y-potencia']
+
+- id: potencia
+  termEs: >-
+    Potencia estadística
+  termEn: >-
+    Statistical power
+  definition: >-
+    Probabilidad de detectar un efecto real de un tamaño dado (1 − β). Aumenta con la muestra y el tamaño del efecto.
+  relatedLessons:
+    [
+      'inferencia/02-contrastes-p-valor-errores-y-potencia',
+      'experimentacion/01-diseno-de-un-experimento-metricas-potencia-y-duracion',
+    ]
+
+- id: mde
+  termEs: >-
+    Efecto mínimo detectable (MDE)
+  termEn: >-
+    Minimum detectable effect (MDE)
+  definition: >-
+    Menor efecto relevante que el experimento está diseñado para detectar con la potencia fijada.
+  relatedLessons: ['experimentacion/01-diseno-de-un-experimento-metricas-potencia-y-duracion']
+
+- id: comparaciones-multiples
+  termEs: >-
+    Comparaciones múltiples
+  termEn: >-
+    Multiple comparisons
+  definition: >-
+    Problema de realizar muchos contrastes a la vez: aumenta la probabilidad de algún falso positivo. Se corrige con Bonferroni, Holm o Benjamini-Hochberg.
+  relatedLessons: ['inferencia/03-comparaciones-multiples-y-tests-habituales']
+
+- id: fdr
+  termEs: >-
+    Tasa de falsos descubrimientos (FDR)
+  termEn: >-
+    False discovery rate (FDR)
+  definition: >-
+    Proporción esperada de falsos positivos entre los resultados declarados significativos; la controla Benjamini-Hochberg.
+  relatedLessons: ['inferencia/03-comparaciones-multiples-y-tests-habituales']
+
+- id: bootstrap
+  termEs: >-
+    Bootstrap
+  termEn: >-
+    Bootstrap
+  definition: >-
+    Remuestreo con reemplazo de los datos observados para aproximar la distribución de un estadístico y calcular errores e intervalos.
+  relatedLessons: ['inferencia/01-muestreo-error-estandar-e-intervalos-de-confianza']
+
+- id: enfoque-bayesiano
+  termEs: >-
+    Enfoque bayesiano
+  termEn: >-
+    Bayesian approach
+  definition: >-
+    Combina una distribución a priori con los datos para obtener una distribución posterior del parámetro.
+  relatedLessons: ['inferencia/04-introduccion-al-enfoque-bayesiano']
+
+- id: paradoja-de-simpson
+  termEs: >-
+    Paradoja de Simpson
+  termEn: >-
+    Simpson's paradox
+  definition: >-
+    Tendencia que aparece en el conjunto y se invierte o desaparece al segmentar por una variable de agrupación.
+  relatedLessons: ['eda/03-paradoja-de-simpson']
+
+- id: regresion-a-la-media
+  termEs: >-
+    Regresión a la media
+  termEn: >-
+    Regression to the mean
+  definition: >-
+    Los valores extremos tienden a ser menos extremos en la medición siguiente por variabilidad aleatoria.
+  relatedLessons: ['eda/04-sesgos-regresion-a-la-media-y-tasa-base']
+
+- id: tasa-base
+  termEs: >-
+    Tasa base
+  termEn: >-
+    Base rate
+  definition: >-
+    Frecuencia general de un fenómeno en la población; ignorarla lleva a interpretar mal pruebas y alertas.
+  relatedLessons: ['eda/04-sesgos-regresion-a-la-media-y-tasa-base']
+
+- id: sesgo-de-supervivencia
+  termEs: >-
+    Sesgo de supervivencia
+  termEn: >-
+    Survivorship bias
+  definition: >-
+    Analizar solo a quienes superaron un filtro y generalizar al total, ignorando a quienes quedaron fuera.
+  relatedLessons: ['eda/04-sesgos-regresion-a-la-media-y-tasa-base']
+
+- id: correlacion
+  termEs: >-
+    Correlación
+  termEn: >-
+    Correlation
+  definition: >-
+    Medida de asociación lineal (Pearson) o de rango (Spearman) entre dos variables. No implica causalidad.
+  relatedLessons: ['eda/02-relaciones-correlacion-y-segmentacion']
+
+- id: confusor
+  termEs: >-
+    Confusor
+  termEn: >-
+    Confounder
+  definition: >-
+    Variable que influye a la vez en la causa y en el efecto y crea una asociación espuria entre ellos.
+  relatedLessons: ['causalidad/01-dags-confusores-colisionadores-y-mediadores']
+
+- id: dag
+  termEs: >-
+    Grafo acíclico dirigido (DAG)
+  termEn: >-
+    Directed acyclic graph (DAG)
+  definition: >-
+    Diagrama de supuestos causales con flechas de causa a efecto; guía qué variables ajustar y cuáles no.
+  relatedLessons: ['causalidad/01-dags-confusores-colisionadores-y-mediadores']
+
+- id: colisionador
+  termEs: >-
+    Colisionador
+  termEn: >-
+    Collider
+  definition: >-
+    Variable causada por otras dos; ajustar por ella abre una asociación espuria entre sus causas.
+  relatedLessons: ['causalidad/01-dags-confusores-colisionadores-y-mediadores']
+
+- id: mediador
+  termEs: >-
+    Mediador
+  termEn: >-
+    Mediator
+  definition: >-
+    Variable por la que una causa produce su efecto; ajustar por ella bloquea parte del efecto total.
+  relatedLessons: ['causalidad/01-dags-confusores-colisionadores-y-mediadores']
+
+- id: diferencias-en-diferencias
+  termEs: >-
+    Diferencias en diferencias (DiD)
+  termEn: >-
+    Difference-in-differences (DiD)
+  definition: >-
+    Diseño cuasi-experimental que compara el cambio antes-después del grupo tratado con el del control, bajo tendencias paralelas.
+  relatedLessons: ['causalidad/02-diferencias-en-diferencias']
+
+- id: tendencias-paralelas
+  termEs: >-
+    Tendencias paralelas
+  termEn: >-
+    Parallel trends
+  definition: >-
+    Supuesto clave de DiD: sin tratamiento, tratados y controles habrían evolucionado de forma paralela.
+  relatedLessons: ['causalidad/02-diferencias-en-diferencias']
+
+- id: control-sintetico
+  termEs: >-
+    Control sintético
+  termEn: >-
+    Synthetic control
+  definition: >-
+    Construye un grupo de control como combinación ponderada de unidades no tratadas que reproduce la evolución previa de la tratada.
+  relatedLessons: ['causalidad/03-control-sintetico-y-causalimpact']
+
+- id: causalimpact
+  termEs: >-
+    CausalImpact
+  termEn: >-
+    CausalImpact
+  definition: >-
+    Método bayesiano de series temporales estructurales que estima el efecto de una intervención frente a un contrafactual.
+  relatedLessons: ['causalidad/03-control-sintetico-y-causalimpact']
+
+- id: discontinuidad
+  termEs: >-
+    Regresión discontinua
+  termEn: >-
+    Regression discontinuity
+  definition: >-
+    Compara unidades justo a ambos lados de un umbral de asignación para estimar un efecto causal local.
+  relatedLessons: ['causalidad/04-discontinuidad-variables-instrumentales-y-emparejamiento']
+
+- id: variable-instrumental
+  termEs: >-
+    Variable instrumental
+  termEn: >-
+    Instrumental variable
+  definition: >-
+    Variable que afecta al tratamiento pero al resultado solo a través de este; permite estimar efectos con confusores no observados.
+  relatedLessons: ['causalidad/04-discontinuidad-variables-instrumentales-y-emparejamiento']
+
+- id: ab-test
+  termEs: >-
+    Experimento A/B
+  termEn: >-
+    A/B test
+  definition: >-
+    Experimento aleatorizado que compara dos versiones para medir el efecto causal de un cambio.
+  relatedLessons: ['experimentacion/01-diseno-de-un-experimento-metricas-potencia-y-duracion']
+
+- id: srm
+  termEs: >-
+    Desajuste del reparto (SRM)
+  termEn: >-
+    Sample ratio mismatch (SRM)
+  definition: >-
+    Desviación significativa entre el reparto observado de usuarios por variante y el diseñado; invalida el análisis hasta entender la causa.
+  relatedLessons: ['experimentacion/02-validez-srm-experimentos-aa-y-ley-de-twyman']
+
+- id: test-aa
+  termEs: >-
+    Test A/A
+  termEn: >-
+    A/A test
+  definition: >-
+    Experimento en el que ambos grupos reciben lo mismo, para validar la plataforma y las métricas.
+  relatedLessons: ['experimentacion/02-validez-srm-experimentos-aa-y-ley-de-twyman']
+
+- id: ley-de-twyman
+  termEs: >-
+    Ley de Twyman
+  termEn: >-
+    Twyman's law
+  definition: >-
+    Cualquier cifra que parece interesante o diferente suele ser errónea; un efecto espectacular exige más sospecha que entusiasmo.
+  relatedLessons: ['experimentacion/02-validez-srm-experimentos-aa-y-ley-de-twyman']
+
+- id: cuped
+  termEs: >-
+    CUPED
+  termEn: >-
+    CUPED
+  definition: >-
+    Reducción de varianza que ajusta la métrica con una covariable previa al experimento, sin sesgar el efecto.
+  relatedLessons: ['experimentacion/03-cuped-y-reduccion-de-varianza']
+
+- id: peeking
+  termEs: >-
+    Mirar antes de tiempo (peeking)
+  termEn: >-
+    Peeking
+  definition: >-
+    Consultar los resultados repetidamente y parar al ver significación; infla los falsos positivos.
+  relatedLessons: ['experimentacion/04-peeking-tests-secuenciales-y-analisis-siempre-valido']
+
+- id: prueba-secuencial
+  termEs: >-
+    Prueba secuencial
+  termEn: >-
+    Sequential test
+  definition: >-
+    Contraste diseñado para poder mirar los datos de forma repetida sin perder el control del error de tipo I.
+  relatedLessons: ['experimentacion/04-peeking-tests-secuenciales-y-analisis-siempre-valido']
+
+- id: interferencia
+  termEs: >-
+    Interferencia entre unidades
+  termEn: >-
+    Interference
+  definition: >-
+    El tratamiento de una unidad afecta al resultado de otra (redes, marketplaces); rompe el supuesto SUTVA.
+  relatedLessons:
+    ['experimentacion/05-metricas-de-ratio-interferencia-y-cultura-de-experimentacion']
+
+- id: metodo-delta
+  termEs: >-
+    Método delta
+  termEn: >-
+    Delta method
+  definition: >-
+    Aproximación de la varianza de una función de estimadores, usada en métricas de ratio con aleatorización por usuario.
+  relatedLessons:
+    ['experimentacion/05-metricas-de-ratio-interferencia-y-cultura-de-experimentacion']
+
+- id: atribucion
+  termEs: >-
+    Atribución de marketing
+  termEn: >-
+    Marketing attribution
+  definition: >-
+    Reparto del crédito de una conversión entre los puntos de contacto del cliente (último clic, lineal, basada en datos).
+  relatedLessons: ['marketing-clientes/01-atribucion-reglas-data-driven-y-limites']
+
+- id: incrementalidad
+  termEs: >-
+    Incrementalidad
+  termEn: >-
+    Incrementality
+  definition: >-
+    Efecto causal de una acción de marketing: ventas que no habrían ocurrido sin ella. Se mide con experimentos, no con atribución.
+  relatedLessons: ['marketing-clientes/02-incrementalidad-experimentos-y-geo-lift']
+
+- id: geo-lift
+  termEs: >-
+    Experimento geográfico (geo-lift)
+  termEn: >-
+    Geo lift
+  definition: >-
+    Mide la incrementalidad comparando regiones tratadas con otras de control.
+  relatedLessons: ['marketing-clientes/02-incrementalidad-experimentos-y-geo-lift']
+
+- id: mmm
+  termEs: >-
+    Modelo de mezcla de marketing (MMM)
+  termEn: >-
+    Marketing mix modeling (MMM)
+  definition: >-
+    Modelo agregado del efecto de cada canal en las ventas, con arrastre (adstock) y saturación; se calibra con experimentos.
+  relatedLessons: ['marketing-clientes/03-marketing-mix-modeling-moderno']
+
+- id: adstock
+  termEs: >-
+    Efecto de arrastre (adstock)
+  termEn: >-
+    Adstock
+  definition: >-
+    Efecto retardado y decreciente de la publicidad en periodos posteriores a la inversión.
+  relatedLessons: ['marketing-clientes/03-marketing-mix-modeling-moderno']
+
+- id: rfm
+  termEs: >-
+    Segmentación RFM
+  termEn: >-
+    RFM segmentation
+  definition: >-
+    Segmentación de clientes por recencia, frecuencia y valor monetario de sus compras.
+  relatedLessons: ['regresion-modelos/03-segmentacion-rfm-y-k-means']
+
+- id: k-means
+  termEs: >-
+    K-means
+  termEn: >-
+    K-means
+  definition: >-
+    Algoritmo de agrupación que reparte las observaciones en k grupos minimizando la distancia a su centroide.
+  relatedLessons: ['regresion-modelos/03-segmentacion-rfm-y-k-means']
+
+- id: fuga-de-informacion
+  termEs: >-
+    Fuga de información
+  termEn: >-
+    Data leakage
+  definition: >-
+    Usar en el entrenamiento información no disponible al predecir; infla las métricas y falla en producción.
+  relatedLessons: ['regresion-modelos/02-validacion-fuga-de-informacion-e-interpretabilidad']
+
+- id: regresion-logistica
+  termEs: >-
+    Regresión logística
+  termEn: >-
+    Logistic regression
+  definition: >-
+    Modelo para resultados binarios cuya salida es una probabilidad; los coeficientes se interpretan como logaritmos de odds.
+  relatedLessons: ['regresion-modelos/01-regresion-lineal-y-logistica-para-negocio']
+
+- id: validacion-cruzada
+  termEs: >-
+    Validación cruzada
+  termEn: >-
+    Cross-validation
+  definition: >-
+    Evaluación del rendimiento rotando qué parte de los datos se usa para validar; en series temporales se usa validación con origen móvil.
+  relatedLessons: ['regresion-modelos/02-validacion-fuga-de-informacion-e-interpretabilidad']
+
+- id: estacionalidad
+  termEs: >-
+    Estacionalidad
+  termEn: >-
+    Seasonality
+  definition: >-
+    Patrón repetitivo en una serie temporal con periodo fijo (semana, año).
+  relatedLessons: ['series-temporales/01-componentes-descomposicion-y-efectos-de-calendario']
+
+- id: backtesting
+  termEs: >-
+    Backtesting
+  termEn: >-
+    Backtesting
+  definition: >-
+    Evaluación de un modelo de previsión simulando previsiones pasadas con origen móvil.
+  relatedLessons: ['series-temporales/02-pronosticos-clasicos-evaluacion-y-backtesting']
+
+- id: mape
+  termEs: >-
+    Error porcentual absoluto medio (MAPE)
+  termEn: >-
+    Mean absolute percentage error (MAPE)
+  definition: >-
+    Media de los errores absolutos relativos; inestable cuando los valores reales son cercanos a cero.
+  relatedLessons: ['series-temporales/02-pronosticos-clasicos-evaluacion-y-backtesting']
+
+- id: modelo-fundacional-series
+  termEs: >-
+    Modelo fundacional de series temporales
+  termEn: >-
+    Time series foundation model
+  definition: >-
+    Modelo preentrenado en muchas series que pronostica sin entrenar uno propio (TimesFM, Chronos, Moirai).
+  relatedLessons: ['series-temporales/03-modelos-fundacionales-de-series-temporales']
+
+- id: capa-semantica
+  termEs: >-
+    Capa semántica
+  termEn: >-
+    Semantic layer
+  definition: >-
+    Capa donde se definen una vez las métricas, dimensiones y filtros de negocio para que todas las herramientas (BI, notebooks, IA) las consuman.
+  relatedLessons: ['capa-semantica/01-por-que-una-capa-semantica']
+
+- id: medida
+  termEs: >-
+    Medida (métrica semántica)
+  termEn: >-
+    Measure
+  definition: >-
+    Cálculo agregado definido en el modelo semántico (ingresos, clientes activos) que se evalúa según el contexto de filtro.
+  relatedLessons: ['capa-semantica/02-modelo-semantico-medidas-dimensiones-y-metricas']
+
+- id: osi
+  termEs: >-
+    Open Semantic Interchange (OSI)
+  termEn: >-
+    Open Semantic Interchange (OSI)
+  definition: >-
+    Iniciativa de especificación abierta para intercambiar modelos semánticos entre herramientas.
+  relatedLessons: ['capa-semantica/03-herramientas-y-estandares-de-capa-semantica']
+
+- id: elt
+  termEs: >-
+    ELT
+  termEn: >-
+    ELT
+  definition: >-
+    Cargar primero los datos crudos en el almacén y transformarlos allí, en lugar de transformarlos antes de cargar (ETL).
+  relatedLessons: ['stack-moderno/02-ingesta-elt-y-transformacion']
+
+- id: idempotencia
+  termEs: >-
+    Idempotencia
+  termEn: >-
+    Idempotency
+  definition: >-
+    Propiedad de una carga o transformación que deja el mismo resultado final al ejecutarse varias veces con la misma entrada.
+  relatedLessons: ['stack-moderno/02-ingesta-elt-y-transformacion']
+
+- id: parquet
+  termEs: >-
+    Parquet
+  termEn: >-
+    Parquet
+  definition: >-
+    Formato de archivo columnar y comprimido con estadísticas por bloque, base de los lagos de datos y la analítica local.
+  relatedLessons:
+    [
+      'sql-iii/01-almacenamiento-columnar-y-planes',
+      'stack-moderno/01-warehouses-lakehouses-y-formatos-de-tabla-abiertos',
+    ]
+
+- id: lakehouse
+  termEs: >-
+    Lakehouse
+  termEn: >-
+    Lakehouse
+  definition: >-
+    Arquitectura que combina el almacenamiento abierto de un lago de datos con las garantías transaccionales de un almacén, mediante formatos de tabla.
+  relatedLessons: ['stack-moderno/01-warehouses-lakehouses-y-formatos-de-tabla-abiertos']
+
+- id: formato-de-tabla
+  termEs: >-
+    Formato de tabla abierto
+  termEn: >-
+    Open table format
+  definition: >-
+    Capa de metadatos sobre ficheros (Iceberg, Delta Lake) que añade transacciones, evolución de esquema y viaje en el tiempo.
+  relatedLessons: ['stack-moderno/01-warehouses-lakehouses-y-formatos-de-tabla-abiertos']
+
+- id: orquestador
+  termEs: >-
+    Orquestador
+  termEn: >-
+    Orchestrator
+  definition: >-
+    Herramienta que programa y supervisa tareas con dependencias (Airflow, Dagster).
+  relatedLessons: ['stack-moderno/03-orquestacion-reverse-etl-y-streaming']
+
+- id: reverse-etl
+  termEs: >-
+    ETL inverso (reverse ETL)
+  termEn: >-
+    Reverse ETL
+  definition: >-
+    Envío de datos del almacén a herramientas operativas (CRM, marketing) para activarlos.
+  relatedLessons: ['stack-moderno/03-orquestacion-reverse-etl-y-streaming']
+
+- id: dbt
+  termEs: >-
+    dbt
+  termEn: >-
+    dbt
+  definition: >-
+    Herramienta de transformación en SQL con pruebas, documentación y linaje, centrada en el trabajo de ingeniería analítica.
+  relatedLessons: ['ingenieria-analitica/01-proyecto-dbt-modelos-ref-y-capas']
+
+- id: modelo-incremental
+  termEs: >-
+    Modelo incremental
+  termEn: >-
+    Incremental model
+  definition: >-
+    Transformación que procesa solo los datos nuevos o cambiados en cada ejecución en lugar de reconstruir toda la tabla.
+  relatedLessons: ['ingenieria-analitica/03-incrementales-snapshots-y-rendimiento']
+
+- id: scd2
+  termEs: >-
+    Dimensión de variación lenta tipo 2 (SCD2)
+  termEn: >-
+    Slowly changing dimension type 2 (SCD2)
+  definition: >-
+    Conserva el historial de una dimensión con una fila por versión y fechas de validez.
+  relatedLessons: ['ingenieria-analitica/03-incrementales-snapshots-y-rendimiento']
+
+- id: contrato-de-datos
+  termEs: >-
+    Contrato de datos
+  termEn: >-
+    Data contract
+  definition: >-
+    Acuerdo explícito y verificable entre productor y consumidores sobre esquema, calidad y semántica de un conjunto de datos.
+  relatedLessons:
+    [
+      'limpieza-calidad/04-validacion-y-contratos-de-datos',
+      'ingenieria-analitica/02-tests-contratos-y-documentacion',
+    ]
+
+- id: modelo-en-estrella
+  termEs: >-
+    Modelo en estrella
+  termEn: >-
+    Star schema
+  definition: >-
+    Modelo dimensional con tablas de hechos y dimensiones relacionadas, optimizado para analítica y herramientas de BI.
+  relatedLessons:
+    ['sql-iii/02-modelado-dimensional', 'dashboards-bi/02-power-bi-modelo-estrella-dax-y-pbip']
+
+- id: arquitectura-medallon
+  termEs: >-
+    Arquitectura medallón
+  termEn: >-
+    Medallion architecture
+  definition: >-
+    Organización en capas bronce (crudo), plata (limpio) y oro (listo para el negocio).
+  relatedLessons: ['sql-iii/03-estilo-sql-y-arquitectura-medallon']
+
+- id: contexto-de-filtro
+  termEs: >-
+    Contexto de filtro
+  termEn: >-
+    Filter context
+  definition: >-
+    En DAX, el conjunto de filtros activos que determina las filas que ve una medida.
+  relatedLessons: ['dashboards-bi/02-power-bi-modelo-estrella-dax-y-pbip']
+
+- id: query-folding
+  termEs: >-
+    Plegado de consultas
+  termEn: >-
+    Query folding
+  definition: >-
+    Traducción de los pasos de Power Query a una consulta nativa que ejecuta el origen.
+  relatedLessons: ['hojas-de-calculo/03-agrupar-pivotar-y-power-query']
+
+- id: rls
+  termEs: >-
+    Seguridad a nivel de fila (RLS)
+  termEn: >-
+    Row-level security (RLS)
+  definition: >-
+    Restricción de las filas que cada usuario puede ver según su identidad o rol.
+  relatedLessons:
+    [
+      'dashboards-bi/02-power-bi-modelo-estrella-dax-y-pbip',
+      'gobierno-etica/03-catalogos-linaje-y-control-de-acceso',
+    ]
+
+- id: visualizacion-incertidumbre
+  termEs: >-
+    Visualización de la incertidumbre
+  termEn: >-
+    Uncertainty visualization
+  definition: >-
+    Mostrar intervalos, bandas o rangos de escenarios para no transmitir falsa precisión.
+  relatedLessons: ['visualizacion/03-color-accesibilidad-e-incertidumbre']
+
+- id: tinta-de-datos
+  termEs: >-
+    Proporción de tinta de datos
+  termEn: >-
+    Data-ink ratio
+  definition: >-
+    Principio de Tufte: maximizar la proporción de elementos del gráfico que codifican datos y eliminar los decorativos.
+  relatedLessons: ['visualizacion/04-como-mienten-los-graficos-y-herramientas']
+
+- id: piramide-de-minto
+  termEs: >-
+    Principio de la pirámide
+  termEn: >-
+    Pyramid principle
+  definition: >-
+    Estructura de comunicación que empieza por la conclusión y la apoya con argumentos y datos.
+  relatedLessons: ['storytelling/01-estructura-del-mensaje-piramide-bluf-y-scr']
+
+- id: rgpd
+  termEs: >-
+    Reglamento General de Protección de Datos (RGPD)
+  termEn: >-
+    General Data Protection Regulation (GDPR)
+  definition: >-
+    Norma europea de protección de datos personales: principios, bases jurídicas y derechos de las personas.
+  relatedLessons: ['gobierno-etica/01-rgpd-y-lopdgdd-para-analistas']
+
+- id: seudonimizacion
+  termEs: >-
+    Seudonimización
+  termEn: >-
+    Pseudonymization
+  definition: >-
+    Sustituir identificadores por pseudónimos de modo que los datos no se atribuyan a una persona sin información adicional; sigue siendo dato personal.
+  relatedLessons:
+    ['gobierno-etica/02-anonimizacion-seudonimizacion-k-anonimato-y-privacidad-diferencial']
+
+- id: k-anonimato
+  termEs: >-
+    k-anonimato
+  termEn: >-
+    k-anonymity
+  definition: >-
+    Propiedad por la que cada combinación de cuasi-identificadores aparece en al menos k registros.
+  relatedLessons:
+    ['gobierno-etica/02-anonimizacion-seudonimizacion-k-anonimato-y-privacidad-diferencial']
+
+- id: privacidad-diferencial
+  termEs: >-
+    Privacidad diferencial
+  termEn: >-
+    Differential privacy
+  definition: >-
+    Garantía formal que añade ruido calibrado a los resultados para limitar lo que se puede inferir de un individuo.
+  relatedLessons:
+    ['gobierno-etica/02-anonimizacion-seudonimizacion-k-anonimato-y-privacidad-diferencial']
+
+- id: linaje
+  termEs: >-
+    Linaje de datos
+  termEn: >-
+    Data lineage
+  definition: >-
+    Trazabilidad del origen de un dato y de las transformaciones que ha sufrido hasta su uso.
+  relatedLessons: ['gobierno-etica/03-catalogos-linaje-y-control-de-acceso']
+
+- id: minimo-privilegio
+  termEs: >-
+    Mínimo privilegio
+  termEn: >-
+    Least privilege
+  definition: >-
+    Dar a personas y sistemas solo los permisos imprescindibles para su función.
+  relatedLessons: ['gobierno-etica/03-catalogos-linaje-y-control-de-acceso']
+
+- id: reglamento-ia
+  termEs: >-
+    Reglamento de IA de la UE
+  termEn: >-
+    EU AI Act
+  definition: >-
+    Norma europea que clasifica los sistemas de IA por riesgo y fija obligaciones según su categoría.
+  relatedLessons: ['gobierno-etica/04-reglamento-de-ia-sesgos-y-etica-de-la-experimentacion']
+
+- id: llm
+  termEs: >-
+    Modelo de lenguaje grande (LLM)
+  termEn: >-
+    Large language model (LLM)
+  definition: >-
+    Modelo de IA entrenado con grandes cantidades de texto que genera lenguaje a partir de un contexto.
+  relatedLessons: ['llm-copiloto/01-como-funciona-un-llm-lo-justo-para-usarlo-bien']
+
+- id: token
+  termEs: >-
+    Token
+  termEn: >-
+    Token
+  definition: >-
+    Fragmento de texto que procesa un modelo de lenguaje; se cobra y se limita por tokens.
+  relatedLessons: ['llm-copiloto/01-como-funciona-un-llm-lo-justo-para-usarlo-bien']
+
+- id: ventana-de-contexto
+  termEs: >-
+    Ventana de contexto
+  termEn: >-
+    Context window
+  definition: >-
+    Cantidad máxima de tokens que un modelo puede considerar en una petición.
+  relatedLessons: ['llm-copiloto/01-como-funciona-un-llm-lo-justo-para-usarlo-bien']
+
+- id: alucinacion
+  termEs: >-
+    Alucinación
+  termEn: >-
+    Hallucination
+  definition: >-
+    Respuesta fluida pero incorrecta o inventada generada por un modelo de lenguaje.
+  relatedLessons:
+    ['llm-copiloto/04-protocolo-de-verificacion-reproducibilidad-y-datos-que-no-se-pegan']
+
+- id: prompt
+  termEs: >-
+    Instrucción (prompt)
+  termEn: >-
+    Prompt
+  definition: >-
+    Texto de entrada con el que se pide una tarea a un modelo de lenguaje, incluidas instrucciones, contexto y ejemplos.
+  relatedLessons: ['llm-copiloto/02-prompting-para-analisis-esquema-definiciones-y-ejemplos']
+
+- id: texto-a-sql
+  termEs: >-
+    Texto a SQL
+  termEn: >-
+    Text-to-SQL
+  definition: >-
+    Generación de consultas SQL a partir de preguntas en lenguaje natural.
+  relatedLessons: ['text-to-sql/01-como-funciona-el-texto-a-sql-y-por-que-falla']
+
+- id: golden-set
+  termEs: >-
+    Conjunto de preguntas de oro
+  termEn: >-
+    Golden set
+  definition: >-
+    Conjunto de preguntas con resultado verificado para evaluar un sistema de IA analítica.
+  relatedLessons: ['text-to-sql/04-evaluar-un-sistema-de-texto-a-sql-benchmarks-y-golden-sets']
+
+- id: exactitud-de-ejecucion
+  termEs: >-
+    Exactitud de ejecución
+  termEn: >-
+    Execution accuracy
+  definition: >-
+    Porcentaje de consultas generadas cuyo resultado coincide con el esperado al ejecutarse.
+  relatedLessons: ['text-to-sql/04-evaluar-un-sistema-de-texto-a-sql-benchmarks-y-golden-sets']
+
+- id: abstencion
+  termEs: >-
+    Abstención
+  termEn: >-
+    Abstention
+  definition: >-
+    Capacidad de un sistema de IA de responder «no puedo» cuando falta información en lugar de inventar.
+  relatedLessons: ['text-to-sql/02-la-capa-semantica-como-solucion-y-cuando-no-basta']
+
+- id: agente
+  termEs: >-
+    Agente de IA
+  termEn: >-
+    AI agent
+  definition: >-
+    Sistema donde un modelo de lenguaje dirige dinámicamente su proceso y el uso de herramientas en un bucle de planificar, actuar y observar.
+  relatedLessons: ['analitica-agentica-mcp/01-agentes-y-flujos-de-trabajo-en-analitica']
+
+- id: workflow-llm
+  termEs: >-
+    Flujo de trabajo con LLM
+  termEn: >-
+    LLM workflow
+  definition: >-
+    Sistema que orquesta modelos y herramientas mediante rutas de código predefinidas; más previsible que un agente.
+  relatedLessons: ['analitica-agentica-mcp/01-agentes-y-flujos-de-trabajo-en-analitica']
+
+- id: mcp
+  termEs: >-
+    Protocolo de Contexto de Modelo (MCP)
+  termEn: >-
+    Model Context Protocol (MCP)
+  definition: >-
+    Estándar abierto para conectar aplicaciones de IA con herramientas y datos a través de servidores que ofrecen herramientas, recursos y prompts.
+  relatedLessons: ['analitica-agentica-mcp/02-model-context-protocol-y-servidores-de-datos']
+
+- id: inyeccion-de-instrucciones
+  termEs: >-
+    Inyección de instrucciones
+  termEn: >-
+    Prompt injection
+  definition: >-
+    Instrucciones ocultas en el contenido que lee un modelo que este puede obedecer, con riesgo de fugas o acciones no deseadas.
+  relatedLessons:
+    [
+      'analitica-agentica-mcp/03-diseno-seguro-roles-de-solo-lectura-limites-e-inyeccion-de-instrucciones',
+    ]
+
+- id: triada-letal
+  termEs: >-
+    Tríada letal
+  termEn: >-
+    Lethal trifecta
+  definition: >-
+    Combinación de acceso a datos privados, exposición a contenido no confiable y capacidad de comunicación externa que permite exfiltrar datos.
+  relatedLessons:
+    [
+      'analitica-agentica-mcp/03-diseno-seguro-roles-de-solo-lectura-limites-e-inyeccion-de-instrucciones',
+    ]
+
+- id: salida-estructurada
+  termEs: >-
+    Salida estructurada
+  termEn: >-
+    Structured output
+  definition: >-
+    Respuesta de un modelo restringida a un esquema JSON para garantizar su forma; no garantiza que el contenido sea correcto.
+  relatedLessons: ['llm-texto/01-clasificar-y-extraer-texto-con-salidas-estructuradas']
+
+- id: embedding
+  termEs: >-
+    Embedding
+  termEn: >-
+    Embedding
+  definition: >-
+    Vector numérico que representa un texto (u otro objeto) de modo que los elementos parecidos quedan cerca.
+  relatedLessons: ['llm-texto/03-embeddings-agrupacion-y-descubrimiento-de-temas']
+
+- id: tf-idf
+  termEs: >-
+    TF-IDF
+  termEn: >-
+    TF-IDF
+  definition: >-
+    Representación de texto que pondera cada palabra por su frecuencia en el documento y su rareza en el corpus.
+  relatedLessons: ['llm-texto/03-embeddings-agrupacion-y-descubrimiento-de-temas']
+
+- id: similitud-del-coseno
+  termEs: >-
+    Similitud del coseno
+  termEn: >-
+    Cosine similarity
+  definition: >-
+    Coseno del ángulo entre dos vectores; mide su parecido en dirección e ignora la longitud.
+  relatedLessons: ['llm-texto/03-embeddings-agrupacion-y-descubrimiento-de-temas']
+
+- id: matriz-de-confusion
+  termEs: >-
+    Matriz de confusión
+  termEn: >-
+    Confusion matrix
+  definition: >-
+    Tabla que cuenta, para cada clase real, cuántas veces se predijo cada clase.
+  relatedLessons: ['llm-texto/04-evaluar-contra-etiquetas-humanas-coste-y-muestreo']
+
+- id: precision
+  termEs: >-
+    Precisión
+  termEn: >-
+    Precision
+  definition: >-
+    De los casos que el sistema predice como una clase, qué proporción lo es realmente.
+  relatedLessons: ['llm-texto/04-evaluar-contra-etiquetas-humanas-coste-y-muestreo']
+
+- id: exhaustividad
+  termEs: >-
+    Exhaustividad (recall)
+  termEn: >-
+    Recall
+  definition: >-
+    De los casos que son realmente de una clase, qué proporción detecta el sistema.
+  relatedLessons: ['llm-texto/04-evaluar-contra-etiquetas-humanas-coste-y-muestreo']
+
+- id: f1
+  termEs: >-
+    Puntuación F1
+  termEn: >-
+    F1 score
+  definition: >-
+    Media armónica de precisión y exhaustividad.
+  relatedLessons: ['llm-texto/04-evaluar-contra-etiquetas-humanas-coste-y-muestreo']
+
+- id: kappa-de-cohen
+  termEs: >-
+    Kappa de Cohen
+  termEn: >-
+    Cohen's kappa
+  definition: >-
+    Medida de acuerdo entre dos anotadores (o entre modelo y persona) corregida por el azar.
+  relatedLessons: ['llm-texto/04-evaluar-contra-etiquetas-humanas-coste-y-muestreo']
+
+- id: deriva
+  termEs: >-
+    Deriva
+  termEn: >-
+    Drift
+  definition: >-
+    Cambio con el tiempo en los datos, en el modelo o en su entorno que degrada el rendimiento de un sistema.
+  relatedLessons: ['llm-texto/04-evaluar-contra-etiquetas-humanas-coste-y-muestreo']
+
+- id: star
+  termEs: >-
+    Método STAR
+  termEn: >-
+    STAR method
+  definition: >-
+    Estructura de respuesta conductual: Situación, Tarea, Acción y Resultado.
+  relatedLessons:
+    ['carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales']
+
+- id: take-home
+  termEs: >-
+    Ejercicio para casa (take-home)
+  termEn: >-
+    Take-home assignment
+  definition: >-
+    Prueba técnica que el candidato resuelve por su cuenta en un tiempo limitado y entrega para su evaluación.
+  relatedLessons:
+    ['carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales']

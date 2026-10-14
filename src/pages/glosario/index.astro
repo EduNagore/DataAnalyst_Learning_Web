@@ -1,10 +1,16 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { url } from '../../lib/url';
 
 const terms = (await getCollection('glossary')).sort((a, b) =>
   a.data.termEs.localeCompare(b.data.termEs, 'es'),
 );
+const lessons = await getCollection('lessons');
+const lessonTitle = new Map(lessons.map((l) => [l.id, l.data.title]));
+
+const initial = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').charAt(0).toUpperCase();
+const letters = [...new Set(terms.map((t) => initial(t.data.termEs)))];
 ---
 
 <BaseLayout
@@ -14,28 +20,102 @@ const terms = (await getCollection('glossary')).sort((a, b) =>
   <section class="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
     <h1 class="text-3xl font-bold text-[var(--color-text)]">Glosario</h1>
     <p class="mt-2 text-[var(--color-text-muted)]">
-      Términos técnicos en español e inglés, tal y como se usan en la industria.
+      {terms.length} términos técnicos en español e inglés, tal y como se usan en la industria, con
+      enlaces a las lecciones donde se explican.
     </p>
 
     {terms.length === 0 ? (
       <div class="mt-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-subtle)] p-8 text-center">
         <p class="font-medium text-[var(--color-text)]">El glosario todavía no tiene entradas.</p>
-        <p class="mt-2 text-sm text-[var(--color-text-muted)]">
-          Se completa a medida que se redactan las lecciones, de la Fase 6 en adelante.
-        </p>
       </div>
     ) : (
-      <dl class="mt-10 divide-y divide-[var(--color-border)]">
-        {terms.map((term) => (
-          <div id={term.data.id} class="py-4 target:bg-[var(--color-bg-subtle)]">
-            <dt class="font-semibold text-[var(--color-text)]">
-              {term.data.termEs}{' '}
-              <span class="text-[var(--color-text-muted)]">· {term.data.termEn}</span>
-            </dt>
-            <dd class="mt-1 text-sm text-[var(--color-text-muted)]">{term.data.definition}</dd>
-          </div>
-        ))}
-      </dl>
+      <>
+        <label class="mt-6 block text-sm text-[var(--color-text)]">
+          <span class="sr-only">Buscar en el glosario</span>
+          <input
+            id="gloss-search"
+            type="search"
+            placeholder="Buscar un término en español o inglés…"
+            class="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg-raised)] px-3 py-2 text-sm text-[var(--color-text)]"
+          />
+        </label>
+        <nav aria-label="Índice alfabético" class="mt-4 flex flex-wrap gap-1 text-sm">
+          {letters.map((l) => (
+            <a
+              class="rounded border border-[var(--color-border)] px-2 py-0.5 hover:border-[var(--color-accent)]"
+              href={`#letra-${l}`}
+            >
+              {l}
+            </a>
+          ))}
+        </nav>
+        <p
+          id="gloss-count"
+          class="mt-3 text-xs text-[var(--color-text-muted)]"
+          aria-live="polite"
+        />
+        <dl class="mt-6 divide-y divide-[var(--color-border)]">
+          {terms.map((term, i) => {
+            const l = initial(term.data.termEs);
+            const first = i === 0 || initial(terms[i - 1].data.termEs) !== l;
+            return (
+              <div
+                id={term.data.id}
+                data-gloss
+                data-text={`${term.data.termEs} ${term.data.termEn}`.toLowerCase()}
+                class="scroll-mt-20 py-4 target:bg-[var(--color-bg-subtle)]"
+              >
+                {first && (
+                  <span id={`letra-${l}`} class="sr-only">
+                    {l}
+                  </span>
+                )}
+                <dt class="font-semibold text-[var(--color-text)]">
+                  {term.data.termEs}{' '}
+                  <span class="text-[var(--color-text-muted)]">· {term.data.termEn}</span>
+                </dt>
+                <dd class="mt-1 text-sm text-[var(--color-text-muted)]">{term.data.definition}</dd>
+                {term.data.relatedLessons && term.data.relatedLessons.length > 0 && (
+                  <dd class="mt-1 text-xs">
+                    {term.data.relatedLessons.map((id, k) => {
+                      const [mod, slug] = id.split('/');
+                      return (
+                        <>
+                          {k > 0 && ' · '}
+                          <a
+                            class="text-[var(--color-accent)] hover:underline"
+                            href={url(`/teoria/${mod}/${slug}/`)}
+                          >
+                            {lessonTitle.get(id) ?? id}
+                          </a>
+                        </>
+                      );
+                    })}
+                  </dd>
+                )}
+              </div>
+            );
+          })}
+        </dl>
+      </>
     )}
   </section>
 </BaseLayout>
+
+<script>
+  const input = document.getElementById('gloss-search') as HTMLInputElement | null;
+  const items = document.querySelectorAll<HTMLElement>('[data-gloss]');
+  const count = document.getElementById('gloss-count');
+  function filter() {
+    const q = (input?.value ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    let visible = 0;
+    items.forEach((el) => {
+      const text = (el.dataset.text ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const show = !q || text.includes(q);
+      el.hidden = !show;
+      if (show) visible++;
+    });
+    if (count) count.textContent = q ? `${visible} de ${items.length} términos` : '';
+  }
+  input?.addEventListener('input', filter);
+</script>

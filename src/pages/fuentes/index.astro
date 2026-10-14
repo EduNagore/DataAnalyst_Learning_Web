@@ -1,9 +1,168 @@
 ---
-import ComingSoon from '../../components/layout/ComingSoon.astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { url } from '../../lib/url';
+
+const lessons = await getCollection('lessons');
+const modules = await getCollection('modules');
+
+interface Cite {
+  lessonId: string;
+  lessonTitle: string;
+  module: string;
+}
+interface Source {
+  title: string;
+  url: string;
+  type: string;
+  authors?: string;
+  year: number;
+  cites: Cite[];
+}
+
+const byUrl = new Map<string, Source>();
+for (const lesson of lessons) {
+  for (const s of lesson.data.sources) {
+    const cite = {
+      lessonId: lesson.id,
+      lessonTitle: lesson.data.title,
+      module: lesson.data.module,
+    };
+    const existing = byUrl.get(s.url);
+    if (existing) existing.cites.push(cite);
+    else byUrl.set(s.url, { ...s, cites: [cite] });
+  }
+}
+const sources = [...byUrl.values()];
+
+const typeLabels: Record<string, string> = {
+  book: 'Libros',
+  paper: 'Artículos científicos',
+  docs: 'Documentación oficial',
+  spec: 'Especificaciones y estándares',
+  blog: 'Blogs técnicos y notas de prensa',
+  course: 'Cursos',
+  video: 'Vídeos',
+};
+const typeOrder = ['book', 'paper', 'spec', 'docs', 'blog', 'course', 'video'];
+const groups = typeOrder
+  .map((t) => ({
+    type: t,
+    items: sources.filter((s) => s.type === t).sort((a, b) => a.title.localeCompare(b.title, 'es')),
+  }))
+  .filter((g) => g.items.length > 0);
 ---
 
-<ComingSoon
+<BaseLayout
   title="Fuentes"
-  description="Bibliografía global agrupada por tema y tipo: papers, documentación oficial, libros de referencia y benchmarks, con la fecha en que se verificó cada una."
-  phase="Fase 9 · Profesional y extras"
-/>
+  description="Bibliografía global del curso agrupada por tipo: libros, artículos, documentación oficial, especificaciones y blogs técnicos, con las lecciones que las citan."
+>
+  <section class="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Fuentes</h1>
+    <p class="mt-2 max-w-2xl text-[var(--color-text-muted)]">
+      Las {sources.length} fuentes que respaldan las {lessons.length} lecciones del curso. La regla
+      es citar fuentes primarias primero (libros de referencia, artículos originales, documentación
+      oficial y especificaciones), después a expertos reconocidos y blogs técnicos de empresas, y
+      nunca como fuente única a listados «Top 10» ni a cifras sin origen identificable. Lo volátil
+      (versiones, funciones, precios, normativa) lleva la fecha de verificación en un recuadro
+      «Snapshot» dentro de cada lección.
+    </p>
+
+    <label class="mt-6 block text-sm">
+      <span class="sr-only">Buscar una fuente</span>
+      <input
+        id="src-search"
+        type="search"
+        placeholder="Buscar por título, autor o lección…"
+        class="w-full rounded-md border border-[var(--color-border)] bg-[var(--color-bg-raised)] px-3 py-2 text-sm text-[var(--color-text)]"
+      />
+    </label>
+    <p id="src-count" class="mt-2 text-xs text-[var(--color-text-muted)]" aria-live="polite"></p>
+
+    <nav aria-label="Tipos de fuente" class="mt-4 flex flex-wrap gap-2 text-sm">
+      {groups.map((g) => (
+        <a
+          class="rounded-full border border-[var(--color-border)] px-3 py-1 hover:border-[var(--color-accent)]"
+          href={`#tipo-${g.type}`}
+        >
+          {typeLabels[g.type]} ({g.items.length})
+        </a>
+      ))}
+    </nav>
+
+    {groups.map((g) => (
+      <div class="mt-10" data-group>
+        <h2
+          id={`tipo-${g.type}`}
+          class="scroll-mt-20 text-xl font-semibold text-[var(--color-text)]"
+        >
+          {typeLabels[g.type]}
+        </h2>
+        <ul class="mt-3 divide-y divide-[var(--color-border)]">
+          {g.items.map((s) => (
+            <li
+              class="py-3"
+              data-src
+              data-text={`${s.title} ${s.authors ?? ''} ${s.cites.map((c) => c.lessonTitle).join(' ')}`.toLowerCase()}
+            >
+              <a
+                class="font-medium text-[var(--color-accent)] hover:underline"
+                href={s.url}
+                rel="noopener noreferrer"
+                target="_blank"
+              >
+                {s.title}
+              </a>
+              <span class="text-sm text-[var(--color-text-muted)]">
+                {s.authors ? ` — ${s.authors}` : ''} ({s.year})
+              </span>
+              <p class="mt-1 text-xs text-[var(--color-text-muted)]">
+                Citada en:{' '}
+                {s.cites.slice(0, 4).map((c, i) => (
+                  <>
+                    {i > 0 && ' · '}
+                    <a
+                      class="hover:underline"
+                      href={url(`/teoria/${c.module}/${c.lessonId.split('/').pop()}/`)}
+                    >
+                      {c.lessonTitle}
+                    </a>
+                  </>
+                ))}
+                {s.cites.length > 4 && ` y ${s.cites.length - 4} más`}
+              </p>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
+
+    <p class="mt-12 text-xs text-[var(--color-text-muted)]">
+      Módulos con fuentes: {[...new Set(lessons.map((l) => l.data.module))].length} de{' '}
+      {modules.length}. El enlace a una fuente puede dejar de funcionar con el tiempo; un flujo
+      mensual de revisión comprueba los enlaces rotos y señala el contenido con fecha de revisión
+      antigua.
+    </p>
+  </section>
+</BaseLayout>
+
+<script>
+  const input = document.getElementById('src-search') as HTMLInputElement | null;
+  const items = document.querySelectorAll<HTMLElement>('[data-src]');
+  const groups = document.querySelectorAll<HTMLElement>('[data-group]');
+  const count = document.getElementById('src-count');
+  function filter() {
+    const q = (input?.value ?? '').toLowerCase().trim();
+    let visible = 0;
+    items.forEach((el) => {
+      const show = !q || (el.dataset.text ?? '').includes(q);
+      el.hidden = !show;
+      if (show) visible++;
+    });
+    groups.forEach((g) => {
+      g.hidden = [...g.querySelectorAll<HTMLElement>('[data-src]')].every((e) => e.hidden);
+    });
+    if (count) count.textContent = q ? `${visible} de ${items.length} fuentes` : '';
+  }
+  input?.addEventListener('input', filter);
+</script>
