@@ -1,0 +1,90 @@
+---
+title: 'SQL: ventanas, fechas y dialectos'
+description: 'Orden lógico de ejecución, joins, funciones de ventana, fechas, texto, patrones frecuentes de entrevista y diferencias entre DuckDB, PostgreSQL, BigQuery, Snowflake y SQL Server.'
+order: 1
+lastReviewed: 2026-10-14
+relatedLessons:
+  - 'sql-ii/01-funciones-de-ventana-y-top-n'
+  - 'sql-i/05-fechas-subconsultas-y-union'
+---
+
+## Orden lógico de ejecución
+
+`FROM / JOIN` → `WHERE` → `GROUP BY` → `HAVING` → `SELECT` (ventanas) → `DISTINCT` → `QUALIFY` (si existe) → `ORDER BY` → `LIMIT`.
+
+Un alias definido en `SELECT` no se puede usar en `WHERE` (sí en `GROUP BY`/`ORDER BY` en la mayoría de motores).
+
+## Joins y grano
+
+| Quiero…                                        | Patrón                                                            |
+| ---------------------------------------------- | ----------------------------------------------------------------- |
+| Solo filas con pareja                          | `INNER JOIN`                                                      |
+| Todas las de A y lo que case de B              | `LEFT JOIN` (condición sobre B en `ON`, no en `WHERE`)            |
+| Filas de A sin pareja en B (anti-join)         | `LEFT JOIN ... WHERE b.id IS NULL` o `NOT EXISTS`                 |
+| Filas de A con al menos una pareja (semi-join) | `EXISTS`                                                          |
+| Evitar duplicar importes                       | Agregar al grano correcto **antes** de unir; `COUNT(DISTINCT id)` |
+| Conciliar dos fuentes                          | `FULL OUTER JOIN`                                                 |
+
+`COUNT(*)` cuenta filas · `COUNT(col)` cuenta no nulos · `COUNT(DISTINCT col)` cuenta valores distintos.
+
+## Funciones de ventana
+
+```sql
+fn(...) OVER (PARTITION BY grupo ORDER BY orden ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)
+```
+
+| Función                              | Para qué                                              |
+| ------------------------------------ | ----------------------------------------------------- |
+| `ROW_NUMBER()`                       | Numerar sin empates (top-N, deduplicar)               |
+| `RANK()` / `DENSE_RANK()`            | Ranking con empates (con/sin saltos)                  |
+| `LAG(x, n)` / `LEAD(x, n)`           | Valor de la fila anterior / siguiente                 |
+| `SUM(x) OVER (ORDER BY ...)`         | Acumulado                                             |
+| `AVG(x) OVER (... ROWS 6 PRECEDING)` | Media móvil de 7 filas (cuidado con huecos de fechas) |
+| `FIRST_VALUE` / `LAST_VALUE`         | Primer / último valor del marco (¡mira el marco!)     |
+| `NTILE(n)`                           | Cuantiles                                             |
+| `x / SUM(x) OVER ()`                 | Porcentaje sobre el total                             |
+
+Sin marco explícito y con `ORDER BY`, el marco por defecto es `RANGE UNBOUNDED PRECEDING … CURRENT ROW`: los empates entran juntos.
+
+## Patrones de entrevista
+
+```sql
+-- Top-N por grupo
+SELECT * FROM t QUALIFY ROW_NUMBER() OVER (PARTITION BY g ORDER BY v DESC, id) <= 3;
+
+-- Deduplicar quedándote con la fila más reciente
+SELECT * FROM t QUALIFY ROW_NUMBER() OVER (PARTITION BY clave ORDER BY actualizado DESC) = 1;
+
+-- Días entre pedido 1 y 2
+WITH p AS (SELECT c, f, ROW_NUMBER() OVER (PARTITION BY c ORDER BY f) AS n FROM pedidos)
+SELECT a.c, b.f - a.f FROM p a JOIN p b ON a.c = b.c AND a.n = 1 AND b.n = 2;
+
+-- Gaps and islands (rachas): índice del periodo menos número de fila
+SELECT c, idx - ROW_NUMBER() OVER (PARTITION BY c ORDER BY idx) AS grupo FROM periodos;
+
+-- Embudo por sesión
+SELECT COUNT(*) FILTER (WHERE vio), COUNT(*) FILTER (WHERE carrito), COUNT(*) FILTER (WHERE compra) FROM sesiones;
+```
+
+## Diferencias entre dialectos
+
+| Tarea                       | DuckDB                      | PostgreSQL                  | BigQuery               | Snowflake                | SQL Server                    |
+| --------------------------- | --------------------------- | --------------------------- | ---------------------- | ------------------------ | ----------------------------- |
+| Truncar a mes               | `date_trunc('month', d)`    | `date_trunc('month', d)`    | `DATE_TRUNC(d, MONTH)` | `DATE_TRUNC('month', d)` | `DATETRUNC(month, d)` (2022+) |
+| Diferencia en días          | `date_diff('day', a, b)`    | `b::date - a::date`         | `DATE_DIFF(b, a, DAY)` | `DATEDIFF('day', a, b)`  | `DATEDIFF(day, a, b)`         |
+| Fecha actual                | `current_date`              | `CURRENT_DATE`              | `CURRENT_DATE()`       | `CURRENT_DATE()`         | `CAST(GETDATE() AS date)`     |
+| Concatenar valores en grupo | `string_agg(x, ',')`        | `string_agg(x, ',')`        | `STRING_AGG(x, ',')`   | `LISTAGG(x, ',')`        | `STRING_AGG(x, ',')`          |
+| Filtrar por ventana         | `QUALIFY`                   | subconsulta / `DISTINCT ON` | `QUALIFY`              | `QUALIFY`                | subconsulta / CTE             |
+| Limitar filas               | `LIMIT n`                   | `LIMIT n`                   | `LIMIT n`              | `LIMIT n`                | `TOP n` / `OFFSET FETCH`      |
+| División segura             | `a / NULLIF(b, 0)`          | `a / NULLIF(b, 0)`          | `SAFE_DIVIDE(a, b)`    | `DIV0NULL(a, b)`         | `a / NULLIF(b, 0)`            |
+| Agregado condicional        | `COUNT(*) FILTER (WHERE …)` | `COUNT(*) FILTER (WHERE …)` | `COUNTIF(…)`           | `COUNT_IF(…)`            | `SUM(CASE WHEN … THEN 1 END)` |
+
+Comprueba siempre la documentación del motor: las funciones y su sintaxis cambian entre versiones.
+
+## Antes de entregar
+
+1. ¿Cuál es el grano de cada tabla y de la salida?
+2. ¿El total cuadra con una consulta de control?
+3. ¿Hay `NULL` donde no esperas? ¿Cancelados, duplicados, zonas horarias?
+4. ¿Los empates tienen un desempate determinista?
+5. ¿El filtro de fechas es semiabierto (`>= inicio AND < fin`)?

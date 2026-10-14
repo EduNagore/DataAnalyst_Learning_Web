@@ -245,6 +245,21 @@ const interviewCases = defineCollection({
 });
 
 // ---------------------------------------------------------------------------
+// Cheat sheets imprimibles
+// ---------------------------------------------------------------------------
+
+const cheatsheets = defineCollection({
+  loader: glob({ pattern: '**/*.mdx', base: './src/content/cheatsheets' }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    order: z.number().int(),
+    lastReviewed: z.coerce.date(),
+    relatedLessons: z.array(z.string()).optional(),
+  }),
+});
+
+// ---------------------------------------------------------------------------
 // Changelog del curso
 // ---------------------------------------------------------------------------
 
@@ -284,6 +299,7 @@ export const collections = {
   radar,
   interviewQuestions,
   interviewCases,
+  cheatsheets,
   changelog,
   glossary,
 };

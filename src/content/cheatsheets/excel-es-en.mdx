@@ -1,0 +1,85 @@
+---
+title: 'Excel: funciones en español e inglés'
+description: 'Equivalencias de las funciones más usadas en Excel entre español e inglés, funciones dinámicas modernas, atajos de modelado y comprobaciones de calidad.'
+order: 4
+lastReviewed: 2026-10-14
+relatedLessons:
+  - 'hojas-de-calculo/01-tablas-estructuradas-y-formulas-dinamicas'
+  - 'hojas-de-calculo/02-let-lambda-y-funciones-de-matriz'
+---
+
+En español, el separador de argumentos suele ser `;` (según la configuración regional) y el decimal, la coma.
+
+## Lógicas y de búsqueda
+
+| Español                | English               | Para qué                               |
+| ---------------------- | --------------------- | -------------------------------------- |
+| `SI`                   | `IF`                  | Condicional                            |
+| `SI.ERROR`             | `IFERROR`             | Valor alternativo ante un error        |
+| `SI.ND`                | `IFNA`                | Valor alternativo ante `#N/D`          |
+| `Y` · `O` · `NO`       | `AND` · `OR` · `NOT`  | Lógica                                 |
+| `SI.CONJUNTO`          | `IFS`                 | Varias condiciones                     |
+| `CAMBIAR`              | `SWITCH`              | Equivalencias                          |
+| `BUSCARX`              | `XLOOKUP`             | Búsqueda moderna (reemplaza `BUSCARV`) |
+| `BUSCARV` · `BUSCARH`  | `VLOOKUP` · `HLOOKUP` | Búsqueda clásica (columna fija)        |
+| `INDICE` + `COINCIDIR` | `INDEX` + `MATCH`     | Búsqueda flexible                      |
+
+## Agregación y condicionales
+
+| Español                               | English                     |
+| ------------------------------------- | --------------------------- |
+| `SUMA.SI.CONJUNTO`                    | `SUMIFS`                    |
+| `CONTAR.SI.CONJUNTO`                  | `COUNTIFS`                  |
+| `PROMEDIO.SI.CONJUNTO`                | `AVERAGEIFS`                |
+| `MAX.SI.CONJUNTO` · `MIN.SI.CONJUNTO` | `MAXIFS` · `MINIFS`         |
+| `SUMAPRODUCTO`                        | `SUMPRODUCT`                |
+| `CONTARA` · `CONTAR`                  | `COUNTA` · `COUNT`          |
+| `REDONDEAR` · `REDOND.MULT`           | `ROUND` · `MROUND`          |
+| `MEDIANA` · `PERCENTIL.INC`           | `MEDIAN` · `PERCENTILE.INC` |
+| `DESVEST.M`                           | `STDEV.S`                   |
+
+## Fechas y texto
+
+| Español                            | English                           |
+| ---------------------------------- | --------------------------------- |
+| `HOY` · `AHORA`                    | `TODAY` · `NOW`                   |
+| `FECHA` · `AÑO` · `MES` · `DIA`    | `DATE` · `YEAR` · `MONTH` · `DAY` |
+| `FECHA.MES` · `FIN.MES`            | `EDATE` · `EOMONTH`               |
+| `DIAS.LAB`                         | `NETWORKDAYS`                     |
+| `DIAS`                             | `DAYS`                            |
+| `TEXTO`                            | `TEXT`                            |
+| `CONCAT` · `UNIRCADENAS`           | `CONCAT` · `TEXTJOIN`             |
+| `IZQUIERDA` · `DERECHA` · `EXTRAE` | `LEFT` · `RIGHT` · `MID`          |
+| `ESPACIOS`                         | `TRIM`                            |
+| `TEXTOANTES` · `TEXTODESPUES`      | `TEXTBEFORE` · `TEXTAFTER`        |
+| `DIVIDIRTEXTO`                     | `TEXTSPLIT`                       |
+
+## Funciones dinámicas y de matriz
+
+| Español                                       | English                     | Para qué                                                                       |
+| --------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------ |
+| `FILTRAR`                                     | `FILTER`                    | Filtrar un rango por condiciones                                               |
+| `ORDENAR` · `ORDENARPOR`                      | `SORT` · `SORTBY`           | Ordenar                                                                        |
+| `UNICOS`                                      | `UNIQUE`                    | Valores únicos                                                                 |
+| `SECUENCIA`                                   | `SEQUENCE`                  | Series de números                                                              |
+| `APILARV` · `APILARH`                         | `VSTACK` · `HSTACK`         | Unir rangos                                                                    |
+| `ELEGIRCOLS` · `ELEGIRFILAS`                  | `CHOOSECOLS` · `CHOOSEROWS` | Elegir columnas o filas                                                        |
+| `LET`                                         | `LET`                       | Nombres dentro de una fórmula                                                  |
+| `LAMBDA`                                      | `LAMBDA`                    | Funciones propias reutilizables                                                |
+| `MAP` · `REDUCE` · `SCAN` · `BYROW` · `BYCOL` | (igual)                     | Iterar con `LAMBDA`; en la ayuda en español algunas conservan el nombre inglés |
+
+Comprueba la disponibilidad de cada función en tu versión de Excel (microsoft365 frente a ediciones antiguas).
+
+## Buenas prácticas de modelado
+
+1. Datos en **tablas estructuradas** (`Ctrl+T`) con nombres claros y referencias estructuradas.
+2. **Supuestos** en una hoja separada y con nombres; sin números incrustados en fórmulas.
+3. Una fila por registro; sin celdas combinadas ni totales mezclados con los datos.
+4. **Power Query** para limpiar y transformar (reproducible) en lugar de pegar valores.
+5. Comprobaciones: totales que cuadran, controles de integridad, formato condicional de errores.
+6. Evita funciones volátiles (`INDIRECTO`, `DESREF`) en modelos grandes.
+7. Documenta: hoja «Léeme», fuentes, fecha de actualización y autor.
+
+## Al usar IA en hojas de cálculo
+
+Revisa cada fórmula generada con casos conocidos, no pegues datos personales, y guarda las instrucciones y supuestos. El resultado es un borrador, no una verificación.

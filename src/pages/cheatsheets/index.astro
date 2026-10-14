@@ -1,0 +1,35 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { url } from '../../lib/url';
+
+const sheets = (await getCollection('cheatsheets')).sort((a, b) => a.data.order - b.data.order);
+---
+
+<BaseLayout
+  title="Cheat sheets"
+  description="Hojas de referencia imprimibles de SQL, estadística y A/B, DAX, Excel, visualización y un checklist para investigar métricas."
+>
+  <section class="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Cheat sheets</h1>
+    <p class="mt-2 max-w-2xl text-[var(--color-text-muted)]">
+      Hojas de referencia para tener a mano durante el trabajo y para repasar antes de una
+      entrevista. Se pueden imprimir o guardar en PDF desde cada página.
+    </p>
+    <ul class="mt-8 grid gap-4 sm:grid-cols-2">
+      {sheets.map((s) => (
+        <li>
+          <a
+            class="block h-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-5 hover:border-[var(--color-accent)]"
+            href={url(`/cheatsheets/${s.id}/`)}
+          >
+            <span class="font-semibold text-[var(--color-text)]">{s.data.title}</span>
+            <span class="mt-2 block text-sm text-[var(--color-text-muted)]">
+              {s.data.description}
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+</BaseLayout>

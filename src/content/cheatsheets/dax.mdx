@@ -1,0 +1,71 @@
+---
+title: 'DAX y Power BI'
+description: 'Contextos, CALCULATE y filtros, inteligencia de tiempo, iteradores, variables y buenas prácticas de modelado en estrella para Power BI.'
+order: 3
+lastReviewed: 2026-10-14
+relatedLessons:
+  - 'dashboards-bi/02-power-bi-modelo-estrella-dax-y-pbip'
+  - 'dashboards-bi/04-inteligencia-de-tiempo-y-comparaciones'
+---
+
+## Ideas clave
+
+- **Contexto de filtro:** los filtros activos (segmentaciones, filas y columnas del visual, relaciones) que determinan las filas que ve una **medida**.
+- **Contexto de fila:** la fila actual al iterar (**columnas calculadas**, `SUMX`, `FILTER`…).
+- **`CALCULATE`** modifica el contexto de filtro y convierte el contexto de fila en filtro (_transición de contexto_).
+- **Medida** = se calcula al consultar; **columna calculada** = se calcula al actualizar y ocupa memoria.
+
+## Funciones esenciales
+
+| Necesito…                        | DAX                                                                         |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| Suma básica                      | `Ingresos = SUM(Ventas[Importe])`                                           |
+| Suma fila a fila                 | `SUMX(Ventas, Ventas[Cantidad] * Ventas[Precio])`                           |
+| Cambiar el filtro                | `CALCULATE([Ingresos], Productos[Categoria] = "Hogar")`                     |
+| Quitar filtros                   | `CALCULATE([Ingresos], ALL(Productos))` · `ALLEXCEPT` · `REMOVEFILTERS`     |
+| Conservar solo un filtro         | `ALLSELECTED()` (respeta la selección del usuario)                          |
+| Contar distintos                 | `DISTINCTCOUNT(Ventas[IdCliente])`                                          |
+| División segura                  | `DIVIDE([Margen], [Ingresos])`                                              |
+| Valor seleccionado               | `SELECTEDVALUE(Region[Nombre], "Varias")`                                   |
+| Variables                        | `VAR x = [Ingresos] RETURN x * 2`                                           |
+| Condicionales                    | `IF`, `SWITCH(TRUE(), cond1, v1, cond2, v2, v3)`                            |
+| Relación inactiva                | `CALCULATE([Ingresos], USERELATIONSHIP(Ventas[FechaEnvio], Fechas[Fecha]))` |
+| Top-N                            | `TOPN(5, VALUES(Productos[Nombre]), [Ingresos])`                            |
+| Ranking                          | `RANKX(ALL(Productos[Nombre]), [Ingresos])`                                 |
+| Valor de otra tabla (lado «uno») | `RELATED(Productos[Categoria])`                                             |
+
+## Inteligencia de tiempo
+
+Requiere una **tabla de fechas continua** marcada como tabla de fechas.
+
+```dax
+Ingresos AA = CALCULATE([Ingresos], SAMEPERIODLASTYEAR(Fechas[Fecha]))
+Var % AA    = DIVIDE([Ingresos] - [Ingresos AA], [Ingresos AA])
+Acum año    = TOTALYTD([Ingresos], Fechas[Fecha])
+Media 3m    = CALCULATE([Ingresos], DATESINPERIOD(Fechas[Fecha], MAX(Fechas[Fecha]), -3, MONTH)) / 3
+```
+
+Otras: `DATEADD`, `DATESYTD`, `PARALLELPERIOD`, `PREVIOUSMONTH`. Compara periodos con el **mismo número de días**.
+
+## Modelado
+
+1. **Estrella:** hechos estrechos + dimensiones con relaciones uno-a-muchos filtrando del lado «uno» al «muchos».
+2. Una **tabla de fechas** propia; evitar fechas automáticas.
+3. Evitar relaciones muchos-a-muchos y bidireccionales salvo que estén justificadas.
+4. Ocultar claves y columnas técnicas; nombrar medidas con claridad; carpeta de medidas.
+5. **RLS** con roles probados; permisos también en el origen.
+
+## Rendimiento
+
+- Medir con el **Analizador de rendimiento** y mirar las consultas generadas.
+- Reducir columnas y cardinalidad; agregar en origen; evitar iteradores innecesarios.
+- Power Query: orden de pasos que **pliegan** (_query folding_) primero.
+- Menos visuales por página; filtros de baja cardinalidad.
+
+## Errores comunes
+
+- Medidas implícitas (arrastrar columnas) en lugar de medidas explícitas.
+- `FILTER(ALL(tabla), …)` en toda la tabla cuando basta un filtro de columna.
+- Olvidar la transición de contexto en una columna calculada.
+- Comparar periodos incompletos o con distinto número de días.
+- Cifras distintas entre informes: definir la medida una sola vez (conjunto de datos compartido o capa semántica).

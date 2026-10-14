@@ -1,0 +1,66 @@
+---
+title: 'Visualización de datos'
+description: 'Cómo elegir el gráfico, reglas de diseño (ejes, color, etiquetas, títulos), accesibilidad e incertidumbre, y cómo evitar los gráficos que engañan.'
+order: 5
+lastReviewed: 2026-10-14
+relatedLessons:
+  - 'visualizacion/01-percepcion-y-eleccion-del-grafico'
+  - 'visualizacion/03-color-accesibilidad-e-incertidumbre'
+---
+
+## Elegir el gráfico por la pregunta
+
+| Pregunta                           | Gráfico recomendado                                       | Evita                               |
+| ---------------------------------- | --------------------------------------------------------- | ----------------------------------- |
+| ¿Cómo comparan las categorías?     | Barras (horizontales si hay etiquetas largas), ordenadas  | Tartas con muchos trozos, 3D        |
+| ¿Cómo evoluciona en el tiempo?     | Líneas (pocas series) · pequeños múltiplos                | Barras para series largas continuas |
+| ¿Cómo se relacionan dos variables? | Dispersión (con línea de tendencia si procede)            | Doble eje sin necesidad             |
+| ¿Cómo se distribuye una variable?  | Histograma · caja · densidad                              | Solo la media                       |
+| ¿De qué se compone un total?       | Barras apiladas (pocos grupos) · cascada para variaciones | Tartas de más de 4-5 partes         |
+| ¿Cómo es el ranking?               | Barras ordenadas · _lollipop_                             | Líneas entre categorías sin orden   |
+| ¿Dónde? (geografía)                | Mapa coroplético normalizado (por habitante)              | Mapas de valores absolutos          |
+| ¿Cuántos exactos?                  | Tabla con formato numérico y alineación                   | Gráficos recargados                 |
+
+## Reglas de diseño
+
+1. **Título que dice la conclusión** («Las devoluciones se concentran en tres categorías»), no solo el tema.
+2. **Barras: eje en cero.** Líneas y puntos pueden recortar el eje si se indica.
+3. **Etiqueta directa** sobre leyenda; menos ruido: sin cuadrícula densa ni bordes innecesarios.
+4. **Un mensaje por gráfico.** Resalta lo importante con un color y el resto en gris.
+5. **Ordena** categorías por valor (salvo orden natural: meses, edades).
+6. **Unidades y fuente** visibles; fecha de los datos.
+7. **Misma escala** al comparar gráficos pequeños.
+
+## Color y accesibilidad
+
+- Paleta **secuencial** para magnitudes ordenadas, **divergente** con punto medio con sentido, **categórica** con pocos colores (≤ 6-8).
+- No uses solo el color para codificar: añade etiquetas, formas o patrones.
+- Entre el 5 y el 8 % de los hombres tienen alguna forma de daltonismo: evita rojo-verde como única diferencia.
+- Contraste suficiente de texto y fondo; probar en gris y en pantalla pequeña.
+- Texto alternativo en imágenes y tabla de datos accesible.
+
+## Incertidumbre
+
+- Muestra el **intervalo** (barras de error, banda sombreada) o el rango de escenarios.
+- Explica en una frase qué significa («rango del 80 %»), sin jerga.
+- No presentes con precisión falsa estimaciones inciertas.
+
+## Cómo engañan los gráficos
+
+| Truco                               | Efecto                         | Corrección             |
+| ----------------------------------- | ------------------------------ | ---------------------- |
+| Eje que no empieza en cero (barras) | Exagera diferencias            | Empezar en cero        |
+| Doble eje                           | Crea correlaciones visuales    | Dos paneles o índices  |
+| Áreas 3D, efectos                   | Distorsionan la comparación    | 2D plano               |
+| Escalas distintas entre gráficos    | Falsas diferencias             | Misma escala           |
+| Recortar periodos                   | Esconde el contexto            | Mostrar la serie larga |
+| Valores absolutos en mapas          | Se parece al mapa de población | Normalizar             |
+
+## Antes de publicar
+
+1. ¿Responde a una pregunta de la audiencia?
+2. ¿El título comunica la conclusión?
+3. ¿Se entiende en 5 segundos?
+4. ¿Se ve bien en blanco y negro y por una persona daltónica?
+5. ¿Están las fuentes, unidades y la incertidumbre?
+6. ¿Algún elemento sobra?

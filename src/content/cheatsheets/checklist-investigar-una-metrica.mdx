@@ -1,0 +1,66 @@
+---
+title: 'Checklist para investigar un cambio en una métrica'
+description: 'Una lista ordenada para investigar una subida o caída de una métrica: aclarar, validar la medición, contexto, descomposición, hipótesis, cuantificación y recomendación.'
+order: 6
+lastReviewed: 2026-10-14
+relatedLessons:
+  - 'pensamiento-negocio/01-preguntas-arboles-e-hipotesis'
+  - 'analitica-agentica-mcp/04-evaluar-las-conclusiones-de-un-agente-y-por-que-fallan-sin-capa-semantica'
+---
+
+Úsala en este orden. Los pasos 2 y 3 descartan las causas más frecuentes y más baratas antes de entrar en hipótesis de negocio.
+
+## 1. Aclarar
+
+- [ ] ¿Qué métrica exactamente? Definición, fuente y fórmula.
+- [ ] ¿Cuánto cambió y con qué se compara (periodo anterior, año anterior, objetivo)?
+- [ ] ¿Qué decisión depende de la respuesta y para cuándo?
+- [ ] ¿Qué se sabe ya (cambios, incidencias, campañas, lanzamientos)?
+
+## 2. Validar la medición
+
+- [ ] Recalcular la cifra con una consulta independiente.
+- [ ] ¿Datos completos y actualizados? Frescura de las tablas, cargas fallidas, retrasos.
+- [ ] ¿Cambió la definición o el filtro? ¿Cambió el tracking (nueva versión de app, eventos duplicados)?
+- [ ] ¿Zonas horarias, cancelados, devoluciones, duplicados?
+- [ ] Comparar con una segunda fuente (sistema transaccional, finanzas).
+
+## 3. Contexto
+
+- [ ] Serie larga (12-24 meses): ¿es un valor fuera de lo normal o una vuelta a la media?
+- [ ] ¿Estacionalidad, festivos, día de la semana, Semana Santa, rebajas?
+- [ ] ¿Afecta a todo el negocio o solo a una parte? Comparar con el total y con otras regiones.
+- [ ] ¿La línea base (mes anterior) era un pico?
+
+## 4. Descomponer
+
+- [ ] Con una identidad: ingresos = clientes × frecuencia × ticket (o tráfico × conversión × ticket).
+- [ ] Por canal, región, categoría, dispositivo, segmento de cliente, versión de la app.
+- [ ] Efecto de tasa frente a efecto de mezcla (Simpson).
+- [ ] ¿Dónde se concentra el cambio? Cuantificar la contribución de cada parte.
+
+## 5. Hipótesis
+
+- [ ] Listar hipótesis (operativas: stock, entregas, incidencias; comerciales: precio, campañas; producto: cambios de web o app; externas: competencia, macro).
+- [ ] Priorizar por probabilidad y coste de comprobar.
+- [ ] Para cada una, qué dato la confirmaría o la refutaría.
+
+## 6. Comprobar y cuantificar
+
+- [ ] Contrastar cada hipótesis con datos; descartar las que no encajan.
+- [ ] ¿Cuánto del cambio explica cada una?
+- [ ] ¿Es transitorio o persistente? ¿Se recupera?
+- [ ] No afirmar causalidad sin diseño: señalar qué supuestos se hacen.
+
+## 7. Recomendar
+
+- [ ] Conclusión en una frase, con su nivel de confianza.
+- [ ] Qué hacer, quién y para cuándo; riesgos.
+- [ ] Qué no se sabe y el siguiente dato o experimento que lo resolvería.
+- [ ] Qué alerta o definición dejar para detectarlo antes la próxima vez.
+
+## Si el informe lo ha hecho una IA
+
+- [ ] Recalcular las cifras de forma independiente.
+- [ ] Revisar línea base, contexto y mezcla.
+- [ ] Comprobar que la recomendación se sigue de los datos y no es causal sin evidencia.

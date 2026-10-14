@@ -1,0 +1,82 @@
+---
+title: 'Estadística y experimentos A/B'
+description: 'Fórmulas e ideas clave: error estándar, intervalos, pruebas de proporciones y medias, potencia y tamaño de muestra, SRM, CUPED, comparaciones múltiples y errores típicos.'
+order: 2
+lastReviewed: 2026-10-14
+relatedLessons:
+  - 'inferencia/02-contrastes-p-valor-errores-y-potencia'
+  - 'experimentacion/01-diseno-de-un-experimento-metricas-potencia-y-duracion'
+---
+
+## Descriptiva
+
+| Medida            | Fórmula / idea                                       | Cuándo                           |
+| ----------------- | ---------------------------------------------------- | -------------------------------- |
+| Media             | $\bar{x}=\frac1n\sum x_i$                            | Totales; datos simétricos        |
+| Mediana           | Valor central                                        | Asimetría y valores extremos     |
+| Desviación típica | $s=\sqrt{\frac{1}{n-1}\sum (x_i-\bar{x})^2}$         | Dispersión alrededor de la media |
+| IQR               | $Q_3-Q_1$                                            | Dispersión robusta               |
+| Percentil $p$     | Valor por debajo del cual está el $p$ % de los datos | Colas (p90, p95, p99)            |
+
+## Incertidumbre
+
+- **Error estándar de la media:** $\mathrm{EE}=s/\sqrt{n}$.
+- **IC 95 % de una media:** $\bar{x}\pm 1{,}96\,\mathrm{EE}$ (muestras grandes; con pocas, usar $t$).
+- **IC 95 % de una proporción:** $\hat p\pm1{,}96\sqrt{\hat p(1-\hat p)/n}$; con pocos casos, **Wilson**.
+- **IC de una diferencia de proporciones:** $(\hat p_B-\hat p_A)\pm1{,}96\sqrt{\frac{\hat p_A(1-\hat p_A)}{n_A}+\frac{\hat p_B(1-\hat p_B)}{n_B}}$.
+- **Bootstrap:** remuestrear con reemplazo para errores e intervalos de cualquier estadístico.
+
+## Contrastes
+
+| Situación                                | Prueba                                            |
+| ---------------------------------------- | ------------------------------------------------- |
+| Dos proporciones (A/B de conversión)     | Prueba z de dos proporciones / chi-cuadrado       |
+| Pocas observaciones en celdas            | Exacta de Fisher                                  |
+| Dos medias                               | t de Welch (varianzas distintas)                  |
+| Datos muy asimétricos, muestras pequeñas | Mann-Whitney o bootstrap                          |
+| Tres o más grupos                        | ANOVA / Kruskal-Wallis + comparaciones corregidas |
+| Reparto esperado (SRM)                   | Chi-cuadrado de bondad de ajuste                  |
+
+**p-valor:** probabilidad de datos tan extremos como los observados si la nula fuera cierta. **No** es la probabilidad de que la nula sea cierta.
+
+## Potencia y tamaño de muestra
+
+- Error tipo I ($\alpha$): falso positivo; tipo II ($\beta$): falso negativo; potencia $=1-\beta$.
+- **Dos proporciones**, $\alpha=0{,}05$, potencia 0,8: $n\approx\frac{16\,p(1-p)}{\delta^2}$ por grupo ($\delta$ = diferencia absoluta mínima relevante).
+- **Dos medias:** $n\approx\frac{16\,\sigma^2}{\delta^2}$ por grupo.
+- **Proporción con margen $e$:** $n\approx\frac{1{,}96^2\,p(1-p)}{e^2}$ → 385 casos para $\pm5$ puntos y 1.537 para $\pm2{,}5$ (peor caso $p=0{,}5$).
+- Duración = $n$ total / tráfico diario, redondeada a **semanas completas**.
+
+## Experimentos: lista de control
+
+1. Hipótesis, unidad de aleatorización, métrica principal (una), contrapesos y diagnósticas.
+2. MDE, potencia, duración fijadas **antes**.
+3. **A/A** o validación de la plataforma.
+4. **SRM:** chi-cuadrado del reparto observado frente al diseñado; si $p<0{,}001$, no interpretar el efecto.
+5. Análisis planificado; sin _peeking_ (o con pruebas secuenciales).
+6. Segmentos exploratorios con **corrección** por comparaciones múltiples.
+7. Reportar efecto con intervalo, no solo el p-valor.
+
+## Reducir varianza y otros ajustes
+
+- **CUPED:** $Y'=Y-\theta(X-\bar X)$ con $\theta=\mathrm{cov}(X,Y)/\mathrm{var}(X)$; la varianza baja en un factor $1-\rho^2$.
+- **Métricas de ratio** (ingresos por sesión con aleatorización por usuario): método delta o bootstrap por usuario.
+- **Interferencia:** aleatorizar por clúster, tiempo (_switchback_) o región.
+
+## Comparaciones múltiples
+
+| Método                  | Controla                          | Uso                                      |
+| ----------------------- | --------------------------------- | ---------------------------------------- |
+| Bonferroni ($\alpha/m$) | Error por familia (FWER)          | Pocas comparaciones, decisiones críticas |
+| Holm                    | FWER (más potente que Bonferroni) | Alternativa por defecto                  |
+| Benjamini-Hochberg      | Tasa de falsos descubrimientos    | Exploración con muchos segmentos         |
+
+## Trampas
+
+- **Peeking:** mirar a diario y parar al ver $p<0{,}05$ infla los falsos positivos.
+- **Simpson:** la tendencia agregada se invierte al segmentar (mezcla).
+- **Regresión a la media:** los extremos tienden a moderarse solos.
+- **Supervivencia:** analizar solo a quien sigue activo.
+- **Significativo ≠ importante:** mira el tamaño del efecto y su intervalo.
+- **No significativo ≠ sin efecto:** mira si el intervalo descarta efectos relevantes.
+- **Correlación ≠ causalidad:** para causalidad, aleatoriza o usa un diseño cuasi-experimental (DiD, control sintético) con supuestos explícitos.
