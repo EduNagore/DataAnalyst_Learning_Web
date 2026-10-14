@@ -9,8 +9,9 @@ questions:
       - 'not_null'
       - 'accepted_values'
       - 'relationships'
+      - 'row_count_equals'
     answer: [0, 1, 2, 3]
-    explanation: 'dbt incluye cuatro tests genéricos: unicidad, no nulos, valores aceptados e integridad referencial entre modelos.'
+    explanation: 'dbt incluye cuatro tests genéricos: unicidad, no nulos, valores aceptados e integridad referencial entre modelos. Otros (como un recuento de filas) vienen de paquetes externos.'
     ref: '#tests-de-datos'
 
   - id: ia-02-q2
