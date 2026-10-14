@@ -47,14 +47,14 @@ Parquet de Lumen ──dlt──► DuckDB (raw) ──dbt──► staging ► 
 
 ## Criterios de evaluación
 
-| Criterio                                        | Puntos |
-| ----------------------------------------------- | ------ |
-| Reproducible desde cero con comandos documentados | 2      |
-| Modelado: grano claro, capas, nombres consistentes | 2      |
-| Pruebas y contrato de modelo que realmente fallan si rompes algo | 2      |
+| Criterio                                                                    | Puntos |
+| --------------------------------------------------------------------------- | ------ |
+| Reproducible desde cero con comandos documentados                           | 2      |
+| Modelado: grano claro, capas, nombres consistentes                          | 2      |
+| Pruebas y contrato de modelo que realmente fallan si rompes algo            | 2      |
 | Métricas definidas una vez y cifras que cuadran con una consulta de control | 2      |
-| Informe claro: titulares, definiciones, incertidumbre o límites | 1      |
-| CI/CD y publicación automática                   | 1      |
+| Informe claro: titulares, definiciones, incertidumbre o límites             | 1      |
+| CI/CD y publicación automática                                              | 1      |
 
 ## Extensiones
 

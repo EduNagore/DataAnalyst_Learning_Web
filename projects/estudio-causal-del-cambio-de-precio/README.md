@@ -44,14 +44,14 @@ orders + order_items + customers ─DuckDB─► panel región-mes
 
 ## Criterios de evaluación
 
-| Criterio                                        | Puntos |
-| ----------------------------------------------- | ------ |
-| Panel correcto y comprobado                      | 1      |
-| Evidencia sobre tendencias previas y elección de controles | 2   |
-| DiD bien especificado e interpretado             | 2      |
-| Control sintético correcto                       | 2      |
-| Pruebas de robustez y placebos                   | 2      |
-| Comunicación de supuestos y límites              | 1      |
+| Criterio                                                   | Puntos |
+| ---------------------------------------------------------- | ------ |
+| Panel correcto y comprobado                                | 1      |
+| Evidencia sobre tendencias previas y elección de controles | 2      |
+| DiD bien especificado e interpretado                       | 2      |
+| Control sintético correcto                                 | 2      |
+| Pruebas de robustez y placebos                             | 2      |
+| Comunicación de supuestos y límites                        | 1      |
 
 ## Extensiones
 

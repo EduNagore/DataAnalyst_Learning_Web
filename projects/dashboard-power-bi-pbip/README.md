@@ -48,14 +48,14 @@ Parquet/CSV de Lumen ─Power Query─► modelo en estrella ─DAX─► inform
 
 ## Criterios de evaluación
 
-| Criterio                                        | Puntos |
-| ----------------------------------------------- | ------ |
-| Modelo en estrella correcto, con tabla de fechas | 2      |
-| Medidas DAX correctas y bien organizadas (comprobadas contra una consulta SQL) | 3 |
-| Diseño claro: jerarquía, color, accesibilidad    | 2      |
-| RLS funcionando y probada                        | 1      |
-| Proyecto PBIP limpio en Git, con historial legible | 1    |
-| Nota de diseño con decisiones y límites          | 1      |
+| Criterio                                                                       | Puntos |
+| ------------------------------------------------------------------------------ | ------ |
+| Modelo en estrella correcto, con tabla de fechas                               | 2      |
+| Medidas DAX correctas y bien organizadas (comprobadas contra una consulta SQL) | 3      |
+| Diseño claro: jerarquía, color, accesibilidad                                  | 2      |
+| RLS funcionando y probada                                                      | 1      |
+| Proyecto PBIP limpio en Git, con historial legible                             | 1      |
+| Nota de diseño con decisiones y límites                                        | 1      |
 
 ## Extensiones
 

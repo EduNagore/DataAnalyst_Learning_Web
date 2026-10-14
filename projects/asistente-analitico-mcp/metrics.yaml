@@ -15,4 +15,5 @@ clientes_activos_90d:
     SELECT COUNT(DISTINCT customer_id) AS valor
     FROM orders
     WHERE status <> 'cancelado' AND order_date >= TIMESTAMP '2026-04-02' AND order_date < TIMESTAMP '2026-07-01'
+
 # TODO: añade ticket_medio y tasa_devolucion con su definición y propietario.

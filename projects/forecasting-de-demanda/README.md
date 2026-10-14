@@ -46,14 +46,14 @@ orders + order_items + calendar ─DuckDB─► serie diaria ► descomposición
 
 ## Criterios de evaluación
 
-| Criterio                                        | Puntos |
-| ----------------------------------------------- | ------ |
-| Serie y calendario correctamente preparados      | 1      |
-| Backtesting de origen móvil sin fuga de información | 3   |
-| Comparación frente a la línea base y entre modelos | 2    |
-| Evaluación de la cobertura de los intervalos      | 1      |
-| Comunicación de la incertidumbre y escenarios     | 2      |
-| Pruebas del módulo de backtesting                 | 1      |
+| Criterio                                            | Puntos |
+| --------------------------------------------------- | ------ |
+| Serie y calendario correctamente preparados         | 1      |
+| Backtesting de origen móvil sin fuga de información | 3      |
+| Comparación frente a la línea base y entre modelos  | 2      |
+| Evaluación de la cobertura de los intervalos        | 1      |
+| Comunicación de la incertidumbre y escenarios       | 2      |
+| Pruebas del módulo de backtesting                   | 1      |
 
 ## Extensiones
 

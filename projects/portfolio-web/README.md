@@ -45,14 +45,14 @@ Proyectos anteriores ─► casos escritos (Markdown) ─► sitio estático ─
 
 ## Criterios de evaluación
 
-| Criterio                                        | Puntos |
-| ----------------------------------------------- | ------ |
-| Cada caso empieza por la conclusión y la recomendación | 3 |
-| Gráficos claros con títulos que comunican          | 2      |
-| Enlaces a repositorios reproducibles               | 2      |
-| Sitio accesible, rápido y sin errores              | 1      |
-| Perfil claro y honesto (sin inflar herramientas)   | 1      |
-| Los límites y la incertidumbre se reconocen         | 1      |
+| Criterio                                               | Puntos |
+| ------------------------------------------------------ | ------ |
+| Cada caso empieza por la conclusión y la recomendación | 3      |
+| Gráficos claros con títulos que comunican              | 2      |
+| Enlaces a repositorios reproducibles                   | 2      |
+| Sitio accesible, rápido y sin errores                  | 1      |
+| Perfil claro y honesto (sin inflar herramientas)       | 1      |
+| Los límites y la incertidumbre se reconocen            | 1      |
 
 ## Extensiones
 

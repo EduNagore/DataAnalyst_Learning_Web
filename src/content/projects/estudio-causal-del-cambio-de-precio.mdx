@@ -3,7 +3,8 @@ title: 'Estudio causal: impacto de un cambio de precio'
 description: 'Estima con diferencias en diferencias, un control sintético sencillo y análisis de robustez el efecto de la subida de precios en una región de Lumen, y comunica el resultado con sus supuestos.'
 difficulty: 3
 estimatedHours: 14
-skills: ['inferencia causal', 'diferencias en diferencias', 'control sintético', 'análisis de robustez']
+skills:
+  ['inferencia causal', 'diferencias en diferencias', 'control sintético', 'análisis de robustez']
 tools: ['pandas', 'DuckDB', 'statsmodels', 'matplotlib', 'pytest']
 repoPath: 'projects/estudio-causal-del-cambio-de-precio'
 ---
@@ -37,14 +38,14 @@ orders + order_items + customers ─DuckDB─► panel región-mes
 
 ## Criterios de evaluación
 
-| Criterio                                        | Puntos |
-| ----------------------------------------------- | ------ |
-| Panel correcto y comprobado                      | 1      |
-| Evidencia sobre tendencias previas y elección de controles | 2   |
-| DiD bien especificado e interpretado             | 2      |
-| Control sintético correcto                       | 2      |
-| Pruebas de robustez y placebos                   | 2      |
-| Comunicación de supuestos y límites              | 1      |
+| Criterio                                                   | Puntos |
+| ---------------------------------------------------------- | ------ |
+| Panel correcto y comprobado                                | 1      |
+| Evidencia sobre tendencias previas y elección de controles | 2      |
+| DiD bien especificado e interpretado                       | 2      |
+| Control sintético correcto                                 | 2      |
+| Pruebas de robustez y placebos                             | 2      |
+| Comunicación de supuestos y límites                        | 1      |
 
 ## Extensiones
 
