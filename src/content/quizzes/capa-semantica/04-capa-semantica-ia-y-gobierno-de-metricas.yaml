@@ -1,0 +1,66 @@
+lesson: capa-semantica/04-capa-semantica-ia-y-gobierno-de-metricas
+questions:
+  - id: cs-04-q1
+    type: single
+    difficulty: 2
+    prompt: '¿Cómo mejora una capa semántica la fiabilidad de un asistente de IA que responde preguntas de negocio?'
+    options:
+      - 'Hace el modelo de lenguaje más grande'
+      - 'El asistente elige métrica, dimensiones y filtros y la capa genera el SQL de forma determinista, avisando si no puede responder'
+      - 'Elimina la necesidad de datos'
+      - 'No la mejora'
+    answer: [1]
+    explanation: 'Se evitan los errores silenciosos de uniones, grano y definiciones. La capa «nunca devuelve datos inválidos»: o responde o dice que no puede.'
+    ref: '#por-qué-la-ia-necesita-una-capa-semántica'
+
+  - id: cs-04-q2
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODAS las cautelas al interpretar el benchmark de dbt Labs de 2026 (SQL libre 90,0 % frente a capa semántica 98,2 % con Claude Sonnet 4.6).'
+    options:
+      - 'Lo publica un proveedor de capa semántica'
+      - 'Usa un conjunto pequeño (11 preguntas, un dominio de seguros)'
+      - 'Los modelos mejoran: el SQL libre pasó del 32,7 % al 64,5 % en el conjunto completo respecto a 2023'
+      - 'Demuestra que el SQL libre nunca debe usarse'
+    answer: [0, 1, 2]
+    explanation: 'El propio estudio concluye que conviene combinar ambos enfoques según el riesgo. Úsalo como motivación para medir tu caso con preguntas verificadas.'
+    ref: '#por-qué-la-ia-necesita-una-capa-semántica'
+
+  - id: cs-04-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los problemas de gobierno que detecta la auditoría del registro de métricas de Lumen.'
+    options:
+      - 'Una métrica certificada que depende de otra que no lo está'
+      - 'Una métrica obsoleta que sigue en un panel y no tiene responsable'
+      - 'Dos nombres para la misma definición (ingresos_brutos y ventas_totales)'
+      - 'Que todas las métricas tengan responsable'
+    answer: [0, 1, 2]
+    explanation: 'Tener responsable en todas es lo deseable. Los otros tres son riesgos: certificación frágil, uso de lo obsoleto y futuras discrepancias.'
+    ref: '#gobierno-de-métricas'
+
+  - id: cs-04-q4
+    type: single
+    difficulty: 2
+    prompt: 'Vas a cambiar la definición de ingresos_brutos. En el registro, ingresos_netos depende de ella y ticket_medio de ingresos_netos. ¿Qué haces antes de cambiarla?'
+    options:
+      - 'Cambiarla y esperar quejas'
+      - 'Un análisis de impacto: métricas y paneles afectados, diferencia de cifras, aviso a los consumidores y nueva versión'
+      - 'Duplicar la métrica con otro nombre'
+      - 'Borrar las métricas dependientes'
+    answer: [1]
+    explanation: 'Cambiar ingresos_brutos afecta a ingresos_netos, ticket_medio y a los paneles de ventas y del consejo. Hay que avisar y conciliar antes y después.'
+    ref: '#gobierno-de-métricas'
+
+  - id: cs-04-q5
+    type: single
+    difficulty: 3
+    prompt: 'Los ingresos netos de 2025 de la capa semántica de Lumen valen 45.942.402 €. ¿Qué comprobación demuestra que la métrica está bien conciliada?'
+    options:
+      - 'Que el valor es un número entero'
+      - 'Que coincide con la cuenta de resultados (fuente de verdad) y que las desagregaciones por canal o categoría suman el mismo total'
+      - 'Que el panel carga rápido'
+      - 'Que lo dice el asistente de IA'
+    answer: [1]
+    explanation: 'La conciliación con la fuente de verdad y la suma de las desagregaciones se automatizan como pruebas en cada cambio.'
+    ref: '#conciliación-y-pruebas'

@@ -1,0 +1,183 @@
+---
+title: 'Por qué existe una capa semántica: una sola definición de cada métrica'
+description: 'El problema de las métricas que significan cosas distintas según el informe, con cinco definiciones reales de «ingresos» de Lumen que difieren casi un 20 %; qué es una capa semántica, dónde vive en el stack y qué problemas resuelve y no resuelve.'
+module: capa-semantica
+order: 1
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Explicar con un ejemplo cuantificado por qué la misma métrica da cifras distintas en informes distintos.'
+  - 'Definir capa semántica y situarla entre el almacén y las herramientas de consumo (BI, aplicaciones, IA).'
+  - 'Distinguir lo que resuelve (definición única, reutilización, gobierno) de lo que no resuelve (calidad del dato, modelado, causalidad).'
+  - 'Identificar los síntomas de que una organización necesita una capa semántica.'
+prerequisites:
+  [
+    'ingenieria-analitica/01-proyecto-dbt-modelos-ref-y-capas',
+    'finanzas-operaciones/01-cuenta-de-resultados-y-unit-economics',
+  ]
+tools: ['sql', 'python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'dbt — About MetricFlow'
+    url: 'https://docs.getdbt.com/docs/build/about-metricflow'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'Snowflake — Semantic views: overview'
+    url: 'https://docs.snowflake.com/en/user-guide/views-semantic/overview'
+    type: docs
+    authors: 'Snowflake'
+    year: 2026
+  - title: 'Databricks — Unity Catalog metric views'
+    url: 'https://docs.databricks.com/aws/en/metric-views/'
+    type: docs
+    authors: 'Databricks'
+    year: 2026
+relatedLabs: ['py-metricas-discrepantes']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  En la reunión del consejo, Finanzas presenta 45,9 M€ de ingresos de 2025; Marketing, 51,6 M€; el
+  panel de ventas, 49,5 M€. Nadie se ha equivocado: cada equipo ha escrito su propia consulta con su
+  propia idea de qué cuenta como «ingreso». La reunión se va en discutir cifras en lugar de decidir.
+  La dirección pide: «una cifra, una definición, y que cualquier herramienta la use».
+</BusinessContext>
+
+## Intuición
+
+Un diccionario de la empresa. Si cada departamento define «cliente activo» a su manera, la conversación es imposible. La **capa semántica** es ese diccionario escrito en código: define **una vez** qué es «ingresos netos», «cliente activo» o «ticket medio», cómo se calcula y por qué dimensiones se puede desglosar, y todas las herramientas (paneles, hojas de cálculo, notebooks, asistentes de IA) leen la misma definición.
+
+## Cómo funciona
+
+### El problema: la métrica que significa varias cosas
+
+En el lab calculas los ingresos de 2025 de Lumen con cinco definiciones, todas razonables:
+
+| Definición de «ingresos 2025»                    | Millones de € |
+| ------------------------------------------------ | ------------: |
+| Valorados a precio de lista (sin descuentos)     |         54,89 |
+| Todas las líneas, incluidos pedidos cancelados   |         51,56 |
+| Sin pedidos cancelados                           |         49,46 |
+| Solo pedidos con estado «completado»             |         46,29 |
+| **Netos**: sin cancelados y sin líneas devueltas |     **45,94** |
+
+La más alta supera a la más baja en un **19,5 %**. Lo mismo ocurre con los pedidos: 168.466 con cancelados, 161.706 sin ellos y 151.469 solo completados. Y con «cliente activo»: con compra no cancelada en 2025, 39.190; con cualquier pedido, 39.590.
+
+<Callout type="warning">
+  El coste de la ambigüedad no es solo la discusión. Es que cada consulta duplica la lógica de
+  negocio (qué estados cuentan, cuándo se devuelve) y esa lógica diverge con el tiempo: cuando
+  cambia una regla, se actualiza en unos informes y en otros no. Cuantas más personas y herramientas
+  consultan los datos —y ahora también asistentes de IA que generan SQL—, más probable es que dos
+  respuestas a la misma pregunta no coincidan.
+</Callout>
+
+### Qué es una capa semántica
+
+Una **capa semántica** es una capa de definiciones entre el almacén y quien consume los datos. Contiene:
+
+- **Entidades y relaciones:** cómo se unen las tablas (pedidos con clientes, líneas con productos).
+- **Dimensiones:** las formas de desglosar (mes, canal, categoría, región).
+- **Medidas y métricas:** los cálculos con nombre y definición (ingresos netos, ticket medio, tasa de devolución).
+- **Contexto:** descripciones, sinónimos, responsable, filtros de seguridad.
+
+Quien consulta pide «ingresos netos por canal en 2025» y la capa **genera el SQL correcto**, con las uniones adecuadas, los filtros de estado y el cuidado de no duplicar filas. Si la definición de «ingresos netos» cambia, cambia en un solo lugar.
+
+<Diagram
+  client:visible
+  chart={`flowchart TB
+    A["Almacén / lakehouse<br/>tablas modeladas (marts)"] --> B["Capa semántica<br/>entidades, dimensiones, medidas, métricas"]
+    B --> C["Paneles de BI"]
+    B --> D["Hojas de cálculo y notebooks"]
+    B --> E["Aplicaciones y APIs"]
+    B --> F["Asistentes de IA<br/>y agentes"]`}
+  alt="Diagrama de capas: el almacén con las tablas modeladas alimenta la capa semántica, que a su vez sirve la misma definición de métricas a paneles de BI, hojas de cálculo y notebooks, aplicaciones y APIs, y asistentes de IA y agentes."
+/>
+
+### Qué resuelve y qué no
+
+| Resuelve                                                | No resuelve                                                              |
+| ------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Una definición de cada métrica, reutilizable            | La calidad del dato de origen (si la tabla está mal, la métrica también) |
+| Coherencia entre herramientas y equipos                 | El modelado de las tablas (necesita buenos marts debajo)                 |
+| Uniones correctas sin que cada analista las reescriba   | La interpretación causal de una métrica                                  |
+| Gobierno: responsable, versión, certificación, permisos | Las métricas que nadie ha definido todavía                               |
+| Contexto fiable para la IA                              | Que la organización esté de acuerdo en qué medir (es un problema humano) |
+
+La parte difícil no es técnica: es **decidir** qué significa «ingresos». La capa semántica obliga a tomar esa decisión una vez, por escrito y con responsable.
+
+### Dónde vive
+
+No hay una única forma de implementarla; las opciones se ven en la lección 3:
+
+- **En el proyecto de transformación** (por ejemplo, MetricFlow en dbt).
+- **En la herramienta de BI** (modelos semánticos de Power BI, LookML en Looker).
+- **En el almacén** (vistas semánticas de Snowflake, vistas de métricas de Databricks).
+- **Como servicio independiente** (Cube).
+
+<Snapshot date="2026-10">
+  Los principales proveedores han convergido en ofrecer capas semánticas como objetos del propio
+  ecosistema: Snowflake describe las vistas semánticas como un objeto de esquema que guarda
+  conceptos de negocio (hechos, dimensiones y métricas) directamente en la base de datos; Databricks
+  ofrece vistas de métricas en Unity Catalog donde la métrica se define una vez y se puede agrupar
+  por cualquier campo disponible; y MetricFlow, de código abierto con licencia Apache 2.0, es el
+  motor de la capa semántica de dbt. Hay además un esfuerzo de estandarización (lección 3). Los
+  nombres de producto, las funciones y los planes cambian con frecuencia: confirma el estado vigente
+  en la documentación.
+</Snapshot>
+
+## En la práctica
+
+1. **Detecta los síntomas:** la misma métrica con cifras distintas, consultas copiadas y modificadas, preguntas de «¿qué filtro usaste?», cuadros de mando que no cuadran.
+2. **Elige las diez métricas que importan** (ingresos netos, pedidos, clientes activos, ticket medio…) y empieza por ellas.
+3. **Consigue el acuerdo humano:** reúne a Finanzas, Marketing y Operaciones y escribe una definición con ejemplos y casos límite.
+4. **Documenta quién es el responsable** de cada métrica y cómo se cambia.
+5. **Implementa la definición en código** en la capa elegida y ponla bajo control de versiones.
+6. **Migra los informes** para que consuman la capa, no el SQL copiado, y retira los antiguos.
+7. **Mide el éxito:** menos discrepancias, menos consultas duplicadas, menos tiempo discutiendo cifras.
+
+## Trade-offs y cuándo usarlo
+
+- **Capa semántica frente a vistas SQL:** una vista resuelve una consulta fija; la capa semántica permite desglosar por muchas dimensiones sin escribir una vista por combinación.
+- **Centralizar frente a flexibilidad:** una sola definición da coherencia pero frena la exploración nueva; mantén una zona de pruebas para métricas aún no certificadas.
+- **En la herramienta de BI frente a independiente:** dentro de la herramienta es más sencillo pero queda atada a ella; independiente sirve a todas pero añade una pieza que operar.
+- **Empezar pronto frente a esperar:** con tres analistas y un panel, una carpeta de SQL versionada basta; con varios equipos, herramientas e IA, la capa semántica se amortiza rápido.
+- **Granularidad de las definiciones:** más métricas dan más cobertura y más mantenimiento; empieza por las que se discuten.
+
+## Errores comunes
+
+- **Construir la capa sin acordar las definiciones** y automatizar la discusión.
+- **Querer cubrir todas las métricas desde el primer día.**
+- **Dejar la definición solo en la herramienta de BI** y no en un sitio reutilizable.
+- **Cambiar una métrica sin avisar** ni versionar: los históricos dejan de coincidir.
+- **Creer que resuelve la calidad del dato.**
+- **Tener varias capas semánticas** (una por herramienta) que divergen.
+- **No retirar los informes antiguos**, que siguen dando la cifra vieja.
+
+## Con IA
+
+Un asistente puede generar SQL de ingresos en un segundo, pero ¿con qué definición? Sin una capa semántica, la elegirá según la pregunta y su suposición, y el siguiente asistente o la siguiente conversación puede elegir otra. Pídele siempre que use las métricas definidas en la capa y que, si no existe la que necesitas, lo diga en lugar de inventarla. La IA amplifica el problema de las definiciones múltiples; la capa semántica es la forma de frenarlo.
+
+## En una entrevista
+
+- _"La dirección y Marketing ven cifras de ventas distintas. ¿Qué haces?"_ — Pista: no discutas números, compara definiciones (estados, devoluciones, fechas); acuerda una; cuantifica la diferencia.
+- _"¿Qué es una capa semántica y qué problema resuelve?"_ — Pista: definiciones de métricas y dimensiones en un solo sitio, SQL generado, consumo desde cualquier herramienta, gobierno.
+- _"¿Una capa semántica arregla los datos malos?"_ — Pista: no; depende de modelos buenos; resuelve la coherencia, no la calidad.
+
+<KeyTakeaways
+  items={[
+    'La misma métrica con definiciones razonables distintas da cifras distintas: los ingresos de 2025 de Lumen oscilan entre 45,94 y 54,89 M€ (un 19,5 % de diferencia) según qué cuente como ingreso.',
+    'Una capa semántica define una sola vez entidades, dimensiones y métricas y genera el SQL de cualquier consulta; así, un cambio de definición se hace en un solo lugar.',
+    'Resuelve la coherencia, la reutilización y el gobierno; no resuelve la calidad del dato, el modelado ni la decisión humana de qué medir.',
+    'Puede vivir en el proyecto de transformación, en la herramienta de BI, en el almacén o como servicio independiente; lo importante es que sea una y que todas las herramientas la consuman.',
+    'Cuantas más herramientas y asistentes de IA generan consultas, más necesaria se vuelve: sin ella, cada uno elige su definición.',
+  ]}
+/>

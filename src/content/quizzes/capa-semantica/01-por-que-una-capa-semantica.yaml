@@ -1,0 +1,58 @@
+lesson: capa-semantica/01-por-que-una-capa-semantica
+questions:
+  - id: cs-01-q1
+    type: numeric
+    difficulty: 2
+    prompt: 'Los ingresos de Lumen de 2025 son 54,89 M€ valorados a precio de lista y 45,94 M€ netos de cancelaciones y devoluciones. ¿En qué porcentaje supera la más alta a la más baja? (Un decimal.)'
+    answer: [19.5]
+    tolerance: 0.3
+    explanation: '(54,89 − 45,94) / 45,94 ≈ 19,5 %. Ninguna cifra es un error: usan definiciones distintas de «ingresos».'
+    ref: '#el-problema-la-métrica-que-significa-varias-cosas'
+
+  - id: cs-01-q2
+    type: single
+    difficulty: 1
+    prompt: '¿Qué es una capa semántica?'
+    options:
+      - 'Una copia de seguridad del almacén'
+      - 'Una capa de definiciones (entidades, dimensiones, medidas, métricas) entre el almacén y quien consume los datos, que genera el SQL a partir de una definición única'
+      - 'Un tipo de gráfico'
+      - 'Un lenguaje de programación'
+    answer: [1]
+    explanation: 'Define una vez qué significa cada métrica y cómo se desglosa; paneles, notebooks, aplicaciones y asistentes de IA leen la misma definición.'
+    ref: '#qué-es-una-capa-semántica'
+
+  - id: cs-01-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODO lo que NO resuelve una capa semántica por sí sola.'
+    options:
+      - 'La calidad del dato de origen'
+      - 'El modelado deficiente de las tablas de debajo'
+      - 'El acuerdo humano sobre qué significa cada métrica'
+      - 'Que dos informes usen la misma definición de ingresos'
+    answer: [0, 1, 2]
+    explanation: 'La última sí la resuelve. La capa hace cumplir una decisión, pero no la toma ni arregla datos o modelos defectuosos.'
+    ref: '#qué-resuelve-y-qué-no'
+
+  - id: cs-01-q4
+    type: single
+    difficulty: 2
+    prompt: 'Aparecen cifras distintas de ventas en dos informes. ¿Cuál es el primer paso razonable?'
+    options:
+      - 'Elegir la cifra más alta'
+      - 'Comparar las definiciones (estados incluidos, devoluciones, fechas) y cuantificar la diferencia entre ellas'
+      - 'Culpar al analista que lo hizo peor'
+      - 'Esperar a que se igualen'
+    answer: [1]
+    explanation: 'La mayoría de las discrepancias son de definición, no de cálculo. Cuantificar cada diferencia permite acordar una definición oficial.'
+    ref: '#el-problema-la-métrica-que-significa-varias-cosas'
+
+  - id: cs-01-q5
+    type: truefalse
+    difficulty: 2
+    prompt: 'Un asistente de IA que escribe SQL sobre el almacén sin capa semántica elegirá siempre la misma definición de «ingresos» en todas las conversaciones.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Sin una definición única a la que acogerse, cada conversación puede elegir otra; la IA amplifica el problema de las definiciones múltiples.'
+    ref: '#qué-es-una-capa-semántica'

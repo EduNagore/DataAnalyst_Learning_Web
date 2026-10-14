@@ -1,0 +1,66 @@
+lesson: capa-semantica/03-herramientas-y-estandares-de-capa-semantica
+questions:
+  - id: cs-03-q1
+    type: single
+    difficulty: 2
+    prompt: '¿Dónde vive la definición de las métricas en las vistas semánticas de Snowflake y en las vistas de métricas de Databricks?'
+    options:
+      - 'En la herramienta de BI'
+      - 'En el propio almacén, como objetos del catálogo o esquema'
+      - 'En una hoja de cálculo'
+      - 'En el navegador'
+    answer: [1]
+    explanation: 'Ambos proveedores han llevado la capa semántica al almacén: así la consumen sus paneles, notebooks, aplicaciones y agentes de IA con los mismos permisos.'
+    ref: '#dónde-vive-la-capa'
+
+  - id: cs-03-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los criterios útiles para elegir una implementación de capa semántica.'
+    options:
+      - 'Qué herramientas y asistentes de IA consumirán las métricas'
+      - 'Apertura y posibilidad de exportar las definiciones'
+      - 'Coste de operar y mantener la capa'
+      - 'Cuál tiene el nombre más conocido'
+    answer: [0, 1, 2]
+    explanation: 'La popularidad no es un criterio técnico. Haz una prueba de concepto con métricas reales y comprueba que las cifras coinciden en todas las herramientas.'
+    ref: '#criterios-para-elegir'
+
+  - id: cs-03-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Qué problema intenta resolver Open Semantic Interchange (OSI)?'
+    options:
+      - 'Acelerar las consultas SQL'
+      - 'Que las definiciones semánticas (métricas, dimensiones, relaciones) puedan transferirse entre herramientas sin reescribirlas'
+      - 'Reemplazar el almacén de datos'
+      - 'Cifrar las métricas'
+    answer: [1]
+    explanation: 'Es un formato neutral y extensible. Su primera versión se publicó el 29 de enero de 2026 con licencia Apache 2.0.'
+    ref: '#estandarización-de-osi-a-apache-ossie'
+
+  - id: cs-03-q4
+    type: single
+    difficulty: 3
+    prompt: 'El proyecto OSI está ahora gobernado por la Apache Software Foundation como Apache Ossie «en incubación». ¿Qué implica para tu decisión?'
+    options:
+      - 'Que ya es un estándar universalmente implementado'
+      - 'Que la especificación puede cambiar y la adopción es desigual: úsalo como criterio de evaluación, no como garantía'
+      - 'Que está descartado'
+      - 'Que solo sirve para dbt'
+    answer: [1]
+    explanation: 'Un estándar reduce el riesgo de dependencia solo cuando las herramientas lo implementan de forma amplia y probada.'
+    ref: '#estandarización-de-osi-a-apache-ossie'
+
+  - id: cs-03-q5
+    type: single
+    difficulty: 2
+    prompt: 'Una empresa tiene un único panel en Power BI y ningún otro consumidor. ¿Qué opción puede bastar?'
+    options:
+      - 'Montar tres capas semánticas distintas'
+      - 'El modelo semántico nativo de Power BI, con medidas bien definidas y versionadas'
+      - 'No definir métricas'
+      - 'Una capa independiente con infraestructura propia'
+    answer: [1]
+    explanation: 'Con un solo consumidor, el modelo nativo puede ser suficiente; la necesidad de una capa independiente crece con el número de herramientas y de asistentes de IA.'
+    ref: '#criterios-para-elegir'

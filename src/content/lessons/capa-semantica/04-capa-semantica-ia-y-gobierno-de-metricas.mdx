@@ -1,0 +1,171 @@
+---
+title: 'Capa semántica, IA y gobierno de métricas'
+description: 'Por qué una capa semántica es requisito de la analítica con IA (con la evidencia, y sus límites, de un benchmark de dbt Labs de 2026) y cómo se gobiernan las métricas: responsables, certificación, versiones, análisis de impacto y conciliación con la fuente de verdad.'
+module: capa-semantica
+order: 4
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Explicar por qué un asistente que consulta una capa semántica se equivoca menos que uno que escribe SQL libre y qué límites tiene esa evidencia.'
+  - 'Distinguir cuándo usar la capa semántica y cuándo SQL libre en una arquitectura de analítica conversacional.'
+  - 'Diseñar un proceso de gobierno de métricas: propietario, estado, versión, cambio y retirada.'
+  - 'Auditar un registro de métricas y calcular el impacto de modificar una definición.'
+prerequisites: ['capa-semantica/03-herramientas-y-estandares-de-capa-semantica']
+tools: ['python', 'sql']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'dbt Labs — Semantic Layer vs. text-to-SQL: 2026 benchmark'
+    url: 'https://docs.getdbt.com/blog/semantic-layer-vs-text-to-sql-2026'
+    type: blog
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'Snowflake — Semantic views: overview'
+    url: 'https://docs.snowflake.com/en/user-guide/views-semantic/overview'
+    type: docs
+    authors: 'Snowflake'
+    year: 2026
+  - title: 'Databricks — Unity Catalog metric views'
+    url: 'https://docs.databricks.com/aws/en/metric-views/'
+    type: docs
+    authors: 'Databricks'
+    year: 2026
+relatedLabs: ['py-registro-de-metricas', 'py-mini-capa-semantica']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Lumen quiere que cualquier persona pueda preguntar en lenguaje natural «¿cuánto vendimos en
+  Andalucía el mes pasado?». El piloto conectó un asistente directamente al almacén y funciona
+  deslumbrantemente… hasta que da dos cifras distintas a dos personas que preguntan casi lo mismo.
+  Dirección pregunta: «¿cómo sé que la respuesta es la oficial?». La respuesta pasa por una capa
+  semántica con métricas gobernadas.
+</BusinessContext>
+
+## Intuición
+
+Pedir un café en un bar con carta o en uno sin ella. Con carta, el camarero (la IA) elige entre opciones definidas y el resultado es siempre el mismo plato. Sin carta, interpreta lo que querías y puede acertar o no. La capa semántica es la carta: la IA elige **métrica, dimensiones y filtros** de un menú acordado, y el sistema genera la consulta de forma determinista. El gobierno de métricas es quien decide qué entra en la carta, quién la mantiene y qué hacer cuando cambia un plato.
+
+## Cómo funciona
+
+### Por qué la IA necesita una capa semántica
+
+Un modelo de lenguaje que genera SQL libre sobre un almacén tiene que adivinar: qué tablas, qué uniones, qué estados cuentan en «ingresos», qué grano tiene cada tabla. Los fallos típicos (uniones ambiguas, fan-out, definiciones de negocio) son los de la lección 2, pero **silenciosos**: el SQL se ejecuta y devuelve un número plausible y equivocado. Con una capa semántica, el modelo no escribe el SQL: **elige una métrica y unos filtros**, y la capa genera la consulta correcta de forma determinista.
+
+La evidencia disponible apunta en esa dirección, con matices. El benchmark que dbt Labs publicó en abril de 2026 (conjunto de seguros «ACME», 15 tablas, 11 preguntas, cada una ejecutada 20 veces) midió la exactitud de los mismos modelos con SQL libre y con la capa semántica:
+
+| Modelo            | SQL libre | Con capa semántica |
+| ----------------- | --------: | -----------------: |
+| Claude Sonnet 4.6 |    90,0 % |             98,2 % |
+| GPT-5.3 Codex     |    84,1 % |            100,0 % |
+
+Y matices importantes en el propio estudio: para las preguntas **dentro del alcance** de la capa, ambos modelos acertaron siempre; las preguntas que exigían demasiados saltos entre entidades **no se podían responder** sin modelado adicional, pero «la capa te dice que no puede responder; nunca devuelve datos inválidos», mientras que el SQL libre «te da con alegría un número equivocado»; y modelar un poco más (tres modelos nuevos) mejoró también el SQL libre a más del 90 %. La conclusión que ofrecen: **no es una cosa u otra, sino las dos para fines distintos**: capa semántica cuando la exactitud importa (consejo, auditoría, KPI) y SQL libre como recurso para exploración.
+
+<Callout type="warning">
+  Lee el benchmark con ojo crítico: lo publica un proveedor de capa semántica, usa un conjunto
+  pequeño (11 preguntas) y de un solo dominio, y mide la exactitud de la respuesta en un momento
+  (los modelos mejoran: el propio estudio recuerda que el SQL libre pasó del 32,7 % al 64,5 % en el
+  conjunto completo respecto a 2023). No lo uses como cifra universal: úsalo como motivación para
+  **medir tu propio caso** con un conjunto de preguntas y respuestas verificadas (módulo de
+  text-to-SQL).
+</Callout>
+
+### Cómo consume la IA una capa semántica
+
+Un asistente conectado a una capa no escribe SQL libre; dispone de herramientas como «listar métricas», «listar dimensiones de una métrica» y «consultar métrica con dimensiones y filtros». Las capas actuales lo ofrecen de forma nativa o mediante el Protocolo de Contexto de Modelos (MCP; módulo de analítica agéntica):
+
+- Snowflake describe sus vistas semánticas como un objeto que se integra con sus aplicaciones de IA (agentes de Cortex).
+- Databricks indica que sus vistas de métricas se consumen desde editores SQL, notebooks, paneles, agentes de Genie y alertas.
+- Cube expone un SQL semántico con función `MEASURE` y APIs pensadas para que los agentes consulten con las políticas de acceso aplicadas.
+
+Ventajas adicionales: la IA hereda los **sinónimos y descripciones** (cliente = customer = usuario), los permisos por fila y columna, y los totales coinciden con los de los paneles.
+
+### Gobierno de métricas
+
+Una métrica gobernada tiene:
+
+| Atributo                | Para qué sirve                                                            |
+| ----------------------- | ------------------------------------------------------------------------- |
+| **Nombre y definición** | Qué es y cómo se calcula, con casos límite                                |
+| **Responsable**         | Quién decide cambios y responde dudas                                     |
+| **Estado**              | `certificada` (oficial), `en_revision` (propuesta), `obsoleta` (retirada) |
+| **Versión**             | Para saber qué definición produjo una cifra histórica                     |
+| **Dependencias**        | De qué otras métricas depende, para el análisis de impacto                |
+| **Consumidores**        | Paneles, informes y asistentes que la usan                                |
+
+Un proceso mínimo de cambio: **propuesta** (qué y por qué, con la diferencia de cifras que causará) → **revisión** por el responsable y los consumidores afectados → **prueba** (conciliación con la fuente de verdad y comparación antes/después) → **aprobación y versión nueva** → **aviso** a los consumidores → **retirada** de la versión antigua tras un plazo.
+
+En el lab auditas el registro de métricas de Lumen con ocho entradas y detectas lo típico:
+
+- Una métrica **certificada que depende de otra no certificada** (`clientes_activos` depende de `ventas_totales`, en revisión): la certificación es tan fuerte como su eslabón más débil.
+- Una métrica **obsoleta aún en un panel** (`ingresos_viejos` en el panel de campañas) y **sin responsable**.
+- **Dos nombres para la misma definición** (`ingresos_brutos` y `ventas_totales` son idénticas): origen de discrepancias futuras.
+
+Y calculas el **análisis de impacto**: si cambia `ingresos_brutos`, se ven afectadas `ingresos_netos` y `ticket_medio` y los paneles de ventas y del consejo. Antes de tocar una definición, saber qué se mueve.
+
+### Conciliación y pruebas
+
+Una métrica gobernada se **concilia** con la fuente de verdad: los ingresos netos de la capa semántica de Lumen (45.942.402 € en 2025) deben coincidir con los de la cuenta de resultados, y las desagregaciones por canal o categoría deben sumar el total. Esas comprobaciones se automatizan como pruebas que se ejecutan en cada cambio (módulo de ingeniería analítica) y alertan si una definición diverge.
+
+<Snapshot date="2026-10">
+  Las capas semánticas se están convirtiendo en la base del contexto para la analítica con IA: los
+  proveedores de almacén las integran con sus asistentes y agentes, y hay un esfuerzo abierto de
+  estandarización (Apache Ossie, en incubación). La evidencia cuantitativa sobre exactitud procede
+  sobre todo de estudios de proveedores: trátala como orientativa. Las capacidades de agentes y los
+  nombres de producto cambian cada pocos meses; confirma la integración vigente de tu proveedor
+  antes de diseñar sobre ella.
+</Snapshot>
+
+## En la práctica
+
+1. **Empieza por las métricas que se discuten** en las reuniones y las que usará la IA.
+2. **Nombra un responsable** de cada una y registra estado, versión y dependencias en un catálogo versionado.
+3. **Escribe descripciones y sinónimos** pensando en quien pregunta (personas y asistentes).
+4. **Concilia cada métrica certificada** con una fuente de verdad y automatiza la prueba.
+5. **Haz un análisis de impacto** antes de cambiar una definición y avisa a los consumidores.
+6. **Versiona las definiciones** y conserva las anteriores el tiempo necesario para reproducir cifras históricas.
+7. **Mide la IA con preguntas verificadas:** ¿acierta con la capa semántica? ¿qué preguntas no puede responder todavía?
+
+## Trade-offs y cuándo usarlo
+
+- **Capa semántica frente a SQL libre para la IA:** exactitud y determinismo frente a flexibilidad; úsalas según el riesgo de la pregunta.
+- **Gobierno estricto frente a agilidad:** más control evita discrepancias pero frena la creación de métricas; mantén un carril de «en revisión».
+- **Pocas métricas certificadas frente a muchas:** pocas, bien cuidadas, valen más que cientos sin responsable.
+- **Cobertura frente a corrección:** la capa solo responde dentro de su alcance; amplíalo con prioridad por demanda real.
+- **Versionar todo frente a lo esencial:** versionar cada cambio da trazabilidad y carga administrativa; fija un umbral (cambia el resultado numérico → nueva versión).
+
+## Errores comunes
+
+- **Conectar la IA directamente al almacén** y llamarlo «autoservicio» sin definiciones.
+- **Certificar métricas que dependen de otras no certificadas.**
+- **Dejar métricas obsoletas en paneles** sin plan de migración.
+- **Cambiar una definición sin análisis de impacto** y sin avisar.
+- **No tener responsable:** cuando falla nadie decide.
+- **Medir la IA con casos fáciles** y creer que acierta siempre.
+- **Tomar un benchmark de un proveedor como una verdad universal.**
+
+## Con IA
+
+La propia IA puede ayudar a mantener el catálogo: proponer descripciones y sinónimos, detectar métricas duplicadas, redactar el aviso de un cambio. Pero la decisión de qué significa una métrica y la certificación son humanas y deben quedar registradas. Y cuando el asistente responda, exige que cite la métrica y la versión usadas y que diga «no puedo responderlo con las métricas definidas» en vez de improvisar SQL.
+
+## En una entrevista
+
+- _"¿Por qué una capa semántica mejora la exactitud de un asistente de IA?"_ — Pista: elige métrica y filtros en vez de escribir SQL; generación determinista; falla de forma explícita; evidencia y sus límites.
+- _"¿Cómo gobernarías las métricas de una empresa?"_ — Pista: responsable, estado, versión, dependencias; proceso de cambio; conciliación; análisis de impacto.
+- _"Vas a cambiar la definición de ingresos. ¿Qué haces?"_ — Pista: impacto en métricas y paneles, diferencia de cifras, aviso, versión, periodo de convivencia.
+
+<KeyTakeaways
+  items={[
+    'Con una capa semántica, la IA elige métrica, dimensiones y filtros y el SQL lo genera la capa de forma determinista: evita los errores silenciosos de uniones, grano y definiciones.',
+    'En el benchmark de dbt Labs (abril de 2026; 15 tablas, 11 preguntas) la exactitud pasó de 90,0 % a 98,2 % en un modelo y de 84,1 % a 100 % en otro; es un estudio pequeño de un proveedor: sirve de motivación, no de cifra universal.',
+    'La capa responde dentro de su alcance y avisa cuando no puede; el SQL libre se reserva para la exploración, y lo razonable es combinar ambos según el riesgo de la pregunta.',
+    'Una métrica gobernada tiene responsable, estado, versión, dependencias y consumidores; el registro de Lumen muestra tres fallos típicos: certificada que depende de no certificada, obsoleta en uso y definiciones duplicadas.',
+    'Antes de cambiar una métrica hay que hacer un análisis de impacto (cambiar ingresos_brutos afecta a ingresos_netos, ticket_medio y a dos paneles) y conciliar con la fuente de verdad.',
+  ]}
+/>

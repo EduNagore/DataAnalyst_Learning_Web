@@ -1,0 +1,62 @@
+lesson: capa-semantica/02-modelo-semantico-medidas-dimensiones-y-metricas
+questions:
+  - id: cs-02-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué tipo de métrica es el ticket medio (ingresos netos entre número de pedidos)?'
+    options:
+      - 'Simple'
+      - 'Ratio'
+      - 'Acumulada'
+      - 'De conversión'
+    answer: [1]
+    explanation: 'Un ratio es el cociente de dos métricas: numerador (ingresos netos) y denominador (pedidos). Se calcula dividiendo agregados, no promediando ratios.'
+    ref: '#los-cinco-tipos-de-métrica'
+
+  - id: cs-02-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'Al unir los pedidos no cancelados de 2025 con sus líneas, el coste de envío suma 917.230 € frente a los 354.721 € reales. ¿Cuántas veces mayor es? (Un decimal.)'
+    answer: [2.6]
+    tolerance: 0.1
+    explanation: '917.230 / 354.721 ≈ 2,6: cada pedido repite su coste de envío una vez por línea (fan-out).'
+    ref: '#fan-out-y-el-grano'
+
+  - id: cs-02-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál es la forma correcta de calcular la tasa de devolución de un mes?'
+    options:
+      - 'La media de las tasas de devolución diarias'
+      - 'Las devoluciones del mes divididas entre las ventas del mes (cociente de agregados)'
+      - 'La tasa del último día'
+      - 'Cualquiera da lo mismo'
+    answer: [1]
+    explanation: 'La media de ratios pondera por igual días de distinto volumen y da un resultado distinto. El ratio se define con su numerador y su denominador.'
+    ref: '#los-cinco-tipos-de-métrica'
+
+  - id: cs-02-q4
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODAS las comprobaciones razonables de una capa semántica recién definida.'
+    options:
+      - 'El total coincide con la fuente de verdad (ingresos netos de 2025 = 45.942.402 € en la cuenta de resultados)'
+      - 'Las desagregaciones por canal o categoría suman el total'
+      - 'Los filtros sin filas y los denominadores cero no rompen la consulta'
+      - 'Se declara cada relación como uno a uno para simplificar'
+    answer: [0, 1, 2]
+    explanation: 'Declarar mal una relación (uno a uno cuando es uno a muchos) es una fuente clásica de errores de grano.'
+    ref: '#de-la-métrica-al-sql'
+
+  - id: cs-02-q5
+    type: single
+    difficulty: 2
+    prompt: '¿Qué es el grano de una tabla?'
+    options:
+      - 'El tamaño del fichero'
+      - 'Lo que representa cada fila (un pedido, una línea de pedido, un cliente)'
+      - 'La compresión del dato'
+      - 'El número de columnas'
+    answer: [1]
+    explanation: 'Conocer el grano evita sumar medidas del pedido sobre las líneas y otros errores de duplicación al unir tablas.'
+    ref: '#fan-out-y-el-grano'

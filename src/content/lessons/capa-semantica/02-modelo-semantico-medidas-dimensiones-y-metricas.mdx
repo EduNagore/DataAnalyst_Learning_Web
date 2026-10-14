@@ -1,0 +1,206 @@
+---
+title: 'El modelo semántico: entidades, dimensiones, medidas y métricas'
+description: 'Cómo se describe un modelo semántico: entidades como claves de unión, dimensiones categóricas y temporales, medidas agregadas y los cinco tipos de métricas (simples, ratio, acumuladas, derivadas y de conversión); cómo una capa genera SQL y evita errores de grano como el fan-out, con una mini capa construida sobre Lumen.'
+module: capa-semantica
+order: 2
+level: avanzado
+estimatedMinutes: 55
+objectives:
+  - 'Describir un modelo semántico con entidades, dimensiones, medidas y métricas, e identificar el grano de cada tabla.'
+  - 'Distinguir métricas simples, ratio, acumuladas, derivadas y de conversión y escribir la de cada tipo.'
+  - 'Explicar el fan-out y cómo una capa semántica lo evita, con cifras reales de Lumen.'
+  - 'Generar el SQL de una consulta semántica y comprobar que las desagregaciones suman el total.'
+prerequisites: ['capa-semantica/01-por-que-una-capa-semantica', 'sql-i/03-joins-y-fan-out']
+tools: ['sql', 'python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'dbt — About MetricFlow'
+    url: 'https://docs.getdbt.com/docs/build/about-metricflow'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'Cube — Introducción'
+    url: 'https://docs.cube.dev/docs/introduction'
+    type: docs
+    authors: 'Cube'
+    year: 2026
+  - title: 'Looker — Introduction to LookML'
+    url: 'https://docs.cloud.google.com/looker/docs/what-is-lookml'
+    type: docs
+    authors: 'Google Cloud'
+    year: 2026
+relatedLabs: ['py-mini-capa-semantica']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Un analista de Lumen calcula los gastos de envío de 2025 uniendo pedidos con sus líneas para
+  desglosar por categoría. El total le sale en 917.230 €; Finanzas dice que son 354.721 €. La
+  diferencia no es de definición sino de **grano**: al unir con las líneas, el coste de envío de
+  cada pedido se repite tantas veces como líneas tiene. Una capa semántica existe, en buena parte,
+  para que nadie tenga que acordarse de esto.
+</BusinessContext>
+
+## Intuición
+
+Un modelo semántico es un mapa del negocio con tres tipos de elementos: **cosas** (pedidos, clientes, productos) que se relacionan entre sí; **formas de mirarlas** (por mes, por canal, por categoría); y **números que se calculan sobre ellas** (ingresos, pedidos, ticket medio). Si el mapa dice cómo se conectan las cosas y qué significa cada número, el sistema puede responder cualquier combinación sin que alguien escriba la consulta a mano.
+
+## Cómo funciona
+
+### Los cuatro elementos
+
+| Elemento      | Qué es                                                                   | Ejemplo en Lumen                                          |
+| ------------- | ------------------------------------------------------------------------ | --------------------------------------------------------- |
+| **Entidad**   | La clave que identifica algo y permite unir tablas                       | `order_id` (primaria en pedidos, foránea en líneas)       |
+| **Dimensión** | Una forma de agrupar o filtrar: categórica o temporal (con granularidad) | canal, dispositivo, categoría, mes (`order_date` por día) |
+| **Medida**    | Una agregación sobre una columna                                         | `SUM(quantity * unit_price)`, `COUNT(DISTINCT order_id)`  |
+| **Métrica**   | Un indicador de negocio construido con medidas u otras métricas          | ingresos netos, ticket medio, tasa de devolución          |
+
+Un modelo semántico en el estilo de MetricFlow se declara en YAML junto a los modelos de transformación (ejemplo ilustrativo: la sintaxis exacta varía entre versiones):
+
+```yaml
+semantic_models:
+  - name: lineas_de_pedido
+    model: ref('fct_order_lines')
+    defaults:
+      agg_time_dimension: order_date
+    entities:
+      - name: order_id
+        type: foreign
+      - name: order_item_id
+        type: primary
+    dimensions:
+      - name: order_date
+        type: time
+        type_params: { time_granularity: day }
+      - name: canal
+        type: categorical
+    measures:
+      - name: ingresos_brutos
+        agg: sum
+        expr: quantity * unit_price
+      - name: pedidos
+        agg: count_distinct
+        expr: order_id
+
+metrics:
+  - name: ticket_medio
+    type: ratio
+    type_params:
+      numerator: ingresos_netos
+      denominator: pedidos
+```
+
+### Los cinco tipos de métrica
+
+MetricFlow define cinco tipos; casi todas las capas semánticas ofrecen equivalentes:
+
+| Tipo           | Qué calcula                                                    | Ejemplo                                                       |
+| -------------- | -------------------------------------------------------------- | ------------------------------------------------------------- |
+| **Simple**     | Una medida directa                                             | Ingresos brutos                                               |
+| **Ratio**      | Cociente de dos métricas simples                               | Ticket medio = ingresos netos / pedidos                       |
+| **Acumulada**  | Una métrica sobre una ventana de tiempo                        | Ingresos de los últimos 28 días; ingresos en el año hasta hoy |
+| **Derivada**   | Una expresión de otras métricas                                | Ingresos netos = ingresos brutos − devoluciones               |
+| **Conversión** | Cuántas entidades pasan de un evento base a otro en un periodo | Compra en los 7 días posteriores a la primera visita          |
+
+Un ratio se define a partir de su **numerador y denominador**, no como una media de medias: la tasa de devolución de un mes no es la media de las tasas diarias. Esa es una de las fuentes de error que la capa evita.
+
+### Fan-out y el grano
+
+El **grano** de una tabla es lo que representa cada fila (un pedido, una línea de pedido, un cliente). Al unir tablas de distinto grano se puede **multiplicar** filas: el coste de envío vive en el pedido; si se une con las líneas, cada pedido aparece tantas veces como líneas tiene.
+
+| Con los pedidos no cancelados de 2025 |   Filas | Suma del coste de envío |
+| ------------------------------------- | ------: | ----------------------: |
+| Tabla de pedidos (grano correcto)     | 161.706 |               354.721 € |
+| Pedidos unidos con sus líneas         | 417.616 |               917.230 € |
+
+La suma sale **2,6 veces mayor** y el recuento de filas, también. Se corrige contando `DISTINCT order_id` para el número de pedidos y agregando cada medida en el grano al que pertenece. MetricFlow evita este tipo de problemas (el _fan-out_ y las uniones tipo _chasm_) calculando cada métrica en el grano de su medida antes de unir, y la documentación presenta esa gestión de uniones como una de sus ventajas.
+
+<Callout type="warning">
+  Una capa semántica genera SQL correcto **si el modelo está bien declarado**: claves y relaciones
+  verdaderas (una relación uno a muchos declarada como uno a uno produce errores), medidas definidas
+  en el grano correcto y dimensiones de la tabla adecuada. «Basura dentro, basura fuera» sigue
+  siendo cierto: automatiza la corrección de las consultas, no la del modelo.
+</Callout>
+
+### De la métrica al SQL
+
+La capa recibe una petición como «ticket medio por canal en 2025» y genera el SQL:
+
+1. **Resuelve la métrica** a sus medidas (ingresos brutos, devoluciones, pedidos), recursivamente si depende de otras métricas.
+2. **Encuentra las tablas** que contienen esas medidas y las dimensiones pedidas, y el camino de uniones entre ellas por las entidades.
+3. **Agrega cada medida** en su grano, y las combina por las dimensiones.
+4. **Aplica los filtros** a las dimensiones y devuelve el resultado.
+
+En el lab construyes un núcleo de ese mecanismo en Python con DuckDB: defines medidas, dimensiones y métricas de Lumen en un diccionario, resuelves métricas derivadas y ratios de forma recursiva y generas el SQL de cualquier consulta. Compruebas lo esencial: los ingresos netos de 2025 salen **45.942.402 €**, exactamente los de la cuenta de resultados, y suman lo mismo si se desglosan por canal o por categoría. Con ese mismo modelo, el ticket medio de 2025 es de **284,37 € online y 280,64 € en tienda**, y la tasa de devolución de Electrónica del 7,17 %.
+
+<Snapshot date="2026-10">
+  La documentación de MetricFlow lo describe como una herramienta de generación de SQL que impulsa
+  la capa semántica de dbt, de código abierto con licencia Apache 2.0, compatible con dbt 1.6 o
+  superior y con Snowflake, BigQuery, Databricks, Redshift y (solo en dbt v1) Postgres. Otros
+  productos expresan las mismas ideas con otro vocabulario: Cube habla de _cubos_ con medidas y
+  dimensiones; LookML, de _vistas_, dimensiones y medidas; Snowflake, de hechos, dimensiones y
+  métricas. El vocabulario y la sintaxis cambian entre productos y versiones: aprende los conceptos
+  y consulta la sintaxis vigente.
+</Snapshot>
+
+## En la práctica
+
+1. **Empieza por el grano:** escribe qué representa una fila de cada tabla y cuál es su clave.
+2. **Declara las entidades** y las relaciones reales (1:N, N:1), sin suponerlas.
+3. **Define las medidas en el grano de su tabla** y usa recuentos distintos (`COUNT(DISTINCT …)`) cuando haya que contar entidades.
+4. **Construye las métricas compuestas con ratios de numerador y denominador**, no con medias de medias.
+5. **Marca la dimensión temporal por defecto** de cada métrica y su granularidad mínima.
+6. **Valida con casos conocidos:** el total debe coincidir con la fuente de verdad y las desagregaciones deben sumarlo.
+7. **Prueba los casos límite:** filtros sin filas, denominadores cero, categorías nulas.
+
+```python
+# ratio: cociente de agregados, nunca media de medias
+ticket_medio = ingresos_netos.sum() / pedidos.nunique()          # correcto
+ticket_medio_malo = (ingresos_por_pedido).mean()                  # media de medias por canal/mes: distinto
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Modelar en una tabla ancha frente a un modelo semántico:** una tabla ancha es simple pero fija el grano; el modelo semántico permite varios granos y uniones correctas.
+- **Métricas simples frente a muchas derivadas:** las derivadas evitan duplicar lógica pero encadenan dependencias; documéntalas.
+- **Generar SQL en tiempo de consulta frente a precalcular:** generar es flexible; precalcular (agregados, caché) acelera lo frecuente a costa de frescura y mantenimiento.
+- **Más dimensiones frente a más control:** cada dimensión añadida multiplica combinaciones que probar.
+- **Una capa por dominio frente a una global:** por dominio es más manejable y arriesga definiciones solapadas.
+
+## Errores comunes
+
+- **Confundir el grano** y sumar medidas del pedido sobre las líneas.
+- **Calcular un ratio como media de ratios** en lugar de dividir agregados.
+- **Declarar mal una relación** (uno a uno cuando es uno a muchos).
+- **Contar con `COUNT(*)`** donde corresponde `COUNT(DISTINCT …)`.
+- **Mezclar fechas** (fecha de pedido, de envío y de devolución) sin declarar cuál es la temporal por defecto.
+- **No probar que las desagregaciones suman el total.**
+- **Meter lógica de negocio en el SQL de la herramienta de BI** en lugar de en el modelo.
+
+## Con IA
+
+Un asistente sin capa semántica suele unir pedidos con líneas y sumar el envío, o calcular medias de medias, y entrega una cifra plausible pero errónea. Con una capa, el asistente solo elige métrica, dimensiones y filtros; la generación del SQL es determinista. Si la métrica que necesita no existe, debe decirlo. Para revisar su trabajo, comprueba que los totales coinciden con los de la fuente y que las desagregaciones suman.
+
+## En una entrevista
+
+- _"Al unir pedidos con líneas, el total de envíos se triplica. ¿Qué ha pasado?"_ — Pista: fan-out; el coste está en el grano del pedido; agregar antes de unir o contar distintos.
+- _"¿Qué tipos de métricas hay?"_ — Pista: simple, ratio, acumulada, derivada, de conversión; ejemplos.
+- _"¿Por qué un ratio no es la media de ratios?"_ — Pista: ponderaciones distintas; Simpson; cociente de agregados.
+
+<KeyTakeaways
+  items={[
+    'Un modelo semántico describe entidades (claves de unión), dimensiones (formas de agrupar), medidas (agregaciones) y métricas (indicadores de negocio), todo sobre el grano real de cada tabla.',
+    'Hay cinco tipos de métricas: simple, ratio, acumulada, derivada y de conversión; un ratio es un cociente de agregados, no una media de medias.',
+    'El fan-out multiplica filas al unir tablas de distinto grano: los envíos de 2025 suman 354.721 € en pedidos y 917.230 € unidos con las líneas, 2,6 veces más.',
+    'La capa genera el SQL resolviendo métricas a medidas, encontrando el camino de uniones y agregando cada medida en su grano; la mini capa del lab da 45.942.402 € de ingresos netos en 2025, igual que la cuenta de resultados.',
+    'La corrección depende de que el modelo esté bien declarado: la capa automatiza las consultas, no la calidad del modelo.',
+  ]}
+/>

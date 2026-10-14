@@ -1,0 +1,38 @@
+---
+title: 'Gobierno de métricas: auditar un registro y medir el impacto de un cambio'
+description: 'Audita el registro de métricas de Lumen (responsables, estados, dependencias, métricas obsoletas en uso y definiciones duplicadas) y calcula qué métricas y paneles se ven afectados si cambia la definición de una de ellas.'
+language: python
+part: 'Parte V · Stack moderno e ingeniería analítica'
+module: capa-semantica
+difficulty: 2
+estimatedMinutes: 35
+concepts:
+  [
+    'gobierno de métricas',
+    'registro de métricas',
+    'certificación',
+    'dependencias',
+    'análisis de impacto',
+  ]
+datasets: []
+packages: []
+output: console
+hints:
+  - 'Recorre el registro una vez para detectar nombres repetidos (informa cada uno una sola vez) y otra para el resto de reglas; construye un diccionario nombre → métrica para consultar el estado de las dependencias.'
+  - 'Una métrica certificada no debería depender de otra que no lo esté (en revisión u obsoleta). Una obsoleta que aparece en algún panel genera un problema por panel.'
+  - 'Duplicadas: agrupa por la definición normalizada (minúsculas y espacios simplificados) y devuelve los grupos con más de un nombre.'
+  - 'Impacto: parte de la métrica y añade cualquier métrica que dependa de alguna del conjunto, hasta que no crezca; los paneles son la unión de los paneles de todas ellas (incluida la original).'
+relatedLessons: ['capa-semantica/04-capa-semantica-ia-y-gobierno-de-metricas']
+businessQuestion: '¿Está en orden el catálogo de métricas y qué se rompe si cambiamos la definición de una de ellas?'
+---
+
+El `registro` (ya escrito) es el catálogo de métricas de Lumen: cada una con su definición, responsable, estado (`certificada`, `en_revision` u `obsoleta`), las métricas de las que depende y los paneles que la usan.
+
+Implementa:
+
+1. **`normalizar(definicion)`** → la definición en minúsculas y con espacios simplificados.
+2. **`validar_registro(registro)`** → lista de problemas de gobierno, ordenada.
+3. **`definiciones_duplicadas(registro)`** → grupos de métricas con la misma definición y distinto nombre.
+4. **`impacto_de_cambio(registro, nombre)`** → métricas y paneles afectados.
+
+Resultado esperado: tres problemas en el registro de Lumen (una métrica certificada que depende de una no certificada, una obsoleta aún en un panel y sin responsable); `ingresos_brutos` y `ventas_totales` son la misma métrica con dos nombres; y cambiar `ingresos_brutos` afecta a `ingresos_netos`, `ticket_medio` y a los paneles de ventas y del consejo.

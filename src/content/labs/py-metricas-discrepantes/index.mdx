@@ -1,0 +1,37 @@
+---
+title: 'Cinco «ingresos» distintos: por qué hace falta una definición única'
+description: 'Calcula los ingresos de Lumen de 2025 con cinco definiciones razonables (precio de lista, con cancelados, sin cancelados, solo completados y netos de devoluciones) y comprueba que difieren casi un 20 %: el problema que resuelve una capa semántica.'
+language: python
+part: 'Parte V · Stack moderno e ingeniería analítica'
+module: capa-semantica
+difficulty: 2
+estimatedMinutes: 30
+concepts:
+  [
+    'definición de métricas',
+    'ingresos',
+    'cancelaciones',
+    'devoluciones',
+    'discrepancias entre informes',
+  ]
+datasets: ['orders', 'order_items', 'returns', 'products']
+packages: []
+output: console
+hints:
+  - 'Las cinco definiciones se calculan sobre las mismas líneas: cambian qué líneas entran (cancelados, completados, devueltas) y a qué precio se valoran (lista o final).'
+  - 'Una línea devuelta está marcada con `devuelta`. «Netos» = no cancelados menos las líneas devueltas.'
+  - 'La dispersión es `(máximo − mínimo) / mínimo · 100` sobre los millones de euros de cada definición.'
+relatedLessons: ['capa-semantica/01-por-que-una-capa-semantica']
+businessQuestion: '¿Cuántos ingresos tuvo Lumen en 2025? Depende de a quién se lo preguntes.'
+---
+
+Finanzas, Marketing y Operaciones preguntan lo mismo, «¿cuántos ingresos tuvimos en 2025?», y cada equipo da una cifra distinta. Ninguna es un error: usan definiciones diferentes. La función `lineas` (ya escrita) devuelve las líneas de pedido de un año con su estado, cantidad, precio de lista, precio final y si fueron devueltas.
+
+Implementa:
+
+1. **`ingresos(lin, definicion)`** con cinco definiciones: `lista`, `todos`, `no_cancelados`, `completados` y `netos`.
+2. **`tabla_de_discrepancias(lin)`** → los ingresos de cada definición en millones, de mayor a menor.
+3. **`dispersion(tabla)`** → diferencia porcentual entre la más alta y la más baja.
+4. **`pedidos(orders, anio, definicion)`** → número de pedidos según qué estados cuentan.
+
+Resultado esperado: entre 54,89 M€ (lista) y 45,94 M€ (netos) hay una diferencia del 19,5 %; los pedidos de 2025 son 168.466, 161.706 o 151.469 según se incluyan cancelados y devueltos.

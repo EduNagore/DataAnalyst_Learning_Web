@@ -1,0 +1,39 @@
+---
+title: 'Una mini capa semántica: de la métrica al SQL'
+description: 'Construye el núcleo de una capa semántica al estilo de MetricFlow: define una vez medidas, dimensiones y métricas (simples, derivadas y ratios), genera el SQL de cualquier consulta y comprueba con DuckDB que todas las consultas coinciden con la cuenta de resultados de Lumen.'
+language: python
+part: 'Parte V · Stack moderno e ingeniería analítica'
+module: capa-semantica
+difficulty: 3
+estimatedMinutes: 50
+concepts:
+  [
+    'capa semántica',
+    'métricas',
+    'dimensiones',
+    'medidas',
+    'generación de SQL',
+    'una sola definición',
+  ]
+datasets: ['orders', 'order_items', 'products', 'returns']
+packages: ['duckdb']
+output: console
+hints:
+  - 'Una métrica simple es su medida (una expresión agregada). Una derivada sustituye cada nombre de métrica de su `expr` por la expresión de esa métrica entre paréntesis (resuelve recursivamente, y empieza por los nombres más largos para no sustituir a medias). Un ratio es `(numerador) / NULLIF((denominador), 0)`.'
+  - 'La consulta es `SELECT <expresión de cada dimensión> AS <nombre>, ..., <métrica> AS <métrica> FROM base [WHERE ...] GROUP BY 1, 2...` (la tabla `base` la materializa `consultar`). Los filtros se aplican sobre la expresión de la dimensión: `<expresión> IN (<literales>)`.'
+  - 'Escapa las comillas simples de los valores de texto duplicándolas (la función `literal` ya lo hace).'
+  - 'Comprobación: los ingresos netos de 2025 deben ser 45.942.402 €, y los ingresos por canal deben sumar ese mismo total.'
+relatedLessons: ['capa-semantica/02-modelo-semantico-medidas-dimensiones-y-metricas']
+businessQuestion: '¿Cómo garantizar que «ingresos netos» significa lo mismo en cualquier informe, filtro o desglose?'
+---
+
+Una **capa semántica** define las métricas **una sola vez** y genera el SQL de cualquier consulta a partir de esa definición. El diccionario `modelo` (ya escrito) describe la consulta base (cómo unir pedidos, líneas, productos y devoluciones), las dimensiones, las medidas y las métricas de Lumen.
+
+Implementa:
+
+1. **`expresion_metrica(modelo, nombre)`** → expresión SQL agregada de una métrica (simple, derivada o ratio), resolviendo otras métricas.
+2. **`generar_sql(modelo, metrica, por, filtros)`** → el SQL completo de una consulta semántica.
+
+Las funciones `literal` y `consultar` (que ejecuta el SQL con DuckDB) ya están escritas.
+
+Resultado esperado: ingresos netos de 2025 de 45.942.402 € (idénticos a la cuenta de resultados del módulo de finanzas), ticket medio de 284,37 € online y 280,64 € en tienda, y las mismas cifras sumando por canal, por categoría o sin desglose.

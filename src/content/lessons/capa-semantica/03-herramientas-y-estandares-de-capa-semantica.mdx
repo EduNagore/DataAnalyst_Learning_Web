@@ -1,0 +1,175 @@
+---
+title: 'Herramientas y estándares: MetricFlow, Cube, LookML, vistas semánticas y OSI'
+description: 'Mapa comparado de las implementaciones de capa semántica (MetricFlow de dbt, Cube, LookML, modelos semánticos de Power BI, vistas semánticas de Snowflake y vistas de métricas de Databricks) y del esfuerzo de estandarización Open Semantic Interchange, ahora Apache Ossie (en incubación).'
+module: capa-semantica
+order: 3
+level: avanzado
+estimatedMinutes: 45
+objectives:
+  - 'Situar cada implementación de capa semántica según dónde vive (transformación, BI, almacén, servicio independiente).'
+  - 'Comparar las opciones con criterios: apertura, acoplamiento, consumo desde otras herramientas e IA, coste de operar.'
+  - 'Explicar qué problema de portabilidad intenta resolver el estándar Open Semantic Interchange y su estado.'
+  - 'Decidir con criterios qué opción encaja con un contexto dado sin asumir que existe una ganadora universal.'
+prerequisites:
+  [
+    'capa-semantica/02-modelo-semantico-medidas-dimensiones-y-metricas',
+    'dashboards-bi/02-power-bi-modelo-estrella-dax-y-pbip',
+  ]
+tools: ['sql']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'dbt — About MetricFlow'
+    url: 'https://docs.getdbt.com/docs/build/about-metricflow'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'Cube — Introducción'
+    url: 'https://docs.cube.dev/docs/introduction'
+    type: docs
+    authors: 'Cube'
+    year: 2026
+  - title: 'Looker — Introduction to LookML'
+    url: 'https://docs.cloud.google.com/looker/docs/what-is-lookml'
+    type: docs
+    authors: 'Google Cloud'
+    year: 2026
+  - title: 'Snowflake — Semantic views: overview'
+    url: 'https://docs.snowflake.com/en/user-guide/views-semantic/overview'
+    type: docs
+    authors: 'Snowflake'
+    year: 2026
+  - title: 'Databricks — Unity Catalog metric views'
+    url: 'https://docs.databricks.com/aws/en/metric-views/'
+    type: docs
+    authors: 'Databricks'
+    year: 2026
+  - title: 'dbt Labs — The OSI spec updates'
+    url: 'https://www.getdbt.com/blog/the-osi-spec-updates'
+    type: blog
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'Apache Ossie (Incubating) — Ossie enters the Apache Incubator'
+    url: 'https://ossie.apache.org/updates/ossie-enters-apache-incubator/'
+    type: blog
+    authors: 'Apache Ossie'
+    year: 2026
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Lumen usa Power BI para los paneles del consejo, un notebook para los análisis de Marketing y está
+  probando un asistente de IA conectado al almacén. Tres consumidores, tres sitios donde se redefine
+  «ingresos netos». El equipo de datos debe elegir dónde vive la definición única y cómo se
+  comparte, sin quedar atado a una herramienta. El mercado ofrece media docena de opciones.
+</BusinessContext>
+
+## Intuición
+
+Los enchufes de distintos países: cada uno funciona en su sitio, pero llevar el aparato a otro país exige un adaptador. Las capas semánticas son enchufes que se parecen mucho por dentro (entidades, dimensiones, medidas) y difieren por fuera (sintaxis, dónde se conectan, quién puede usarlas). Elegir es decidir a qué enchufe quieres atar tus definiciones y cuánto te costará cambiar. Un estándar de intercambio sería el adaptador universal.
+
+## Cómo funciona
+
+### Dónde vive la capa
+
+| Opción                              | Dónde vive                 | Cómo se define                                           | Cómo se consume                                               |
+| ----------------------------------- | -------------------------- | -------------------------------------------------------- | ------------------------------------------------------------- |
+| **MetricFlow** (dbt)                | Proyecto de transformación | YAML junto a los modelos dbt; Apache 2.0                 | A través de la capa semántica de dbt (que MetricFlow impulsa) |
+| **Cube**                            | Servicio independiente     | Modelo de datos con cubos, medidas y dimensiones         | SQL semántico con `MEASURE`, REST, GraphQL, API de metadatos  |
+| **LookML** (Looker)                 | Herramienta de BI          | Lenguaje de modelado versionado en Git                   | Interfaz de Looker                                            |
+| **Modelo semántico de Power BI**    | Herramienta de BI          | Tablas, relaciones y medidas DAX (PBIP/TMDL como código) | Informes de Power BI                                          |
+| **Vistas semánticas** (Snowflake)   | Almacén                    | Objeto de esquema con hechos, dimensiones y métricas     | SQL y aplicaciones de IA del propio ecosistema                |
+| **Vistas de métricas** (Databricks) | Almacén (Unity Catalog)    | Definición YAML; DDL SQL o interfaz del catálogo         | Editores SQL, notebooks, paneles, agentes y alertas           |
+
+**Lo que comparten:** declarar una vez medidas y dimensiones, generar el SQL, permitir agrupar por cualquier campo disponible y llevar la lógica al control de versiones. **Lo que cambia:** quién la mantiene, quién la puede consumir y qué ocurre si cambias de proveedor.
+
+### Criterios para elegir
+
+1. **¿Qué consumidores tienes?** Si casi todo pasa por una sola herramienta de BI, su modelo nativo puede bastar. Si hay varias herramientas, hojas de cálculo, aplicaciones y agentes de IA, conviene una capa que estas puedan consultar.
+2. **¿Dónde está tu equipo de ingeniería analítica?** Si ya trabaja con dbt, definir métricas en el mismo repositorio reduce fricción. Si manda el almacén, sus objetos nativos evitan una pieza más.
+3. **Apertura y portabilidad:** licencia, formato de definición y posibilidad de exportar. El riesgo es acumular definiciones en un formato que solo entiende un proveedor.
+4. **Rendimiento y caché:** si las consultas son pesadas, ¿la capa precalcula o delega todo al almacén?
+5. **Gobierno:** permisos por fila y columna, certificación de métricas, linaje.
+6. **Madurez de la integración con IA:** ¿puede un asistente consultar la capa sin escribir SQL?
+7. **Coste de operar:** licencias, infraestructura y tiempo del equipo.
+
+No hay ganadora universal: una organización con Power BI y un almacén puede empezar con el modelo de Power BI; otra con muchas herramientas, con una capa en el almacén o independiente.
+
+### Estandarización: de OSI a Apache Ossie
+
+Si cada herramienta guarda las definiciones en su formato, cambiar de proveedor obliga a reescribirlas. **Open Semantic Interchange (OSI)** nació como una iniciativa de varios proveedores (dbt Labs, Snowflake, Databricks y Salesforce, entre otros) para crear un **formato neutral y extensible** que represente conjuntos de datos, métricas, dimensiones, relaciones y contexto, de modo que las definiciones puedan transferirse entre herramientas sin reescribirlas. La primera versión de la especificación se publicó el 29 de enero de 2026 en un repositorio abierto con licencia Apache 2.0.
+
+El proyecto ha pasado a gobernanza de la Apache Software Foundation con el nombre **Apache Ossie (en incubación)**. Su descripción oficial: una especificación abierta para capa semántica y ontología que define un formato neutral para métricas, dimensiones y relaciones. El formato YAML se mantiene respecto al proyecto original; ha crecido de 17 socios de lanzamiento a más de 50 organizaciones y sus siguientes pasos incluyen más expresividad, conversores para más plataformas y una especificación de consulta semántica estandarizada.
+
+<Callout type="note">
+  «En incubación» significa que el proyecto aún no es un proyecto de primer nivel de Apache: la
+  especificación puede cambiar y la adopción es desigual. Un estándar reduce el riesgo de
+  dependencia, pero no lo elimina hasta que las herramientas lo implementen de forma amplia y
+  probada. Úsalo como criterio de evaluación («¿exporta e importa el formato abierto?»), no como
+  garantía.
+</Callout>
+
+<Snapshot date="2026-10">
+  **Estado del ecosistema:** la documentación de Snowflake presenta las vistas semánticas como un
+  objeto de esquema consumible por sus aplicaciones de IA; la de Databricks, las vistas de métricas
+  de Unity Catalog como la implementación base de la semántica del catálogo (última actualización de
+  la página: 11 de septiembre de 2026); Cube se describe como una plataforma de analítica agéntica
+  construida sobre una capa semántica de código abierto (Cube Core); y MetricFlow es de código
+  abierto bajo Apache 2.0. El estándar OSI/Ossie está en incubación en Apache desde julio de 2026.
+  Este es uno de los ámbitos que más cambian: confirma versiones, planes y compatibilidades antes de
+  decidir.
+</Snapshot>
+
+## En la práctica
+
+1. **Inventaría los consumidores** (herramientas de BI, notebooks, aplicaciones, asistentes de IA) y las métricas que cada uno necesita.
+2. **Define los criterios de decisión** (los siete de arriba) con pesos acordes a tu contexto.
+3. **Haz una prueba de concepto** con tres métricas reales (una simple, un ratio y una derivada) y mide: ¿coinciden las cifras en todas las herramientas?
+4. **Comprueba la salida:** ¿puedes exportar las definiciones en un formato abierto?
+5. **Empieza pequeño:** diez métricas en una capa, no cien en tres.
+6. **Documenta la decisión** y el plan de revisión anual.
+7. **Vigila el estándar:** si tu proveedor lo implementa, aprovéchalo.
+
+## Trade-offs y cuándo usarlo
+
+- **Nativa de la herramienta frente a independiente:** la nativa se integra mejor y te ata; la independiente sirve a todas y es una pieza más que operar.
+- **En la transformación frente a en el almacén:** en la transformación se versiona con el resto del código; en el almacén se aprovechan los permisos y la proximidad con las aplicaciones del proveedor.
+- **Código abierto frente a servicio gestionado:** lo abierto da control y obliga a operar; lo gestionado simplifica y suma coste y dependencia.
+- **Adoptar un estándar naciente frente a esperar:** adoptarlo pronto da influencia y riesgo de cambios; esperar es seguro y puede ser caro si ya tienes lógica dispersa.
+- **Capa semántica completa frente a modelo de BI simple:** la completa añade gobierno y consumo múltiple; para un único panel puede ser excesiva.
+
+## Errores comunes
+
+- **Elegir por la presentación comercial** sin una prueba de concepto con datos propios.
+- **Definir las métricas dos veces** (en la capa y en la herramienta de BI) y que diverjan.
+- **Acumular lógica en el formato de un proveedor** sin plan de salida.
+- **Esperar que el estándar resuelva ya la portabilidad**, cuando está en incubación.
+- **No acordar propietarios ni proceso de cambio** de las métricas.
+- **Cubrir demasiadas métricas desde el principio** y dejarlas sin mantenimiento.
+- **Ignorar el rendimiento** hasta que el panel tarda un minuto.
+
+## Con IA
+
+Un asistente conoce las herramientas hasta su fecha de corte y suele recomendar la más famosa o confundir versiones y nombres (el estándar OSI ya cambió de nombre). Pídele criterios, no una recomendación, y verifica en la documentación vigente. Para tu prueba de concepto, puede ayudar a traducir definiciones entre formatos, siempre con la comprobación de que las cifras resultantes coinciden con las de la fuente.
+
+## En una entrevista
+
+- _"¿Dónde pondrías la capa semántica en una empresa con Power BI, un notebook y un chatbot?"_ — Pista: consumidores múltiples; capa consultable desde todos (almacén, transformación o servicio); criterios.
+- _"¿Qué es OSI/Apache Ossie?"_ — Pista: formato abierto neutral de definiciones semánticas; portabilidad; estado en incubación.
+- _"¿Qué riesgos tiene definir métricas dentro de la herramienta de BI?"_ — Pista: acoplamiento, duplicación con otros consumidores, difícil exportación.
+
+<KeyTakeaways
+  items={[
+    'Las capas semánticas comparten la idea (entidades, dimensiones, medidas, métricas) y difieren en dónde viven: en la transformación (MetricFlow), en la herramienta de BI (LookML, Power BI), en el almacén (vistas semánticas de Snowflake, vistas de métricas de Databricks) o como servicio independiente (Cube).',
+    'Elige por consumidores, equipo, apertura y portabilidad, rendimiento, gobierno, integración con IA y coste de operar; no hay una ganadora universal.',
+    'Open Semantic Interchange nació en 2025-2026 como formato neutral de definiciones semánticas (primera versión el 29 de enero de 2026) y es ahora Apache Ossie, en incubación desde julio de 2026.',
+    'Un estándar reduce el riesgo de dependencia solo cuando las herramientas lo implementan de verdad: úsalo como criterio de evaluación, no como garantía.',
+    'Haz siempre una prueba de concepto con métricas reales y comprueba que las cifras coinciden en todas las herramientas antes de comprometerte.',
+  ]}
+/>
