@@ -1,0 +1,200 @@
+---
+title: 'Evaluar contra etiquetas humanas: coste y muestreo'
+description: 'Cómo saber si un clasificador de texto (LLM, reglas o modelo) acierta: muestra etiquetada por personas, matriz de confusión, precisión, exhaustividad y F1, kappa de Cohen, intervalos de confianza, tamaño de muestra, estimación del coste en tokens y vigilancia de la deriva.'
+module: llm-texto
+order: 4
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Construir una muestra de evaluación etiquetada por personas y medir su fiabilidad con el acuerdo entre anotadores.'
+  - 'Calcular e interpretar la matriz de confusión, la precisión, la exhaustividad, la F1 y la kappa de Cohen.'
+  - 'Atribuir un intervalo de confianza a las métricas y calcular el tamaño de muestra necesario.'
+  - 'Estimar el coste de clasificar un corpus y reducirlo con deduplicación y muestreo.'
+prerequisites:
+  [
+    'llm-texto/01-clasificar-y-extraer-texto-con-salidas-estructuradas',
+    'inferencia/01-muestreo-error-estandar-e-intervalos-de-confianza',
+    'text-to-sql/04-evaluar-un-sistema-de-texto-a-sql-benchmarks-y-golden-sets',
+  ]
+tools: ['python']
+volatility: medium
+lastReviewed: 2026-10-14
+sources:
+  - title: 'scikit-learn — Metrics and scoring: quantifying the quality of predictions'
+    url: 'https://scikit-learn.org/stable/modules/model_evaluation.html'
+    type: docs
+    authors: 'scikit-learn developers'
+    year: 2026
+  - title: 'scikit-learn — cohen_kappa_score'
+    url: 'https://scikit-learn.org/stable/modules/generated/sklearn.metrics.cohen_kappa_score.html'
+    type: docs
+    authors: 'scikit-learn developers'
+    year: 2026
+  - title: 'The Measurement of Observer Agreement for Categorical Data'
+    url: 'https://doi.org/10.2307/2529310'
+    type: paper
+    authors: 'Landis, J. R., Koch, G. G.'
+    year: 1977
+  - title: 'Anthropic — Structured outputs'
+    url: 'https://platform.claude.com/docs/en/docs/build-with-claude/structured-outputs'
+    type: docs
+    authors: 'Anthropic'
+    year: 2026
+relatedLabs: ['py-evaluar-clasificador-de-tickets', 'py-coste-y-muestreo-de-etiquetado']
+relatedCases: ['que-dicen-los-tickets-de-soporte']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Operaciones ha visto una demo en la que el LLM clasifica tickets «con un 95 % de acierto» y quiere
+  sustituir el trabajo manual. Antes de aprobar el presupuesto, finanzas pregunta: ¿95 % sobre qué?,
+  ¿cuántos tickets se han mirado?, ¿qué tipos de ticket confunde?, ¿cuánto costaría pasarlo por los
+  15.000 y cada mes?, ¿y si cambia el modelo? Hay que responder con una **evaluación**, no con una
+  demo.
+</BusinessContext>
+
+## Intuición
+
+Para saber si un corrector ortográfico funciona no lees todo lo que corrige: tomas una muestra, la revisas tú y cuentas aciertos y fallos. Con un clasificador de texto es igual, con tres matices: la muestra la **etiqueta una persona** (y hay que saber cuánto se fían entre sí dos personas), «acierto» **se desglosa** en qué confunde con qué, y la cifra tiene un **margen de error** que depende de cuántos casos miraste.
+
+## Cómo funciona
+
+### La muestra de oro
+
+- **Aleatoria y representativa** del texto que verá el sistema en producción. Si solo etiquetas los tickets «fáciles», medirás lo fácil.
+- **Estratificada** si hay clases raras: con un 2 % de tickets de fraude, una muestra aleatoria de 200 trae 4; reserva cupo por clase.
+- **Etiquetada por personas con guía escrita** (las definiciones de la lección 1). Ideal: dos personas independientes sobre al menos una parte, y un tercero que resuelve los desacuerdos.
+- **Separada** de los ejemplos que pones en el prompt y de lo que usas para iterar: si afinas el prompt mirando la muestra, estás midiendo con el examen ya visto. Reserva una **muestra de prueba** que no toques hasta el final.
+- **Versionada** y reutilizable: es tu conjunto de regresión para cada cambio de modelo o de prompt.
+
+En Lumen, `support_tickets` incluye una muestra etiquetada a mano (`label`, 1.200 filas); en el resto, `label` está vacía.
+
+### Matriz de confusión y métricas
+
+La **matriz de confusión** cuenta, para cada etiqueta real (filas), cuántas veces el sistema predijo cada etiqueta (columnas). De ella salen, **por clase**:
+
+$$\text{precisión}=\frac{VP}{VP+FP}\qquad \text{exhaustividad}=\frac{VP}{VP+FN}\qquad F_1=\frac{2\,P\,R}{P+R}$$
+
+- **Precisión:** de los tickets que el sistema llama «pagos», ¿qué parte lo es? Importa si actuar sobre un falso positivo es caro.
+- **Exhaustividad (_recall_):** de los tickets que son «pagos», ¿qué parte detecta? Importa si dejar escapar uno es caro.
+- **F1:** media armónica; penaliza que una de las dos sea baja.
+
+Para resumir varias clases: **macro** (promedio simple por clase; cada clase pesa igual, útil con clases raras) y **micro** (se cuentan todos los aciertos juntos; con una sola etiqueta por ticket coincide con la exactitud global).
+
+<Callout type="warning">
+  La **exactitud global** engaña con clases desiguales. Un clasificador que siempre responde «no
+  fraude» acierta el 98 % si solo el 2 % lo es, y no detecta ninguno. Mira siempre la matriz y la
+  exhaustividad de las clases que importan.
+</Callout>
+
+### Acuerdo más allá del azar: kappa de Cohen
+
+Dos anotadores (o una persona y un modelo) pueden coincidir mucho solo por azar o por una clase dominante. La **kappa de Cohen** corrige eso:
+
+$$\kappa=\frac{p_o-p_e}{1-p_e}$$
+
+donde $p_o$ es el acuerdo observado y $p_e$ el esperado si cada uno asignase etiquetas al azar con sus propias frecuencias. Vale 1 con acuerdo total, 0 si no hay más acuerdo que el azar y puede ser negativa. Una escala orientativa clásica (Landis y Koch, 1977) llama «sustancial» al intervalo 0,61-0,80 y «casi perfecto» a más de 0,80, pero **es una convención**, no una ley: ponla en contexto del coste del error.
+
+Úsala de dos formas: **entre humanos** (¿es fiable la etiqueta de oro?; si dos personas obtienen $\kappa=0{,}5$, ningún modelo puede pasar de ahí con sentido) y **entre modelo y humano** (¿acierta más allá del azar?).
+
+### Incertidumbre: cuántos casos hacen falta
+
+Una exactitud del 90 % sobre 30 tickets no es la del 90 % sobre 1.200. Para una proporción, el margen de error aproximado al 95 % es
+
+$$\pm\,1{,}96\sqrt{\frac{p(1-p)}{n}}$$
+
+y el tamaño de muestra para un margen $e$ en el peor caso ($p=0{,}5$) es $n\approx 0{,}25\,(1{,}96/e)^2$: unos **385** casos para $\pm 5$ puntos y unos **1.537** para $\pm 2{,}5$. Con pocos casos o proporciones extremas es preferible el **intervalo de Wilson** (lección de evaluación de texto a SQL). Cada **clase** tiene su propio tamaño: la exhaustividad de una clase con 20 ejemplos tiene un margen enorme.
+
+### Coste
+
+El coste de una clasificación con LLM es aproximadamente
+
+$$\text{coste}\approx N_{\text{llamadas}}\times\left(T_{\text{entrada}}\,p_{\text{entrada}}+T_{\text{salida}}\,p_{\text{salida}}\right)$$
+
+con $T$ los tokens y $p$ el precio por token (lección de tokens del módulo de copiloto). Palancas, de mayor a menor efecto:
+
+1. **Deduplicar:** $N_{\text{llamadas}}$ pasa de 15.000 tickets a **94 textos distintos**.
+2. **Muestrear** si solo necesitas una proporción: con 385-1.500 textos tienes la cifra con margen conocido.
+3. **Prompt corto:** menos etiquetas, descripciones breves, pocos ejemplos; cada token de entrada se paga en cada llamada.
+4. **Modelo pequeño primero** y modelo grande solo para los casos de confianza baja (cascada).
+5. **Lotes e incrementales:** solo los textos nuevos cada día.
+6. **Salida mínima:** una etiqueta, no un párrafo; limita el máximo de tokens de salida (sin truncar el JSON, ver lección 1).
+
+El coste de **etiquetar a mano la muestra** y el de **mantener** la evaluación suele ser mayor que el de las llamadas. Presupuéstalo.
+
+### Deriva y mantenimiento
+
+Un clasificador que hoy acierta el 92 % puede acertar el 80 % en seis meses porque:
+
+- Los clientes **hablan de cosas nuevas** (un fallo de la app, una promoción).
+- El proveedor **actualiza el modelo** gestionado o lo retira.
+- **Cambia la taxonomía** o el prompt.
+
+Defensas: guardar versión de modelo y prompt, **repetir la evaluación** con la muestra de oro en cada cambio, vigilar la **distribución de etiquetas** y la proporción de `otro`, revisar cada mes una pequeña muestra nueva y detectar textos «novedosos» con embeddings (lección 3).
+
+<Snapshot date="2026-10">
+  Las plataformas ofrecen cada vez más herramientas de evaluación integradas, y es habitual usar
+  **un LLM como juez** para valorar salidas abiertas (resúmenes, respuestas). Para clasificación con
+  etiquetas cerradas no hace falta: compara con las etiquetas humanas. Si usas un LLM juez, trátalo
+  como un clasificador más: valídalo contra una muestra humana (kappa) antes de fiarte, y recuerda
+  que tiende a sobrevalorar respuestas largas y de su propia familia de modelos. Los precios por
+  token y los descuentos por lotes cambian con frecuencia; lee la tarifa vigente del proveedor el
+  día que presupuestes.
+</Snapshot>
+
+## En la práctica
+
+1. **Define para qué se usará la etiqueta** y qué error cuesta más (falso positivo o negativo).
+2. **Extrae una muestra aleatoria estratificada** y sepárala en iteración y prueba.
+3. **Etiqueta con guía y mide el acuerdo** entre personas (kappa) en una parte.
+4. **Ejecuta el sistema** y calcula la matriz, la precisión y exhaustividad por clase y la kappa modelo-humano.
+5. **Añade intervalos** y comprueba que el tamaño de cada clase permite concluir algo.
+6. **Lee los errores** (50 como mínimo): ¿ambigüedad de la taxonomía?, ¿instrucciones confusas?, ¿ruido del texto?
+7. **Estima el coste** (tokens, deduplicación, frecuencia) y decide: automatizar, usar con revisión humana de la confianza baja, o no.
+8. **Guarda la evaluación** y repítela en cada cambio de modelo, prompt o taxonomía.
+
+## Trade-offs y cuándo usarlo
+
+- **Más muestra frente a más rapidez:** tamaño pequeño sirve para decidir «claramente no» o «claramente sí»; para decidir entre dos prompts parecidos, necesitas mucha más.
+- **Exactitud frente a precisión/exhaustividad:** exactitud es sencilla pero engañosa con clases desiguales.
+- **Automatizar todo frente a revisión humana de los casos dudosos:** usar la confianza para repartir el trabajo suele dar el mejor equilibrio entre coste y calidad.
+- **Un humano frente a dos:** uno es más barato; dos permiten medir la fiabilidad de la propia etiqueta.
+- **LLM juez frente a etiquetas humanas:** el juez escala, pero hereda sesgos; la verdad de oro sigue siendo humana.
+
+## Errores comunes
+
+- **Dar una exactitud sin decir sobre cuántos casos ni con qué margen.**
+- **Evaluar con los mismos ejemplos que se usaron para escribir el prompt.**
+- **Muestra no aleatoria** (solo los tickets más recientes o los más largos).
+- **No medir el acuerdo entre humanos** y exigir al modelo más de lo que alcanzan las personas.
+- **Ignorar las clases raras** y presentar solo la media global.
+- **Presupuestar solo las llamadas** y olvidar el etiquetado y el mantenimiento.
+- **No repetir la evaluación** tras cambiar el modelo.
+- **Usar `micro` creyendo que es `macro`** (o al revés) al comparar sistemas.
+
+## Con IA
+
+Un asistente puede acelerar mucho el trabajo del evaluador: proponer una guía de etiquetado, resumir los patrones de error de una lista de fallos, escribir el código de la matriz de confusión o generar casos límite adversariales. No le pidas la **etiqueta de oro**: si el mismo tipo de modelo etiqueta y evalúa, mides su coherencia consigo mismo, no su acierto.
+
+## En una entrevista
+
+- _"Un clasificador de tickets tiene un 95 % de exactitud. ¿Qué más preguntarías?"_ — Pista: sobre cuántos casos, muestra y cómo se obtuvo, distribución de clases, matriz de confusión, exhaustividad de las clases críticas, margen de error.
+- _"¿Qué es la kappa de Cohen y para qué la usarías?"_ — Pista: acuerdo corregido por azar; entre anotadores y entre modelo y humano.
+- _"¿Cómo estimas el coste de clasificar 5 millones de reseñas al mes con un LLM?"_ — Pista: tokens por llamada × precio × volumen, deduplicación, cascada de modelos, muestreo, etiquetado y mantenimiento.
+
+<KeyTakeaways
+  items={[
+    'Evalúa con una muestra de oro aleatoria, estratificada, etiquetada por personas con una guía escrita, separada de los ejemplos del prompt, y mide el acuerdo entre anotadores.',
+    'Mira la matriz de confusión y la precisión, la exhaustividad y la F1 por clase; la exactitud global engaña con clases desiguales, y macro y micro responden preguntas distintas.',
+    'La kappa de Cohen corrige el acuerdo por azar; su escala es una convención orientativa. Un modelo no debería exigírsele más acuerdo del que alcanzan dos personas.',
+    'Toda métrica lleva intervalo: unos 385 casos dan ±5 puntos en el peor caso y unos 1.537 dan ±2,5; las clases pequeñas tienen márgenes enormes.',
+    'El coste crece con llamadas × tokens: deduplica (94 textos distintos en 15.000 tickets), muestrea, acorta el prompt y usa cascadas; y presupuesta también el etiquetado y el mantenimiento.',
+    'Guarda la versión del modelo y del prompt y repite la evaluación en cada cambio: la deriva es la regla, no la excepción.',
+  ]}
+/>

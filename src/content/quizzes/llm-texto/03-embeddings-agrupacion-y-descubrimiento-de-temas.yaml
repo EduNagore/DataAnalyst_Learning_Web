@@ -1,0 +1,66 @@
+lesson: llm-texto/03-embeddings-agrupacion-y-descubrimiento-de-temas
+questions:
+  - id: lt-03-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué es un embedding?'
+    options:
+      - 'Una etiqueta de categoría'
+      - 'Un vector de números que coloca un texto en un espacio donde lo parecido queda cerca'
+      - 'Un resumen del texto'
+      - 'Una expresión regular'
+    answer: [1]
+    explanation: 'Con los vectores se pueden agrupar textos, buscar vecinos, deduplicar y detectar novedades.'
+    ref: '#de-texto-a-vectores-tf-idf-y-embeddings'
+
+  - id: lt-03-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Por qué se usa la similitud del coseno y no la distancia euclídea para comparar textos?'
+    options:
+      - 'Porque es más rápida'
+      - 'Porque mide la dirección e ignora la longitud: un texto largo y uno corto sobre lo mismo salen parecidos'
+      - 'Porque da siempre 1'
+      - 'Porque solo funciona con TF-IDF'
+    answer: [1]
+    explanation: 'Vale 1 con la misma dirección y 0 sin nada en común (en TF-IDF).'
+    ref: '#similitud-del-coseno'
+
+  - id: lt-03-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las comprobaciones antes de fiarte de una agrupación de textos.'
+    options:
+      - 'Probar varios valores de k y mirar la silueta'
+      - 'Repetirla con otra semilla para ver si es estable'
+      - 'Leer los textos más cercanos al centro de cada grupo'
+      - 'Aceptar los porcentajes por grupo como cifras de negocio'
+    answer: [0, 1, 2]
+    explanation: 'K-means siempre devuelve grupos, también cuando no hay estructura; los porcentajes dependen de k y de la representación.'
+    ref: '#agrupar-para-descubrir-temas'
+
+  - id: lt-03-q4
+    type: single
+    difficulty: 3
+    prompt: 'En Lumen, «me han cobrado dos veces» aparece en las categorías pagos y app con una similitud del coseno de 0,82. ¿Qué indica?'
+    options:
+      - 'Un error en los datos'
+      - 'Un único tema para el cliente repartido por la categoría administrativa en dos'
+      - 'Que app y pagos son la misma categoría'
+      - 'Que el modelo de embeddings es malo'
+    answer: [1]
+    explanation: 'Es el hallazgo típico del descubrimiento de temas: la taxonomía antigua esconde un tema grande en dos categorías pequeñas.'
+    ref: '#agrupar-para-descubrir-temas'
+
+  - id: lt-03-q5
+    type: single
+    difficulty: 2
+    prompt: '¿Por qué conviene deduplicar los textos antes de agrupar?'
+    options:
+      - 'Para ahorrar memoria solamente'
+      - 'Porque los textos repetidos dominan los centroides y el grupo más grande parece el tema más importante'
+      - 'Porque k-means no admite duplicados'
+      - 'No conviene'
+    answer: [1]
+    explanation: 'Si pesas por tickets, la agrupación refleja la frecuencia; si quieres estructura, deduplica y pondera después.'
+    ref: '#qué-más-se-hace-con-los-vectores'

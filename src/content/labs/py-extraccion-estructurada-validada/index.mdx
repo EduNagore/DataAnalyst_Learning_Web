@@ -1,0 +1,39 @@
+---
+title: 'Extracción estructurada de tickets: validar lo que devuelve el modelo'
+description: 'Construye la capa de validación que debe haber entre un LLM y tu base de datos: parseo tolerante del JSON, validación de esquema, valores y rangos, reintentos acotados con el error en el prompt, tasa de validez, y comprueba que para extraer días una expresión regular basta en 2.397 tickets de Lumen.'
+language: python
+part: 'Parte VI · IA para analistas'
+module: llm-texto
+difficulty: 2
+estimatedMinutes: 40
+concepts:
+  [
+    'salidas estructuradas',
+    'validación de esquema',
+    'reintentos acotados',
+    'tasa de validez',
+    'expresiones regulares',
+  ]
+datasets: ['support_tickets']
+packages: []
+output: console
+hints:
+  - 'Parseo: busca la primera «{» con `find` y la última «}» con `rfind`; si no hay o están al revés, None; envuelve `json.loads` en try/except `json.JSONDecodeError`.'
+  - 'Los booleanos son enteros en Python (`isinstance(True, int)` es True): excluye `bool` explícitamente al validar `dias_retraso`.'
+  - 'Reintentos: bucle que llama al modelo, cuenta el intento y, si es inválido y `intentos > max_reintentos`, devuelve el fallo; si no, añade al prompt una línea con los errores y repite.'
+  - 'Días: `re.search(r"(\d+)\s+días?\b", texto)`. `resumen_dias` filtra los None antes de calcular la media.'
+relatedLessons: ['llm-texto/01-clasificar-y-extraer-texto-con-salidas-estructuradas']
+businessQuestion: '¿Qué pasa si el modelo devuelve un JSON mal formado, un tema inventado o un número imposible, y cuánto de la extracción es fiable?'
+---
+
+Entre un LLM y una columna de tu almacén tiene que haber **código de validación**. Las salidas estructuradas del proveedor garantizan la forma del JSON, pero no el contenido, ni los rangos, ni qué hacer ante una negativa o una respuesta truncada.
+
+Hay seis tickets reales de `support_tickets` (`TICKETS`) y nueve respuestas guionizadas de un modelo simulado (`RESPUESTAS`) que incluyen un JSON dentro de una valla de código, un tema inventado («facturacion»), un mensaje sin JSON, una clave que falta, un tema con mayúsculas y un número de días imposible. Implementa:
+
+1. **`parsear_json(respuesta)`**: tolerante a vallas y texto alrededor.
+2. **`validar(d)`**: lista de errores con nombre, en orden.
+3. **`extraer(llm, texto, max_reintentos)`**: pide, valida y reintenta pasando el error al prompt.
+4. **`tasa_validez(resultados)`**: cuántas salen bien a la primera, tras reintento o se descartan.
+5. **`dias_regex(texto)`** y **`resumen_dias(tabla)`**: la alternativa barata para un patrón regular.
+
+Resultado esperado: **3 de 6 válidas a la primera, 2 tras un reintento y 1 descartada**, y una expresión regular que encuentra los días en 2.397 tickets (media de 8,06) sin gastar un solo token.

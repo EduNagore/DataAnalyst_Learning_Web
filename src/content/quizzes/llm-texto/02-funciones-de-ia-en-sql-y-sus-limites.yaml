@@ -1,0 +1,66 @@
+lesson: llm-texto/02-funciones-de-ia-en-sql-y-sus-limites
+questions:
+  - id: lt-02-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Cuál es el patrón común de AI_CLASSIFY (Snowflake), AI.CLASSIFY (BigQuery) y ai_classify (Databricks)?'
+    options:
+      - 'Entrenan un modelo con tus datos'
+      - 'Reciben un texto y una lista de etiquetas y devuelven la etiqueta (a veces con confianza)'
+      - 'Solo funcionan con imágenes'
+      - 'Devuelven siempre un resumen'
+    answer: [1]
+    explanation: 'Los nombres cambian, el patrón es el mismo: texto de entrada + categorías → categoría.'
+    ref: '#un-catálogo-que-converge'
+
+  - id: lt-02-q2
+    type: single
+    difficulty: 2
+    prompt: 'Una vista que alimenta un dashboard llama a una función de IA en cada fila y se refresca cada hora. ¿Cuál es el problema principal?'
+    options:
+      - 'Ninguno: las funciones de IA son gratuitas'
+      - 'El coste se repite en cada refresco y el resultado puede cambiar entre ejecuciones; hay que materializar'
+      - 'SQL no admite funciones de IA'
+      - 'El dashboard no puede mostrar texto'
+    answer: [1]
+    explanation: 'Llama a la IA una vez, guarda el resultado en una tabla con modelo, versión del prompt y fecha, y consulta la tabla.'
+    ref: '#cuándo-llamar-y-cuándo-materializar'
+
+  - id: lt-02-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las formas de reducir el coste de clasificar textos con una función de IA.'
+    options:
+      - 'Deduplicar los textos antes de llamar'
+      - 'Filtrar primero con SQL barato lo que no necesita IA'
+      - 'Acortar las descripciones y ejemplos del prompt'
+      - 'Añadir más etiquetas con ejemplos largos'
+    answer: [0, 1, 2]
+    explanation: 'Cada etiqueta, descripción y ejemplo se paga en cada llamada; más contenido en el prompt aumenta el coste.'
+    ref: '#cuándo-llamar-y-cuándo-materializar'
+
+  - id: lt-02-q4
+    type: single
+    difficulty: 2
+    prompt: '¿Por qué conviene llamar a la columna generada «tema_ia» en lugar de «tema»?'
+    options:
+      - 'Por estética'
+      - 'Porque es una estimación no determinista, no un hecho, y no debe mezclarse sin rastro con una etiqueta humana'
+      - 'Porque SQL lo exige'
+      - 'Porque así es más barata'
+    answer: [1]
+    explanation: 'Quien lea el dashboard debe saber qué parte es medida y qué parte es inferida.'
+    ref: '#riesgos-específicos'
+
+  - id: lt-02-q5
+    type: single
+    difficulty: 3
+    prompt: 'Databricks admite hasta 500 etiquetas en ai_classify. Para una taxonomía mayor, ¿qué recomienda la documentación?'
+    options:
+      - 'Dividirla al azar'
+      - 'Recuperar con embeddings las k etiquetas más cercanas por documento y clasificar solo entre ellas'
+      - 'Usar siempre más memoria'
+      - 'No clasificar'
+    answer: [1]
+    explanation: 'Es la preselección de etiquetas con embeddings; también ayuda a la precisión cuando hay muchas categorías.'
+    ref: '#qué-cambia-respecto-a-llamar-a-la-api'

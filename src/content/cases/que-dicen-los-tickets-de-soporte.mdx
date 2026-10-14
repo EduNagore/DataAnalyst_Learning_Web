@@ -1,0 +1,149 @@
+---
+title: '¿Qué dicen realmente los tickets de soporte?'
+description: 'Un caso de analítica de texto: atención al cliente reparte 15.000 tickets en cinco categorías y quiere saber de qué se quejan los clientes. Deduplicas, normalizas a plantillas, agrupas por tema en lugar de por categoría, descubres un tema repartido en dos categorías y propones cómo medir un clasificador automático.'
+difficulty: 2
+estimatedMinutes: 40
+role: operaciones
+datasets: ['support_tickets']
+brief: |
+  De: Lucía Ferrer (Directora de Atención al Cliente)
+  Asunto: ¿Qué dicen nuestros tickets?
+
+  Hola, cada ticket entra con una categoría (envío, pagos, devoluciones, producto, app) y los informes mensuales cuentan tickets por categoría. Siempre sale «producto» o «envío» arriba y poco más.
+
+  Desde Dirección me preguntan de qué se quejan realmente los clientes y dónde invertir primero. Tengo la sensación de que la categoría no lo cuenta todo, y me han hablado de usar un LLM para clasificarlos.
+
+  ¿Puedes mirar los textos y decirme qué hay, antes de que gastemos dinero en nada?
+
+  Gracias, Lucía
+steps:
+  - id: s1-textos-distintos
+    tool: sql
+    answerType: numeric
+    answer: 94
+    tolerance: 0
+    prompt: |
+      Antes de nada: ¿cuántos **textos distintos** hay en `support_tickets.text`? (Tickets en total: 15.000.)
+    hints:
+      - 'Cuenta con `COUNT(DISTINCT text)`.'
+    explanation: |
+      Solo **94 textos distintos** para 15.000 tickets. Es un dato clave: cualquier modelo (o persona) solo tiene que clasificar 94 textos, no 15.000. Deduplicar es siempre el primer paso.
+
+  - id: s2-plantillas
+    tool: sql
+    answerType: numeric
+    answer: 25
+    tolerance: 0
+    prompt: |
+      Muchos de esos textos solo cambian en un número («lleva **8** días de retraso») o en la categoría citada («un pedido de la categoría **Hogar**»). Normaliza: sustituye cada número por `N` y la categoría citada por `categoría X`. ¿Cuántas **plantillas** distintas quedan?
+    hints:
+      - "Con `regexp_replace(text, '\\d+', 'N', 'g')` y, encima, `regexp_replace(…, 'categoría [^ ?.]+( y [^ ?.]+)?', 'categoría X', 'g')`."
+    explanation: |
+      **25 plantillas**, de unos 600 tickets cada una. Los 15.000 tickets son, en realidad, 25 mensajes distintos que se repiten con variaciones.
+
+  - id: s3-retraso
+    tool: sql
+    answerType: numeric
+    answer: 1811
+    tolerance: 0
+    prompt: |
+      Hay tres plantillas que hablan de lo mismo, un **retraso de envío**: «debía llegar hace N días…», «lleva N días de retraso…» y «sigue en el almacén después de N días». ¿Cuántos tickets las usan en total?
+    hints:
+      - "Usa `regexp_matches(text, '(llegar hace \\d+ días|lleva \\d+ días de retraso|almacén después de \\d+ días)')`."
+    explanation: |
+      **1.811 tickets** (el 12,1 % del total) hablan de retraso. En el informe por categoría aparecen como «envío», mezclados con otros temas (paquete devuelto al almacén, pedido incompleto).
+
+  - id: s4-cobro-duplicado
+    tool: sql
+    answerType: numeric
+    answer: 1218
+    tolerance: 0
+    prompt: |
+      Otro tema: **cobro duplicado**. ¿Cuántos tickets dicen «cobrado dos veces» en el texto?
+    hints:
+      - "Filtra con `text ILIKE '%cobrado dos veces%'`."
+    explanation: |
+      **1.218 tickets** (el 8,1 %). Más que cualquiera de las plantillas sueltas (la mayor tiene 637).
+
+  - id: s5-cobro-en-app
+    tool: sql
+    answerType: numeric
+    answer: 602
+    tolerance: 0
+    prompt: |
+      ¿Cuántos de esos tickets de cobro duplicado están en la categoría **`app`**?
+    hints:
+      - "Añade `category = 'app'` al filtro anterior."
+    explanation: |
+      **602** (el 49 %). El mismo problema para el cliente («me han cobrado dos veces») está repartido a medias entre `pagos` (616) y `app` (602). El informe por categoría lo parte en dos temas pequeños y ninguno destaca.
+
+  - id: s6-tema-mayor
+    tool: reasoning
+    answerType: single
+    answer: [1]
+    options:
+      - 'Producto: es la categoría con más tickets (3.060).'
+      - 'Retraso de envío: 1.811 tickets, más que cualquier otro tema, aunque quede dentro de la categoría envío.'
+      - 'Cobro duplicado: es el tema que cruza dos categorías y por tanto el mayor.'
+      - 'Fallos de la app: son los más graves, así que son los mayores.'
+    prompt: |
+      Con los recuentos por tema, ¿cuál es el **tema más frecuente** entre los tickets?
+    hints:
+      - 'Compara 1.811 (retraso), 1.218 (cobro duplicado) y los 1.216 de producto dañado («llegó roto» o «defectuoso»).'
+    explanation: |
+      El retraso de envío (1.811) supera al cobro duplicado (1.218) y al producto dañado (1.216, repartido entre `producto` y `devoluciones`). «Producto» es la mayor **categoría**, pero no un tema: agrupa cinco plantillas sin relación.
+
+  - id: s7-retraso-largo
+    tool: sql
+    answerType: numeric
+    answer: 38.8
+    tolerance: 0.1
+    prompt: |
+      Del total de tickets de retraso (s3), ¿qué **porcentaje** menciona **10 o más días**? (Extrae el número de días del texto; un decimal.)
+    hints:
+      - "Extrae el número con `try_cast(regexp_extract(text, '(\\d+) días', 1) AS INTEGER)` y cuenta los que son ≥ 10 entre los tickets de retraso."
+    explanation: |
+      **38,8 %** (703 de 1.811) llevan diez días o más sin respuesta. Una expresión regular extrae el dato con exactitud, sin gastar un solo token de LLM: la herramienta barata primero.
+
+  - id: s8-recomendaciones
+    tool: reasoning
+    answerType: multiple
+    answer: [0, 1, 2]
+    options:
+      - 'Añadir una etiqueta de tema transversal (retraso, cobro duplicado, producto dañado…) además de la categoría administrativa.'
+      - 'Priorizar en el plan de mejora el retraso de envío (≈ 12 % de los tickets) y el cobro duplicado (≈ 8 %).'
+      - 'Medir cualquier clasificador automático contra una muestra etiquetada a mano antes de usarlo.'
+      - 'Clasificar los 15.000 tickets con un LLM sin deduplicar, para no perder detalle.'
+      - 'Eliminar la categoría actual porque «no sirve».'
+    prompt: |
+      ¿Qué recomendaciones tienen sentido para Lucía? (Marca todas las que apliquen.)
+    hints:
+      - 'Piensa en lo que has medido: temas, tamaño, repetición de textos y el coste de equivocarse.'
+    explanation: |
+      Un tema transversal sin tocar la categoría actual (que sirve para enrutar), priorizar por tamaño y medir cualquier clasificador contra etiquetas humanas. Clasificar 15.000 tickets cuando hay 94 textos distintos es malgastar dinero, y eliminar la categoría rompería el enrutamiento y la serie histórica.
+
+  - id: s9-mensaje
+    tool: reasoning
+    answerType: text-self-assessed
+    prompt: |
+      Escribe la respuesta a Lucía en 4-5 líneas: **qué hay realmente en los tickets, qué tema destaca y se esconde en el informe por categoría, y cómo usarías (o no) un LLM**.
+    hints:
+      - 'Empieza por la conclusión («la categoría esconde los temas»), da tres cifras (94 textos / 25 plantillas, 1.811 de retraso, 1.218 de cobro duplicado repartidos entre pagos y app) y cierra con el plan.'
+    explanation: |
+      Un buen mensaje evita jerga, aporta cifras comprobables y deja un plan con coste mínimo (deduplicar y medir antes de gastar).
+rubric:
+  - 'Empiezo por la conclusión: la categoría administrativa esconde los temas reales de los clientes.'
+  - 'Cuantifico: 15.000 tickets son 94 textos y 25 plantillas; el retraso de envío es el tema mayor (1.811, ≈ 12 %).'
+  - 'Señalo el cobro duplicado (1.218) repartido entre pagos y app, y por eso invisible en el informe por categoría.'
+  - 'Propongo un LLM solo tras deduplicar y medirlo contra una muestra etiquetada a mano, con un coste mínimo.'
+  - 'Indico acciones concretas: etiqueta de tema transversal y priorización del retraso y del cobro duplicado.'
+modelReport: |
+  **Conclusión.** El informe por categoría esconde de qué se quejan realmente los clientes. Los 15.000 tickets son en realidad 94 textos distintos y solo 25 plantillas (cambian números y categorías citadas), así que el análisis es mucho más sencillo de lo que parece.
+
+  **Qué destaca.** El tema más frecuente es el **retraso de envío**, con 1.811 tickets (≈ 12 %), y más de un tercio de ellos (38,8 %) lleva diez días o más sin respuesta. En segundo lugar está el **cobro duplicado**, con 1.218 tickets (≈ 8 %), que hoy queda repartido casi a mitades entre `pagos` y `app` y por eso no destaca en ningún informe. «Producto» es la categoría mayor, pero agrupa cinco temas sin relación.
+
+  **Qué haría.** Añadir una etiqueta de tema transversal, además de la categoría, y priorizar el retraso de envío y el cobro duplicado. Para automatizar la etiqueta usaría primero reglas y un LLM solo sobre los textos distintos, y no lo pondría en producción sin compararlo con una muestra de unos 400 tickets etiquetados a mano (margen de ±5 puntos). Clasificar los 94 textos cuesta céntimos; lo caro es comprobarlo.
+---
+
+Este caso usa la tabla `support_tickets` del dataset Lumen.
+La teoría está en las lecciones «Clasificar y extraer texto con salidas estructuradas», «Embeddings, agrupación y descubrimiento de temas» y «Evaluar contra etiquetas humanas: coste y muestreo».

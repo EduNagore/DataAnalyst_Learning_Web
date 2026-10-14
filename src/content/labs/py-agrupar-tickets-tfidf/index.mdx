@@ -1,0 +1,39 @@
+---
+title: 'Agrupar tickets: TF-IDF, similitud del coseno y duplicados'
+description: 'Construye TF-IDF y la similitud del coseno con NumPy sobre los tickets de Lumen: normaliza los 15.000 tickets a 25 plantillas, encuentra el par casi duplicado que cruza las categorías pagos y app, recupera vecinos y comprueba con k-means que las categorías administrativas no son los grupos naturales del texto.'
+language: python
+part: 'Parte VI · IA para analistas'
+module: llm-texto
+difficulty: 3
+estimatedMinutes: 50
+concepts:
+  [
+    'TF-IDF',
+    'similitud del coseno',
+    'deduplicación',
+    'k-means sobre texto',
+    'estabilidad de la agrupación',
+  ]
+datasets: ['support_tickets']
+packages: ['scikit-learn']
+output: console
+hints:
+  - 'Plantillas: `re.sub(r"\d+", "N", texto)` y `re.sub(r"categoría [^ ?.]+( y [^ ?.]+)?", "categoría X", …)`; agrupa con `groupby("plantilla")` y ordena por `n` descendente y plantilla ascendente.'
+  - 'Tokenizar: `unicodedata.normalize("NFKD", …)` y descarta los caracteres con `unicodedata.combining`; luego `re.findall(r"[a-z]+", …)`.'
+  - 'TF-IDF: matriz de recuentos (documentos × vocabulario), multiplica cada columna por `np.log((1 + n) / (1 + df)) + 1` y divide cada fila entre su norma (`np.linalg.norm(axis=1, keepdims=True)`).'
+  - 'Con filas de norma 1 la similitud del coseno es `X @ X.T`. Para vecinos ordena los índices con la clave `(-similitud, índice)`.'
+  - 'Pureza: `pd.crosstab(grupos, categorias)`; suma el máximo de cada fila y divide entre el total.'
+relatedLessons: ['llm-texto/03-embeddings-agrupacion-y-descubrimiento-de-temas']
+businessQuestion: '¿Las cinco categorías de soporte son los grupos naturales de lo que escriben los clientes, o hay temas que se cruzan?'
+---
+
+Los 15.000 tickets de `support_tickets` salen de solo **25 plantillas** (los números y la categoría citada cambian). Deduplicar primero es lo más barato que puedes hacer antes de vectorizar, agrupar o llamar a un modelo. Después, la pregunta: ¿qué dice el propio texto sobre sus parecidos?
+
+Implementa, sin librerías de texto (solo NumPy y pandas):
+
+1. **`normalizar_plantilla(texto)`** y **`plantillas(tabla)`**: 25 plantillas con su categoría y su recuento.
+2. **`tokenizar(texto)`** y **`tfidf(textos)`**: matriz TF-IDF normalizada y vocabulario.
+3. **`similitud(X)`**, **`vecinos(S, i, k)`** y **`pares_parecidos(S, umbral)`**.
+4. **`pureza(grupos, categorias)`** y **`rango_pureza(...)`**: con `agrupar` (k-means, ya implementada) mide cuánto se parecen los grupos a las categorías y cuánto cambian con la semilla.
+
+Resultado esperado: **un solo par supera una similitud de 0,5**, y es «me han cobrado dos veces» en `pagos` y «la app me ha cobrado dos veces» en `app` (≈ 0,82): para el cliente es **un único problema repartido en dos categorías**. Y k-means nunca recupera las cinco categorías (pureza inferior a 0,85) ni da el mismo resultado con otra semilla: las categorías son administrativas, no la estructura natural del texto.

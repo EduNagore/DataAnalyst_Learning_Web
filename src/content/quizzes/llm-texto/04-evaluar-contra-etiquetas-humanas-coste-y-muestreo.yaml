@@ -1,0 +1,71 @@
+lesson: llm-texto/04-evaluar-contra-etiquetas-humanas-coste-y-muestreo
+questions:
+  - id: lt-04-q1
+    type: single
+    difficulty: 2
+    prompt: 'Un clasificador de fraude responde siempre «no fraude» y acierta el 98 % porque solo el 2 % es fraude. ¿Qué métrica lo delata?'
+    options:
+      - 'La exactitud global'
+      - 'La exhaustividad de la clase fraude (0 %)'
+      - 'El número de tokens'
+      - 'La longitud de las respuestas'
+    answer: [1]
+    explanation: 'La exactitud global engaña con clases desiguales; mira la matriz y la exhaustividad de las clases que importan.'
+    ref: '#matriz-de-confusión-y-métricas'
+
+  - id: lt-04-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'Un clasificador predice «pagos» en 100 tickets y 80 son realmente de pagos. Hay 160 tickets de pagos en la muestra. ¿Cuál es su exhaustividad? (Entre 0 y 1, con dos decimales.)'
+    answer: [0.5]
+    tolerance: 0.01
+    explanation: 'Exhaustividad = VP / (VP + FN) = 80 / 160 = 0,50. La precisión sería 80 / 100 = 0,80.'
+    ref: '#matriz-de-confusión-y-métricas'
+
+  - id: lt-04-q3
+    type: numeric
+    difficulty: 2
+    prompt: '¿Cuántos casos hay que etiquetar a mano, en el peor caso (p = 0,5), para estimar una proporción con un margen de error de ±5 puntos al 95 %? (Entero.)'
+    answer: [385]
+    tolerance: 1
+    explanation: 'n ≈ 1,96² · 0,25 / 0,05² ≈ 384,2, es decir, 385. Para ±2,5 puntos hacen falta unos 1.537.'
+    ref: '#incertidumbre-cuántos-casos-hacen-falta'
+
+  - id: lt-04-q4
+    type: single
+    difficulty: 3
+    prompt: 'Dos personas etiquetan los mismos 200 tickets y obtienen una kappa de Cohen de 0,5. ¿Qué implica para un modelo?'
+    options:
+      - 'Nada: la kappa solo se usa con modelos'
+      - 'La etiqueta de oro es poco fiable: no tiene sentido exigir a un modelo mucho más acuerdo del que alcanzan las personas'
+      - 'Que hay que etiquetar menos'
+      - 'Que el modelo es perfecto'
+    answer: [1]
+    explanation: 'Primero se mejora la guía de etiquetado y la taxonomía; es un problema de definición, no de modelo.'
+    ref: '#acuerdo-más-allá-del-azar-kappa-de-cohen'
+
+  - id: lt-04-q5
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODAS las palancas que reducen el coste de clasificar un corpus con un LLM.'
+    options:
+      - 'Deduplicar los textos'
+      - 'Muestrear si solo necesitas una proporción'
+      - 'Usar un modelo pequeño primero y el grande solo para la confianza baja'
+      - 'Repetir la clasificación cada día sobre todo el histórico'
+    answer: [0, 1, 2]
+    explanation: 'El proceso incremental (solo textos nuevos) también abarata; repetir todo el histórico lo encarece sin aportar información.'
+    ref: '#coste'
+
+  - id: lt-04-q6
+    type: single
+    difficulty: 2
+    prompt: '¿Por qué hay que repetir la evaluación con la muestra de oro cada vez que cambia el modelo o el prompt?'
+    options:
+      - 'Por costumbre'
+      - 'Porque un cambio de modelo, de prompt o de taxonomía puede alterar el acierto y la deriva es la regla, no la excepción'
+      - 'Porque la muestra caduca en un mes'
+      - 'Para gastar presupuesto'
+    answer: [1]
+    explanation: 'Guardar versión de modelo y prompt junto a cada resultado permite además explicar los cambios.'
+    ref: '#deriva-y-mantenimiento'

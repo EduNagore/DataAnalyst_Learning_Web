@@ -1,0 +1,18 @@
+# Consultas que RECALCULAN las respuestas numéricas del caso a partir de los datos
+# (las ejecuta tests/labs/test_cases.py; no se publican en la web).
+s1-textos-distintos: |
+  SELECT COUNT(DISTINCT text) FROM support_tickets
+s2-plantillas: |
+  SELECT COUNT(DISTINCT regexp_replace(regexp_replace(text, '\d+', 'N', 'g'), 'categoría [^ ?.]+( y [^ ?.]+)?', 'categoría X', 'g'))
+  FROM support_tickets
+s3-retraso: |
+  SELECT COUNT(*) FROM support_tickets
+  WHERE regexp_matches(text, '(llegar hace \d+ días|lleva \d+ días de retraso|almacén después de \d+ días)')
+s4-cobro-duplicado: |
+  SELECT COUNT(*) FROM support_tickets WHERE text ILIKE '%cobrado dos veces%'
+s5-cobro-en-app: |
+  SELECT COUNT(*) FROM support_tickets WHERE text ILIKE '%cobrado dos veces%' AND category = 'app'
+s7-retraso-largo: |
+  SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE try_cast(regexp_extract(text, '(\d+) días', 1) AS INTEGER) >= 10) / COUNT(*), 1)
+  FROM support_tickets
+  WHERE regexp_matches(text, '(llegar hace \d+ días|lleva \d+ días de retraso|almacén después de \d+ días)')

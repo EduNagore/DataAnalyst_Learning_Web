@@ -1,0 +1,38 @@
+---
+title: 'Evaluar un clasificador de tickets contra etiquetas humanas'
+description: 'Implementa desde cero la matriz de confusión, la precisión, la exhaustividad, la F1 y la kappa de Cohen, y evalúa un clasificador de reglas sobre los 1.200 tickets de Lumen etiquetados a mano: descubre qué confunde, por qué la exactitud global esconde clases malas y cuánto vale la kappa.'
+language: python
+part: 'Parte VI · IA para analistas'
+module: llm-texto
+difficulty: 2
+estimatedMinutes: 40
+concepts:
+  [
+    'matriz de confusión',
+    'precisión y exhaustividad',
+    'F1 macro',
+    'kappa de Cohen',
+    'análisis de errores',
+  ]
+datasets: ['support_tickets']
+packages: []
+output: console
+hints:
+  - 'Matriz: crea un DataFrame de ceros con `index=clases` y `columns=clases` y suma 1 en `m.loc[real, pred]` por cada pareja.'
+  - 'Precisión = diagonal / suma de la columna (lo predicho); exhaustividad = diagonal / suma de la fila (lo real). Evita la división entre cero con `.where(denominador > 0)` y `.fillna(0)`.'
+  - 'κ: `po` es la exactitud; `pe = Σ (suma de fila × suma de columna) / total²`. Con las marginales como arrays de NumPy es una línea.'
+  - 'Errores: recorre las celdas fuera de la diagonal con valor > 0 y ordena con la clave `(-n, real, predicha)`.'
+relatedLessons: ['llm-texto/04-evaluar-contra-etiquetas-humanas-coste-y-muestreo']
+businessQuestion: '¿Cuánto acierta nuestro clasificador de tickets, qué confunde y es mejor que el azar?'
+---
+
+Un clasificador de reglas ya está implementado (`clasificar_por_reglas`) y `ETIQUETADOS` contiene los **1.200 tickets de `support_tickets` etiquetados a mano** (`label`). El sistema sustituye lo que haría un LLM: lo importante es **cómo se mide**, que es idéntico.
+
+Implementa:
+
+1. **`matriz_confusion(y_true, y_pred, clases)`**: filas reales, columnas predichas.
+2. **`metricas_por_clase(m)`**: precisión, exhaustividad, F1 y soporte de cada clase.
+3. **`exactitud(m)`**, **`f1_macro(met)`** y **`kappa_cohen(m)`**.
+4. **`errores_frecuentes(m, k)`**: las celdas fuera de la diagonal más pobladas.
+
+Resultado esperado: **exactitud 0,838, F1 macro 0,841 y κ de Cohen 0,797**. El resumen suena bien, pero la matriz cuenta otra historia: **«devoluciones» tiene una exhaustividad de 0,56** (104 tickets del tipo «el producto llegó defectuoso, necesito cambiarlo» acaban en «producto») y «producto» tiene una precisión de 0,58. Una cifra global jamás te habría dicho dónde mirar.

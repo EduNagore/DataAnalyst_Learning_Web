@@ -1,0 +1,66 @@
+lesson: llm-texto/01-clasificar-y-extraer-texto-con-salidas-estructuradas
+questions:
+  - id: lt-01-q1
+    type: single
+    difficulty: 1
+    prompt: 'Los 15.000 tickets de Lumen solo contienen 94 textos distintos. ¿Qué haces antes de llamar a un LLM?'
+    options:
+      - 'Llamar al modelo 15.000 veces para no perder detalle'
+      - 'Deduplicar: clasificar cada texto distinto una vez y unir el resultado de vuelta'
+      - 'Elegir solo los 100 primeros tickets'
+      - 'Entrenar un modelo propio'
+    answer: [1]
+    explanation: 'Con textos repetidos, deduplicar reduce llamadas y coste en más de un 99 % sin perder información.'
+    ref: '#tres-enfoques-para-clasificar-texto'
+
+  - id: lt-01-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Por qué conviene incluir una etiqueta «otro» y permitir que el modelo se abstenga?'
+    options:
+      - 'Para que el modelo responda más rápido'
+      - 'Porque sin salida de escape el modelo elige la menos mala y las métricas mienten'
+      - 'Porque lo exige el esquema JSON'
+      - 'Para gastar menos tokens'
+    answer: [1]
+    explanation: 'La taxonomía debe ser exhaustiva o dar una salida; si no, los errores quedan escondidos en etiquetas forzadas.'
+    ref: '#diseñar-la-tarea-etiquetas-definiciones-y-salida-de-escape'
+
+  - id: lt-01-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las cosas que las salidas estructuradas con esquema JSON NO garantizan.'
+    options:
+      - 'Que el contenido sea correcto (el tema elegido es el verdadero)'
+      - 'Que los valores numéricos cumplan un rango (el esquema de Claude no admite minimum ni maximum)'
+      - 'Que la salida sea completa si se alcanza el límite de tokens'
+      - 'Que la respuesta tenga la forma del esquema cuando el modelo no se niega'
+    answer: [0, 1, 2]
+    explanation: 'Garantizan la forma, no la verdad; hay que validar valores y rangos y manejar negativas y truncados.'
+    ref: '#salidas-estructuradas'
+
+  - id: lt-01-q4
+    type: single
+    difficulty: 2
+    prompt: 'Quieres extraer cuántos días de retraso menciona cada ticket («lleva 8 días de retraso»). ¿Qué es lo más adecuado?'
+    options:
+      - 'Un LLM grande para todos los tickets'
+      - 'Una expresión regular: es más barata, rápida y exacta para un patrón regular'
+      - 'Un modelo de embeddings'
+      - 'Preguntarlo a mano'
+    answer: [1]
+    explanation: 'Reserva el LLM para lo que las reglas no cubren («llevo desde el lunes sin noticias»); compara ambos en los casos discrepantes.'
+    ref: '#sentimiento-y-extracción-de-campos'
+
+  - id: lt-01-q5
+    type: single
+    difficulty: 3
+    prompt: 'Tras dos reintentos el modelo sigue devolviendo un JSON inválido para un ticket. ¿Qué haces?'
+    options:
+      - 'Rellenar la columna con el valor más frecuente'
+      - 'Guardar NULL con el motivo del fallo y contarlo en la tasa de validez'
+      - 'Borrar el ticket de la tabla'
+      - 'Repetir indefinidamente hasta que funcione'
+    answer: [1]
+    explanation: 'Nunca se rellena en silencio: un NULL con motivo es honesto y permite medir la salud del proceso.'
+    ref: '#validar-siempre-esquema-valores-y-reintentos'

@@ -1,0 +1,40 @@
+---
+title: 'Coste y muestreo: cuánto cuesta clasificar tickets con un LLM y cuántos hay que revisar'
+description: 'Estima el coste en tokens de clasificar los 15.000 tickets de Lumen con un LLM, comprueba que deduplicar los 94 textos distintos ahorra el 99 % y calcula cuántos casos hay que etiquetar a mano para una evaluación con un margen de error dado, con muestreo estratificado.'
+language: python
+part: 'Parte VI · IA para analistas'
+module: llm-texto
+difficulty: 2
+estimatedMinutes: 35
+concepts:
+  [
+    'coste por token',
+    'deduplicación',
+    'margen de error',
+    'tamaño de muestra',
+    'muestreo estratificado',
+  ]
+datasets: ['support_tickets']
+packages: []
+output: console
+hints:
+  - 'Los precios son € por millón de tokens: `(tokens_entrada · precio_entrada + tokens_salida · precio_salida) / 1_000_000`.'
+  - 'Deduplicar conservando el orden: `list(dict.fromkeys(textos))`. El prompt de cada llamada es `prompt_base + "\nTicket: " + texto`, y los tokens se calculan sobre ese prompt completo.'
+  - 'Tamaño de muestra: `math.ceil(z**2 · p · (1 − p) / margen**2)`; con p = 0,5 y margen 0,05 sale 385.'
+  - 'Estratificada: `min(n_clase, max(minimo, round(n_total · n_clase / total)))` por clase.'
+relatedLessons:
+  [
+    'llm-texto/04-evaluar-contra-etiquetas-humanas-coste-y-muestreo',
+    'llm-texto/02-funciones-de-ia-en-sql-y-sus-limites',
+  ]
+businessQuestion: '¿Cuánto cuesta clasificar los tickets con un LLM, qué ahorra la deduplicación y cuántos casos hay que etiquetar a mano para fiarnos de la evaluación?'
+---
+
+Antes de aprobar un proyecto con LLM hay que poner **dos números** encima de la mesa: lo que costará ejecutar el modelo y lo que costará comprobar que acierta. Con precios **ficticios** de un modelo grande (3 € por millón de tokens de entrada y 15 € por millón de salida), implementa:
+
+1. **`coste_llamada(...)`**: euros de una llamada a partir de los tokens y los precios.
+2. **`plan_de_coste(...)`**: llamadas, tokens y coste de clasificar una lista de textos, con o sin deduplicar. Para contar tokens usa la aproximación `tokens()` (un token cada cuatro caracteres; los tokenizadores reales dan más tokens en español).
+3. **`margen_error(p, n)`** y **`tamano_muestra(margen, p)`**: cuántos casos etiquetar a mano para un margen dado.
+4. **`asignar_muestra(conteos, n_total, minimo)`**: muestra estratificada con un mínimo por clase.
+
+Resultado esperado: sin deduplicar, **15.000 llamadas** y unos **6,54 €**; deduplicando, **94 llamadas** y unos **0,04 €** (−99,4 %). Y para evaluar: **385 casos** para ±5 puntos, **1.537** para ±2,5 y **9.604** para ±1. El coste de ejecutar el modelo es, casi siempre, **lo barato**; lo caro es etiquetar y mantener la evaluación.

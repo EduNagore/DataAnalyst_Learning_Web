@@ -1,0 +1,169 @@
+---
+title: 'Embeddings, agrupación y descubrimiento de temas'
+description: 'Cómo convertir texto en vectores (TF-IDF y embeddings), medir similitud con el coseno, agrupar con k-means para descubrir temas que nadie había definido, ponerles nombre con ayuda de un LLM y usar los mismos vectores para deduplicar y buscar tickets parecidos.'
+module: llm-texto
+order: 3
+level: avanzado
+estimatedMinutes: 45
+objectives:
+  - 'Explicar qué es un embedding y por qué la similitud del coseno sirve para comparar textos.'
+  - 'Distinguir TF-IDF (palabras) de embeddings densos (significado) y saber cuándo basta el primero.'
+  - 'Agrupar textos con k-means, elegir el número de grupos con criterio y evaluar la calidad de la agrupación.'
+  - 'Descubrir y nombrar temas, deduplicar textos casi iguales y recuperar los más parecidos a una consulta.'
+prerequisites:
+  [
+    'llm-texto/01-clasificar-y-extraer-texto-con-salidas-estructuradas',
+    'regresion-modelos/03-segmentacion-rfm-y-k-means',
+  ]
+tools: ['python']
+volatility: medium
+lastReviewed: 2026-10-14
+sources:
+  - title: 'scikit-learn — Clustering text documents using k-means'
+    url: 'https://scikit-learn.org/stable/auto_examples/text/plot_document_clustering.html'
+    type: docs
+    authors: 'scikit-learn developers'
+    year: 2026
+  - title: 'Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks'
+    url: 'https://arxiv.org/abs/1908.10084'
+    type: paper
+    authors: 'Reimers, N., Gurevych, I.'
+    year: 2019
+  - title: 'Snowflake — Cortex AI Functions (AI_EMBED, AI_SIMILARITY)'
+    url: 'https://docs.snowflake.com/user-guide/snowflake-cortex/aisql'
+    type: docs
+    authors: 'Snowflake'
+    year: 2026
+relatedLabs: ['py-agrupar-tickets-tfidf']
+relatedCases: ['que-dicen-los-tickets-de-soporte']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Las cinco categorías de los tickets de Lumen las eligió alguien hace años. Operaciones pregunta:
+  «¿es esa la forma natural de agrupar lo que nos escriben los clientes, o hay temas que se cruzan
+  entre categorías?». No hay etiquetas que predecir, solo 15.000 textos. Hay que dejar que sean los
+  propios textos los que digan cómo se agrupan, y después ponerle nombre a cada grupo.
+</BusinessContext>
+
+## Intuición
+
+Imagina colocar cada ticket como un punto en un mapa, de modo que **los textos que dicen cosas parecidas queden cerca**. Un **embedding** es justo eso: las coordenadas (cientos o miles de números) de cada texto en ese mapa. Una vez tienes el mapa, puedes hacer lo de siempre con puntos: agruparlos (k-means), buscar el vecino más cercano (tickets parecidos), detectar duplicados (puntos casi superpuestos) o ver qué hay en las zonas vacías.
+
+## Cómo funciona
+
+### De texto a vectores: TF-IDF y embeddings
+
+| Representación                 | Cómo se construye                                                                                                  | Capta                                   | No capta                                          |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------- | ------------------------------------------------- |
+| **Bolsa de palabras / TF-IDF** | Un vector con una dimensión por palabra; el valor pondera cuánto aparece en el texto y lo rara que es en el corpus | Palabras compartidas                    | Sinónimos («devolución» ≈ «reembolso»), contexto  |
+| **Embeddings densos**          | Un modelo (red neuronal) entrenado para que textos de significado parecido den vectores parecidos                  | Significado, sinónimos, a veces idiomas | Se paga por llamar al modelo; menos interpretable |
+
+**TF-IDF** (frecuencia de término por frecuencia inversa de documento) hace que «el», «de» y «mi» pesen poco y «reembolso» o «cobrado» pesen mucho. Es gratis, rápido y sorprendentemente competitivo cuando los textos comparten vocabulario, como los tickets de plantilla de Lumen. Los **embeddings** (por ejemplo, los de modelos tipo Sentence-BERT) brillan cuando la gente dice lo mismo con palabras muy distintas.
+
+### Similitud del coseno
+
+Para comparar dos vectores se usa casi siempre el **coseno del ángulo** entre ellos:
+
+$$\cos(\mathbf{a},\mathbf{b}) = \frac{\mathbf{a}\cdot\mathbf{b}}{\lVert\mathbf{a}\rVert\,\lVert\mathbf{b}\rVert}$$
+
+Vale 1 si apuntan en la misma dirección, 0 si no tienen nada en común (en TF-IDF) y valores intermedios si comparten parte. Ignora la longitud: un ticket largo y uno corto sobre lo mismo salen parecidos.
+
+### Agrupar para descubrir temas
+
+**k-means** (lección de segmentación) reparte los vectores en $k$ grupos minimizando la distancia a cada centroide. Con texto:
+
+1. **Vectoriza** (TF-IDF o embeddings) y, con embeddings muy largos, reduce dimensiones si hace falta.
+2. **Elige $k$** probando varios valores: la **silueta** (qué tan separados están los grupos, de −1 a 1) y la **inercia** orientan, pero la decisión final es de negocio: ¿cuántos temas puede gestionar el equipo?
+3. **Lee los grupos:** para cada uno, mira los términos con mayor peso en el centroide y los 5-10 textos **más cercanos al centro**. Si no puedes ponerle nombre, el grupo no está claro: cambia $k$ o la representación.
+4. **Nombra los temas** (a mano o pidiéndoselo a un LLM con esos ejemplos y términos, y revisando la respuesta).
+5. **Convierte el descubrimiento en etiquetas:** los temas elegidos pasan a ser la taxonomía de la lección 1 y se miden como cualquier clasificador (lección 4).
+
+Cuando la agrupación no coincide con las categorías conocidas, no es un fallo: **es el hallazgo**. En Lumen, por ejemplo, «me han cobrado dos veces» aparece tanto en la categoría `pagos` como en `app`: la categoría administrativa parte en dos un tema que para el cliente es uno solo.
+
+### Qué más se hace con los vectores
+
+- **Búsqueda de tickets parecidos:** dado un ticket nuevo, recupera los $k$ vecinos más cercanos (la idea detrás de la búsqueda semántica y de los sistemas que añaden documentos al contexto de un LLM).
+- **Deduplicación aproximada:** pares con coseno por encima de un umbral (por ejemplo, 0,95) son casi iguales: clasifica uno y propaga la etiqueta (ahorro de coste, lección 4).
+- **Detección de novedad:** un ticket cuyo vecino más cercano está muy lejos es un tema nuevo (un fallo recién aparecido, un ataque de texto).
+- **Preselección de etiquetas:** con taxonomías de cientos de etiquetas, recupera las 10-20 más cercanas y clasifica solo entre ellas.
+
+<Callout type="warning">
+  Las agrupaciones **siempre devuelven grupos**, también cuando no hay estructura. K-means impone
+  fronteras en medio de nubes continuas. Comprueba que el resultado es **estable** (otra semilla,
+  otra muestra) y que los grupos **tienen sentido al leerlos**. Y cuidado con las cifras: «el tema 3
+  representa el 18 % de los tickets» es una afirmación sobre tu agrupación, no sobre la realidad;
+  cambia con $k$ y con la representación.
+</Callout>
+
+<Snapshot date="2026-10">
+  Snowflake ofrece `AI_EMBED` y `AI_SIMILARITY` (y `AI_MULTI_EMBED`, multimodal, en versión
+  preliminar); Databricks, `ai_similarity` y `vector_search`; las plataformas de modelos publican
+  sus propios modelos de embeddings, con distintas dimensiones y precios por token. Para textos de
+  plantilla o de vocabulario controlado, TF-IDF sigue siendo una línea base excelente: pruébala
+  antes de pagar embeddings y compara. La elección concreta de modelo de embeddings (idioma,
+  dimensión, coste) cambia cada pocos meses; mide con tus datos.
+</Snapshot>
+
+## En la práctica
+
+1. **Empieza con TF-IDF y una agrupación sencilla** como línea base; pasa a embeddings si no basta.
+2. **Deduplica antes de agrupar** o los textos repetidos dominan los centroides (en Lumen, 94 textos distintos).
+3. **Prueba varios $k$** (5, 8, 12, 25…) y guarda la silueta; revisa los grupos leyéndolos.
+4. **Compara con la categoría existente** con una tabla cruzada: ¿qué grupos mezclan categorías?
+5. **Nombra los temas** con términos clave y textos centrales; deja que un LLM proponga el nombre y valídalo.
+6. **Fija semillas y versiones** para que la agrupación sea reproducible.
+7. **Convierte los temas en una taxonomía** y mídela con una muestra etiquetada.
+
+```python
+from sklearn.cluster import KMeans
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+vec = TfidfVectorizer(strip_accents="unicode", lowercase=True)
+X = vec.fit_transform(textos_distintos)
+grupos = KMeans(n_clusters=25, n_init=10, random_state=0).fit_predict(X)
+```
+
+## Trade-offs y cuándo usarlo
+
+- **TF-IDF frente a embeddings:** TF-IDF es gratis y transparente; los embeddings entienden sinónimos y otros idiomas. Con vocabulario controlado, el primero puede igualar al segundo.
+- **Más grupos frente a menos:** muchos grupos son específicos pero inmanejables; pocos mezclan temas.
+- **K-means frente a otros algoritmos:** k-means es sencillo y rápido pero asume grupos compactos y exige elegir $k$; los métodos jerárquicos o basados en densidad no exigen $k$ pero son más sensibles a parámetros.
+- **Agrupar frente a clasificar:** agrupar descubre; clasificar mide y mantiene continuidad en el tiempo. Se usan en ese orden.
+- **Local frente a servicio:** calcular TF-IDF en tu máquina no envía datos a nadie; los embeddings de un servicio sí.
+
+## Errores comunes
+
+- **Agrupar sin deduplicar** y creer que el grupo más grande es el tema más importante.
+- **Elegir $k$ solo con la silueta** sin leer los grupos.
+- **Fiarse de una sola ejecución** (otra semilla puede dar otros grupos).
+- **Nombrar grupos sin mirar textos** del centro.
+- **Comparar vectores de modelos distintos** (no son compatibles).
+- **Usar un umbral de coseno** copiado de un blog sin calibrarlo con tus datos.
+- **Presentar los porcentajes de la agrupación** como cifras de negocio.
+
+## Con IA
+
+Un LLM es muy bueno poniendo nombre a un grupo si le pasas 10 textos centrales y los términos principales, y proponiendo cómo dividir un grupo confuso. Pídele también que busque **textos que no encajan** en el nombre que ha dado: es una prueba de coherencia barata. La decisión de qué temas existen, y qué hacer con ellos, es del negocio.
+
+## En una entrevista
+
+- _"Tienes 100.000 comentarios sin etiquetar. ¿Cómo averiguas de qué hablan?"_ — Pista: vectorizar, agrupar, leer centroides y ejemplos, nombrar, validar con muestra, convertir en taxonomía.
+- _"¿Por qué usarías la similitud del coseno y no la distancia euclídea?"_ — Pista: ignora la longitud del texto; mide dirección.
+- _"¿Cómo sabes si la agrupación es buena?"_ — Pista: estabilidad, silueta, interpretabilidad, comparación con etiquetas humanas si las hay.
+
+<KeyTakeaways
+  items={[
+    'Un embedding coloca cada texto como un punto en un mapa donde lo parecido queda cerca; TF-IDF lo hace con palabras y es una línea base gratuita y fuerte cuando el vocabulario es controlado.',
+    'La similitud del coseno compara direcciones y no depende de la longitud del texto; sirve para buscar vecinos, deduplicar y detectar novedades.',
+    'K-means siempre devuelve grupos: elige k probando varios valores, comprueba estabilidad y lee los textos centrales de cada grupo antes de darle nombre.',
+    'Cuando la agrupación cruza las categorías existentes (por ejemplo, «cobro duplicado» en pagos y en app), la taxonomía antigua está ocultando un tema: ese es el hallazgo.',
+    'Deduplica antes de agrupar y convierte los temas descubiertos en una taxonomía que se mide contra etiquetas humanas.',
+  ]}
+/>

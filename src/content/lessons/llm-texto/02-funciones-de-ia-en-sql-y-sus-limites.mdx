@@ -1,0 +1,210 @@
+---
+title: 'Funciones de IA en SQL y sus límites'
+description: 'Las funciones de IA integradas en los almacenes de datos (Snowflake AI_*, BigQuery AI.*, Databricks ai_*): qué ofrecen, cómo se parecen, cuándo conviene llamar a un LLM desde SQL y cuándo materializar los resultados, y los riesgos de coste, no determinismo y gobierno.'
+module: llm-texto
+order: 2
+level: avanzado
+estimatedMinutes: 40
+objectives:
+  - 'Reconocer las funciones de IA de SQL de los tres grandes proveedores y su equivalencia conceptual.'
+  - 'Decidir cuándo llamar a una función de IA en una consulta y cuándo materializar el resultado en una tabla.'
+  - 'Estimar el coste de una consulta con funciones de IA y reducirlo (deduplicar, muestrear, acotar).'
+  - 'Identificar los riesgos de gobierno: datos que salen del almacén, no determinismo y falta de reproducibilidad.'
+prerequisites:
+  [
+    'llm-texto/01-clasificar-y-extraer-texto-con-salidas-estructuradas',
+    'stack-moderno/01-warehouses-lakehouses-y-formatos-de-tabla-abiertos',
+  ]
+tools: ['sql']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Snowflake — Cortex AI Functions (including LLM functions)'
+    url: 'https://docs.snowflake.com/user-guide/snowflake-cortex/aisql'
+    type: docs
+    authors: 'Snowflake'
+    year: 2026
+  - title: 'Snowflake — AI_CLASSIFY'
+    url: 'https://docs.snowflake.com/en/sql-reference/functions/ai_classify'
+    type: docs
+    authors: 'Snowflake'
+    year: 2026
+  - title: 'Google Cloud — BigQuery generative AI overview (managed AI functions)'
+    url: 'https://docs.cloud.google.com/bigquery/docs/generative-ai-overview'
+    type: docs
+    authors: 'Google Cloud'
+    year: 2026
+  - title: 'Google Cloud — The AI.CLASSIFY function'
+    url: 'https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/bigqueryml-syntax-ai-classify'
+    type: docs
+    authors: 'Google Cloud'
+    year: 2026
+  - title: 'Databricks — AI Functions'
+    url: 'https://docs.databricks.com/aws/en/large-language-models/ai-functions'
+    type: docs
+    authors: 'Databricks'
+    year: 2026
+  - title: 'Databricks — ai_classify function'
+    url: 'https://docs.databricks.com/aws/en/sql/language-manual/functions/ai_classify'
+    type: docs
+    authors: 'Databricks'
+    year: 2026
+relatedLabs: ['py-coste-y-muestreo-de-etiquetado']
+relatedCases: ['que-dicen-los-tickets-de-soporte']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  El equipo de datos de Lumen trabaja en SQL sobre el almacén y no quiere montar un servicio aparte
+  para clasificar tickets. Un compañero ha visto que su plataforma permite escribir `SELECT
+  AI_CLASSIFY(text, [...]) FROM tickets` y pregunta: «¿lo lanzo sobre toda la tabla y lo uso en el
+  dashboard?». La respuesta corta es «no así»; la larga es esta lección.
+</BusinessContext>
+
+## Intuición
+
+Una función de IA en SQL es **una subconsulta que llama a un becario carísimo por cada fila**. Muy cómodo (no sales de SQL, no mueves datos, no gestionas claves) y muy peligroso si no piensas en cuántas filas llegan al becario, cuánto cobra cada llamada y si, al repetir la consulta mañana, te dará la misma respuesta. La regla de oro: **llama a la IA una vez, guarda el resultado en una tabla y consulta la tabla**.
+
+## Cómo funciona
+
+### Un catálogo que converge
+
+Los tres grandes proveedores han convergido en una familia de funciones «de tarea» (clasificar, extraer, resumir, puntuar…) más una función general para prompts libres:
+
+| Tarea                                | Snowflake (Cortex AI)       | BigQuery (funciones gestionadas)    | Databricks (AI Functions)        |
+| ------------------------------------ | --------------------------- | ----------------------------------- | -------------------------------- |
+| Clasificar en categorías propias     | `AI_CLASSIFY`               | `AI.CLASSIFY`                       | `ai_classify`                    |
+| Extraer campos de texto o documentos | `AI_EXTRACT`                | `AI.GENERATE` (salida estructurada) | `ai_extract`                     |
+| Sentimiento / puntuar                | `AI_SENTIMENT`              | `AI.SCORE`                          | `ai_analyze_sentiment`           |
+| Filtrar filas con una condición      | `AI_FILTER`                 | `AI.IF`                             | (con `ai_query`)                 |
+| Resumir / agregar varias filas       | `AI_SUMMARIZE`, `AI_AGG`    | `AI.AGG`                            | `ai_summarize`                   |
+| Embeddings y similitud               | `AI_EMBED`, `AI_SIMILARITY` | (funciones de embeddings)           | `ai_similarity`, `vector_search` |
+| Enmascarar datos personales          | `AI_REDACT`                 | —                                   | `ai_mask`                        |
+| Prompt libre                         | `AI_COMPLETE`               | `AI.GENERATE`                       | `ai_query`                       |
+
+La sintaxis de clasificar, tal como la documentan los proveedores en octubre de 2026 (ilustrativa; compruébala antes de usarla):
+
+```sql
+-- Snowflake: devuelve un objeto {"labels": ["pagos"]}
+SELECT AI_CLASSIFY(text, ['envio', 'pagos', 'devoluciones', 'producto', 'app']) FROM tickets;
+
+-- BigQuery: devuelve una cadena con la categoría; requiere conexión o credenciales del usuario
+SELECT AI.CLASSIFY(text, categories => ['envio', 'pagos', 'devoluciones', 'producto', 'app'],
+                   connection_id => 'eu.mi_conexion') FROM tickets;
+
+-- Databricks: devuelve un VARIANT con la etiqueta, y opcionalmente confianza y justificación
+SELECT ai_classify(text, '["envio", "pagos", "devoluciones", "producto", "app"]',
+                   MAP('version', '2.1', 'enableConfidenceScores', 'true')) FROM tickets;
+```
+
+Aunque el nombre cambie, el patrón es el mismo: **texto de entrada + lista de etiquetas → etiqueta** (y a veces confianza). Aprende el patrón, no el nombre.
+
+### Qué cambia respecto a llamar a la API
+
+- **Comodidad y gobierno:** los datos se procesan dentro de la plataforma, bajo sus permisos, su registro y su contrato; no hay claves que gestionar. Eso no te exime de comprobar **dónde** se ejecuta el modelo (regiones, inferencia entre regiones) y qué datos personales entran (módulo de gobierno).
+- **Menos control:** normalmente no eliges la versión exacta del modelo ni controlas el prompt interno (BigQuery, por ejemplo, estructura la entrada «para mejorar la calidad»). Para el control fino existen las funciones generales (`AI_COMPLETE`, `AI.GENERATE`, `ai_query`).
+- **Coste por token, por fila:** cada etiqueta, descripción y ejemplo que añades al prompt **se paga en cada llamada**; la documentación de Snowflake lo señala expresamente. Herramientas como `AI_COUNT_TOKENS` (Snowflake) o `AI.COUNT_TOKENS` (BigQuery) permiten estimar antes de lanzar.
+- **Límites prácticos:** Snowflake advierte de que con más de unas veinte categorías puede bajar la precisión; Databricks admite hasta 500 etiquetas y recomienda, para taxonomías mayores, recuperar primero las más cercanas con embeddings y clasificar solo sobre ellas.
+
+### Cuándo llamar y cuándo materializar
+
+| Situación                                             | Hazlo así                                                                                   |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Explorar con 100 filas                                | Llamada directa en la consulta (`LIMIT 100`)                                                |
+| Una columna que usarán dashboards                     | **Materializa** en una tabla (`CREATE TABLE ... AS`) con modelo, versión del prompt y fecha |
+| Datos que llegan cada día                             | Proceso **incremental**: solo textos nuevos, de forma idempotente (módulo de stack moderno) |
+| Mismos textos repetidos (plantillas, FAQs)            | **Deduplica**: clasifica los `DISTINCT` y haz un `JOIN` de vuelta                           |
+| Filtrar millones de filas con una condición en IA     | Primero filtra con SQL/reglas barato; la IA solo sobre lo que queda                         |
+| Resultado que debe ser reproducible (informe oficial) | Congela la tabla etiquetada; no vuelvas a llamar al modelo al refrescar                     |
+
+```sql
+-- Patrón recomendado: clasificar solo los textos distintos y unir de vuelta
+CREATE TABLE ticket_temas AS
+SELECT t.texto, AI_CLASSIFY(t.texto, ['envio','pagos','devoluciones','producto','app']):labels[0]::STRING AS tema
+FROM (SELECT DISTINCT text AS texto FROM tickets) t;      -- 94 llamadas, no 15.000
+
+SELECT k.*, tt.tema
+FROM tickets k JOIN ticket_temas tt ON k.text = tt.texto;
+```
+
+### Riesgos específicos
+
+1. **Coste silencioso:** un `SELECT` aparentemente inocuo en un dashboard que se refresca cada hora multiplica las llamadas.
+2. **No determinismo:** la misma fila puede recibir etiquetas distintas en dos ejecuciones o tras una actualización del modelo gestionado. Un informe que cambia solo es un informe roto.
+3. **Filtrar con IA en `WHERE` o `JOIN`:** `AI_FILTER` / `AI.IF` son potentes, pero ejecutarlos sobre toda la tabla es caro; combínalos con filtros previos.
+4. **Datos personales:** el texto de un ticket puede contener nombres, direcciones o correos. Enmascara antes (`AI_REDACT`, `ai_mask` o tu propia regla) cuando la finalidad no los requiera.
+5. **Disponibilidad y requisitos:** en Databricks, por ejemplo, estas funciones requieren un runtime mínimo y no están disponibles en los almacenes SQL «Classic»; en BigQuery hace falta una conexión o credenciales.
+6. **Evaluación ausente:** que sea cómodo no lo hace correcto. Mide igual que con cualquier clasificador (lección 4).
+
+<Callout type="warning">
+  Una columna creada por una función de IA es una **estimación**, no un hecho. Etiquétala como tal
+  en el modelo de datos (por ejemplo, `tema_ia`), guarda el modelo y la fecha, y no la mezcles con
+  una columna humana (`tema_manual`) sin dejar rastro. Quien lea el dashboard debe saber qué parte
+  es medida y cuál es inferida.
+</Callout>
+
+<Snapshot date="2026-10">
+  Snowflake agrupa sus funciones bajo «Cortex AI Functions» (`AI_COMPLETE`, `AI_CLASSIFY`,
+  `AI_EXTRACT`, `AI_SENTIMENT`, `AI_FILTER`, `AI_AGG`, `AI_EMBED`, `AI_SIMILARITY`, `AI_REDACT`,
+  `AI_TRANSLATE`…; algunas multimodales, como `AI_MULTI_EMBED` y `AI_TRANSCRIBE`, en versión
+  preliminar). BigQuery documenta como disponibles de forma general `AI.IF`, `AI.CLASSIFY`,
+  `AI.SCORE`, `AI.AGG` y las `AI.GENERATE_*` de campo único, con un «modo optimizado» en versión
+  preliminar que reduce tokens usando modelos destilados sobre una muestra. Databricks marca como GA
+  `ai_classify`, `ai_extract`, `ai_analyze_sentiment`, `ai_summarize`, `ai_mask`, `ai_translate` y
+  `ai_forecast`, y como beta otras como `ai_search`, `ai_enrich` y `ai_decide`. Los nombres, firmas
+  y estados cambian con rapidez: confirma en la documentación del proveedor.
+</Snapshot>
+
+## En la práctica
+
+1. **Prueba con `LIMIT 100`** y revisa las etiquetas a mano antes de escalar.
+2. **Cuenta tokens y estima el coste** con la herramienta del proveedor (o con la aproximación del lab de esta lección).
+3. **Deduplica y filtra primero** con SQL barato.
+4. **Materializa** el resultado con modelo, versión del prompt, fecha y, si existe, confianza.
+5. **Haz el proceso incremental** y programa el refresco; que un dashboard no dispare el modelo.
+6. **Mide con una muestra etiquetada** y vuelve a medir tras cada cambio de modelo.
+7. **Revisa privacidad y región** antes de procesar texto con datos personales.
+
+## Trade-offs y cuándo usarlo
+
+- **Función de tarea frente a función general:** la de tarea es sencilla y está optimizada; la general da control del prompt, del modelo y del esquema de salida.
+- **IA en SQL frente a pipeline en Python:** SQL gana en cercanía a los datos y gobierno; Python gana en control, pruebas, reintentos y evaluación. Muchos equipos combinan: SQL para lo masivo y sencillo, Python para lo delicado.
+- **Modelo gestionado frente a modelo elegido:** el gestionado cambia sin avisarte; el elegido te da reproducibilidad a cambio de más trabajo.
+- **Cada fila frente a muestra:** si solo necesitas una cifra (¿qué porcentaje de tickets habla de X?), una muestra aleatoria con intervalo de confianza basta y cuesta una fracción.
+- **Proveedor único frente a portabilidad:** las funciones son cómodas pero no portables; encapsula las llamadas en una capa de transformación para poder cambiarlas.
+
+## Errores comunes
+
+- **Lanzar la función sobre toda la tabla** sin estimar el coste.
+- **Dejarla dentro de una vista o un dashboard** que se recalcula.
+- **No deduplicar** textos repetidos.
+- **No guardar el modelo ni la fecha:** la columna cambia y nadie sabe por qué.
+- **Tratar el resultado como dato exacto** sin medir su acierto.
+- **Meter 50 etiquetas** en una sola llamada.
+- **Enviar texto con datos personales** sin enmascarar.
+
+## Con IA
+
+Un asistente es muy útil para escribir la consulta de materialización incremental (`MERGE` de textos nuevos) y para generar casos límite con los que probar las etiquetas. No le pidas que te diga si «saldrá barato»: pide el recuento de tokens a la plataforma y haz la cuenta tú.
+
+## En una entrevista
+
+- _"Quieres clasificar tickets con una función de IA del almacén. ¿Cómo lo haces con responsabilidad?"_ — Pista: probar con muestra, deduplicar, materializar con versión, medir contra etiquetas humanas, controlar coste y datos personales.
+- _"¿Por qué no poner `AI_CLASSIFY` en la vista que alimenta el dashboard?"_ — Pista: coste en cada refresco, no determinismo, reproducibilidad.
+- _"¿Qué diferencia hay entre `AI_CLASSIFY` y un `CASE WHEN LIKE`?"_ — Pista: matices e idiomas frente a coste, explicabilidad y determinismo.
+
+<KeyTakeaways
+  items={[
+    'Snowflake, BigQuery y Databricks ofrecen funciones de IA en SQL equivalentes (clasificar, extraer, puntuar, filtrar, resumir, embeddings, enmascarar y un prompt libre); aprende el patrón texto + etiquetas → etiqueta, no el nombre.',
+    'Llama a la IA una vez y guarda el resultado: deduplica, filtra antes con SQL barato, materializa con modelo, versión y fecha, y haz el proceso incremental.',
+    'Cada etiqueta, descripción y ejemplo del prompt se paga en cada fila; estima los tokens antes de lanzar y muestrea cuando solo necesitas una cifra agregada.',
+    'El resultado es una estimación no determinista: nómbrala como tal (por ejemplo, tema_ia), mídela contra etiquetas humanas y no la dejes en una vista que se recalcula.',
+    'Comodidad no es gobierno: comprueba dónde se ejecuta el modelo, qué datos personales entran y qué requisitos y estados (GA o beta) tiene cada función.',
+  ]}
+/>

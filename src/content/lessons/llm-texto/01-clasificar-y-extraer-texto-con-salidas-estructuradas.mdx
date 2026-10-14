@@ -1,0 +1,187 @@
+---
+title: 'Clasificar y extraer información de texto con salidas estructuradas'
+description: 'Cómo convertir texto libre (tickets, reseñas, correos) en columnas analizables: tres enfoques para clasificar (reglas, modelo supervisado, LLM), cómo diseñar etiquetas con la opción «otro», qué garantizan y qué no las salidas estructuradas con esquema JSON y por qué siempre hay que validar.'
+module: llm-texto
+order: 1
+level: avanzado
+estimatedMinutes: 45
+objectives:
+  - 'Elegir entre reglas, un modelo supervisado clásico y un LLM para clasificar texto, según volumen, coste y necesidad de explicación.'
+  - 'Diseñar una taxonomía de etiquetas con definiciones, la opción «otro» y la posibilidad de abstenerse.'
+  - 'Explicar qué garantizan las salidas estructuradas con esquema JSON y qué siguen sin garantizar.'
+  - 'Validar la salida de un modelo (esquema, valores, rangos) y definir una política de reintentos y descarte.'
+prerequisites:
+  [
+    'llm-copiloto/04-protocolo-de-verificacion-reproducibilidad-y-datos-que-no-se-pegan',
+    'limpieza-calidad/03-valores-ausentes-y-outliers',
+  ]
+tools: ['python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Anthropic — Structured outputs'
+    url: 'https://platform.claude.com/docs/en/docs/build-with-claude/structured-outputs'
+    type: docs
+    authors: 'Anthropic'
+    year: 2026
+  - title: 'OpenAI — Structured Outputs'
+    url: 'https://developers.openai.com/api/docs/guides/structured-outputs'
+    type: docs
+    authors: 'OpenAI'
+    year: 2026
+  - title: 'scikit-learn — Working with text data (TF-IDF y clasificación)'
+    url: 'https://scikit-learn.org/stable/tutorial/text_analytics/working_with_text_data.html'
+    type: docs
+    authors: 'scikit-learn developers'
+    year: 2026
+relatedLabs: ['py-extraccion-estructurada-validada']
+relatedCases: ['que-dicen-los-tickets-de-soporte']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Atención al cliente de Lumen recibe unos 15.000 tickets en tres años y los clasifica a mano en
+  cinco categorías al abrirlos. Operaciones sospecha que esa categoría no cuenta toda la historia
+  (¿cuántos tickets son en realidad «retraso de envío» o «cobro duplicado»?) y quiere además sacar
+  de cada texto datos que ahora nadie guarda: cuántos días de retraso menciona el cliente, si pide
+  reembolso, si está enfadado. Preguntan: ¿se puede hacer con un LLM?, ¿cómo nos fiamos del
+  resultado?
+</BusinessContext>
+
+## Intuición
+
+Un ticket es una fila con una celda enorme y desordenada. Analizar texto es **convertir esa celda en columnas**: una etiqueta (tema), un número (días de retraso), un booleano (pide reembolso). El LLM actúa como un becario muy rápido que lee cada texto y rellena una ficha. Rápido y flexible, pero a veces se inventa una casilla o contesta con «bueno, depende». Por eso la ficha se diseña con casillas cerradas, se **valida** al recibirla y se **mide** su acierto contra una muestra revisada por personas (lección 4).
+
+## Cómo funciona
+
+### Tres enfoques para clasificar texto
+
+| Enfoque                                                       | Cómo funciona                                                               | Fortalezas                                                    | Debilidades                                                           |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------------------- |
+| **Reglas** (palabras clave, expresiones regulares)            | Si el texto contiene «cobrado dos veces», es `cobro_duplicado`              | Gratis, instantáneo, explicable, determinista                 | Frágil ante sinónimos y errores; mantenimiento manual                 |
+| **Modelo supervisado clásico** (TF-IDF + regresión logística) | Aprende de textos ya etiquetados qué palabras anticipan cada etiqueta       | Barato y rápido en producción; se evalúa con facilidad        | Necesita cientos o miles de ejemplos etiquetados; no entiende matices |
+| **LLM** (instrucciones y pocos ejemplos)                      | Se le describe la tarea y las etiquetas; clasifica sin entrenamiento propio | Arranque inmediato; entiende matices, idiomas y textos largos | Coste por llamada, latencia, no determinismo, hay que validar y medir |
+
+No son excluyentes. Una arquitectura sensata: **reglas para lo evidente, modelo clásico para el volumen, LLM para lo ambiguo o para arrancar** (incluso para generar las etiquetas con las que entrenar el modelo barato). Y recuerda el dato de Lumen: de 15.000 tickets solo hay **94 textos distintos** y **25 plantillas** una vez normalizados números y categorías. Antes de gastar ni un token, **deduplica**: clasifica cada texto distinto una vez.
+
+### Diseñar la tarea: etiquetas, definiciones y salida de escape
+
+La calidad de una clasificación depende más de la **taxonomía** que del modelo:
+
+- **Etiquetas mutuamente excluyentes y exhaustivas** (o permite varias etiquetas a propósito). Si dos analistas no se ponen de acuerdo en la etiqueta, el modelo tampoco acertará: es un problema de definición, no de IA.
+- **Una definición breve y un ejemplo por etiqueta** en el prompt. Cada etiqueta, descripción y ejemplo cuesta tokens en cada llamada.
+- **Una etiqueta `otro`** y la opción de **abstenerse** (`"confianza": "baja"`, o `null`). Sin salida de escape, el modelo elige la menos mala y tus métricas mienten.
+- **Pocas etiquetas:** con más de unas veinte, la precisión suele bajar; para taxonomías enormes se recupera primero un subconjunto candidato (por ejemplo, con embeddings, lección 3) y se clasifica solo sobre él.
+
+### Salidas estructuradas
+
+Pedirle «responde en JSON» a un modelo funciona casi siempre… y falla justo cuando hay un millón de filas. Las **salidas estructuradas** restringen la generación para que la respuesta cumpla un **esquema JSON**:
+
+- En la **API de Claude** se pasa el esquema en `output_config.format` (`type: json_schema`) o se marca una herramienta como `strict: true`. La documentación la presenta como disponible de forma general (GA) en los modelos actuales.
+- En **OpenAI**, `response_format` con `json_schema` y `strict: true`. La diferencia con el antiguo «modo JSON»: este solo garantiza que el texto sea JSON válido; las salidas estructuradas garantizan además que **respete el esquema**.
+
+```python
+ESQUEMA_TICKET = {
+    "type": "object",
+    "properties": {
+        "tema": {"type": "string", "enum": ["envio", "pagos", "devoluciones", "producto", "app", "otro"]},
+        "dias_retraso": {"type": ["integer", "null"]},
+        "pide_reembolso": {"type": "boolean"},
+        "confianza": {"type": "string", "enum": ["alta", "media", "baja"]},
+    },
+    "required": ["tema", "dias_retraso", "pide_reembolso", "confianza"],
+    "additionalProperties": False,
+}
+```
+
+<Callout type="warning">
+  Que la **forma** sea correcta no significa que el **contenido** lo sea. El esquema asegura que
+  `tema` sea uno de los valores permitidos; no asegura que sea el correcto. Además, la documentación
+  de Claude advierte de límites que obligan a validar por tu lado: el esquema **no admite
+  restricciones numéricas** (`minimum`, `maximum`) ni de longitud de cadena; una **negativa** del
+  modelo (`stop_reason: "refusal"`) puede no ajustarse al esquema; y si se alcanza el límite de
+  tokens (`stop_reason: "max_tokens"`) la salida puede quedar truncada e inválida. Los valores de un
+  `enum` pueden llegar con distinta capitalización: compara sin distinguir mayúsculas.
+</Callout>
+
+### Validar siempre: esquema, valores y reintentos
+
+La capa de validación es código tuyo y barato. Un protocolo mínimo para una columna generada por un LLM:
+
+1. **Parsear:** tolerar vallas de código (` ```json `) y texto alrededor; si no hay JSON, es un fallo.
+2. **Comprobar el esquema:** claves obligatorias, tipos, valores del `enum` y **rangos** (días de retraso entre 0 y 365).
+3. **Reintentar acotado:** pasar al modelo el error («`tema` debe ser uno de…») un máximo de 1-2 veces.
+4. **Descartar con registro:** si sigue fallando, guarda `tema = NULL` y el motivo; **nunca rellenes en silencio**.
+5. **Medir la tasa de validez** (válidas a la primera, tras reintento, descartadas): es un indicador de salud del proceso.
+
+Dos defensas más: **temperatura baja** (o la configuración determinista disponible) para tareas de clasificación, y **guardar la versión del modelo y del prompt** junto a cada resultado, porque cambiar cualquiera de los dos cambia tus datos (lección 4).
+
+### Sentimiento y extracción de campos
+
+- **Sentimiento:** tentadoramente simple, pero define la escala (negativo/neutro/positivo, o 1-5) y qué significa; en tickets de soporte casi todo es negativo, así que la señal útil es la **intensidad** o la **urgencia**, no el signo.
+- **Extracción de campos:** importes, fechas, identificadores, días de retraso. Para patrones regulares (un número seguido de «días») una **expresión regular** es más barata, rápida y exacta que un LLM. Reserva el modelo para lo que las reglas no pillan: «llevo desde el lunes sin noticias».
+- **Compara con una regla:** si una expresión regular y el LLM dan lo mismo en el 99 % de los casos, usa la regla; las discrepancias son tu muestra de revisión.
+
+<Snapshot date="2026-10">
+  La API de Claude documenta las salidas estructuradas como disponibles de forma general (JSON
+  outputs mediante `output_config.format` y uso estricto de herramientas con `strict: true`),
+  compatibles con la familia de modelos actual, con límites de complejidad del esquema (por ejemplo,
+  20 herramientas estrictas por petición) y sin soporte para restricciones numéricas o de longitud.
+  OpenAI ofrece `json_schema` con `strict: true` y expone la negativa del modelo en un campo
+  `refusal` distinto. Los detalles (qué palabras clave del esquema se aceptan, límites, modelos
+  compatibles) cambian con frecuencia: consulta la documentación del proveedor antes de diseñar.
+</Snapshot>
+
+## En la práctica
+
+1. **Mira los datos antes de elegir herramienta:** ¿cuántos textos distintos hay?, ¿son plantillas?, ¿se resuelve con reglas?
+2. **Escribe la taxonomía con definiciones y una etiqueta `otro`;** pruébala a mano con 30-50 textos.
+3. **Define el esquema** (tipos, `enum`, `required`) y valida **también** en tu código.
+4. **Deduplica y procesa por lotes;** guarda el resultado en una tabla con modelo, versión del prompt y fecha.
+5. **Etiqueta una muestra a mano** y mide (lección 4) antes de usar la columna en un informe.
+6. **Monitoriza:** tasa de validez, distribución de etiquetas y un conjunto fijo de casos de control.
+
+## Trade-offs y cuándo usarlo
+
+- **LLM frente a modelo clásico:** el LLM arranca sin datos etiquetados; el modelo clásico es mucho más barato a gran volumen. Un LLM puede etiquetar una muestra para entrenar el clásico.
+- **Esquema estricto frente a flexible:** estricto da datos limpios; demasiado estricto fuerza respuestas absurdas cuando el caso no encaja (de ahí `otro` y `confianza`).
+- **Una llamada por texto frente a lotes:** varios textos por llamada abaratan, pero mezclan el contexto y complican los reintentos.
+- **Etiquetas fijas frente a descubrimiento de temas:** una taxonomía cerrada es medible; si no sabes qué hay, primero agrupa (lección 3) y luego define las etiquetas.
+- **Explicabilidad:** las reglas se auditan línea a línea; el LLM, no. Para decisiones reguladas o de impacto sobre personas, esto pesa.
+
+## Errores comunes
+
+- **Pedir JSON en el prompt y asumir que siempre llega válido.**
+- **Confundir forma con verdad:** el JSON cumple el esquema y el tema es incorrecto.
+- **No tener opción `otro` ni abstención.**
+- **Usar un LLM para extraer algo que una expresión regular resuelve.**
+- **No deduplicar:** pagar 15.000 llamadas por 94 textos.
+- **Cambiar de modelo o de prompt sin guardar la versión** y comparar periodos como si fueran homogéneos.
+- **Rellenar con un valor por defecto** cuando falla la validación.
+- **Enviar datos personales** (nombres, correos en el texto del ticket) a un servicio externo sin base legal ni contrato; se enmascaran antes (módulo de gobierno).
+
+## Con IA
+
+Lo más útil de un asistente aquí es **diseñar y poner a prueba la taxonomía**: pídele que proponga etiquetas a partir de 100 textos, que genere casos límite para cada una y que señale ambigüedades entre etiquetas. Luego decide tú. Y si te escribe el esquema JSON o el validador, pásale ejemplos de salidas inválidas para que cubra los casos de fallo.
+
+## En una entrevista
+
+- _"Necesitas clasificar 200.000 reseñas en temas. ¿Cómo lo planteas?"_ — Pista: deduplicar, taxonomía con `otro`, comparar reglas / modelo clásico / LLM, muestra etiquetada, métricas, coste.
+- _"¿Qué garantizan las salidas estructuradas?"_ — Pista: forma, no contenido; hay que validar valores, rangos y manejar negativas y truncados.
+- _"¿Cómo evitas que un LLM te contamine una columna de la base de datos?"_ — Pista: validación, reintentos acotados, nulos con motivo, versión del modelo y del prompt, muestra de control.
+
+<KeyTakeaways
+  items={[
+    'Analizar texto es convertirlo en columnas: etiqueta, número, booleano. Reglas, modelo supervisado y LLM no son excluyentes; el LLM destaca para arrancar y para lo ambiguo, el clásico para el volumen barato.',
+    'La taxonomía importa más que el modelo: etiquetas excluyentes con definición, una etiqueta «otro» y posibilidad de abstenerse.',
+    'Las salidas estructuradas con esquema JSON garantizan la forma, no la verdad; siguen haciendo falta validación de valores y rangos, manejo de negativas y de truncados, reintentos acotados y descarte con registro.',
+    'Deduplica antes de llamar: en Lumen hay 15.000 tickets pero solo 94 textos distintos y 25 plantillas.',
+    'Para patrones regulares (un número seguido de «días») usa una expresión regular; guarda siempre la versión del modelo y del prompt con cada resultado.',
+  ]}
+/>
