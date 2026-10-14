@@ -1,0 +1,34 @@
+---
+title: 'Operaciones: puntualidad de envíos, roturas de stock y rotación'
+description: 'Mide la puntualidad de las entregas de Lumen por transportista, localiza la rotura de stock de Electrónica de marzo de 2026 en el inventario semanal y calcula la rotación del inventario, interpretando un resultado que debería hacerte sospechar.'
+language: python
+part: 'Parte IV · Analítica por dominio'
+module: finanzas-operaciones
+difficulty: 2
+estimatedMinutes: 35
+concepts:
+  [
+    'puntualidad',
+    'retraso de entrega',
+    'rotura de stock',
+    'rotación de inventario',
+    'días de cobertura',
+  ]
+datasets: ['shipments', 'inventory_snapshots', 'products', 'orders', 'order_items']
+packages: []
+output: console
+hints:
+  - 'Retraso en días = fecha real − fecha prometida (`dt.days` de la resta). Un envío es puntual si el retraso es ≤ 0; para comparar transportistas agrupa por `carrier`.'
+  - 'Rotura mensual: une el inventario con `products`, filtra la categoría con `category_id.str.startswith(...)`, agrupa por mes (`dt.to_period("M")`) y calcula la media de `stock_qty` y la proporción de registros con stock 0.'
+  - 'Rotación = coste de ventas / valor medio del inventario a coste. Para el valor medio, suma `stock_qty · cost` por cada fecha de registro y promedia esas sumas; los días de cobertura son 365 / rotación.'
+relatedLessons: ['finanzas-operaciones/04-operaciones-inventario-pricing-y-elasticidad']
+businessQuestion: '¿Cumple Lumen sus plazos de entrega y dónde se rompió el abastecimiento?'
+---
+
+Implementa:
+
+1. **`retraso_dias(shipments)`**, **`puntualidad(shipments, por=None)`** (en %) y **`retraso_grave(shipments, umbral=5)`**.
+2. **`rotura_mensual(inventory, products, categoria)`** → por mes, `stock_medio` y `pct_sin_stock`.
+3. **`rotacion_inventario(inventory, products, orders, order_items, anio)`** → `valor_medio`, `coste_ventas`, `rotacion` y `dias_cobertura`.
+
+Resultado esperado: el 82,0 % de los envíos llega a tiempo (sin diferencias entre transportistas) y el 10,7 % llega con 5 días o más de retraso; en marzo de 2026 el stock medio de Electrónica cae de 212 a 85 unidades y el 19,6 % de los registros semanales están sin stock. La rotación de 2025 sale en **0,36 vueltas (≈ 1.010 días de cobertura)**: un valor tan extremo debe hacerte **sospechar de los datos** (el inventario sintético del dataset no está calibrado con la demanda) antes de concluir que hay un exceso de tres años de stock.

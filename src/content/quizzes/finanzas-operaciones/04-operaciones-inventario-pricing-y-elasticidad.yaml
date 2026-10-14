@@ -1,0 +1,58 @@
+lesson: finanzas-operaciones/04-operaciones-inventario-pricing-y-elasticidad
+questions:
+  - id: fo-04-q1
+    type: single
+    difficulty: 1
+    prompt: 'El 82,0 % de las entregas de Lumen llega a tiempo, sin diferencias entre transportistas. ¿Qué conclusión es correcta?'
+    options:
+      - 'Hay que cambiar de transportista'
+      - 'El retraso no depende del transportista; conviene mirar la cola (retrasos graves) y otras causas como el almacén o la promesa de plazo'
+      - 'El 18 % de retrasos no importa'
+      - 'Los datos están mal'
+    answer: [1]
+    explanation: 'Si todos los transportistas rinden igual (81,8-82,2 % a tiempo), cambiar de proveedor no soluciona nada. Hay que buscar la causa en otro punto de la cadena.'
+    ref: '#puntualidad-de-las-entregas'
+
+  - id: fo-04-q2
+    type: truefalse
+    difficulty: 2
+    prompt: 'Para el cliente es suficiente informar del plazo medio de entrega.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. La media esconde la cola: en Lumen el 10,7 % de los envíos llega con 5 días o más de retraso, y un retraso grave eleva la baja mensual de Lumen+ del 3,5 % al 38,9 %.'
+    ref: '#puntualidad-de-las-entregas'
+
+  - id: fo-04-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'El stock medio de Electrónica por producto y almacén pasa de 212,0 unidades en febrero de 2026 a 85,1 en marzo. ¿En qué porcentaje cae? (Entero, en valor absoluto.)'
+    answer: [60]
+    tolerance: 0.5
+    explanation: '85,1 / 212,0 − 1 ≈ −60 %. Además, el 19,6 % de los registros semanales de la categoría está sin stock.'
+    ref: '#inventario-rotura-y-cobertura'
+
+  - id: fo-04-q4
+    type: single
+    difficulty: 3
+    prompt: 'La rotación del inventario de Lumen en 2025 sale en 0,36 vueltas (≈ 1.010 días de cobertura). ¿Cuál es la reacción adecuada?'
+    options:
+      - 'Concluir que hay casi tres años de exceso de stock y proponer liquidarlo'
+      - 'Sospechar: revisar la definición (unidades, almacenes, stock en tránsito) y los datos antes de concluir; aquí el inventario sintético no está calibrado con la demanda'
+      - 'Ignorar la métrica'
+      - 'Multiplicar el resultado por 12'
+    answer: [1]
+    explanation: 'Un valor extremo es una pista de que el dato o la definición están mal. Una métrica bien calculada con un resultado imposible exige primero comprobar el origen del dato.'
+    ref: '#inventario-rotura-y-cobertura'
+
+  - id: fo-04-q5
+    type: single
+    difficulty: 3
+    prompt: 'Lumen subió un 12 % el precio de Electrónica en Andalucía y las unidades cambiaron +2,3 % (IC −4,8 % a +9,9 %) frente al control. ¿Qué lectura es correcta?'
+    options:
+      - 'La demanda es muy elástica'
+      - 'No se detecta respuesta de la demanda en ese rango: la elasticidad estimada ronda +0,2 (con intervalo de −0,4 a +0,8) y los ingresos subieron casi lo mismo que el precio; es una estimación local'
+      - 'La elasticidad es exactamente 0 para cualquier subida'
+      - 'No se puede estimar una elasticidad con datos observacionales'
+    answer: [1]
+    explanation: 'Con un diseño de diferencias en diferencias se puede estimar una elasticidad local. El intervalo incluye el 0 y valores negativos pequeños: demanda inelástica en +12 %, pero sin garantía para subidas mayores.'
+    ref: '#pricing-y-elasticidad-una-introducción'

@@ -1,0 +1,175 @@
+---
+title: 'Métricas de suscripción: MRR, churn, GRR y NRR'
+description: 'Cómo medir un negocio de suscripción: MRR y ARR, cascada de MRR (nuevo, ampliación, rebaja, perdido), churn de clientes y de ingresos, retención de ingresos bruta y neta (GRR y NRR), ratio rápido y vida media, con los datos de Lumen+.'
+module: finanzas-operaciones
+order: 2
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Definir MRR y ARR y construir la cascada mensual de MRR a partir de altas y bajas.'
+  - 'Distinguir churn de clientes (logos) y de ingresos y calcular GRR y NRR de una cohorte.'
+  - 'Interpretar el ratio rápido y la vida media de un cliente a partir del churn mensual.'
+  - 'Detectar los problemas típicos de datos en métricas de suscripción (meses incompletos, planes anuales, reactivaciones).'
+prerequisites: ['analitica-producto/03-retencion-cohortes-y-growth-accounting']
+tools: ['python', 'sql']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Wikipedia — Monthly recurring revenue'
+    url: 'https://en.wikipedia.org/wiki/Monthly_recurring_revenue'
+    type: docs
+    authors: 'Wikipedia'
+    year: 2026
+  - title: 'Stripe — Net revenue retention (NRR): definición y fórmula'
+    url: 'https://stripe.com/resources/more/net-revenue-retention'
+    type: docs
+    authors: 'Stripe'
+    year: 2026
+  - title: 'ChartMogul — SaaS metrics'
+    url: 'https://www.chartmogul.com/saas-metrics/'
+    type: docs
+    authors: 'ChartMogul'
+    year: 2026
+relatedLabs: ['py-metricas-suscripcion']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  La dirección de Lumen+ quiere saber si el negocio de suscripción está sano: «¿crecemos o solo
+  reponemos las bajas?, ¿cuánto de lo que ingresamos hoy seguirá aquí dentro de un año?». Para un
+  inversor o un comité financiero, el ingreso recurrente y su retención importan más que las ventas
+  puntuales del último mes.
+</BusinessContext>
+
+Un negocio de suscripción vende acceso, no productos sueltos. Su salud se mide con **ingresos recurrentes** y con cuánto de ese ingreso se conserva: la calidad del ingreso es tan importante como su tamaño.
+
+## Intuición
+
+Una bañera con grifo y desagüe: el grifo son las altas nuevas, el desagüe son las bajas y el nivel es el MRR. Si el desagüe es grande, hay que abrir mucho el grifo solo para mantener el nivel. Las métricas de suscripción miden el caudal del grifo, el del desagüe y cuánta agua de hoy seguirá en la bañera dentro de un año.
+
+## Cómo funciona
+
+### MRR, ARR y la cascada
+
+- **MRR (_monthly recurring revenue_):** ingreso mensual recurrente. Para planes anuales, el importe anual dividido entre 12.
+- **ARR (_annual recurring revenue_):** MRR × 12.
+- **Cascada de MRR:** de un mes al siguiente,
+
+$$
+\text{MRR}_t = \text{MRR}_{t-1} + \underbrace{\text{nuevo}}_{\text{altas}} + \underbrace{\text{ampliación}}_{\text{upgrades}} - \underbrace{\text{rebaja}}_{\text{downgrades}} - \underbrace{\text{perdido}}_{\text{bajas}}.
+$$
+
+En Lumen+ (25.000 suscripciones, planes mensual y anual) solo hay altas y bajas: no hay cambios de plan en los datos, así que la ampliación y la rebaja son cero. Los últimos meses completos:
+
+| Mes           | MRR inicial |      Nuevo |    Perdido |   MRR final | Suscripciones |
+| ------------- | ----------: | ---------: | ---------: | ----------: | ------------: |
+| Marzo 2026    |     200.173 |     10.939 |      9.826 |     201.286 |        11.380 |
+| Abril 2026    |     201.286 |     10.177 |      9.871 |     201.592 |        11.386 |
+| **Mayo 2026** | **201.592** | **10.864** | **10.278** | **202.177** |    **11.448** |
+
+El MRR de mayo de 2026 es de **202.177 €** (ARR ≈ **2,43 M€**), un 9,2 % más que un año antes (185.095 €). El crecimiento neto mensual es pequeño: se ganan unos 10.900 € y se pierden unos 10.300 €.
+
+<Callout type="warning">
+  La última alta de `subscriptions` es del 30 de mayo de 2026, pero hay bajas hasta el 29 de junio.
+  Si calculas **junio**, el MRR parece caer un 5 % (192.051 €) solo porque faltan las altas del mes.
+  Antes de interpretar una caída reciente, comprueba que el último periodo está completo para todas
+  las componentes de la cascada.
+</Callout>
+
+### Churn: clientes frente a ingresos
+
+- **Churn de clientes (_logo churn_):** bajas del mes entre suscripciones activas al inicio.
+- **Churn de ingresos (MRR churn):** MRR perdido entre MRR inicial.
+
+Difieren si los clientes que se van pagan más o menos que la media. En Lumen+ en mayo de 2026: 578 bajas sobre 11.386 suscripciones activas al inicio (5,08 %) y 10.278 € sobre 201.592 € de MRR (**5,10 %**). La tendencia importa más que un mes: el churn de ingresos mensual pasa del 4,2 % en junio de 2025 al **5,1 % en mayo de 2026**, con una media de 4,7 % en esos doce meses.
+
+Un churn mensual del 4,7 % equivale a una vida media de $1/0{,}047 \approx 21$ meses y, con un ingreso mensual por suscripción de 17,66 €, a unos 374 € de ingresos esperados por cliente (sin margen ni descuento).
+
+### Retención de ingresos: GRR y NRR
+
+Para una cohorte (los clientes activos en una fecha) se mide, un periodo después:
+
+$$
+\text{GRR} = \frac{\text{MRR inicial} - \text{perdido} - \text{rebajas}}{\text{MRR inicial}}, \qquad
+\text{NRR} = \frac{\text{MRR inicial} - \text{perdido} - \text{rebajas} + \text{ampliaciones}}{\text{MRR inicial}}.
+$$
+
+- La **GRR** (retención bruta) solo puede bajar de 100 %: mide la fuga.
+- La **NRR** (retención neta) incluye las ampliaciones y puede superar el 100 %: una base que crece por sí sola, sin captar clientes.
+
+Con la cohorte de Lumen+ activa a 31 de mayo de 2025, un año después siguen activos **el 55,8 % del MRR** (y el 55,8 % de las suscripciones). Como no hay ampliaciones, **NRR = GRR = 55,8 %**: de cada 100 € de MRR de hace un año, quedan 56 €.
+
+Un NRR por encima de 100 % es una señal de calidad en negocios con mejora de plan o venta cruzada; uno de 56 %, en cambio, significa que hay que reponer casi la mitad de los ingresos cada año solo para no retroceder.
+
+### El ratio rápido de MRR
+
+El **ratio rápido** (_quick ratio_) es (nuevo + ampliación) / (perdido + rebaja). Por encima de 1 el MRR crece; por debajo, se contrae. En mayo de 2026: 10.864 / 10.278 = **1,06**. El negocio apenas crece: casi todo lo que entra por el grifo se va por el desagüe.
+
+### Cuidado con los datos
+
+- **Planes anuales:** su MRR es el importe anual / 12, pero el cobro es anual. Para flujo de caja, usa los cobros; para tendencia, el MRR.
+- **Reactivaciones:** una baja seguida de un alta del mismo cliente se contabiliza como _churn_ más _nuevo_ si no se identifica; distingue «nuevo» de «reactivado».
+- **Meses incompletos** (aviso anterior) y altas/bajas con fechas en distintas zonas horarias.
+- **Cohortes por fecha de alta frente a por fecha de análisis:** mezclar ambas confunde la retención.
+
+## En la práctica
+
+1. **Define MRR** con finanzas (¿incluye impuestos?, ¿descuentos?, ¿periodos de prueba?, ¿pagos fallidos?).
+2. **Construye la cascada mensual** y comprueba que `MRR final = inicial + nuevo + ampliación − rebaja − perdido`.
+3. **Calcula churn de clientes e ingresos** y su tendencia, no solo el último mes.
+4. **Mide GRR y NRR por cohorte** a 3, 6 y 12 meses y por plan.
+5. **Calcula el ratio rápido** y descompón: ¿falla el grifo o el desagüe?
+6. **Busca la causa del churn** (entregas, precio, uso) con análisis de supervivencia y experimentos (módulos anteriores).
+7. **Revisa la completitud** del último periodo antes de comunicar una tendencia.
+
+```python
+wf["churn_pct"] = 100 * wf["churn"] / wf["mrr_inicial"]
+wf["ratio_rapido"] = wf["nuevo"] / wf["churn"]
+cohorte = subs[(subs.inicio <= corte) & (subs.fin.isna() | (subs.fin > corte))]
+grr = cohorte[cohorte.fin.isna() | (cohorte.fin > corte + pd.DateOffset(months=12))].mrr_eur.sum() / cohorte.mrr_eur.sum()
+```
+
+En el lab construyes la cascada de MRR de Lumen+, el churn, el ratio rápido y la retención a 12 meses.
+
+## Trade-offs y cuándo usarlo
+
+- **MRR frente a ingresos facturados:** el MRR suaviza los planes anuales y muestra la tendencia; los ingresos facturados reflejan lo cobrado y son los que audita finanzas.
+- **Churn de clientes frente a de ingresos:** el segundo pesa más a los clientes grandes; mira los dos.
+- **Cohorte frente a media del periodo:** la retención por cohorte es la lectura fiel; el churn mensual agregado mezcla clientes de edades distintas.
+- **GRR frente a NRR:** la GRR no se puede «maquillar» con ampliaciones; la NRR refleja el crecimiento de la base. Presenta ambas.
+- **Vida media simple frente a curvas de supervivencia:** $1/\text{churn}$ supone churn constante; en la práctica el riesgo cambia con la antigüedad.
+
+## Errores comunes
+
+- **Calcular el último mes incompleto** y presentarlo como una caída.
+- **Mezclar planes anuales y mensuales** sin normalizar.
+- **Presentar NRR sin GRR** (una NRR buena puede esconder una GRR mala).
+- **Calcular el churn sobre el MRR final** en lugar del inicial.
+- **Contar reactivaciones como clientes nuevos.**
+- **Usar el churn medio para clientes de edades muy distintas.**
+- **No explicar la definición de MRR** al compararse con otra empresa.
+
+## Con IA
+
+Un asistente construye una cascada de MRR con rapidez, pero suele fijar mal las fronteras de mes (¿una baja el último día cuenta en ese mes o en el siguiente?) y dividir entre el MRR final. Pide que explicite la regla de «activo al cierre» y que compruebe que la cascada cuadra mes a mes. Verifica el último periodo y las reactivaciones.
+
+## En una entrevista
+
+- _"¿Qué diferencia hay entre GRR y NRR?"_ — Pista: la bruta solo incluye pérdidas y rebajas, máximo 100 %; la neta suma ampliaciones y puede superar el 100 %.
+- _"El MRR sube pero el negocio no mejora. ¿Cómo lo investigas?"_ — Pista: cascada; churn y ratio rápido; calidad de las altas; cohortes y planes.
+- _"¿Cómo calculas el valor de un cliente de suscripción?"_ — Pista: ingreso mensual por suscripción, margen, churn o curva de supervivencia, descuento.
+
+<KeyTakeaways
+  items={[
+    'El MRR (ingreso mensual recurrente) se descompone cada mes en nuevo, ampliación, rebaja y perdido; el ARR es el MRR por 12. En mayo de 2026, Lumen+ tiene 202.177 € de MRR (≈ 2,43 M€ de ARR), un 9,2 % más que un año antes.',
+    'El churn de ingresos mensual de Lumen+ sube del 4,2 % (junio de 2025) al 5,1 % (mayo de 2026), con una media de 4,7 %: una vida media de unos 21 meses.',
+    'La GRR mide la fuga y no pasa del 100 %; la NRR añade las ampliaciones. Sin ampliaciones, ambas son del 55,8 % para la cohorte de mayo de 2025: quedan 56 € de cada 100 € de MRR.',
+    'El ratio rápido de mayo de 2026 es 1,06: casi todo el MRR nuevo repone el perdido y el crecimiento es mínimo.',
+    'Antes de comunicar una tendencia, comprueba que el último mes esté completo (en Lumen+ junio carece de altas y el MRR parece caer un 5 % sin motivo real).',
+  ]}
+/>

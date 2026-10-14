@@ -1,0 +1,29 @@
+---
+title: 'Puente de ingresos: precio, volumen y mix'
+description: 'Descompone la variación de ingresos de Lumen entre el primer semestre de 2025 y el de 2026 en efecto precio, efecto volumen y efecto mix, y localiza qué categoría explica el mix.'
+language: python
+part: 'Parte IV · Analítica por dominio'
+module: finanzas-operaciones
+difficulty: 3
+estimatedMinutes: 40
+concepts:
+  ['análisis de varianzas', 'efecto precio', 'efecto volumen', 'efecto mix', 'puente de ingresos']
+datasets: ['orders', 'order_items', 'products', 'categories']
+packages: []
+output: console
+hints:
+  - 'Agrupa por los 6 primeros caracteres de `category_id` (la categoría principal). Ingresos = Σ cantidad·precio final; precio medio = ingresos / unidades.'
+  - 'Efecto precio = Σ (p₁ − p₀)·q₁ (cuánto habríamos vendido de más o de menos con los precios nuevos y las unidades nuevas).'
+  - 'Efecto volumen = (Q₁ − Q₀) · (ingresos₀ / Q₀): el cambio del total de unidades valorado al precio medio base. Efecto mix = Σ p₀·q₁ − ingresos₀·Q₁/Q₀: el cambio de composición a precios base.'
+  - 'Comprueba que precio + volumen + mix = ingresos₁ − ingresos₀.'
+relatedLessons: ['finanzas-operaciones/03-varianzas-precio-volumen-mix-y-presupuesto']
+businessQuestion: '¿Cuánto del crecimiento de ingresos se debe a vender más, a cobrar más o a cambios en lo que se vende?'
+---
+
+Implementa:
+
+1. **`ventas_por_categoria(orders, order_items, products, desde, hasta)`** → `unidades`, `ingresos` y `precio_medio` por categoría principal (`cat-00` a `cat-07`), con pedidos no cancelados en el periodo.
+2. **`descomponer(base, actual)`** → diccionario con `variacion`, `precio`, `volumen` y `mix`.
+3. **`mix_por_categoria(base, actual)`** → contribución de cada categoría al efecto mix.
+
+Resultado esperado: los ingresos del primer semestre de 2026 superan en 16,13 M€ a los del mismo periodo de 2025: **+17,79 M€ de volumen**, +0,06 M€ de precio y **−1,72 M€ de mix**, que explica Electrónica (−2,11 M€).

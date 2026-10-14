@@ -1,0 +1,171 @@
+---
+title: 'Leer una cuenta de resultados y unit economics'
+description: 'Cómo leer una cuenta de resultados como analista (ventas brutas y netas, margen bruto, contribución), reconstruirla con los pedidos de Lumen y llevarla a unit economics por pedido, con los supuestos que hay que declarar.'
+module: finanzas-operaciones
+order: 1
+level: intermedio
+estimatedMinutes: 45
+objectives:
+  - 'Recorrer una cuenta de resultados de ventas a resultado neto e identificar qué partidas controla cada equipo.'
+  - 'Construir una cuenta de resultados hasta la contribución a partir de líneas de pedido, descuentos, devoluciones, costes, envíos y marketing.'
+  - 'Calcular márgenes y unit economics por pedido y comparar dos años con una tabla de variaciones.'
+  - 'Declarar los supuestos que hacen distintas dos «cuentas de resultados» del mismo negocio.'
+prerequisites: ['marketing-clientes/04-clv-cac-y-unit-economics-de-clientes']
+tools: ['python', 'sql']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Wikipedia — Income statement'
+    url: 'https://en.wikipedia.org/wiki/Income_statement'
+    type: docs
+    authors: 'Wikipedia'
+    year: 2026
+  - title: 'Wikipedia — Gross margin'
+    url: 'https://en.wikipedia.org/wiki/Gross_margin'
+    type: docs
+    authors: 'Wikipedia'
+    year: 2026
+relatedLabs: ['py-cuenta-de-resultados']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Finanzas pregunta: «las ventas de Lumen se han más que duplicado en 2025, pero ¿ganamos más dinero
+  por cada euro vendido?». Para responder hay que reconstruir cómo se pasa de la venta a lo que
+  queda después de los costes variables, y poder explicar cada partida a quien no es analista.
+</BusinessContext>
+
+Una **cuenta de resultados** (o de pérdidas y ganancias, P&L) resume ingresos, costes y resultado de un periodo. Un analista de datos no sustituye al contable, pero necesita entenderla para que sus análisis hablen el idioma del negocio: un aumento de ventas que no mejora el margen no es una buena noticia, y una campaña «rentable» por ventas puede perder dinero después de descuentos y devoluciones.
+
+## Intuición
+
+Piensa en el camino que sigue un euro de precio de lista hasta el bolsillo de la empresa: se le quita el descuento que se hizo al cliente, el reembolso de lo que devolvió, el coste de comprar o fabricar el producto, el envío y la publicidad que costó atraerlo. Lo que queda es la **contribución**: lo que cada venta aporta para pagar la estructura (personal, tiendas, tecnología) y dejar beneficio.
+
+## Cómo funciona
+
+### La estructura de una cuenta de resultados
+
+De arriba abajo, cada línea se obtiene de la anterior:
+
+| Línea                    | Qué es                                                                    |
+| ------------------------ | ------------------------------------------------------------------------- |
+| **Ventas brutas**        | Ingresos antes de devoluciones (a precio final, con descuentos aplicados) |
+| − Devoluciones           | Reembolsos de lo que el cliente devuelve                                  |
+| **Ventas netas**         | Lo que realmente se queda la empresa                                      |
+| − Coste de ventas (COGS) | Coste de los productos vendidos                                           |
+| **Margen bruto**         | Ventas netas menos coste de ventas                                        |
+| − Gastos operativos      | Personal, tiendas, marketing, tecnología, estructura                      |
+| **EBITDA**               | Resultado operativo antes de amortizaciones, intereses e impuestos        |
+| − Amortizaciones         | Desgaste contable de los activos                                          |
+| **EBIT**                 | Resultado operativo                                                       |
+| − Intereses e impuestos  | Costes financieros y fiscales                                             |
+| **Resultado neto**       | El beneficio (o pérdida) del periodo                                      |
+
+El **margen** de una línea es esa línea dividida entre las ventas netas. Los **costes variables** (producto, envío, comisiones, marketing de captación) cambian con las ventas; los **fijos** (alquiler, nóminas) no. La **contribución** es el margen después de los costes variables: lo que cada venta aporta a pagar los fijos.
+
+### La cuenta de Lumen hasta la contribución
+
+El dataset de Lumen no tiene gastos de estructura (personal, tiendas), así que la cuenta que se puede reconstruir termina en la **contribución**. Con las líneas de los pedidos no cancelados, `returns`, `products` (precio de lista y coste), el coste de envío de cada pedido y la inversión de `marketing_spend`:
+
+| Partida (M€)                      |    2024 |    2025 | Variación |
+| --------------------------------- | ------: | ------: | --------: |
+| Ventas a precio de lista          |   25,14 |   54,89 |  +118,4 % |
+| − Descuentos                      |    2,70 |    5,43 |  +101,3 % |
+| **Ventas brutas**                 |   22,44 |   49,46 |  +120,4 % |
+| − Devoluciones                    |    1,55 |    3,52 |  +126,8 % |
+| **Ventas netas**                  |   20,89 |   45,94 |  +119,9 % |
+| − Coste de producto               |   13,57 |   29,54 |  +117,7 % |
+| **Margen bruto**                  |    7,32 |   16,41 |  +124,1 % |
+| _Margen bruto sobre ventas netas_ | 35,05 % | 35,71 % |  +0,66 pp |
+| − Envíos                          |    0,16 |    0,35 |  +117,7 % |
+| − Marketing                       |    1,24 |    1,32 |    +7,1 % |
+| **Contribución**                  |    5,92 |   14,73 |  +148,6 % |
+| _Contribución sobre ventas netas_ | 28,35 % | 32,06 % |  +3,70 pp |
+
+Lectura: las ventas netas crecen un 120 % y el margen bruto casi lo mismo (el porcentaje apenas sube 0,66 puntos). **La contribución crece más (+149 %) porque el marketing solo sube un 7 %**: es el apalancamiento operativo de gastar casi lo mismo en captar clientes a medida que la base recurrente compra más. Los descuentos suponen el 9,9 % del precio de lista y las devoluciones el 7,1 % de las ventas brutas: tan importantes como el margen del producto.
+
+### Unit economics por pedido
+
+Dividir las partidas entre los pedidos (161.706 pedidos no cancelados en 2025) las convierte en **economía unitaria**:
+
+| Por pedido, 2025    | Importe |
+| ------------------- | ------: |
+| Ventas netas        | 284,1 € |
+| − Coste de producto | 182,7 € |
+| **Margen bruto**    | 101,5 € |
+| − Envío             |   2,2 € |
+| − Marketing         |   8,2 € |
+| **Contribución**    |  91,1 € |
+
+Los unit economics responden a preguntas del tipo «¿cuánto podemos gastar en captar un pedido más?»: aquí, hasta unos 90 € antes de que un pedido deje de aportar (sin contar los costes de estructura). Para otros negocios, la unidad puede ser el cliente, el envío, la tienda o la suscripción.
+
+<Callout type="warning">
+  Dos cuentas de resultados del mismo negocio pueden diferir si los supuestos son distintos. Aquí
+  asumimos que **una línea devuelta se reembolsa por completo** y que **la mercancía vuelve al
+  almacén sin merma**; que los envíos son un coste de Lumen; y que no hay gastos de estructura.
+  Escribe siempre los supuestos junto a la tabla, y concilia con la contabilidad antes de presentar
+  cifras a finanzas: lo que ves en los datos operativos y lo que ve el contable (con
+  periodificaciones, provisiones y criterios de reconocimiento) rara vez coincide al céntimo.
+</Callout>
+
+## En la práctica
+
+1. **Pide la definición de cada partida** a finanzas (¿ventas con IVA o sin IVA?, ¿cuándo se reconoce una devolución?, ¿qué entra en el coste de ventas?).
+2. **Construye la cuenta línea a línea** con una consulta o función versionada y comprueba que cada subtotal cuadra.
+3. **Calcula márgenes** sobre ventas netas, y compara periodos con variaciones en % y en puntos porcentuales.
+4. **Pasa a unit economics** por pedido, cliente o tienda, para ver qué escala con el volumen y qué no.
+5. **Identifica las partidas que más mueven el resultado** (descuentos, devoluciones, coste) y su sensibilidad.
+6. **Declara los supuestos** y el perímetro (qué falta: estructura, impuestos).
+7. **Concilia con la contabilidad** y explica las diferencias.
+
+```python
+ventas_brutas = (l.cantidad * l.precio_final).sum()
+devoluciones = (l.cantidad * l.precio_final)[l.devuelta].sum()
+ventas_netas = ventas_brutas - devoluciones
+coste = (l.cantidad * l.coste_unitario)[~l.devuelta].sum()
+margen_bruto = ventas_netas - coste
+```
+
+En el lab construyes la cuenta de resultados de Lumen y comparas 2024 y 2025.
+
+## Trade-offs y cuándo usarlo
+
+- **Margen sobre ventas netas frente a sobre ventas brutas:** el segundo infravalora el efecto de las devoluciones; usa siempre la misma base.
+- **Contribución frente a beneficio neto:** la contribución es rápida y útil para decisiones de campaña o producto; el neto exige costes de estructura y reglas contables.
+- **Datos operativos frente a contabilidad:** los primeros son oportunos y granulares; la segunda es la cifra oficial. Conviene conciliarlos.
+- **Promedios frente a distribuciones:** un margen medio puede esconder categorías y clientes con margen negativo.
+
+## Errores comunes
+
+- **Usar ingresos donde toca margen** (para valorar campañas, categorías o clientes).
+- **Olvidar las devoluciones y los descuentos** al hablar de «ventas».
+- **Mezclar bases** (margen sobre brutas en un año y sobre netas en otro).
+- **Comparar periodos con distinto número de días o de eventos** (rebajas, Black Friday).
+- **No declarar los supuestos** (reembolsos, mermas, quién paga el envío).
+- **Presentar la contribución como si fuera el beneficio.**
+- **No conciliar con finanzas** antes de publicar.
+
+## Con IA
+
+Un asistente construye una cuenta de resultados rápido, pero suele mezclar ventas con y sin devolución, o aplicar el coste a todas las líneas. Pídele que enumere los supuestos, que compruebe que cada subtotal cuadra con la suma de sus partes y que reproduzca una cifra conocida de la contabilidad. Revisa especialmente el signo de las partidas y la base de los porcentajes.
+
+## En una entrevista
+
+- _"Las ventas suben un 20 % pero el beneficio baja. ¿Qué miras?"_ — Pista: margen bruto, descuentos, devoluciones, mix de productos, costes de adquisición, estructura.
+- _"¿Qué es la contribución y por qué importa?"_ — Pista: margen tras costes variables; lo que cada venta aporta a los fijos; base para decisiones marginales.
+- _"¿Cómo comprobarías que tu cuenta de resultados es correcta?"_ — Pista: subtotales que cuadran, reproducir cifras de contabilidad, pruebas con casos a mano.
+
+<KeyTakeaways
+  items={[
+    'Una cuenta de resultados pasa de ventas brutas a netas, margen bruto, EBITDA y resultado neto; con los datos de Lumen se puede llegar hasta la contribución (margen tras envíos y marketing).',
+    'En 2025 Lumen vende 45,9 M€ netos con un margen bruto del 35,7 % (+0,66 pp) y una contribución de 14,7 M€ (32,1 % de las ventas netas), un 149 % más que en 2024 porque el marketing solo sube un 7 %.',
+    'Descuentos (9,9 % del precio de lista) y devoluciones (7,1 % de las ventas brutas) pesan tanto como el margen del producto; ignorarlos sobrevalora los ingresos.',
+    'Por pedido, cada pedido de 2025 deja unos 284 € de venta neta y unos 91 € de contribución, una base para decidir cuánto se puede gastar en captar un pedido más.',
+    'Declara los supuestos (devoluciones, quién paga el envío, perímetro) y concilia con la contabilidad antes de presentar cifras a finanzas.',
+  ]}
+/>

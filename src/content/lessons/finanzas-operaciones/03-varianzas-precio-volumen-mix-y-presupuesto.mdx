@@ -1,0 +1,180 @@
+---
+title: 'Varianzas de precio, volumen y mix; presupuesto frente a forecast'
+description: 'Cómo explicar por qué cambian los ingresos entre dos periodos: descomposición en efecto precio, volumen y mix con un puente de ingresos, sus convenciones y límites, y cómo distinguir presupuesto, forecast y real en el análisis de desviaciones.'
+module: finanzas-operaciones
+order: 3
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Descomponer la variación de ingresos entre dos periodos en efectos de precio, volumen y mix y comprobar que el puente cuadra.'
+  - 'Explicar el resultado a un responsable de negocio y localizar la categoría que explica el efecto mix.'
+  - 'Distinguir presupuesto, forecast y real, y calcular y presentar desviaciones favorables y desfavorables.'
+  - 'Identificar las convenciones y los límites de la descomposición (nivel de agregación, orden de los efectos).'
+prerequisites:
+  [
+    'finanzas-operaciones/01-cuenta-de-resultados-y-unit-economics',
+    'series-temporales/04-anomalias-pronostico-frente-a-presupuesto-y-comunicacion',
+  ]
+tools: ['python', 'sql']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Wikipedia — Variance analysis (accounting)'
+    url: 'https://en.wikipedia.org/wiki/Variance_analysis_(accounting)'
+    type: docs
+    authors: 'Wikipedia'
+    year: 2026
+  - title: 'Wikipedia — Income statement'
+    url: 'https://en.wikipedia.org/wiki/Income_statement'
+    type: docs
+    authors: 'Wikipedia'
+    year: 2026
+relatedLabs: ['py-varianza-precio-volumen-mix']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Finanzas pregunta: «los ingresos del primer semestre de 2026 han subido 16 M€ respecto al de 2025.
+  ¿Cuánto se debe a vender más, cuánto a cobrar más y cuánto a que se vende algo distinto?». Es la
+  pregunta de toda reunión de resultados, y la respuesta ayuda a decidir si el crecimiento es
+  sostenible o depende de un cambio de composición.
+</BusinessContext>
+
+Una variación de ingresos tiene tres causas posibles que se pueden separar: el **precio** (cobramos más o menos por lo mismo), el **volumen** (vendemos más o menos unidades) y el **mix** (cambia la proporción de productos baratos y caros). Separarlos evita atribuir al mercado lo que fue una decisión de precio, o celebrar un volumen que oculta un empeoramiento del mix.
+
+## Intuición
+
+Una pastelería vende tartas (20 €) y galletas (2 €). Si un mes vende el mismo número de piezas pero más tartas, los ingresos suben sin que haya subido ningún precio ni el volumen: es **mix**. Si sube el precio de las tartas, es **precio**. Si vende más de todo en la misma proporción, es **volumen**.
+
+## Cómo funciona
+
+### La descomposición
+
+Con unidades $q$ y precio medio $p$ de cada categoría $i$ en el periodo base (0) y el actual (1), y totales $Q = \sum q_i$, $R = \sum p_i q_i$:
+
+$$
+\begin{aligned}
+\text{Precio} &= \sum_i (p_{1i} - p_{0i})\, q_{1i}, \\
+\text{Volumen} &= (Q_1 - Q_0)\,\frac{R_0}{Q_0}, \\
+\text{Mix} &= \sum_i p_{0i}\, q_{1i} - R_0\,\frac{Q_1}{Q_0}.
+\end{aligned}
+$$
+
+Los tres suman exactamente $R_1 - R_0$. El **efecto mix** de cada categoría es $(q_{1i} - s_{0i} Q_1)\,p_{0i}$, donde $s_{0i} = q_{0i}/Q_0$ es su cuota de unidades en la base: positivo si la categoría gana peso, negativo si lo pierde, ponderado por su precio.
+
+### El puente de Lumen: primer semestre de 2026 frente a 2025
+
+Con las ventas de pedidos no cancelados, por las ocho categorías principales:
+
+| Efecto           | Millones de € |
+| ---------------- | ------------: |
+| Ingresos H1 2025 |         20,45 |
+| **Volumen**      |    **+17,79** |
+| **Precio**       |         +0,06 |
+| **Mix**          |     **−1,72** |
+| Ingresos H1 2026 |         36,59 |
+
+Las unidades pasan de 249.558 a 466.628 (+87 %) y el precio medio por unidad baja de 81,96 € a 78,40 €. **Casi todo el crecimiento es volumen**; los precios por categoría apenas se mueven (entre −0,65 % y +0,60 %) y el mix resta 1,72 M€.
+
+¿Qué categoría explica el mix? La contribución de cada una:
+
+| Categoría           | Unidades H1 26 / H1 25 |  Mix (M€) |
+| ------------------- | ---------------------: | --------: |
+| **Electrónica**     |            **+65,5 %** | **−2,11** |
+| Hogar               |                +90,5 % |     +0,13 |
+| Deporte             |                +91,2 % |     +0,09 |
+| Moda                |                +91,0 % |     +0,06 |
+| Juguetes y bebé     |                +91,6 % |     +0,06 |
+| Papelería y oficina |                +90,2 % |     +0,03 |
+| Belleza             |                +89,4 % |     +0,02 |
+| Alimentación        |                +86,6 % |      0,00 |
+
+**Electrónica**, la categoría de mayor precio unitario, crece un 65 % en unidades mientras las demás lo hacen un 87-92 %: pierde cuota de unidades y arrastra el mix. Es la consecuencia de la rotura de stock de marzo de 2026 (sus unidades cayeron un 62 % ese mes, véase el módulo de producto): si el resto de meses es representativo, sin esa rotura el efecto mix habría sido mucho menor y los ingresos, superiores.
+
+### Convenciones y límites
+
+La descomposición no es única, y debe documentarse:
+
+- **Orden de los efectos.** Aquí el precio se valora con las unidades actuales ($q_1$) y el volumen y el mix, con los precios base ($p_0$). Otra convención (precio con $q_0$) da cifras algo distintas; lo importante es la coherencia y la transparencia.
+- **Nivel de agregación.** Con categorías, parte del mix _entre productos de la misma categoría_ se cuenta dentro del «precio medio». Cuanto más fino el nivel (producto, tienda), más mix se aísla y menos se oculta en el precio. Elige el nivel con el que decide el negocio.
+- **Periodo base.** Compara con el mismo periodo del año anterior para evitar estacionalidad.
+- **Interacciones.** Los términos cruzados (precio × volumen) se asignan a uno de los efectos; con cambios grandes pesan.
+- **Causalidad.** La descomposición describe; no explica por qué cambió el precio medio o el mix (promociones, escasez, canal). Eso exige análisis posterior.
+
+### Presupuesto, forecast y real
+
+- **Presupuesto:** compromiso anual, fijado antes del año; sirve de objetivo y de base de incentivos. No se actualiza.
+- **Forecast (previsión):** la mejor estimación actual, que se revisa con nuevos datos (a veces de forma continua, _rolling forecast_).
+- **Real:** lo ocurrido.
+
+Las **desviaciones** (_variances_) se calculan como real menos presupuesto (o forecast) y se clasifican en **favorables** o **desfavorables** según su efecto en el resultado (ingresos mayores: favorable; costes mayores: desfavorable). Se analizan por partida con un umbral de materialidad (por ejemplo, ±5 % o ±50.000 €) para no perseguir ruido, y se explican con la misma descomposición precio-volumen-mix.
+
+Un ejemplo de por qué conviene distinguir previsión y objetivo: el método sencillo de «aplicar el crecimiento del primer semestre al cuarto trimestre» habría sobreestimado los ingresos del Q4 de 2025 en un **20,65 %** (módulo de series temporales); si ese número hubiera sido el presupuesto, se habría vendido una «desviación desfavorable» que en realidad era un error de método.
+
+<Callout type="warning">
+  Cuidado con explicar una desviación solo con la causa que encaja con la narrativa. Antes de
+  atribuirla a «mala ejecución» o a «el mercado», comprueba si es un efecto de composición (mix), un
+  cambio de calendario, una rotura de stock o un error de previsión. Y presenta siempre el puente
+  completo: los tres efectos suman la variación.
+</Callout>
+
+## En la práctica
+
+1. **Fija la comparación** (mismo periodo del año anterior, presupuesto, forecast) y el nivel de detalle.
+2. **Prepara la tabla** de unidades, ingresos y precio medio por categoría (o producto) en ambos periodos.
+3. **Descompón** en precio, volumen y mix y comprueba que suman la variación.
+4. **Localiza** la categoría o el canal que más pesa en cada efecto.
+5. **Contrasta con el contexto** (promociones, roturas de stock, cambios de precio, calendario).
+6. **Resume en un puente** (_waterfall_): ingresos base, tres efectos, ingresos actuales.
+7. **Documenta las convenciones** y los umbrales de materialidad.
+
+```python
+precio = ((p1 - p0) * q1).sum()
+volumen = (q1.sum() - q0.sum()) * R0 / q0.sum()
+mix = (p0 * q1).sum() - R0 * q1.sum() / q0.sum()
+assert abs(precio + volumen + mix - (R1 - R0)) < 1e-6
+```
+
+En el lab implementas la descomposición y el efecto mix por categoría con los pedidos de Lumen.
+
+## Trade-offs y cuándo usarlo
+
+- **Más detalle frente a más legibilidad:** a nivel de producto el mix es más fiel pero el resultado es ilegible; a nivel de categoría es claro pero esconde parte del mix.
+- **Precio medio por unidad frente a por pedido:** depende de cómo se venda (unidades, pedidos, kilos); define la unidad antes.
+- **Real frente a presupuesto frente a forecast:** el presupuesto mide el cumplimiento del plan; el forecast, la calidad de la previsión y las perspectivas; el año anterior, el crecimiento.
+- **Descomposición aditiva frente a logarítmica:** la aditiva cuadra en euros; la logarítmica es simétrica y no depende del orden, pero es menos intuitiva.
+
+## Errores comunes
+
+- **Llamar «volumen» a todo lo que no es precio**, sin separar el mix.
+- **No comprobar que el puente cuadra.**
+- **Cambiar de convención entre periodos** y comparar efectos no equivalentes.
+- **Descomponer a un nivel tan agregado** que el mix desaparece (o se oculta en el precio).
+- **Interpretar un efecto mix negativo como «mal rendimiento»** sin mirar causas operativas (stock).
+- **Confundir presupuesto con forecast.**
+- **Explicar las desviaciones sin umbral de materialidad.**
+
+## Con IA
+
+Un asistente calcula «precio, volumen y mix» con fórmulas distintas según la conversación y rara vez lo dice. Pídele que escriba las tres fórmulas y que verifique que suman la variación. Si propone una explicación de la desviación, exige la consulta que la respalda (¿qué categoría?, ¿qué canal?, ¿qué semana?).
+
+## En una entrevista
+
+- _"Los ingresos suben un 10 % pero el margen baja. ¿Qué miras?"_ — Pista: puente precio-volumen-mix de ingresos y de margen; descuentos; mix de categorías; costes.
+- _"¿Qué es el efecto mix y cómo se calcula?"_ — Pista: cambio de composición a precios base; cuota de unidades; fórmula y ejemplo.
+- _"¿En qué se diferencian presupuesto y forecast?"_ — Pista: compromiso fijo frente a estimación revisable; uso de cada uno; desviaciones.
+
+<KeyTakeaways
+  items={[
+    'La variación de ingresos entre dos periodos se descompone en precio, volumen y mix, y los tres efectos suman exactamente la variación.',
+    'En el primer semestre de 2026 Lumen ingresa 16,13 M€ más que en el de 2025: +17,79 M€ de volumen, +0,06 M€ de precio y −1,72 M€ de mix.',
+    'Electrónica explica el mix negativo (−2,11 M€): sus unidades crecen un 65 % frente al 87-92 % de las demás categorías, por la rotura de stock de marzo.',
+    'La descomposición depende de convenciones (orden de los efectos, nivel de agregación, periodo base) que hay que documentar, y describe qué cambió, no por qué.',
+    'Presupuesto (compromiso fijo), forecast (estimación revisable) y real son cosas distintas; las desviaciones se clasifican en favorables y desfavorables con un umbral de materialidad.',
+  ]}
+/>

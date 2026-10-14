@@ -1,0 +1,184 @@
+---
+title: 'Operaciones: entregas, inventario, pricing y elasticidad'
+description: 'Cómo medir la cadena de suministro con datos (puntualidad y OTIF, roturas de stock, rotación y cobertura del inventario, capacidad) y una introducción a pricing y elasticidad de la demanda, con las entregas, el inventario y la subida de precios de Lumen.'
+module: finanzas-operaciones
+order: 4
+level: avanzado
+estimatedMinutes: 55
+objectives:
+  - 'Medir la puntualidad de las entregas, su distribución y su efecto en el cliente, y distinguir promedios de colas.'
+  - 'Detectar y cuantificar una rotura de stock en el inventario y calcular rotación y días de cobertura.'
+  - 'Sospechar de un resultado implausible y comprobar la definición y los datos antes de concluir.'
+  - 'Estimar e interpretar una elasticidad precio con un diseño causal y entender sus límites.'
+prerequisites:
+  [
+    'finanzas-operaciones/03-varianzas-precio-volumen-mix-y-presupuesto',
+    'causalidad/02-diferencias-en-diferencias',
+  ]
+tools: ['python', 'sql']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Wikipedia — Inventory turnover'
+    url: 'https://en.wikipedia.org/wiki/Inventory_turnover'
+    type: docs
+    authors: 'Wikipedia'
+    year: 2026
+  - title: 'Wikipedia — Price elasticity of demand'
+    url: 'https://en.wikipedia.org/wiki/Price_elasticity_of_demand'
+    type: docs
+    authors: 'Wikipedia'
+    year: 2026
+relatedLabs: ['py-entregas-e-inventario']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Operaciones pide un cuadro de mando de la cadena de suministro: «¿cumplimos lo que prometemos al
+  cliente?, ¿dónde se nos rompió el abastecimiento?, ¿tenemos demasiado inventario?». Y comercial
+  pregunta una cosa relacionada: «si subimos los precios, ¿cuánta demanda perdemos?».
+</BusinessContext>
+
+Los datos de operaciones tienen una ventaja sobre los de marketing: miden hechos físicos (un paquete llegó o no llegó, una unidad estaba o no estaba en el almacén) con menos ambigüedad de atribución. Y una limitación: son fáciles de calcular mal si no se define con precisión qué se cuenta.
+
+## Intuición
+
+Una cadena de suministro es una tubería con depósitos. Las **entregas** miden si el agua llega cuando se prometió; el **inventario** es el nivel de los depósitos; una **rotura** es un depósito vacío cuando alguien abre el grifo; la **rotación** dice cuántas veces se renueva el agua del depósito al año. Y la **elasticidad** responde a qué pasa con el consumo si cambiamos el precio del agua.
+
+## Cómo funciona
+
+### Puntualidad de las entregas
+
+- **Retraso** = fecha real − fecha prometida. Una entrega es **puntual** si el retraso es ≤ 0.
+- **OTIF (_on time in full_):** porcentaje de pedidos entregados a tiempo **y** completos. Necesita saber qué se pidió y qué llegó; en Lumen solo está la fecha, así que se mide la puntualidad.
+
+Con las 365.198 entregas de Lumen:
+
+| Indicador                         |      Valor |
+| --------------------------------- | ---------: |
+| Entregas a tiempo                 |     82,0 % |
+| Con algún retraso                 |     18,0 % |
+| Retraso de 5 días o más           |     10,7 % |
+| Retraso máximo                    |    10 días |
+| Plazo prometido (desde el pedido) | 2 a 5 días |
+
+El 18 % de retrasos es un número alto, pero el promedio esconde la **cola**: entre los envíos con retraso, la duración se reparte de forma casi uniforme entre 1 y 10 días, de modo que uno de cada diez envíos llega con cinco días o más de demora. **Por transportista no hay diferencias relevantes** (entre el 81,8 % y el 82,2 % a tiempo en los cinco): el problema no se arregla cambiando de transportista.
+
+¿Importa para el cliente? Sí: en el análisis de bajas de Lumen+ (módulo de causalidad), un retraso grave (5 días o más) en los 30 días previos eleva la baja mensual del 3,5 % al 38,9 %. Una cola del 10,7 % es una fuente directa de churn: **mide la cola, no solo la media**.
+
+### Inventario, rotura y cobertura
+
+El inventario semanal de Lumen (`inventory_snapshots`) registra el stock de cada producto en cuatro almacenes. Una **rotura de stock** (_stock-out_) es una posición sin unidades cuando hay demanda. La rotura de marzo de 2026 se ve clara en Electrónica:
+
+| Mes (2026) | Stock medio de Electrónica (unidades por producto y almacén) | Registros sin stock |
+| ---------- | -----------------------------------------------------------: | ------------------: |
+| Febrero    |                                                        212,0 |               0,0 % |
+| **Marzo**  |                                                     **85,1** |          **19,6 %** |
+| Abril      |                                                        210,9 |               0,0 % |
+
+El stock medio cae un 60 % y casi uno de cada cinco registros semanales está en cero, mientras que las otras siete categorías no tienen prácticamente ninguna rotura. Es el origen de la caída de ventas de Electrónica de ese mes (sus unidades bajan un 62 %).
+
+Dos indicadores del inventario:
+
+- **Rotación** = coste de ventas / valor medio del inventario a coste. Mide cuántas veces se renueva el stock al año.
+- **Días de cobertura** = 365 / rotación (o stock / venta diaria): cuántos días duraría el stock al ritmo actual.
+
+<Callout type="warning">
+  Con los datos de Lumen, la rotación de 2025 sale en **0,36 vueltas** (coste de ventas de 31,8 M€
+  entre un inventario medio de 88,0 M€), es decir, **1.010 días de cobertura**: casi tres años de
+  stock. Un resultado así debe hacerte sospechar antes que concluir. En un caso real revisarías la
+  definición (¿unidades por almacén o consolidadas?, ¿incluye stock en tránsito o reservado?), la
+  unidad y el periodo. Aquí la causa es que el inventario sintético del dataset no está calibrado
+  con la demanda. Una métrica «correcta» con un valor imposible es una pista de que el dato o la
+  definición están mal.
+</Callout>
+
+Otras métricas habituales: **fill rate** (porcentaje de la demanda servido desde stock), **plazo de reposición** (_lead time_), **stock de seguridad** y **capacidad** (pedidos por hora o por día que puede procesar un almacén). Su cálculo exige datos que Lumen no tiene (demanda no servida, recepciones), así que sirven de lista de qué pedir.
+
+### Pricing y elasticidad: una introducción
+
+La **elasticidad precio de la demanda** mide cuánto cambia la cantidad vendida cuando cambia el precio:
+
+$$
+\varepsilon = \frac{\%\Delta Q}{\%\Delta P}.
+$$
+
+Si $|\varepsilon| > 1$, la demanda es **elástica** (subir el precio reduce los ingresos); si $|\varepsilon| < 1$, **inelástica** (subir el precio aumenta los ingresos). Para estimarla hace falta variación de precios **independiente de la demanda**: lo contrario sesgaría el resultado (los precios suben justo cuando la demanda es alta).
+
+Lumen subió un 12 % el precio de Electrónica en Andalucía en marzo de 2025. Con el diseño de diferencias en diferencias del módulo de causalidad, que compara con el resto de España:
+
+| Resultado         | Efecto estimado | Intervalo de confianza 95 % |
+| ----------------- | --------------: | --------------------------- |
+| Ingresos          |         +13,9 % | +6,4 % a +21,8 %            |
+| Unidades vendidas |          +2,3 % | −4,8 % a +9,9 %             |
+
+Si se convierte a elasticidad en logaritmos (efecto en unidades entre $\ln 1{,}12$), da **$\varepsilon \approx +0{,}2$, con un intervalo de −0,4 a +0,8**: no se detecta respuesta de la demanda y, con el límite más desfavorable (−0,4), la demanda sigue siendo inelástica. Con esos datos, subir un 12 % el precio en esa categoría y región **no redujo las ventas de forma apreciable** y los ingresos subieron casi lo mismo que el precio.
+
+Límites importantes:
+
+- Es una estimación **local**: un +12 % en una categoría y región, no una curva de demanda. Extrapolar a +30 % o a otra categoría es una suposición.
+- Los clientes de una región pueden **adelantar compras** o **cambiar de canal**; una ventana corta puede ocultarlo.
+- La elasticidad cambia con el tiempo, la competencia y el tipo de producto (la de bienes de primera necesidad suele ser baja; la de bienes sustituibles, alta).
+- Subir precios afecta a variables que el diseño no ve: devoluciones, satisfacción, retención a largo plazo.
+
+## En la práctica
+
+1. **Define cada indicador** (qué cuenta como entrega a tiempo, qué es una rotura) y la fecha de referencia.
+2. **Mide distribuciones y colas**, no solo medias: percentiles, porcentaje con retraso grave.
+3. **Segmenta** por transportista, almacén, categoría y región para localizar el origen de un problema.
+4. **Detecta roturas** comparando el stock con el esperado y la demanda perdida (ventas no realizadas).
+5. **Calcula rotación y cobertura** con definiciones coherentes y comprueba que el resultado es plausible.
+6. **Conecta operaciones y cliente:** ¿los retrasos explican bajas, devoluciones o contactos con soporte?
+7. **Para precios, usa un diseño causal** (experimento, diferencias en diferencias) y presenta la elasticidad con su intervalo y el rango en el que es válida.
+
+```python
+retraso = (pd.to_datetime(envios.actual_date) - pd.to_datetime(envios.promised_date)).dt.days
+a_tiempo = (retraso <= 0).mean() * 100
+cola = (retraso >= 5).mean() * 100
+elasticidad = np.log(1 + efecto_unidades) / np.log(1 + subida_de_precio)
+```
+
+En el lab mides la puntualidad por transportista, localizas la rotura de Electrónica y calculas la rotación.
+
+## Trade-offs y cuándo usarlo
+
+- **Puntualidad frente a plazo prometido:** prometer plazos largos mejora la puntualidad pero empeora la conversión; mide ambos.
+- **Más stock frente a más roturas:** el stock cuesta capital y almacén; las roturas cuestan ventas y confianza. El stock de seguridad equilibra ambos.
+- **Elasticidad puntual frente a modelo de demanda:** un experimento da un valor local fiable; un modelo permite extrapolar con supuestos.
+- **Precio de lista frente a precio efectivo:** los descuentos y promociones cambian el precio real; usa el precio final pagado.
+- **Medias frente a percentiles:** las medias tranquilizan; los percentiles muestran a quién se falla.
+
+## Errores comunes
+
+- **Reportar solo el plazo medio** y no la proporción de retrasos graves.
+- **Confundir la rotura con la falta de demanda:** unas ventas bajas con stock cero no indican poco interés.
+- **Calcular la rotación sin comprobar la plausibilidad** (unidades, almacenes, periodo).
+- **Estimar la elasticidad con precios que respondieron a la demanda** (endogeneidad).
+- **Extrapolar una elasticidad local** a otros niveles de precio o categorías.
+- **Ignorar efectos a largo plazo** de una subida de precios.
+- **Cambiar de transportista** sin comprobar que el problema es suyo.
+
+## Con IA
+
+Un asistente puede producir un cuadro de mando de operaciones en minutos, pero rara vez comprueba la plausibilidad: calculará felizmente «1.010 días de cobertura» sin avisar. Pídele siempre que compare el resultado con un rango razonable del sector y que explique la definición de cada indicador. Para elasticidades, exige que indique el diseño (¿variación exógena?) y el intervalo.
+
+## En una entrevista
+
+- _"El 18 % de las entregas llega tarde. ¿Qué analizas?"_ — Pista: distribución del retraso, cola, segmentación (transportista, almacén, región), impacto en cliente (bajas, devoluciones), causa.
+- _"¿Cómo detectas una rotura de stock con datos?"_ — Pista: stock cero o muy bajo, ventas anómalas, demanda perdida; diferencia entre rotura y baja demanda.
+- _"Queremos subir precios un 10 %. ¿Cómo estimas el impacto?"_ — Pista: elasticidad con variación exógena (experimento, diferencias en diferencias); rango de validez; efectos a largo plazo.
+
+<KeyTakeaways
+  items={[
+    'En Lumen el 82,0 % de las entregas llega a tiempo, sin diferencias entre transportistas, pero el 10,7 % se retrasa cinco días o más; esa cola importa porque un retraso grave eleva la baja mensual de Lumen+ del 3,5 % al 38,9 %.',
+    'La rotura de stock de Electrónica de marzo de 2026 es visible en el inventario: el stock medio baja de 212 a 85 unidades y el 19,6 % de los registros semanales están sin stock.',
+    'Rotación = coste de ventas / inventario medio; un resultado extremo como 0,36 vueltas (1.010 días de cobertura) debe hacerte sospechar de la definición o de los datos antes de concluir.',
+    'La elasticidad exige variación de precios independiente de la demanda: la subida del 12 % en Electrónica en Andalucía da una elasticidad ≈ +0,2 con intervalo de −0,4 a +0,8, es decir, sin respuesta detectable de la demanda.',
+    'Mide colas y no solo medias, define cada indicador con precisión y recuerda que una elasticidad es local: vale para el rango de precios probado.',
+  ]}
+/>

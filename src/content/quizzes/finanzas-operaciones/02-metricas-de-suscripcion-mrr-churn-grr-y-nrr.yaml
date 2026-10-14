@@ -1,0 +1,54 @@
+lesson: finanzas-operaciones/02-metricas-de-suscripcion-mrr-churn-grr-y-nrr
+questions:
+  - id: fo-02-q1
+    type: numeric
+    difficulty: 1
+    prompt: 'El MRR de Lumen+ en mayo de 2026 es de 202.177 €. ¿Cuál es el ARR, en millones de euros? (Dos decimales.)'
+    answer: [2.43]
+    tolerance: 0.01
+    explanation: 'ARR = MRR × 12 = 2.426.124 €, unos 2,43 M€.'
+    ref: '#mrr-arr-y-la-cascada'
+
+  - id: fo-02-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'En mayo de 2026 Lumen+ perdió 10.278 € de MRR sobre un MRR inicial de 201.592 €. ¿Cuál es el churn de ingresos del mes, en %? (Un decimal.)'
+    answer: [5.1]
+    tolerance: 0.05
+    explanation: '10.278 / 201.592 ≈ 5,1 %. Se divide siempre entre el MRR inicial, no el final.'
+    ref: '#churn-clientes-frente-a-ingresos'
+
+  - id: fo-02-q3
+    type: single
+    difficulty: 2
+    prompt: 'En Lumen+ no hay ampliaciones ni rebajas de plan. Con la cohorte activa en mayo de 2025, un año después siguen el 55,8 % del MRR. ¿Qué valen la GRR y la NRR?'
+    options:
+      - 'GRR 55,8 % y NRR mayor de 100 %'
+      - 'Ambas 55,8 %: sin ampliaciones, la retención neta coincide con la bruta'
+      - 'GRR 100 % y NRR 55,8 %'
+      - 'No se pueden calcular'
+    answer: [1]
+    explanation: 'La NRR añade las ampliaciones a la GRR; si no las hay, coinciden. De cada 100 € de MRR de hace un año quedan 56 €.'
+    ref: '#retención-de-ingresos-grr-y-nrr'
+
+  - id: fo-02-q4
+    type: single
+    difficulty: 2
+    prompt: 'El MRR de Lumen+ parece caer un 5 % en junio de 2026. ¿Qué debes comprobar antes de comunicarlo?'
+    options:
+      - 'Nada: es un dato real'
+      - 'Que el último periodo esté completo en todas las componentes: la última alta es del 30 de mayo, por lo que junio no tiene altas'
+      - 'Que el MRR no incluya planes anuales'
+      - 'Que no haya habido bajas'
+    answer: [1]
+    explanation: 'Con bajas hasta el 29 de junio pero sin altas de junio, el MRR cae por un artefacto de datos. Hay que analizar hasta el último mes completo (mayo de 2026).'
+    ref: '#cuidado-con-los-datos'
+
+  - id: fo-02-q5
+    type: numeric
+    difficulty: 2
+    prompt: 'En mayo de 2026 Lumen+ tuvo 10.864 € de MRR nuevo y 10.278 € de MRR perdido. ¿Cuál es el ratio rápido? (Dos decimales.)'
+    answer: [1.06]
+    tolerance: 0.01
+    explanation: '10.864 / 10.278 ≈ 1,06: el MRR apenas crece porque casi todo lo que entra repone lo que se va.'
+    ref: '#el-ratio-rápido-de-mrr'

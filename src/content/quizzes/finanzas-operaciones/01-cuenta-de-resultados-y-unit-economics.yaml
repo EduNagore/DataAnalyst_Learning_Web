@@ -1,0 +1,58 @@
+lesson: finanzas-operaciones/01-cuenta-de-resultados-y-unit-economics
+questions:
+  - id: fo-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Cómo se calcula el margen bruto?'
+    options:
+      - 'Ventas brutas menos gastos de marketing'
+      - 'Ventas netas menos coste de ventas'
+      - 'Ventas netas menos todos los gastos operativos'
+      - 'Ventas a precio de lista menos descuentos'
+    answer: [1]
+    explanation: 'El margen bruto es lo que queda de las ventas netas (después de devoluciones) tras restar el coste de los productos vendidos. Aún no incluye gastos operativos como personal o marketing.'
+    ref: '#la-estructura-de-una-cuenta-de-resultados'
+
+  - id: fo-01-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'En 2025 Lumen tuvo 45,94 M€ de ventas netas y 16,41 M€ de margen bruto. ¿Cuál es el margen bruto sobre ventas netas, en %? (Un decimal.)'
+    answer: [35.7]
+    tolerance: 0.1
+    explanation: '16,41 / 45,94 ≈ 35,7 %. El margen se mide siempre sobre una base declarada (aquí, las ventas netas).'
+    ref: '#la-cuenta-de-lumen-hasta-la-contribución'
+
+  - id: fo-01-q3
+    type: single
+    difficulty: 2
+    prompt: 'Las ventas netas de Lumen crecen un 120 % de 2024 a 2025 y la contribución un 149 %. ¿Qué lo explica principalmente?'
+    options:
+      - 'Que los descuentos bajaron'
+      - 'Que el marketing solo creció un 7 %, mientras las ventas y el margen bruto se multiplicaban por más de dos'
+      - 'Que el coste del producto bajó mucho'
+      - 'Un error de cálculo'
+    answer: [1]
+    explanation: 'El margen bruto sobre ventas netas apenas sube 0,66 puntos; la mejora de la contribución viene de que el marketing (1,24 M€ a 1,32 M€) crece muy por debajo de las ventas.'
+    ref: '#la-cuenta-de-lumen-hasta-la-contribución'
+
+  - id: fo-01-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los supuestos que debes declarar junto a la cuenta de resultados reconstruida de Lumen.'
+    options:
+      - 'Una línea devuelta se reembolsa por completo'
+      - 'La mercancía devuelta vuelve al almacén sin merma'
+      - 'El dataset no incluye gastos de estructura, así que la cuenta termina en la contribución'
+      - 'Que el beneficio neto coincide con la contribución'
+    answer: [0, 1, 2]
+    explanation: 'La última afirmación es falsa y es justo el error que hay que evitar: la contribución no es el beneficio, porque faltan gastos de estructura, amortizaciones, intereses e impuestos.'
+    ref: '#la-cuenta-de-lumen-hasta-la-contribución'
+
+  - id: fo-01-q5
+    type: numeric
+    difficulty: 3
+    prompt: 'En 2025 Lumen tuvo 161.706 pedidos no cancelados y 14,73 M€ de contribución. ¿Cuál es la contribución por pedido, en euros? (Entero.)'
+    answer: [91]
+    tolerance: 1
+    explanation: '14.727.395 / 161.706 ≈ 91 € por pedido: es el margen máximo disponible para captar un pedido más antes de que deje de aportar (sin contar costes de estructura).'
+    ref: '#unit-economics-por-pedido'

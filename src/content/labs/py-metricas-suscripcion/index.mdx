@@ -1,0 +1,32 @@
+---
+title: 'Métricas de suscripción: MRR, churn, GRR y NRR en Lumen+'
+description: 'Construye la cascada mensual de MRR de Lumen+ (nuevo, perdido, activo), calcula el churn de ingresos, el ratio rápido y la retención de ingresos a 12 meses (GRR y NRR) y valora el ARR.'
+language: python
+part: 'Parte IV · Analítica por dominio'
+module: finanzas-operaciones
+difficulty: 3
+estimatedMinutes: 40
+concepts: ['MRR', 'ARR', 'churn de ingresos', 'GRR', 'NRR', 'ratio rápido']
+datasets: ['subscriptions']
+packages: []
+output: console
+hints:
+  - 'Una suscripción está activa al cierre de un mes si `started_at` ≤ último día del mes y no tiene `cancelled_at` o es posterior a ese último día. El MRR nuevo del mes suma las altas del mes; el perdido, las bajas del mes.'
+  - 'La cascada debe cuadrar: `mrr = mrr_inicial + nuevo − churn`, donde `mrr_inicial` es el `mrr` del mes anterior (0 en el primero).'
+  - 'Churn de MRR = `churn / mrr_inicial` (en %); ratio rápido = `nuevo / churn`. Usa `where` para evitar divisiones por cero en los primeros meses.'
+  - 'Retención a 12 meses: toma la cohorte activa al cierre de la fecha de inicio y calcula qué porcentaje de su MRR sigue activo al cierre de la fecha final. Sin ampliaciones ni rebajas de plan, NRR = GRR.'
+relatedLessons: ['finanzas-operaciones/02-metricas-de-suscripcion-mrr-churn-grr-y-nrr']
+businessQuestion: '¿Crece el ingreso recurrente de Lumen+ y cuánto de lo que ingresamos hoy seguirá aquí dentro de un año?'
+---
+
+La tabla `subscriptions` tiene una fila por suscripción: plan (mensual o anual), fecha de alta, fecha de baja (nula si sigue activa) y el MRR en euros (para los planes anuales, el importe mensual equivalente).
+
+Implementa:
+
+1. **`mrr_mensual(subs)`** → DataFrame indexado por mes (`Period`) con `mrr_inicial`, `nuevo`, `churn`, `mrr`, `suscripciones` y `bajas`.
+2. **`churn_de_ingresos(wf)`** (en %) y **`ratio_rapido_mrr(wf)`**.
+3. **`retencion_de_ingresos(subs, inicio, fin)`** → `grr`, `nrr` y `logos` (en %) de la cohorte activa al cierre de `inicio`.
+
+Aviso de datos: la última alta es del 30 de mayo de 2026, así que **junio de 2026 está incompleto** en altas; analiza hasta mayo.
+
+Resultado esperado: en mayo de 2026, 202.177 € de MRR (≈ 2,43 M€ de ARR), churn de MRR del 5,1 % y ratio rápido de 1,06; de cada 100 € activos en mayo de 2025 siguen 55,8 € un año después.

@@ -1,0 +1,62 @@
+lesson: finanzas-operaciones/03-varianzas-precio-volumen-mix-y-presupuesto
+questions:
+  - id: fo-03-q1
+    type: single
+    difficulty: 1
+    prompt: 'Una tienda vende el mismo número de unidades, sin cambiar ningún precio, pero vende más productos caros y menos baratos. ¿Qué efecto explica el aumento de ingresos?'
+    options:
+      - 'Volumen'
+      - 'Precio'
+      - 'Mix'
+      - 'Ninguno: los ingresos no pueden subir'
+    answer: [2]
+    explanation: 'El efecto mix recoge el cambio de composición de lo vendido a precios base, con el volumen total y los precios constantes.'
+    ref: '#la-descomposición'
+
+  - id: fo-03-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'Entre el primer semestre de 2025 y el de 2026, los ingresos de Lumen suben 16,13 M€, de los cuales +17,79 M€ son volumen y +0,06 M€ precio. ¿Cuánto vale el efecto mix, en M€? (Dos decimales.)'
+    answer: [-1.72]
+    tolerance: 0.01
+    explanation: 'El puente cuadra: 16,13 = 17,79 + 0,06 + mix, de modo que el mix es −1,72 M€.'
+    ref: '#el-puente-de-lumen-primer-semestre-de-2026-frente-a-2025'
+
+  - id: fo-03-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Qué categoría explica el efecto mix negativo de Lumen y por qué?'
+    options:
+      - 'Moda, porque bajó de precio'
+      - 'Electrónica: la categoría de mayor precio unitario crece mucho menos en unidades (+65 % frente a 87-92 %) por la rotura de stock de marzo'
+      - 'Alimentación, porque crece más que el resto'
+      - 'Ninguna: el mix siempre es cero'
+    answer: [1]
+    explanation: 'Electrónica pierde cuota de unidades y, al ser la de mayor precio, arrastra el mix (−2,11 M€). Las demás categorías aportan pequeñas cifras positivas.'
+    ref: '#el-puente-de-lumen-primer-semestre-de-2026-frente-a-2025'
+
+  - id: fo-03-q4
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODAS las convenciones o límites que deben documentarse en una descomposición precio-volumen-mix.'
+    options:
+      - 'El nivel de agregación (producto, categoría), porque parte del mix puede quedar dentro del precio medio'
+      - 'El orden de valoración de los efectos (precios base o actuales)'
+      - 'El periodo base elegido, por la estacionalidad'
+      - 'Que la descomposición explica por qué cambió el precio o el mix'
+    answer: [0, 1, 2]
+    explanation: 'La descomposición describe qué cambió, no por qué: las causas (promociones, escasez, canal) exigen un análisis posterior.'
+    ref: '#convenciones-y-límites'
+
+  - id: fo-03-q5
+    type: single
+    difficulty: 2
+    prompt: '¿En qué se diferencian presupuesto y forecast?'
+    options:
+      - 'En nada: son sinónimos'
+      - 'El presupuesto es un compromiso fijado antes del año que sirve de objetivo; el forecast es la mejor estimación actual y se revisa con nuevos datos'
+      - 'El presupuesto se actualiza cada mes y el forecast no'
+      - 'El forecast es siempre mayor que el presupuesto'
+    answer: [1]
+    explanation: 'Mezclar ambos confunde objetivos con previsiones. Las desviaciones se calculan como real menos presupuesto (o forecast) y se clasifican en favorables y desfavorables.'
+    ref: '#presupuesto-forecast-y-real'

@@ -1,0 +1,38 @@
+---
+title: 'Cuenta de resultados de Lumen: del precio de lista a la contribución'
+description: 'Construye con los pedidos de Lumen una cuenta de resultados hasta la contribución (descuentos, devoluciones, coste de producto, envíos y marketing) y compara 2024 con 2025 para ver qué partida explica el cambio.'
+language: python
+part: 'Parte IV · Analítica por dominio'
+module: finanzas-operaciones
+difficulty: 2
+estimatedMinutes: 40
+concepts:
+  [
+    'cuenta de resultados',
+    'margen bruto',
+    'contribución',
+    'devoluciones',
+    'descuentos',
+    'comparación interanual',
+  ]
+datasets: ['orders', 'order_items', 'products', 'returns', 'marketing_spend']
+packages: []
+output: console
+hints:
+  - 'Líneas: une `order_items` con los pedidos no cancelados y con `products` (`price` es el precio de lista y `cost` el coste). Una línea está devuelta si su `order_item_id` aparece en `returns`.'
+  - 'Ventas de lista = Σ cantidad·precio de lista; ventas brutas = Σ cantidad·precio final (ya con descuento); los descuentos son la diferencia. Las devoluciones restan las ventas brutas de las líneas devueltas.'
+  - 'El coste de producto solo cuenta las líneas NO devueltas (la mercancía vuelve al almacén). Envíos y marketing se filtran por año natural.'
+  - 'Para comparar: variación porcentual en euros y diferencia en puntos en las partidas que son porcentajes.'
+relatedLessons: ['finanzas-operaciones/01-cuenta-de-resultados-y-unit-economics']
+businessQuestion: '¿Cuánto gana Lumen por cada euro vendido y qué partida explica la mejora de 2025?'
+---
+
+Implementa tres funciones:
+
+1. **`lineas_pedido(orders, order_items, products, returns)`** → una fila por línea de pedidos no cancelados con `order_id`, `fecha`, `cantidad`, `precio_lista`, `precio_final`, `coste_unitario` y `devuelta`.
+2. **`pyg(lineas, orders, marketing_spend, anio)`** → `Series` con `ventas_lista`, `descuentos`, `ventas_brutas`, `devoluciones`, `ventas_netas`, `coste_producto`, `margen_bruto`, `margen_bruto_pct`, `envios`, `marketing`, `contribucion` y `contribucion_pct`.
+3. **`comparar(a, b)`** → tabla con `anterior`, `actual` y `variacion_pct` (en puntos si la partida es un porcentaje).
+
+Supuestos (indícalos siempre en un análisis real): una línea que aparece en `returns` se reembolsa por completo y la mercancía devuelta vuelve al almacén sin merma; el dataset no incluye gastos de personal, tiendas ni estructura, así que la cuenta termina en la **contribución**.
+
+Resultado esperado: en 2025 las ventas netas son de 45,94 M€, el margen bruto del 35,7 % y la contribución de 14,73 M€ (32,1 %).
