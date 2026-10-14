@@ -84,8 +84,7 @@ jobs:
           code=$?
           cat uv-sync.log
           if [ $code -ne 0 ]; then
-            echo "::error title=uv sync::$(tail -c 1800 uv-sync.log | tr '
-' '|')"
+            echo "::error title=uv sync::$(tail -c 1800 uv-sync.log | tr -s '[:space:]' ' ')"
           fi
           exit $code
 
