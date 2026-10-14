@@ -1,0 +1,174 @@
+---
+title: 'Herramientas: intérpretes de código, notebooks, hojas de cálculo y agentes de código'
+description: 'Mapa de las formas de usar IA en el trabajo del analista (chat con ejecución de código, IA dentro de notebooks y hojas de cálculo, agentes de código sobre un repositorio), qué datos ve cada una, cómo darles autonomía con control y qué ocurre cuando una función de IA experimental desaparece.'
+module: llm-copiloto
+order: 3
+level: intermedio
+estimatedMinutes: 45
+objectives:
+  - 'Distinguir los modos de uso de IA: chat, intérprete de código, IA integrada en notebooks u hojas de cálculo y agentes de código.'
+  - 'Valorar para cada herramienta qué datos y código salen de tu entorno y qué permisos tiene.'
+  - 'Configurar un agente de código en un repositorio de analítica con permisos mínimos, ramas, revisión y pruebas.'
+  - 'Evitar construir procesos críticos sobre funciones de IA experimentales o de vida corta.'
+prerequisites: ['llm-copiloto/02-prompting-para-analisis-esquema-definiciones-y-ejemplos']
+tools: ['python', 'sql']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Claude Code — Overview'
+    url: 'https://code.claude.com/docs/en/overview'
+    type: docs
+    authors: 'Anthropic'
+    year: 2026
+  - title: 'Jupyter AI — Documentación'
+    url: 'https://jupyter-ai.readthedocs.io/en/latest/'
+    type: docs
+    authors: 'Project Jupyter'
+    year: 2026
+  - title: 'marimo — Funciones de IA'
+    url: 'https://docs.marimo.io/guides/editor_features/ai_completion/'
+    type: docs
+    authors: 'marimo'
+    year: 2026
+  - title: 'Penta — Excel’s COPILOT function stops working on 14 September'
+    url: 'https://penta.ch/insights/excels-copilot-function-stops-working-on-14-september'
+    type: blog
+    authors: 'Penta'
+    year: 2026
+relatedLabs: ['py-validar-sql-de-ia']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  El equipo de Datos de Lumen quiere ir más rápido: un chat para dudas de SQL, IA en los notebooks,
+  fórmulas con IA en las hojas de cálculo de Marketing y, ya puestos, un agente que arregle los
+  modelos de dbt. Cada herramienta ve datos distintos, tiene permisos distintos y falla de forma
+  distinta. Hay que elegir con criterio y poner reglas antes de que alguien conecte un agente con
+  credenciales de producción.
+</BusinessContext>
+
+## Intuición
+
+Piensa en la autonomía como una escala de coche: desde el aviso de carril (te sugiere y tú conduces) hasta el piloto automático (conduce y tú supervisas). Cuanto más control cede la herramienta, más importan los frenos: permisos limitados, un carril acotado (una rama de Git, un entorno de pruebas) y tú con las manos cerca del volante (revisión y pruebas).
+
+## Cómo funciona
+
+### Cuatro modos de usar IA en el análisis
+
+| Modo                                                 | Qué hace                                                                        | Qué ve                                              | Riesgo principal                                                            |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------- |
+| **Chat**                                             | Responde dudas, explica, escribe código que tú pegas                            | Lo que tú le escribes                               | Pegar datos sensibles; confiar en cifras                                    |
+| **Chat con ejecución de código**                     | Escribe y ejecuta Python sobre ficheros que subes, y devuelve tablas y gráficos | Los ficheros que subes                              | Subir datos personales a un tercero; cifras sin trazabilidad                |
+| **IA integrada** (notebook, hoja de cálculo, editor) | Completa código, genera celdas, responde sobre el cuaderno o la hoja            | El código, a veces los **valores** de las variables | Que el contenido del cuaderno viaje al proveedor                            |
+| **Agente de código**                                 | Lee un repositorio, edita ficheros, ejecuta comandos y pruebas, abre cambios    | Todo el repositorio y lo que el terminal alcance    | Ejecutar acciones con permisos excesivos; instrucciones ocultas en ficheros |
+
+### Intérpretes de código en el chat
+
+Los asistentes de chat ofrecen un entorno aislado donde ejecutan código Python sobre los ficheros que subes. Es útil para explorar rápido y para ver el código que genera cada resultado. Buenas prácticas: sube **datos sintéticos o agregados** si no tienes cobertura legal para otra cosa; pide que muestre el **código completo** y vuelve a ejecutarlo en tu entorno; no aceptes una cifra sin ese código. Recuerda que ese entorno no es tu entorno: sus versiones y sus semillas pueden diferir de las tuyas.
+
+### IA dentro del notebook
+
+- **Jupyter AI** es una extensión de código abierto que conecta agentes de IA con JupyterLab: chat con asistentes (se mencionan Claude, Codex y GitHub Copilot, entre otros), herramientas para escribir, depurar y ejecutar cuadernos, y un control de seguridad clave: los agentes **piden permiso** antes de escribir ficheros, ejecutar comandos o usar herramientas MCP.
+- **marimo** ofrece un panel de chat con varios modos (manual sin herramientas, «preguntar» con herramientas de solo lectura, «agente» con capacidad de edición y «código» con acceso al kernel), completado de código en línea y generación de celdas o cuadernos completos desde la línea de comandos. Un rasgo importante: su asistente **puede acceder a los valores de las variables en memoria**, de modo que programa contra tus DataFrames y esquemas. Eso ayuda, y significa que **tus datos pueden viajar al proveedor** que hayas configurado (OpenAI, Anthropic, Google, un modelo local con Ollama, etc.): revisa la política de ese proveedor.
+
+Antes de activar la IA en un notebook que carga datos personales, decide si se envían valores o solo el esquema, y qué proveedor los recibe.
+
+### IA en las hojas de cálculo
+
+Las hojas de cálculo incorporan funciones de IA en celdas (para clasificar, resumir o extraer texto) y paneles de chat. Dos cautelas: lo que está en la hoja puede enviarse al proveedor, y **estas funciones han cambiado de nombre y de estado con rapidez**. Un ejemplo reciente: la función `=COPILOT()` de Excel, que nunca llegó a disponibilidad general y existía solo en canales de vista previa, **dejó de funcionar el 14 de septiembre de 2026**; según un análisis del aviso de Microsoft (MC1454373, del 14 de agosto), la empresa indicó que no la llevaría adelante y recomendó usar el panel lateral de Copilot, con la diferencia de que una respuesta de panel se revisa y aplica a mano, mientras que una fórmula se recalcula sola. Quien había construido procesos sobre la función tuvo que rehacerlos.
+
+<Callout type="warning">
+  La lección: **no construyas procesos que importen sobre funciones de IA en vista previa o
+  experimentales.** Úsalas para explorar; para producción, apóyate en código que controlas (SQL,
+  Python), en servicios con compromiso de estabilidad y con una salida (qué haces si desaparece).
+</Callout>
+
+### Agentes de código sobre un repositorio
+
+Un **agente de código** como Claude Code, Codex o los de los editores con IA (Cursor, entre otros) trabaja sobre un repositorio: lee el código, planifica, edita varios ficheros, ejecuta comandos (pruebas, linters, `dbt build`) y puede abrir un pull request. Claude Code, por ejemplo, se describe como una herramienta que lee el código base, edita ficheros, ejecuta comandos y se integra con tus herramientas, disponible en terminal, IDE, aplicación de escritorio y navegador; se personaliza con un fichero de instrucciones del proyecto (`CLAUDE.md`, o `AGENTS.md` en el caso de otros agentes) que lee al empezar cada sesión, con _hooks_ que ejecutan comandos antes o después de sus acciones, y se conecta a datos y servicios mediante MCP.
+
+Para el trabajo de analítica sirven bien en tareas **acotadas y verificables**: escribir un modelo dbt con sus pruebas, refactorizar SQL, documentar columnas, reproducir un error, convertir una hoja en un script. Se prestan peor a decisiones abiertas («mejora el modelo de ingresos») sin criterios de éxito.
+
+**Cómo darles autonomía con control:**
+
+1. **Rama de trabajo y entorno de pruebas:** nunca sobre `main` ni sobre producción.
+2. **Permisos mínimos:** credenciales de **solo lectura** a un entorno de desarrollo o a datos de muestra; nada de claves de producción en el entorno del agente.
+3. **Aprobación humana** para comandos que borran, escriben fuera del repositorio o llaman a servicios externos.
+4. **Instrucciones del proyecto:** convenciones de nombres, estructura por capas, cómo ejecutar las pruebas y qué no tocar (en `CLAUDE.md`/`AGENTS.md`).
+5. **Pruebas como árbitro:** el cambio no se fusiona sin CI en verde y revisión de una persona (módulo de ingeniería analítica).
+6. **Secretos fuera de su alcance:** ficheros `.env` y claves no accesibles.
+7. **Registro:** conserva el historial de lo que hizo y por qué.
+
+### Elegir con criterio
+
+| Pregunta                                       | Si la respuesta es sí…                                           |
+| ---------------------------------------------- | ---------------------------------------------------------------- |
+| ¿Hay datos personales en el entorno?           | Proveedor con contrato y garantías, o modelo local; solo esquema |
+| ¿La tarea es repetida y verificable?           | Agente o flujo automatizado con pruebas                          |
+| ¿Es exploración puntual?                       | Chat o intérprete de código con datos sintéticos                 |
+| ¿Importa la reproducibilidad?                  | Código en el repositorio, no en la conversación                  |
+| ¿La función es experimental o de vista previa? | Solo exploración; plan de salida si la usas                      |
+
+<Snapshot date="2026-10">
+  **Jupyter AI** está en su serie 3.x (la documentación anuncia la versión 3.2.0) y trabaja con
+  agentes que piden permiso antes de actuar. **marimo** documenta un chat con modos manual, de solo
+  lectura, de agente y de código, y admite proveedores como OpenAI, GitHub Copilot, Anthropic, AWS
+  Bedrock, Google y modelos locales. **Claude Code** funciona en terminal, IDE, escritorio y web,
+  con memoria de proyecto, _hooks_, skills y MCP. La función `=COPILOT()` de Excel se retiró el 14
+  de septiembre de 2026. Esta lista cambia rápido: es un ejemplo del tipo de herramientas, no una
+  recomendación; consulta la documentación vigente.
+</Snapshot>
+
+## En la práctica
+
+1. **Haz un inventario de las herramientas de IA** que ya usa el equipo y qué datos ven.
+2. **Fija una política:** qué proveedores están aprobados, qué datos se pueden enviar, qué requiere permiso.
+3. **Para agentes:** repositorio con instrucciones del proyecto, rama de trabajo, credenciales de solo lectura y CI obligatoria.
+4. **Revisa el diff** de todo lo que cambia un agente, como si lo hubiera escrito un colega junior.
+5. **Mide el valor:** tiempo ahorrado frente a tiempo de revisión y errores detectados.
+6. **Evita dependencias frágiles:** nada crítico sobre funciones en vista previa.
+7. **Forma al equipo** en el protocolo de verificación (lección siguiente).
+
+## Trade-offs y cuándo usarlo
+
+- **Chat frente a agente:** el chat es seguro y manual; el agente ahorra más tiempo y exige más controles.
+- **IA integrada frente a herramienta aparte:** la integrada ve más contexto (y más datos); la aparte te da control sobre qué compartes.
+- **Proveedor externo frente a modelo local:** el externo suele rendir más; el local mantiene los datos en tu infraestructura y rinde menos.
+- **Autonomía frente a revisión:** a más autonomía, más revisión automática (pruebas) necesaria.
+- **Estandarizar herramientas frente a dejar elegir:** estandarizar facilita políticas y soporte; dejar elegir fomenta la innovación y multiplica los riesgos.
+
+## Errores comunes
+
+- **Dar a un agente credenciales de producción** «para que pueda probar».
+- **Fusionar los cambios de un agente sin leerlos.**
+- **Activar la IA de un notebook sin saber qué datos envía.**
+- **Subir a un chat un fichero con datos personales** sin cobertura legal.
+- **Construir un proceso sobre una función de vista previa.**
+- **Dejar que el agente modifique las pruebas** hasta que pasen.
+- **No tener instrucciones de proyecto**, de modo que el agente ignora las convenciones.
+
+## Con IA
+
+Esta lección es sobre IA, así que la meta-advertencia: las instrucciones de este módulo también se aplican a quien las escribe. Cuando un asistente te recomiende una herramienta, comprueba que existe, que la versión es la vigente y que cumple tu política de datos. Los modelos conocen el ecosistema hasta su fecha de corte, y esa parte del mundo cambia cada trimestre.
+
+## En una entrevista
+
+- _"¿Cómo integrarías un agente de código en un repositorio de dbt?"_ — Pista: rama, permisos de solo lectura, instrucciones del proyecto, CI como árbitro, revisión humana, tareas acotadas.
+- _"¿Qué riesgos tiene activar la IA de un notebook?"_ — Pista: qué viaja al proveedor (código, valores); permisos para escribir y ejecutar; política de datos.
+- _"Una función de IA experimental que usas en producción desaparece. ¿Qué debiste hacer?"_ — Pista: no depender de vista previa; plan de salida; código controlado.
+
+<KeyTakeaways
+  items={[
+    'Hay cuatro modos de usar IA: chat, chat con ejecución de código, IA integrada en notebooks u hojas de cálculo y agentes de código; cada uno ve datos distintos y exige controles distintos.',
+    'Jupyter AI pide permiso antes de escribir ficheros o ejecutar comandos; marimo puede acceder a los valores de las variables, y por tanto tus datos pueden viajar al proveedor configurado.',
+    'Un agente de código se despliega con rama de trabajo, credenciales de solo lectura, instrucciones de proyecto (CLAUDE.md/AGENTS.md), CI como árbitro y revisión humana del diff.',
+    'La función =COPILOT() de Excel, solo en vista previa, dejó de funcionar el 14 de septiembre de 2026: no construyas procesos críticos sobre funciones de IA experimentales.',
+    'Define una política de herramientas aprobadas y datos permitidos, e inventaría qué IA se usa ya en el equipo.',
+  ]}
+/>

@@ -1,0 +1,62 @@
+lesson: llm-copiloto/02-prompting-para-analisis-esquema-definiciones-y-ejemplos
+questions:
+  - id: lc-02-q1
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las partes recomendables de un prompt analítico.'
+    options:
+      - 'El esquema de las tablas (columnas y tipos)'
+      - 'Las definiciones de negocio de las métricas'
+      - 'Una regla sobre qué responder si falta información'
+      - 'Las filas reales de la tabla de clientes, para que entienda mejor'
+    answer: [0, 1, 2]
+    explanation: 'Se envía el esquema, no las filas. Las filas reales con datos personales son una cesión a un tercero y rara vez mejoran la consulta.'
+    ref: '#las-partes-de-un-buen-prompt-analítico'
+
+  - id: lc-02-q2
+    type: single
+    difficulty: 2
+    prompt: 'Dos compañeros piden «ingresos por canal en 2025» y obtienen 49,5 M€ y 45,9 M€, ambas consultas sin errores. ¿Cuál es la explicación más probable?'
+    options:
+      - 'El modelo es defectuoso'
+      - 'Uno de los prompts no incluía la definición de ingresos (excluir cancelados y devoluciones) y el asistente eligió otra razonable'
+      - 'Los datos cambiaron entre las dos consultas'
+      - 'Es imposible saberlo'
+    answer: [1]
+    explanation: 'Sin la definición de negocio, el asistente elige una razonable pero distinta. 49,5 M€ son los ingresos sin cancelados; 45,9 M€ también excluyen las líneas devueltas.'
+    ref: '#el-efecto-de-la-definición-simulado'
+
+  - id: lc-02-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Por qué incluir una regla del tipo «si no hay información suficiente, responde NO_PUEDO_RESPONDER e indica qué falta»?'
+    options:
+      - 'Para que el prompt sea más largo'
+      - 'Porque convierte «no sé» en una salida válida y reduce las respuestas inventadas'
+      - 'Porque el modelo lo exige'
+      - 'Para ahorrar tokens'
+    answer: [1]
+    explanation: 'Sin esa salida, el modelo tiende a responder algo plausible aunque no tenga base.'
+    ref: '#las-partes-de-un-buen-prompt-analítico'
+
+  - id: lc-02-q4
+    type: single
+    difficulty: 3
+    prompt: 'Una tarea es compleja (limpiar un export y calcular un indicador). ¿Qué enfoque suele dar mejores resultados?'
+    options:
+      - 'Una única petición muy larga'
+      - 'Iterar: primero el plan y los supuestos, luego el código, luego pruebas, y ejecutar devolviendo errores o resultados'
+      - 'Pedir que lo haga en una sola frase'
+      - 'Repetir la misma petición hasta que salga bien'
+    answer: [1]
+    explanation: 'Descomponer permite corregir definiciones antes de escribir código y validar con evidencia.'
+    ref: '#iterar-en-lugar-de-pedirlo-todo-de-golpe'
+
+  - id: lc-02-q5
+    type: truefalse
+    difficulty: 2
+    prompt: 'Un prompt con tablas enormes y definiciones contradictorias mejora la respuesta porque da más contexto.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Más contexto no es mejor contexto: lo relevante y coherente funciona mejor, y el ruido degrada la respuesta.'
+    ref: '#qué-no-incluir-datos-personales-y-filas'

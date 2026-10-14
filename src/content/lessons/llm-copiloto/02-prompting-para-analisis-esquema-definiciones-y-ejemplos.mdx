@@ -1,0 +1,176 @@
+---
+title: 'Prompting para análisis: esquema, definiciones y ejemplos'
+description: 'Cómo pedir bien a un asistente de IA una tarea analítica: contexto (esquema, definiciones de negocio, ejemplos), instrucciones claras, formato de salida, qué hacer cuando falta información, plantillas por tipo de tarea, y cómo auditar un prompt antes de enviarlo (sin datos personales y dentro del presupuesto de tokens).'
+module: llm-copiloto
+order: 2
+level: intermedio
+estimatedMinutes: 45
+objectives:
+  - 'Estructurar un prompt analítico con esquema, definiciones de negocio, ejemplos, reglas y pregunta.'
+  - 'Explicar por qué la falta de una definición de negocio produce una respuesta plausible pero equivocada.'
+  - 'Auditar un prompt antes de enviarlo: esquema completo, sin datos personales, con salida definida y dentro del presupuesto.'
+  - 'Iterar con el asistente (descomponer, pedir supuestos, pedir pruebas) en lugar de una única petición larga.'
+prerequisites: ['llm-copiloto/01-como-funciona-un-llm-lo-justo-para-usarlo-bien']
+tools: ['python', 'sql']
+volatility: medium
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Anthropic — Prompting best practices'
+    url: 'https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices'
+    type: docs
+    authors: 'Anthropic'
+    year: 2026
+  - title: 'OpenAI — Prompt engineering'
+    url: 'https://platform.openai.com/docs/guides/prompt-engineering'
+    type: docs
+    authors: 'OpenAI'
+    year: 2026
+  - title: 'Anthropic — Effective context engineering for AI agents'
+    url: 'https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents'
+    type: blog
+    authors: 'Anthropic'
+    year: 2025
+  - title: 'Brown et al. — Language Models are Few-Shot Learners'
+    url: 'https://arxiv.org/abs/2005.14165'
+    type: paper
+    authors: 'Brown, T. et al.'
+    year: 2020
+relatedLabs: ['py-prompt-con-esquema', 'py-contexto-tokens-y-coste']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Dos compañeros de Lumen preguntan al mismo asistente «ingresos por canal en 2025». Uno obtiene
+  49,5 M€ y el otro 45,9 M€. Las dos consultas se ejecutan sin errores. La diferencia: uno no le
+  dijo al asistente qué cuenta como ingreso (excluir cancelados y devoluciones). El asistente eligió
+  una definición razonable pero distinta. El problema no era el modelo, era el prompt.
+</BusinessContext>
+
+## Intuición
+
+Pedir algo a un asistente de IA es como encargar un trabajo a una persona competente que acaba de entrar en tu empresa, no conoce tus tablas, no sabe qué significa «ingresos» aquí y no puede preguntarte (salvo que se lo permitas). Si le dejas una nota de dos líneas, hará lo que cree razonable. Si le dejas el esquema, las definiciones, un ejemplo de cómo lo haces tú y qué hacer si algo no está claro, trabajará casi como un compañero con meses de antigüedad.
+
+## Cómo funciona
+
+### Las partes de un buen prompt analítico
+
+| Parte                       | Qué incluye                                                               | Por qué                                                                |
+| --------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **Rol y tarea**             | «Eres un analista de datos. Responde con una única consulta SQL (DuckDB)» | Fija el objetivo y el formato                                          |
+| **Esquema**                 | Tablas, columnas y tipos (no filas de datos)                              | El modelo no conoce tus tablas y alucina columnas si no las ve         |
+| **Definiciones de negocio** | Qué significa cada métrica (ingresos netos, cliente activo)               | Evita que elija una definición razonable pero distinta                 |
+| **Ejemplos**                | Una o dos parejas pregunta → respuesta correcta                           | Fija el estilo y los convenios (dialecto, nombres, filtros habituales) |
+| **Reglas**                  | Usar solo lo del esquema; no inventar; qué responder si falta información | Reduce alucinaciones y convierte «no sé» en una salida válida          |
+| **Pregunta**                | La petición concreta, al final                                            | Con contexto largo, la pregunta al final funciona mejor                |
+
+Las guías de los proveedores coinciden: **ser claro y directo, dar contexto y motivos, usar ejemplos y estructurar el prompt** (por ejemplo con encabezados o etiquetas) para separar instrucciones, datos y preguntas. Los ejemplos funcionan porque los modelos aprenden del contexto lo que se espera (_few-shot_, Brown et al., 2020).
+
+### El efecto de la definición, simulado
+
+El lab construye este prompt con las tablas de Lumen y lo prueba con un asistente simulado (`MockLLM`) que se comporta como lo haría un modelo real al que le falta o no una definición:
+
+| Prompt                                                          | Tokens | Respuesta del asistente simulado                             |
+| --------------------------------------------------------------- | -----: | ------------------------------------------------------------ |
+| Con esquema, **definición de ingresos_netos**, ejemplo y reglas |    260 | Suma `quantity * unit_price`, excluye cancelados y devueltas |
+| Solo con esquema y reglas                                       |    175 | Cuenta pedidos por canal (no responde a lo pedido)           |
+
+Es una simulación didáctica, no una medida de un modelo real; ilustra un patrón que se observa con frecuencia: **sin la definición, el modelo contesta otra pregunta más fácil**. La cuestión no es si el modelo es bueno, sino si le has dado lo que necesita.
+
+### Qué no incluir: datos personales y filas
+
+El prompt lleva el **esquema**, no los datos. Si hace falta una muestra, que sea sintética o con identificadores eliminados y sin datos personales (lección 4). En el lab, la auditoría del prompt detecta: tablas del esquema no mencionadas, correos electrónicos e identificadores de cliente (`cust-000123`), ausencia de una regla de salida para cuando no hay información, y exceso del presupuesto de tokens.
+
+### Iterar en lugar de pedirlo todo de golpe
+
+Para tareas complejas, mejor una conversación en pasos:
+
+1. **Pide el plan y los supuestos** antes del código: «Explica en pasos qué calcularías y qué supuestos haces sobre cancelados y devoluciones».
+2. **Revisa el plan** y corrige las definiciones.
+3. **Pide el código** con el plan aprobado.
+4. **Pide pruebas:** casos pequeños con respuesta conocida que demuestren que la consulta es correcta.
+5. **Ejecuta tú y devuelve los errores o los resultados** para que corrija con evidencia.
+
+### Plantillas por tipo de tarea
+
+| Tarea                           | Qué pedir y qué dar                                                                                  |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| **Consulta SQL**                | Esquema, dialecto, definiciones, un ejemplo; «una única consulta, sin explicación»                   |
+| **Limpieza con pandas**         | Columnas y tipos, 3 ejemplos de valores sucios, reglas de decisión, «código idempotente con pruebas» |
+| **Explicar una consulta ajena** | La consulta y el esquema; «explica qué calcula, el grano y posibles errores (duplicados, nulos)»     |
+| **Revisar mi análisis**         | Pregunta de negocio, método y resultado; «busca sesgos, confusiones y alternativas»                  |
+| **Resumen para dirección**      | Hallazgos y cifras verificadas; público, tono y longitud; «no añadas cifras que no te he dado»       |
+| **Diseño de gráfico**           | Mensaje que quieres transmitir y datos agregados; «propón el tipo de gráfico y el título»            |
+
+<Callout type="warning">
+  Dos cautelas con el contexto. Primero, **no lleves instrucciones dentro de los datos**: si un
+  campo de texto libre (un comentario de cliente, un nombre) contiene «ignora lo anterior y…», un
+  asistente conectado a datos puede obedecerlo (inyección de instrucciones; módulo de agentes).
+  Segundo, **no confundas más contexto con mejor contexto**: tablas enormes y definiciones
+  contradictorias empeoran la respuesta. Selecciona lo relevante.
+</Callout>
+
+<Snapshot date="2026-10">
+  Las guías oficiales de los proveedores se actualizan con cada generación de modelos y varían de un
+  modelo a otro (por ejemplo, la guía de Anthropic distingue consejos específicos por modelo). Las
+  ideas de fondo —claridad, contexto, ejemplos, estructura, salidas verificables— se mantienen.
+  Antes de fijar plantillas en tu equipo, léelas en la documentación vigente del modelo que uses.
+</Snapshot>
+
+## En la práctica
+
+1. **Mantén un «paquete de contexto»** versionado: esquema de las tablas, glosario de métricas y 3-5 ejemplos de consultas de referencia; es la base de todos tus prompts (y de la capa semántica).
+2. **Genera el esquema con código** (no a mano) para que no se desactualice.
+3. **Audita cada prompt:** ¿esquema completo?, ¿sin datos personales?, ¿regla de salida?, ¿tamaño razonable?
+4. **Pide siempre supuestos y opción de «no puedo responder»** en lugar de una respuesta inventada.
+5. **Descompón:** plan → código → pruebas → ejecución.
+6. **Guarda los prompts que funcionan** como plantillas del equipo y revísalos cuando cambie el modelo.
+7. **Evalúa con un conjunto de preguntas de control** (módulo siguiente) si un prompt se usa mucho.
+
+```python
+prompt = construir_prompt(pregunta, esquemas, definiciones, ejemplos, dialecto="DuckDB")
+assert auditar_prompt(prompt, esquemas, presupuesto_tokens=2000) == []
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Prompt largo y detallado frente a corto:** el largo reduce ambigüedad y cuesta más tokens; lo ideal es el contexto mínimo suficiente.
+- **Ejemplos frente a solo instrucciones:** los ejemplos fijan convenios; demasiados anclan al modelo a un patrón.
+- **Una petición frente a varias:** varias pasos reducen errores y consumen más tiempo; úsalas para lo importante.
+- **Plantillas fijas frente a conversación libre:** las plantillas dan consistencia en tareas repetidas; la conversación es mejor para explorar.
+- **Contexto en el prompt frente a una capa semántica:** el prompt vale para uso individual; la capa semántica hace que la definición sea única y consultable por cualquier asistente.
+
+## Errores comunes
+
+- **Preguntar sin esquema ni definiciones.**
+- **Pegar filas reales con datos personales** «para que lo entienda mejor».
+- **No decir qué hacer si falta información** y recibir una respuesta inventada.
+- **Aceptar la primera respuesta** sin supuestos ni pruebas.
+- **Prompts contradictorios** (dos definiciones de ingresos en el mismo contexto).
+- **Reutilizar un prompt de otro modelo** sin comprobarlo.
+- **Olvidar versionar** los prompts que alimentan procesos repetidos.
+
+## Con IA
+
+Un asistente también puede ayudarte a escribir el prompt: dale tu tarea y pídele que haga preguntas de aclaración antes de resolverla, o que revise tu prompt buscando ambigüedades. Pero valida tú el resultado final: un prompt muy elaborado no sustituye a la verificación.
+
+## En una entrevista
+
+- _"¿Cómo le pedirías a un asistente que escriba una consulta de ingresos?"_ — Pista: esquema, definición de ingresos, ejemplo, dialecto, regla de «no sé», formato; y luego ejecutar y verificar.
+- _"El asistente da una cifra distinta cada vez. ¿Qué haces?"_ — Pista: fijar definiciones y formato; pedir código, no cifras; ejecutar; guardar el código.
+- _"¿Qué datos no enviarías a un asistente externo?"_ — Pista: personales, secretos, filas reales; esquema y muestras sintéticas.
+
+<KeyTakeaways
+  items={[
+    'Un buen prompt analítico lleva rol y tarea, esquema (no filas), definiciones de negocio, ejemplos, reglas (incluida la salida «no puedo responder») y la pregunta al final.',
+    'Sin la definición de negocio, el asistente elige una razonable pero distinta, o contesta otra pregunta más fácil: el fallo suele estar en el contexto, no en el modelo.',
+    'Audita el prompt antes de enviarlo: esquema completo, sin datos personales ni identificadores, con salida definida y dentro del presupuesto de tokens (el del lab: 260 tokens).',
+    'Itera en pasos —plan y supuestos, código, pruebas, ejecución— en lugar de una sola petición larga.',
+    'Mantén un paquete de contexto versionado (esquema generado por código, glosario, ejemplos); es también el germen de una capa semántica.',
+  ]}
+/>

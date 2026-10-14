@@ -1,0 +1,62 @@
+lesson: llm-copiloto/01-como-funciona-un-llm-lo-justo-para-usarlo-bien
+questions:
+  - id: lc-01-q1
+    type: numeric
+    difficulty: 2
+    prompt: 'Una muestra de 10.000 filas del CSV de pedidos de Lumen ocupa unos 184.000 tokens. El CSV tiene 392.906 filas. ¿Cuántos millones de tokens ocupa aproximadamente el CSV completo? (Un decimal.)'
+    answer: [7.2]
+    tolerance: 0.2
+    explanation: '184.000 × 392.906 / 10.000 ≈ 7,2 millones de tokens, unas siete veces una ventana de 1 millón: no cabe ni conviene enviarlo.'
+    ref: '#tokens-y-ventana-de-contexto'
+
+  - id: lc-01-q2
+    type: single
+    difficulty: 1
+    prompt: '¿Qué cuenta dentro de la ventana de contexto de un modelo?'
+    options:
+      - 'Solo tu último mensaje'
+      - 'Todo: instrucciones, historial, documentos y datos pegados, definiciones de herramientas y la propia respuesta'
+      - 'Solo los datos que subes'
+      - 'Únicamente la respuesta del modelo'
+    answer: [1]
+    explanation: 'Todo cuenta, también los tokens de pensamiento en los modelos con razonamiento. Y más contexto no es automáticamente mejor: puede degradar la precisión.'
+    ref: '#tokens-y-ventana-de-contexto'
+
+  - id: lc-01-q3
+    type: single
+    difficulty: 2
+    prompt: 'Haces la misma pregunta a un asistente dos días seguidos y recibes cifras distintas. ¿Qué es lo que debe ser reproducible en tu análisis?'
+    options:
+      - 'La conversación'
+      - 'El código (la consulta o el script) y los datos que lo producen'
+      - 'El tono de la respuesta'
+      - 'Nada: es imposible'
+    answer: [1]
+    explanation: 'El modelo muestrea entre tokens probables, así que la conversación varía. El código y los datos son los que se versionan y se pueden volver a ejecutar.'
+    ref: '#no-determinismo'
+
+  - id: lc-01-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las razones por las que un modelo de lenguaje puede dar una cifra falsa con aplomo.'
+    options:
+      - 'No tiene acceso a tus datos ni a tus definiciones de negocio'
+      - 'Genera texto plausible y tiende a adivinar antes que a admitir incertidumbre'
+      - 'Su conocimiento tiene una fecha de corte'
+      - 'Siempre calcula con exactitud, así que el error es del usuario'
+    answer: [0, 1, 2]
+    explanation: 'Los modelos son poco fiables como calculadoras y bases de datos. Las cifras deben salir de una ejecución (SQL, Python) que puedas inspeccionar.'
+    ref: '#alucinaciones'
+
+  - id: lc-01-q5
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál es la petición más adecuada a un asistente para obtener el crecimiento de ingresos de 2025?'
+    options:
+      - '«Dime el crecimiento de ingresos de 2025»'
+      - '«Escribe la consulta que calcula el crecimiento de ingresos de 2025 sobre estas tablas», que luego ejecuto y compruebo'
+      - '«Estima el crecimiento a ojo»'
+      - 'Pegar la tabla entera y preguntar'
+    answer: [1]
+    explanation: 'Se delega la escritura de código, no el cálculo ni la responsabilidad del resultado.'
+    ref: '#qué-delegar-y-qué-no'

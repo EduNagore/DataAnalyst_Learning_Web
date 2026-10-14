@@ -1,0 +1,175 @@
+---
+title: 'Cómo funciona un LLM, lo justo para usarlo bien'
+description: 'Lo mínimo que un analista debe entender de un modelo de lenguaje: tokens, ventana de contexto y degradación con contexto largo, coste, no determinismo, alucinaciones, y qué tareas del análisis delegar y cuáles no, con cifras de Lumen sobre qué cabe en un prompt.'
+module: llm-copiloto
+order: 1
+level: intermedio
+estimatedMinutes: 45
+objectives:
+  - 'Explicar qué es un token, una ventana de contexto y por qué más contexto no es automáticamente mejor.'
+  - 'Estimar los tokens y el coste de enviar datos a un modelo y decidir qué enviar en su lugar (esquema, resumen, muestra).'
+  - 'Describir el no determinismo y las alucinaciones y sus consecuencias para la reproducibilidad y la verificación.'
+  - 'Clasificar tareas del trabajo analítico según lo bien que un LLM las hace y qué control exigen.'
+prerequisites: ['analista-2026/03-la-ia-y-el-stack-moderno']
+tools: ['python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Anthropic — Context windows (documentación de la API)'
+    url: 'https://platform.claude.com/docs/en/build-with-claude/context-windows'
+    type: docs
+    authors: 'Anthropic'
+    year: 2026
+  - title: 'Vaswani et al. — Attention Is All You Need'
+    url: 'https://arxiv.org/abs/1706.03762'
+    type: paper
+    authors: 'Vaswani, A. et al.'
+    year: 2017
+  - title: 'Kalai, Nachum, Vempala & Zhang — Why Language Models Hallucinate'
+    url: 'https://arxiv.org/abs/2509.04664'
+    type: paper
+    authors: 'Kalai, A. T., Nachum, O., Vempala, S. S., Zhang, E.'
+    year: 2025
+  - title: 'Ji et al. — Survey of Hallucination in Natural Language Generation'
+    url: 'https://arxiv.org/abs/2202.03629'
+    type: paper
+    authors: 'Ji, Z. et al.'
+    year: 2022
+relatedLabs: ['py-contexto-tokens-y-coste']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Una analista de Lumen pega en un asistente de IA un trozo del CSV de pedidos y pregunta: «¿cuál
+  fue el crecimiento de ingresos en 2025?». La respuesta llega en segundos, con tono seguro y un
+  porcentaje exacto. Al repetir la pregunta mañana obtiene otro. ¿Cuál es el bueno? Para usar bien
+  esta herramienta hace falta entender, sin matemáticas, qué hace por dentro y qué no puede hacer.
+</BusinessContext>
+
+## Intuición
+
+Un modelo de lenguaje es como un colega brillante que ha leído una cantidad inmensa de texto, que escribe con soltura y que **siempre intenta darte una respuesta plausible**, incluso cuando no la sabe. No consulta tu base de datos ni «calcula» como una hoja de cálculo: continúa el texto de la forma más probable. Si le das el contexto adecuado y le pides que escriba código que luego ejecutas y compruebas, es un excelente copiloto; si le pides que recuerde un número, es un excelente imitador de números.
+
+## Cómo funciona
+
+### Tokens y ventana de contexto
+
+El modelo no lee letras ni palabras, sino **tokens**: fragmentos de texto de ≈ 4 caracteres en promedio (un conteo aproximado; varía con el idioma y el tipo de contenido). Genera la respuesta token a token, eligiendo cada uno según la probabilidad que asigna al texto anterior. La arquitectura dominante (Vaswani et al., 2017) usa un mecanismo de atención para relacionar unas partes del texto con otras.
+
+La **ventana de contexto** es todo lo que el modelo puede «ver» a la vez: las instrucciones, la conversación anterior, los datos y documentos que pegas, los resultados de herramientas **y la propia respuesta**. Según la documentación de Anthropic, la ventana actual de sus modelos más recientes llega a 1 millón de tokens (varía según el modelo), pero **más contexto no es automáticamente mejor**: a medida que crece el número de tokens, la precisión y la memoria se degradan, un fenómeno que se denomina _context rot_ (degradación del contexto). Curar lo que entra importa tanto como cuánto cabe.
+
+¿Qué cabe? Con los pedidos de Lumen:
+
+| Qué se envía                                                           | Tokens aproximados |
+| ---------------------------------------------------------------------- | -----------------: |
+| CSV completo de 392.906 pedidos (29 MB)                                |     ≈ 7,2 millones |
+| Las primeras 10.000 filas                                              |          ≈ 184.000 |
+| 440 filas (8.000 tokens)                                               |              8.000 |
+| **Resumen del esquema** (10 líneas con tipo, nulos, distintos y rango) |          **≈ 190** |
+
+El CSV completo es unas siete veces mayor que una ventana de 1 millón de tokens y no cabe; y aunque cupiera, sería caro y empeoraría la respuesta. Un resumen de 190 tokens —nombres de columnas, tipos, rangos, valores más frecuentes, **sin identificadores**— contiene casi todo lo que el modelo necesita para escribir la consulta. Los datos se procesan donde están (en SQL o Python); al modelo se le envía el esquema y, si hace falta, una muestra pequeña y sin datos personales.
+
+### Coste
+
+Los proveedores cobran por token, normalmente más caro el de salida que el de entrada, y todo cuenta: el mensaje del sistema, el historial, los documentos, las definiciones de herramientas y los tokens de «pensamiento» de los modelos con razonamiento (que se facturan como salida). Una conversación larga reenvía el historial en cada turno. Con precios de ejemplo de 3 € y 15 € por millón de tokens de entrada y salida, enviar el CSV completo costaría unos 21,7 €… por una sola pregunta. Los precios cambian: consulta siempre la tabla vigente del proveedor.
+
+### No determinismo
+
+Al generar, el modelo **muestrea** entre los tokens probables: la misma pregunta puede producir respuestas distintas, y un cambio de versión del modelo también. Consecuencias para el análisis:
+
+- **No es reproducible por sí mismo.** Lo que debe ser reproducible es el **código** y los **datos**, no la conversación. Guarda la consulta o el script que produjo el resultado.
+- **Registra** el prompt, el modelo y la versión, y la fecha cuando una respuesta influya en una decisión.
+- **Reduce la variabilidad** pidiendo formatos estructurados y salidas verificables, no «cifras de memoria».
+
+### Alucinaciones
+
+Un modelo puede producir con total seguridad una afirmación falsa: un dato inventado, una columna que no existe, una función de una biblioteca que no se llama así, una cita inexistente. Kalai et al. (2025) sostienen que ocurre en parte porque el entrenamiento y la evaluación **premian adivinar** frente a reconocer la incertidumbre: como un alumno en un examen, el modelo prefiere una respuesta plausible a un «no lo sé». Otras causas son la falta de información (tus datos y tus definiciones no están en su entrenamiento), la fecha de corte de su conocimiento y la presión de la propia conversación.
+
+Para el analista, la regla es: **la fluidez no es evidencia**. Un porcentaje con dos decimales dicho con aplomo puede ser una invención. Las cifras deben venir de una ejecución (SQL, Python) que puedas inspeccionar.
+
+<Callout type="warning">
+  Los modelos de lenguaje son poco fiables como calculadoras y como bases de datos, y muy buenos
+  como generadores de código, explicadores y transformadores de texto. «Dime el crecimiento de
+  ingresos» es la pregunta equivocada; «escribe la consulta que calcula el crecimiento de ingresos
+  de 2025 sobre estas tablas» es la correcta, seguida de ejecutarla y comprobarla (lección 4).
+</Callout>
+
+### Qué delegar y qué no
+
+| Tarea del trabajo analítico                      | Rendimiento típico | Control necesario                               |
+| ------------------------------------------------ | ------------------ | ----------------------------------------------- |
+| Escribir o traducir SQL y código de pandas       | Alto, con contexto | Ejecutar y comparar con un resultado conocido   |
+| Explicar un error, una consulta o una función    | Alto               | Contrastar con la documentación                 |
+| Redactar, resumir y reformular informes          | Alto               | Revisar cifras y matices                        |
+| Proponer hipótesis, análisis posibles y gráficos | Útil               | Criterio propio sobre cuáles tienen sentido     |
+| Cálculos exactos «de cabeza» con muchos datos    | Bajo               | Hacerlos con código                             |
+| Conocer **tus** definiciones y datos             | Nulo sin contexto  | Dárselas (lección 2) y verificar                |
+| Interpretar causalidad o decidir qué es correcto | Peligroso          | Es tu trabajo y el de las personas responsables |
+
+<Snapshot date="2026-10">
+  Los modelos actuales ofrecen ventanas de contexto de hasta 1 millón de tokens (en los de
+  Anthropic, según su documentación), modos de razonamiento (con tokens de pensamiento facturados
+  como salida) y herramientas para gestionar conversaciones largas, como la compactación del
+  contexto. Los nombres, los tamaños de ventana y los precios cambian cada pocos meses: comprueba
+  las cifras en la documentación vigente de tu proveedor.
+</Snapshot>
+
+## En la práctica
+
+1. **Envía esquema, no datos:** nombres de tablas y columnas, tipos, rangos, definiciones. Sin identificadores ni datos personales.
+2. **Pide código, no cifras.** Ejecútalo tú y revisa el resultado.
+3. **Estima tokens y coste** antes de pegar un documento largo; usa muestras o resúmenes.
+4. **Mantén las conversaciones focalizadas:** reinicia cuando derive; el contexto largo y desordenado empeora las respuestas.
+5. **Guarda el prompt, el modelo y la fecha** cuando la respuesta pese en una decisión.
+6. **Pide que declare supuestos y que diga «no lo sé»** cuando falte información.
+7. **Desconfía de la precisión espuria** (muchos decimales, citas, nombres exactos) y verifica.
+
+```python
+resumen = resumen_para_prompt(pedidos)          # ~190 tokens, sin identificadores
+n_tokens = MockLLM.count_tokens(resumen)
+coste = n_tokens / 1e6 * precio_entrada_1m      # precio de ejemplo o el vigente de tu proveedor
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Más contexto frente a mejor respuesta:** más información aporta datos, pero también ruido y degradación; selecciona.
+- **Modelo grande y lento frente a pequeño y rápido:** los grandes razonan mejor y cuestan más; para tareas sencillas y repetitivas, un modelo pequeño basta.
+- **Razonamiento extendido frente a respuesta directa:** pensar más mejora problemas difíciles y añade coste y latencia.
+- **Conversación interactiva frente a flujo automatizado:** la primera es flexible; el segundo exige salidas estructuradas, pruebas y controles.
+- **Proveedor externo frente a modelo local:** el externo suele rendir más; el local mantiene los datos en casa (lección 4).
+
+## Errores comunes
+
+- **Pegar tablas enteras** (caro, lento y con datos personales).
+- **Aceptar una cifra sin ejecutarla.**
+- **Esperar reproducibilidad de una conversación.**
+- **Tomar la seguridad del tono por exactitud.**
+- **Alargar una conversación hasta que el modelo «olvida» el principio.**
+- **Dar por hecho que el modelo conoce tus definiciones de negocio.**
+- **No comprobar que el código usa funciones y columnas que existen.**
+
+## Con IA
+
+Todo este módulo trata de usar la IA, pero conviene decirlo aquí: trata a un asistente como a un becario muy rápido y muy seguro de sí mismo. Le delegas el trabajo mecánico y le exiges que enseñe cómo lo ha hecho; no le delegas la responsabilidad del resultado.
+
+## En una entrevista
+
+- _"¿Por qué un LLM puede dar una cifra errónea con total seguridad?"_ — Pista: genera texto plausible; alucinación; no consulta tus datos; incentivos de entrenamiento a adivinar.
+- _"¿Qué es la ventana de contexto y por qué no basta con aumentarla?"_ — Pista: todo cuenta, también la salida; degradación; coste; curar el contexto.
+- _"¿Cómo harías reproducible un análisis hecho con ayuda de IA?"_ — Pista: guardar el código y los datos, no la conversación; registrar modelo y prompt.
+
+<KeyTakeaways
+  items={[
+    'Un LLM genera texto token a token a partir de probabilidades: siempre produce una respuesta plausible, no necesariamente verdadera, y no consulta tus datos.',
+    'La ventana de contexto incluye entrada, historial, herramientas y respuesta; llega a 1 millón de tokens en modelos actuales, pero un contexto largo degrada la precisión: hay que curarlo.',
+    'El CSV completo de pedidos de Lumen son ≈ 7,2 millones de tokens (≈ 21,7 € de entrada con precios de ejemplo); un resumen de esquema de 190 tokens, sin identificadores, es lo que conviene enviar.',
+    'El no determinismo hace que lo reproducible sea el código y los datos, no la conversación; las alucinaciones obligan a obtener las cifras de una ejecución que puedas inspeccionar.',
+    'Delega la escritura de código, las explicaciones y los borradores; no delegues los cálculos de memoria, el conocimiento de tus definiciones ni la responsabilidad del resultado.',
+  ]}
+/>

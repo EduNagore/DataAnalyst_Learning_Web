@@ -1,0 +1,66 @@
+lesson: llm-copiloto/03-herramientas-notebooks-hojas-de-calculo-y-agentes-de-codigo
+questions:
+  - id: lc-03-q1
+    type: single
+    difficulty: 2
+    prompt: 'El asistente de IA de un notebook puede acceder a los valores de las variables en memoria. ¿Qué implica para tus datos?'
+    options:
+      - 'Nada: todo ocurre en local siempre'
+      - 'Que, según el proveedor configurado, los valores de tus DataFrames pueden enviarse a ese proveedor: hay que revisar su política y qué se envía'
+      - 'Que los datos se anonimizan solos'
+      - 'Que no puedes usar proveedores externos'
+    answer: [1]
+    explanation: 'Con un modelo local los datos no salen del equipo; con uno externo, sí. Decide si se envían valores o solo el esquema.'
+    ref: '#ia-dentro-del-notebook'
+
+  - id: lc-03-q2
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODAS las medidas razonables para dar autonomía a un agente de código en un repositorio de analítica.'
+    options:
+      - 'Trabajar en una rama, nunca sobre main ni producción'
+      - 'Credenciales de solo lectura a un entorno de desarrollo o muestra'
+      - 'CI en verde y revisión humana antes de fusionar'
+      - 'Darle las claves de producción para que pueda probar de verdad'
+    answer: [0, 1, 2]
+    explanation: 'Las claves de producción en el entorno del agente son un riesgo grave: errores o instrucciones ocultas en ficheros podrían actuar sobre datos reales.'
+    ref: '#agentes-de-código-sobre-un-repositorio'
+
+  - id: lc-03-q3
+    type: single
+    difficulty: 2
+    prompt: 'La función =COPILOT() de Excel, que solo existió en canales de vista previa, dejó de funcionar el 14 de septiembre de 2026. ¿Qué lección práctica deja?'
+    options:
+      - 'Que las hojas de cálculo no sirven'
+      - 'No construir procesos críticos sobre funciones de IA en vista previa o experimentales, y tener un plan de salida'
+      - 'Que la IA no tiene utilidad en hojas de cálculo'
+      - 'Que hay que esperar siempre dos años antes de usar cualquier herramienta'
+    answer: [1]
+    explanation: 'Se usan para explorar; para producción conviene código que controlas, servicios estables y una alternativa.'
+    ref: '#ia-en-las-hojas-de-cálculo'
+
+  - id: lc-03-q4
+    type: single
+    difficulty: 2
+    prompt: '¿Para qué sirve un fichero de instrucciones del proyecto como CLAUDE.md o AGENTS.md?'
+    options:
+      - 'Para guardar contraseñas'
+      - 'Para que el agente lea al empezar cada sesión las convenciones, la estructura y cómo ejecutar las pruebas'
+      - 'Para desactivar la revisión'
+      - 'Para entrenar un modelo nuevo'
+    answer: [1]
+    explanation: 'Contiene normas del proyecto (nombres, capas, pruebas, qué no tocar). Nunca debe contener secretos.'
+    ref: '#agentes-de-código-sobre-un-repositorio'
+
+  - id: lc-03-q5
+    type: single
+    difficulty: 3
+    prompt: 'Un agente propone arreglar un modelo de dbt modificando las pruebas para que pasen. ¿Qué haces?'
+    options:
+      - 'Fusionar: las pruebas pasan'
+      - 'Rechazarlo: cambiar las pruebas para que pasen oculta el problema; la CI y la revisión humana son el árbitro'
+      - 'Quitar la CI'
+      - 'Dar más permisos al agente'
+    answer: [1]
+    explanation: 'Las pruebas son el control sobre el trabajo del agente; si las modifica para pasar, deja de haber control.'
+    ref: '#agentes-de-código-sobre-un-repositorio'

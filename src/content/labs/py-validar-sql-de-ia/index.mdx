@@ -1,0 +1,40 @@
+---
+title: 'Validar el SQL de una IA: ejecutar, comparar y diagnosticar'
+description: 'Un asistente simulado propone cinco consultas para los ingresos netos por canal; una inventa una columna y otras tres dan cifras plausibles pero erróneas. Implementa la comparación de resultados, el diagnóstico estático y la evaluación automática que encuentran el fallo de cada una.'
+language: python
+part: 'Parte VI · IA para analistas'
+module: llm-copiloto
+difficulty: 3
+estimatedMinutes: 45
+concepts:
+  [
+    'verificación de SQL generado',
+    'resultado esperado',
+    'alucinaciones',
+    'comparación con tolerancia',
+    'diagnóstico estático',
+    'MockLLM',
+  ]
+datasets: ['orders', 'order_items', 'returns']
+packages: ['duckdb']
+output: console
+hints:
+  - 'Comparar resultados: mismas columnas en el mismo orden, mismo número de filas y, tras ordenar por las columnas no numéricas, valores numéricos iguales con tolerancia relativa (`|a − b| <= tol · |b|`).'
+  - 'Diagnóstico estático (en minúsculas): ¿aparece «cancelado»? ¿se menciona la tabla `returns`? ¿se usa `unit_price` sin `quantity`? ¿algún `year(...) = AAAA` distinto de 2025? (`re.findall`).'
+  - 'Evaluar: llama a `llm.complete(prompt)` n veces; ejecuta cada SQL dentro de un `try/except` para que un error de ejecución (columna inexistente, texto que no es SQL) cuente como incorrecto sin detener el bucle.'
+relatedLessons:
+  ['llm-copiloto/04-protocolo-de-verificacion-reproducibilidad-y-datos-que-no-se-pegan']
+businessQuestion: '¿Cómo compruebo que la consulta que me ha dado una IA calcula de verdad lo que le pedí?'
+---
+
+Las consultas que genera una IA suelen **ejecutarse y devolver un número razonable**. Ese es el peligro: un error de definición no produce un fallo, produce una cifra equivocada. El protocolo es siempre el mismo: tener un **resultado esperado** (calculado por un camino independiente o conocido), ejecutar y comparar.
+
+El asistente simulado devuelve, en orden, cinco consultas para «ingresos netos por canal en 2025» (`CANDIDATOS`): la primera inventa la columna `canal`; la segunda olvida excluir los cancelados; la tercera, las devoluciones; la cuarta, multiplicar por la cantidad; la quinta es correcta. `ejecutar(sql)` las ejecuta con DuckDB.
+
+Implementa:
+
+1. **`comparar_resultados(obtenido, esperado, tolerancia)`** → ¿coinciden?
+2. **`diagnosticar(sql)`** → avisos estáticos (qué suele faltar).
+3. **`evaluar_candidatos(llm, prompt, esperado, n)`** → resultado de cada respuesta: `sql`, `ok`, `error` y `avisos`.
+
+Resultado esperado: solo la quinta es correcta (45,94 M€ en total). Las otras suman 47,9 M€ (con cancelados), 49,5 M€ (sin quitar devoluciones) y 31,5 M€ (sin cantidad), y la primera falla al ejecutarse. **Tres de cuatro errores dan cifras que habrías podido creer.**

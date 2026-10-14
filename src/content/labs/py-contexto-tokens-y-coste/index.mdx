@@ -1,0 +1,39 @@
+---
+title: 'Contexto, tokens y coste: qué cabe en un prompt'
+description: 'Estima los tokens y el coste de enviar los pedidos de Lumen a un modelo de lenguaje, calcula cuántas filas caben en una ventana de contexto, y sustituye los datos en bruto por un resumen compacto y sin identificadores que ocupa una fracción de los tokens.'
+language: python
+part: 'Parte VI · IA para analistas'
+module: llm-copiloto
+difficulty: 2
+estimatedMinutes: 30
+concepts:
+  [
+    'tokens',
+    'ventana de contexto',
+    'coste por token',
+    'resumen del esquema',
+    'muestreo estratificado',
+    'minimización',
+  ]
+datasets: ['orders']
+packages: []
+output: console
+hints:
+  - 'Un token son ≈ 4 caracteres; `MockLLM.count_tokens(texto)` ya lo calcula (mínimo 1). El coste es `tokens_entrada / 1e6 · precio_entrada + tokens_salida / 1e6 · precio_salida`.'
+  - 'Filas que caben: empieza con los tokens de la cabecera y suma los de cada línea del CSV (`to_csv(index=False, header=False).splitlines(keepends=True)`) hasta pasarte del presupuesto.'
+  - 'Resumen: una línea por columna con tipo, nulos, distintos y, según el caso, rango (numéricas y fechas) o los valores más frecuentes. No muestres ejemplos de columnas identificadoras (`id` o `*_id`).'
+  - 'Muestra estratificada: para cada valor de la columna, toma `max(1, round(n · proporción))` filas con `sample(random_state=semilla)`.'
+relatedLessons: ['llm-copiloto/01-como-funciona-un-llm-lo-justo-para-usarlo-bien']
+businessQuestion: '¿Qué datos conviene enviar a un asistente de IA y cuánto cuesta enviarlos?'
+---
+
+Un modelo de lenguaje solo «ve» lo que cabe en su **ventana de contexto**, medida en tokens, y cada token se paga. Pegar una tabla entera es casi siempre imposible, caro y un riesgo para la privacidad. Se envía un **resumen**: el esquema, estadísticas y unas pocas filas sintéticas o muestreadas.
+
+Con los pedidos de Lumen (`pedidos`), implementa:
+
+1. **`tokens(texto)`** y **`coste_eur(tokens_entrada, tokens_salida, precio_entrada_1m, precio_salida_1m)`** (los precios del lab son de ejemplo).
+2. **`filas_que_caben(df, presupuesto)`** → cuántas filas en CSV caben en un presupuesto de tokens.
+3. **`resumen_para_prompt(df, max_valores)`** → resumen del esquema, sin ejemplos de identificadores.
+4. **`muestra_estratificada(df, por, n, semilla)`** → muestra que conserva las proporciones.
+
+Resultado esperado: el CSV completo de 392.906 pedidos son ≈ 7,2 millones de tokens (el lab lo estima con una muestra de 10.000 filas); en 8.000 tokens caben 440 filas; un resumen de 10 líneas ocupa unos 190 tokens (casi 40.000 veces menos) y no revela ningún identificador.

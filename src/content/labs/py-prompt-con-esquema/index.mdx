@@ -1,0 +1,32 @@
+---
+title: 'Prompt con esquema: contexto, definiciones y reglas, sin datos personales'
+description: 'Construye el prompt de una pregunta analítica a partir del esquema de las tablas, las definiciones de negocio y un ejemplo, audita que no filtre datos personales ni supere el presupuesto de tokens, y comprueba con un asistente simulado cómo cambia la respuesta cuando falta la definición.'
+language: python
+part: 'Parte VI · IA para analistas'
+module: llm-copiloto
+difficulty: 3
+estimatedMinutes: 40
+concepts:
+  ['prompting', 'esquema', 'definiciones de negocio', 'ejemplos', 'datos personales', 'MockLLM']
+datasets: ['orders', 'order_items', 'returns']
+packages: []
+output: console
+hints:
+  - 'Esquema: una línea por tabla con `nombre(col TIPO, col TIPO)`; el tipo SQL sale del tipo de pandas (`pandas.api.types`: bool → BOOLEAN, entero → BIGINT, decimal → DOUBLE, fecha → TIMESTAMP, resto → VARCHAR).'
+  - 'Une las secciones con líneas en blanco, en el orden pedido, y omite «Definiciones de negocio» y «Ejemplos» si no hay. No incluyas ninguna fila de datos: solo el esquema.'
+  - 'Auditoría: busca «tabla(» para cada tabla, un correo con una expresión regular y los identificadores `cust-` seguidos de 6 dígitos, la palabra clave de salida y compara los tokens con `MockLLM.count_tokens`.'
+relatedLessons: ['llm-copiloto/02-prompting-para-analisis-esquema-definiciones-y-ejemplos']
+businessQuestion: '¿Qué le doy a un asistente de IA para que responda con las definiciones de la empresa y sin exponer datos personales?'
+---
+
+Un asistente genera mejores consultas cuando recibe **contexto**: qué tablas hay, qué significa cada métrica de negocio, un ejemplo y cómo debe responder si no sabe. Y debe recibirlo **sin datos personales**: el esquema, no las filas.
+
+Con las tablas `orders`, `order_items` y `returns` (en `esquemas`), implementa:
+
+1. **`tipo_sql(serie)`** → tipo SQL de una columna.
+2. **`construir_prompt(pregunta, esquemas, definiciones, ejemplos, dialecto)`** → prompt con las secciones indicadas en el docstring.
+3. **`auditar_prompt(prompt, esquemas, presupuesto_tokens)`** → lista de problemas.
+
+La función `asistente_simulado()` (ya escrita) es un `MockLLM` que responde con el SQL correcto solo si el prompt trae la definición de `ingresos_netos`, y con una consulta ingenua si no la trae: simula lo que ocurre con un modelo real cuando le falta una definición de negocio.
+
+Resultado esperado: el prompt completo ocupa ≈ 260 tokens (≈ 175 sin definiciones ni ejemplos), pasa la auditoría y produce la consulta correcta; sin la definición, el asistente simulado cuenta pedidos en lugar de sumar ingresos netos.

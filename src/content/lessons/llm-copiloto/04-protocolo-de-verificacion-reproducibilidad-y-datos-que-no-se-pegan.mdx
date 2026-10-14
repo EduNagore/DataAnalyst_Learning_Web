@@ -1,0 +1,179 @@
+---
+title: 'Protocolo de verificación, reproducibilidad y datos que no se pegan'
+description: 'Cómo comprobar el trabajo de una IA antes de fiarte: resultado esperado, revisión del SQL, comparación independiente, pruebas pequeñas, trazabilidad y reproducibilidad; y qué datos no deben pegarse nunca en un chat, con un ejemplo de cinco consultas generadas donde tres errores dan cifras plausibles.'
+module: llm-copiloto
+order: 4
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Aplicar un protocolo de verificación a un resultado generado por IA: esperado, revisión, comparación independiente, pruebas, sensibilidad y revisión por otra persona.'
+  - 'Reconocer los fallos típicos del SQL generado (columna inventada, filtros olvidados, falta de cantidad, fan-out) y detectarlos con diagnóstico estático y ejecución.'
+  - 'Hacer reproducible un análisis asistido por IA: código, datos, versiones y registro del prompt.'
+  - 'Distinguir qué datos nunca se pegan en un asistente externo y qué alternativas existen.'
+prerequisites:
+  [
+    'llm-copiloto/03-herramientas-notebooks-hojas-de-calculo-y-agentes-de-codigo',
+    'gobierno-etica/01-rgpd-y-lopdgdd-para-analistas',
+  ]
+tools: ['python', 'sql']
+volatility: medium
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Anthropic — Prompting best practices (alucinaciones y verificación)'
+    url: 'https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices'
+    type: docs
+    authors: 'Anthropic'
+    year: 2026
+  - title: 'Kalai, Nachum, Vempala & Zhang — Why Language Models Hallucinate'
+    url: 'https://arxiv.org/abs/2509.04664'
+    type: paper
+    authors: 'Kalai, A. T., Nachum, O., Vempala, S. S., Zhang, E.'
+    year: 2025
+  - title: 'AEPD — Guía de Privacidad desde el Diseño'
+    url: 'https://www.aepd.es/guias/guia-privacidad-desde-diseno.pdf'
+    type: docs
+    authors: 'AEPD'
+    year: 2019
+relatedLabs: ['py-validar-sql-de-ia']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Una analista de Lumen pide a un asistente la consulta de ingresos netos por canal de 2025 y
+  presenta el resultado en el comité. Semanas después, Finanzas detecta que la cifra es un 7,7 %
+  mayor que la de la cuenta de resultados: la consulta olvidaba excluir las líneas devueltas. Nadie
+  lo notó porque la cifra parecía razonable. La dirección pide un protocolo: ¿qué comprobamos
+  siempre antes de usar algo que ha hecho una IA?
+</BusinessContext>
+
+## Intuición
+
+Un contable no confía en un balance porque «cuadre a ojo»: lo concilia con los extractos. Con un trabajo hecho por IA, la regla es la misma: **no se acepta por cómo suena, sino por cómo se comprueba**. Y la mejor comprobación es una que no dependa de la propia IA: un total conocido, una segunda forma de calcular lo mismo, un caso pequeño que puedes hacer a mano.
+
+## Cómo funciona
+
+### El problema: los errores plausibles
+
+El ejemplo del lab: un asistente simulado propone cinco consultas para «ingresos netos por canal en 2025». Los resultados:
+
+| #   | Fallo de la consulta               | Resultado              | Total (M€) | Diferencia con el correcto |
+| --- | ---------------------------------- | ---------------------- | ---------: | -------------------------: |
+| 1   | Inventa una columna (`o.canal`)    | **Error de ejecución** |          — |     Se detecta al instante |
+| 2   | No excluye los pedidos cancelados  | Se ejecuta             |       47,9 |                     +4,2 % |
+| 3   | No excluye las líneas devueltas    | Se ejecuta             |       49,5 |                     +7,7 % |
+| 4   | Olvida multiplicar por la cantidad | Se ejecuta             |       31,5 |                    −31,5 % |
+| 5   | Correcta                           | Se ejecuta             |       45,9 |                          — |
+
+Solo el primer error se delata solo. Los otros tres devuelven una tabla con las mismas dos filas (`online` y `store`) y cifras en el orden de magnitud correcto. Los **errores pequeños (+4 %, +8 %) son los más peligrosos**: nadie los cuestiona. Por eso se necesita un protocolo, no la intuición.
+
+### El protocolo de verificación
+
+1. **Define el resultado esperado antes de ejecutar.** Un total conocido (la cuenta de resultados), un orden de magnitud, una relación (el total de canales debe sumar el total general), la cifra del año anterior. Si no tienes ninguna referencia, calcula una por otro camino.
+2. **Revisa la lógica, no solo el resultado.** En el SQL: el **grano** de las tablas, las uniones (¿multiplican filas?), los filtros de estado, los límites de fechas, el tratamiento de nulos, `COUNT(*)` frente a `COUNT(DISTINCT …)`. Un **diagnóstico estático** puede automatizar parte: ¿aparece «cancelado»?, ¿se tiene en cuenta `returns`?, ¿se usa `unit_price` sin `quantity`?
+3. **Ejecuta y compara con un camino independiente:** otra consulta escrita de otro modo (o por otra persona), una hoja de cálculo, la fuente de verdad, una capa semántica. Compara con una tolerancia explícita.
+4. **Prueba con casos pequeños:** una tabla de 5 filas con respuesta conocida a mano, incluidos los casos límite (cancelados, devueltos, nulos, fecha de borde).
+5. **Analiza la sensibilidad:** cambia un supuesto (incluir o no cancelados) y mira cuánto se mueve el resultado; si el cambio es mayor que lo que decides, importa.
+6. **Pide la segunda opinión humana** para lo que vaya a una decisión o a un comité.
+7. **Deja rastro:** guarda la consulta, el resultado esperado, la comparación y quién lo revisó.
+
+En el lab implementas lo esencial: la **comparación de resultados** con tolerancia, el **diagnóstico estático** y una **evaluación automática** de varias respuestas candidatas que no se detiene ante un error de ejecución. El resultado: solo la quinta consulta coincide con el resultado esperado.
+
+<Callout type="note">
+  Cuando la verificación es automática (resultado esperado + comparación), la IA puede **corregirse
+  sola**: ejecutas, le devuelves el error o la diferencia y deja que reintente. Es la base de los
+  flujos agénticos fiables (módulo de agentes): el control no lo ejerce la propia IA, sino un
+  comprobador externo.
+</Callout>
+
+### Reproducibilidad
+
+Un análisis asistido por IA es reproducible si otra persona puede obtener el mismo resultado sin la conversación original:
+
+- **El código manda:** la consulta o el script están en el repositorio con control de versiones; no solo en el chat.
+- **Los datos están identificados:** qué tabla, de qué fecha de extracción o de qué versión (instantánea) de la tabla.
+- **Entorno fijado:** versiones de bibliotecas, semillas aleatorias, zona horaria.
+- **Registro de la asistencia:** prompt, modelo y versión, fecha, y qué cambió tras la revisión. No hace falta guardar todo el chat, pero sí lo que justifica una decisión.
+- **Los prompts importantes son artefactos versionados**, con sus pruebas, como cualquier otro código.
+
+### Datos que no se pegan
+
+Regla práctica: **si no lo publicarías en una web abierta, no lo pegues en un asistente externo** salvo que exista un contrato, una base jurídica y una política que lo permitan. Concretamente, no se envían:
+
+| No pegar                                                                                                | Por qué                                                | Alternativa                                                      |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------- |
+| **Datos personales** (nombres, correos, DNI, IBAN, identificadores de cliente, texto libre de clientes) | RGPD: es una cesión a un tercero; riesgo de filtración | Esquema, datos sintéticos, agregados con umbral, seudonimización |
+| **Categorías especiales** (salud, ideología, etc.)                                                      | Protección reforzada                                   | Nunca; consulta al DPD                                           |
+| **Secretos**: claves de API, contraseñas, cadenas de conexión, tokens                                   | Pueden acabar registrados o expuestos                  | Variables de entorno y gestores de secretos                      |
+| **Información comercial confidencial** (precios no publicados, márgenes, estrategia)                    | Riesgo de fuga y de incumplir acuerdos                 | Datos anonimizados o escalados; entornos aprobados               |
+| **Datos de terceros bajo confidencialidad** (clientes, proveedores, NDA)                                | Incumplimiento contractual                             | Pedir permiso; usar un entorno aprobado                          |
+| **Código propietario** si la política lo prohíbe                                                        | Propiedad intelectual                                  | Herramientas aprobadas con contrato                              |
+
+Qué sí enviar: el **esquema**, las **definiciones**, **datos sintéticos** con la misma forma, **resultados agregados** ya revisados y los **mensajes de error** sin datos. Y comprueba siempre la política de tu empresa: qué proveedores están aprobados, si usan los datos para entrenar y dónde se procesan.
+
+<Snapshot date="2026-10">
+  Los proveedores ofrecen distintas condiciones para cuentas personales y empresariales (retención
+  de datos, uso para entrenar modelos, procesamiento regional) y esas condiciones cambian: no las
+  des por sabidas. Para datos personales de la UE, además del contrato, hay que valorar
+  transferencias fuera del Espacio Económico Europeo. Consulta los términos vigentes de tu proveedor
+  y la política de tu organización.
+</Snapshot>
+
+## En la práctica
+
+1. **Antes de ejecutar,** escribe qué resultado esperas y por qué.
+2. **Pasa un diagnóstico estático** a cualquier SQL generado (filtros de estado, unión de devoluciones, cantidad, fechas).
+3. **Compara con una referencia independiente** y exige coincidencia dentro de una tolerancia que fijas tú.
+4. **Prueba con una tabla de juguete** que cubra los casos límite.
+5. **Guarda en el repositorio** la consulta, el resultado esperado y la prueba que la valida.
+6. **Registra** modelo, fecha y prompt cuando la respuesta influya en una decisión.
+7. **Aplica la regla de los datos:** esquema y sintéticos sí; personales, secretos y confidenciales, no.
+
+```python
+resultados = evaluar_candidatos(llm, prompt, esperado, n=5)
+correctos = [r for r in resultados if r["ok"]]
+assert correctos, "Ninguna respuesta coincide con el resultado esperado: no se publica nada."
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Rigor frente a velocidad:** el protocolo completo para un informe de comité; una versión ligera (esperado + comparación) para una exploración.
+- **Verificación humana frente a automática:** la automática escala y es repetible; la humana capta lo que no sabías que debías comprobar. Combínalas.
+- **Referencia independiente frente a la propia IA:** pedirle a la IA que revise su trabajo ayuda, pero comparte sus sesgos; una referencia externa es mejor.
+- **Tolerancia estricta frente a laxa:** estricta detecta errores pequeños y falla por redondeos; fija la tolerancia según la decisión.
+- **Modelo local frente a externo para datos sensibles:** el local protege los datos y rinde menos; el externo con contrato rinde más y exige gobierno.
+
+## Errores comunes
+
+- **Creer que si se ejecuta sin errores, está bien.**
+- **No tener ninguna cifra de referencia** y aceptar la primera que sale.
+- **Pedir a la propia IA que valide su resultado** como única comprobación.
+- **Guardar la conversación en lugar del código.**
+- **Pegar datos reales «solo esta vez»** o secretos en un chat.
+- **No fijar la tolerancia** y discutir después si «es casi igual».
+- **No revisar el cambio cuando el modelo se actualiza** y las respuestas cambian.
+
+## Con IA
+
+Pídele al asistente que **te ayude a verificar**, no a aprobar: que proponga el resultado esperado por otro camino, que genere casos de prueba con respuesta calculable a mano y que enumere los supuestos de su consulta. Y desconfía de la frase «he verificado el resultado» sin una evidencia (la consulta que lo comprueba y su salida): la verificación es algo que se muestra, no algo que se declara.
+
+## En una entrevista
+
+- _"Una IA te da una consulta que se ejecuta y devuelve una cifra razonable. ¿Qué haces?"_ — Pista: resultado esperado, revisión del grano y filtros, comparación independiente, casos pequeños, sensibilidad, rastro.
+- _"¿Qué errores típicos tiene el SQL generado por IA?"_ — Pista: columnas inventadas, filtros de estado olvidados, fan-out, `COUNT(*)` frente a distinto, fechas, falta de cantidad.
+- _"¿Qué datos no pegarías en un asistente externo?"_ — Pista: personales, especiales, secretos, confidenciales; esquema y sintéticos como alternativa.
+
+<KeyTakeaways
+  items={[
+    'El SQL generado por IA falla de forma plausible: de cinco consultas del lab, una da un error evidente y tres devuelven cifras razonables pero equivocadas (+4,2 %, +7,7 % y −31,5 % frente a 45,9 M€).',
+    'El protocolo: resultado esperado antes de ejecutar, revisión de grano y filtros, comparación con un camino independiente, casos pequeños, sensibilidad, segunda opinión y rastro.',
+    'Un comprobador externo (resultado esperado + comparación con tolerancia + diagnóstico estático) puede evaluar muchas respuestas y es la base de los flujos automatizados fiables.',
+    'La reproducibilidad exige código y datos identificados, entorno fijado y registro del prompt y del modelo; lo que se versiona es el código, no la conversación.',
+    'No se pegan datos personales, categorías especiales, secretos ni información confidencial en un asistente externo sin contrato y base jurídica; se envían esquemas, definiciones, datos sintéticos y agregados.',
+  ]}
+/>

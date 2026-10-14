@@ -1,0 +1,62 @@
+lesson: llm-copiloto/04-protocolo-de-verificacion-reproducibilidad-y-datos-que-no-se-pegan
+questions:
+  - id: lc-04-q1
+    type: numeric
+    difficulty: 2
+    prompt: 'Una consulta generada por IA da 49,5 M€ de ingresos netos y la cuenta de resultados indica 45,9 M€. ¿En qué porcentaje la sobreestima? (Un decimal.)'
+    answer: [7.7]
+    tolerance: 0.2
+    explanation: '49,46 / 45,94 − 1 ≈ +7,7 %. La consulta olvidaba excluir las líneas devueltas; un error de este tamaño parece razonable y por eso hay que comprobarlo.'
+    ref: '#el-problema-los-errores-plausibles'
+
+  - id: lc-04-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los pasos de un buen protocolo de verificación del SQL generado por IA.'
+    options:
+      - 'Definir el resultado esperado antes de ejecutar'
+      - 'Revisar el grano, las uniones y los filtros de estado'
+      - 'Comparar con un camino independiente (otra consulta, la fuente de verdad)'
+      - 'Aceptar el resultado si la consulta se ejecuta sin errores'
+    answer: [0, 1, 2]
+    explanation: 'Ejecutarse sin errores no prueba que la consulta calcule lo que quieres: tres de las cinco consultas del lab se ejecutaban y estaban mal.'
+    ref: '#el-protocolo-de-verificación'
+
+  - id: lc-04-q3
+    type: single
+    difficulty: 2
+    prompt: 'Para que un análisis asistido por IA sea reproducible, ¿qué debes guardar?'
+    options:
+      - 'Solo la conversación completa'
+      - 'El código en el repositorio, los datos identificados (versión o fecha), el entorno y el registro del prompt y del modelo cuando importen'
+      - 'Solo el resultado final'
+      - 'Nada: es imposible'
+    answer: [1]
+    explanation: 'El código manda. La conversación no es reproducible por sí misma; sí lo es la ejecución del código sobre datos identificados.'
+    ref: '#reproducibilidad'
+
+  - id: lc-04-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODO lo que NO debes pegar en un asistente externo sin contrato, base jurídica ni política que lo permita.'
+    options:
+      - 'Nombres, correos, DNI e identificadores de clientes'
+      - 'Claves de API, contraseñas y cadenas de conexión'
+      - 'Márgenes y precios no publicados'
+      - 'El esquema de las tablas (nombres de columnas y tipos)'
+    answer: [0, 1, 2]
+    explanation: 'El esquema, las definiciones y los datos sintéticos son lo que sí se envía. La regla práctica: si no lo publicarías en una web abierta, no lo pegues.'
+    ref: '#datos-que-no-se-pegan'
+
+  - id: lc-04-q5
+    type: single
+    difficulty: 3
+    prompt: 'El asistente afirma «he verificado el resultado y es correcto». ¿Cómo debes tratar esa frase?'
+    options:
+      - 'Como una evidencia suficiente'
+      - 'Con desconfianza: la verificación se muestra (la consulta que lo comprueba y su salida), no se declara'
+      - 'Como una orden'
+      - 'Como un error del sistema'
+    answer: [1]
+    explanation: 'Un modelo puede decir que ha verificado sin haberlo hecho. Exige la evidencia ejecutable y compárala con una referencia independiente.'
+    ref: '#el-protocolo-de-verificación'
