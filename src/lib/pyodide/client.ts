@@ -115,7 +115,7 @@ export class PyEngine {
     return this.ready;
   }
 
-  async run(code: string, tests = '', timeoutMs = 20_000): Promise<PyRunResult> {
+  async run(code: string, tests = '', timeoutMs = 45_000): Promise<PyRunResult> {
     await this.start();
     const id = this.nextId++;
     const promise = new Promise<string>((resolve, reject) => {
