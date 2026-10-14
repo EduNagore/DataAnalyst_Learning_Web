@@ -1,0 +1,25 @@
+# Consultas que RECALCULAN las respuestas numéricas del caso a partir de los datos
+# (las ejecuta tests/labs/test_cases.py; no se publican en la web).
+s1-pedido-90-dias: |
+  SELECT COUNT(DISTINCT customer_id) FROM orders
+  WHERE status <> 'cancelado' AND order_date >= '2026-04-02' AND order_date < '2026-07-01'
+s2-con-cancelados: |
+  SELECT (SELECT COUNT(DISTINCT customer_id) FROM orders WHERE order_date >= '2026-04-02' AND order_date < '2026-07-01')
+       - (SELECT COUNT(DISTINCT customer_id) FROM orders WHERE status <> 'cancelado' AND order_date >= '2026-04-02' AND order_date < '2026-07-01')
+s3-pedido-365-dias: |
+  SELECT COUNT(DISTINCT customer_id) FROM orders
+  WHERE status <> 'cancelado' AND order_date >= '2025-07-01' AND order_date < '2026-07-01'
+s4-sesion-30-dias: |
+  SELECT COUNT(DISTINCT customer_id) FROM web_sessions
+  WHERE customer_id IS NOT NULL AND started_at >= '2026-06-01' AND started_at < '2026-07-01'
+s5-suscripcion-activa: |
+  SELECT COUNT(DISTINCT customer_id) FROM subscriptions
+  WHERE started_at < '2026-07-01' AND (cancelled_at IS NULL OR cancelled_at >= '2026-07-01')
+s6-union: |
+  SELECT COUNT(*) FROM (
+    SELECT customer_id FROM orders WHERE status <> 'cancelado' AND order_date >= '2026-04-02' AND order_date < '2026-07-01'
+    UNION
+    SELECT customer_id FROM web_sessions WHERE customer_id IS NOT NULL AND started_at >= '2026-06-01' AND started_at < '2026-07-01'
+    UNION
+    SELECT customer_id FROM subscriptions WHERE started_at < '2026-07-01' AND (cancelled_at IS NULL OR cancelled_at >= '2026-07-01')
+  )

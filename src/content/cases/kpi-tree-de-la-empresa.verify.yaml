@@ -1,0 +1,39 @@
+# Consultas que RECALCULAN las respuestas numéricas del caso a partir de los datos
+# (las ejecuta tests/labs/test_cases.py; no se publican en la web).
+s1-ingresos-2025: |
+  SELECT ROUND(SUM(oi.quantity * oi.unit_price), 0)
+  FROM orders o JOIN order_items oi USING (order_id)
+  WHERE o.status <> 'cancelado' AND year(o.order_date) = 2025
+s2-clientes: |
+  SELECT COUNT(DISTINCT customer_id) FROM orders WHERE status <> 'cancelado' AND year(order_date) = 2025
+s3-frecuencia: |
+  SELECT ROUND(COUNT(*) * 1.0 / COUNT(DISTINCT customer_id), 2)
+  FROM orders WHERE status <> 'cancelado' AND year(order_date) = 2025
+s4-ticket: |
+  SELECT ROUND(SUM(oi.quantity * oi.unit_price) / COUNT(DISTINCT o.order_id), 2)
+  FROM orders o JOIN order_items oi USING (order_id)
+  WHERE o.status <> 'cancelado' AND year(o.order_date) = 2025
+s5-variacion: |
+  SELECT ROUND(100.0 * (SUM(oi.quantity * oi.unit_price) FILTER (WHERE year(o.order_date) = 2025)
+         / SUM(oi.quantity * oi.unit_price) FILTER (WHERE year(o.order_date) = 2024) - 1), 1)
+  FROM orders o JOIN order_items oi USING (order_id)
+  WHERE o.status <> 'cancelado'
+s6-contribucion: |
+  WITH a AS (
+    SELECT year(o.order_date) AS y,
+           SUM(oi.quantity * oi.unit_price) AS ingresos,
+           COUNT(DISTINCT o.customer_id) AS clientes
+    FROM orders o JOIN order_items oi USING (order_id)
+    WHERE o.status <> 'cancelado' AND year(o.order_date) IN (2024, 2025)
+    GROUP BY 1
+  )
+  SELECT ROUND(100.0 * ln(MAX(clientes) FILTER (WHERE y = 2025) * 1.0 / MAX(clientes) FILTER (WHERE y = 2024))
+         / ln(MAX(ingresos) FILTER (WHERE y = 2025) / MAX(ingresos) FILTER (WHERE y = 2024)), 1)
+  FROM a
+s7-clientes-nuevos: |
+  WITH primero AS (
+    SELECT customer_id, MIN(order_date) AS f FROM orders WHERE status <> 'cancelado' GROUP BY 1
+  )
+  SELECT ROUND(100.0 * SUM(oi.quantity * oi.unit_price) FILTER (WHERE year(p.f) = 2025) / SUM(oi.quantity * oi.unit_price), 1)
+  FROM orders o JOIN order_items oi USING (order_id) JOIN primero p USING (customer_id)
+  WHERE o.status <> 'cancelado' AND year(o.order_date) = 2025

@@ -1,0 +1,143 @@
+---
+title: 'Construye el KPI tree de la empresa'
+description: 'Un caso de pensamiento de negocio: la dirección quiere un árbol de indicadores que explique por qué los ingresos de Lumen se han multiplicado por 2,2 en 2025. Descompones ingresos en clientes, frecuencia y ticket medio con datos reales, calculas qué rama explica el crecimiento y propones un árbol con propietarios e indicadores de contrapeso.'
+difficulty: 3
+estimatedMinutes: 45
+role: bi
+datasets: ['orders', 'order_items', 'customers']
+brief: |
+  De: Gloria Navarro (Directora General)
+  Asunto: Un árbol de indicadores para el comité
+
+  Hola, en 2025 los ingresos de Lumen más que se duplicaron y en el comité cada área dice que ha sido gracias a su trabajo. Quiero un árbol de indicadores (KPI tree) que me enseñe, de arriba abajo, qué lo ha movido de verdad y quién es responsable de cada rama, para el plan de 2027.
+
+  No quiero un árbol de 40 cajas: quiero uno corto que se pueda usar y que me diga dónde mirar.
+
+  Gracias, Gloria
+steps:
+  - id: s1-ingresos-2025
+    tool: sql
+    answerType: numeric
+    answer: 49460757
+    tolerance: 5
+    prompt: |
+      Empieza por la raíz del árbol. Define **ingresos** como la suma de `quantity * unit_price` de las líneas de pedidos con `status <> 'cancelado'`, por el año de `order_date`. ¿Cuántos **euros** ingresó Lumen en **2025**? (Redondea a euros.)
+    hints:
+      - 'Une `orders` con `order_items` y filtra `year(order_date) = 2025`.'
+    explanation: |
+      **49.460.757 €**. Es la raíz del árbol.
+
+  - id: s2-clientes
+    tool: sql
+    answerType: numeric
+    answer: 39190
+    tolerance: 0
+    prompt: |
+      Primera rama: **clientes activos del año**, definidos como clientes distintos con al menos un pedido no cancelado en 2025. ¿Cuántos son?
+    hints:
+      - 'Cuenta `DISTINCT customer_id` en los pedidos no cancelados de 2025.'
+    explanation: |
+      **39.190 clientes**.
+
+  - id: s3-frecuencia
+    tool: sql
+    answerType: numeric
+    answer: 4.13
+    tolerance: 0.01
+    prompt: |
+      Segunda rama: **pedidos por cliente activo** en 2025 (pedidos no cancelados entre clientes activos). Dos decimales.
+    hints:
+      - 'Pedidos no cancelados de 2025 dividido entre los clientes de la pregunta anterior.'
+    explanation: |
+      **4,13 pedidos** por cliente activo.
+
+  - id: s4-ticket
+    tool: sql
+    answerType: numeric
+    answer: 305.87
+    tolerance: 0.05
+    prompt: |
+      Tercera rama: **ticket medio** (ingresos por pedido no cancelado) en 2025, en euros con dos decimales.
+    hints:
+      - 'Ingresos de 2025 entre el número de pedidos no cancelados de 2025.'
+    explanation: |
+      **305,87 €** por pedido. Comprueba la identidad: 39.190 × 4,13 × 305,87 ≈ 49,46 M€. El árbol es multiplicativo: ingresos = clientes × frecuencia × ticket medio.
+
+  - id: s5-variacion
+    tool: sql
+    answerType: numeric
+    answer: 120.4
+    tolerance: 0.1
+    prompt: |
+      ¿En qué porcentaje crecieron los ingresos de **2025 respecto a 2024**? (Un decimal.)
+    hints:
+      - 'Repite el cálculo de ingresos con `year(order_date) = 2024` y calcula (2025 / 2024 − 1) · 100.'
+    explanation: |
+      **+120,4 %**: los ingresos se multiplicaron por 2,2 (de 22,4 a 49,5 millones de euros).
+
+  - id: s6-contribucion
+    tool: sql
+    answerType: numeric
+    answer: 75.3
+    tolerance: 0.3
+    prompt: |
+      Como el árbol es multiplicativo, el crecimiento se reparte con **logaritmos**: ln(ingresos₂₀₂₅ / ingresos₂₀₂₄) = ln(clientes₂₀₂₅ / clientes₂₀₂₄) + ln(frecuencia₂₀₂₅ / frecuencia₂₀₂₄) + ln(ticket₂₀₂₅ / ticket₂₀₂₄). ¿Qué **porcentaje del crecimiento** se debe a la rama de **clientes**? (Un decimal.)
+    hints:
+      - 'Calcula clientes activos, pedidos por cliente y ticket medio de 2024 y 2025 y divide ln(clientes₂₀₂₅/clientes₂₀₂₄) entre ln(ingresos₂₀₂₅/ingresos₂₀₂₄).'
+    explanation: |
+      **75,3 %** del crecimiento viene de tener más clientes activos (+81,4 %); un **23,6 %** de que compran más a menudo (de 3,42 a 4,13 pedidos, +20,5 %); y solo un **1,0 %** del ticket medio (+0,8 %). El crecimiento de 2025 es de volumen, no de precio.
+
+  - id: s7-clientes-nuevos
+    tool: sql
+    answerType: numeric
+    answer: 69.3
+    tolerance: 0.1
+    prompt: |
+      Abre la rama de clientes. ¿Qué **porcentaje de los ingresos de 2025** procede de clientes cuyo **primer pedido no cancelado** fue en 2025 (clientes nuevos)? (Un decimal.)
+    hints:
+      - 'Calcula la fecha del primer pedido no cancelado de cada cliente y suma los ingresos de 2025 de los que tienen su primer pedido en 2025.'
+    explanation: |
+      **69,3 %** de los ingresos de 2025 los generan clientes nuevos (el 54,8 % de los clientes activos). La rama de clientes se divide en **nuevos** (adquisición) y **recurrentes** (retención); hoy el crecimiento depende sobre todo de la primera.
+
+  - id: s8-diseno
+    tool: reasoning
+    answerType: multiple
+    answer: [0, 1, 2, 3]
+    options:
+      - 'Cada nivel descompone el anterior con una identidad (suma o producto) y las ramas no se solapan.'
+      - 'Las hojas son métricas que un equipo puede mover (adquisición, activación, frecuencia, precio y mezcla).'
+      - 'Cada rama tiene un propietario y un indicador de contrapeso (por ejemplo, descuentos o devoluciones frente a ventas).'
+      - 'El árbol es corto (3-4 niveles) y cada métrica tiene definición única.'
+      - 'Se incluyen todas las métricas disponibles para no dejar nada fuera.'
+    prompt: |
+      ¿Qué características tiene un buen KPI tree? (Marca todas las que apliquen.)
+    hints:
+      - 'Piensa en lo que has hecho: descomponer ingresos con una identidad y medir cuánto aporta cada rama.'
+    explanation: |
+      Un árbol útil descompone con identidades (MECE), termina en palancas que alguien controla, asigna propietarios con contrapesos (si solo empujas ventas puedes romper margen) y es corto. Incluir todo lo medible produce un panel, no un árbol.
+
+  - id: s9-mensaje
+    tool: reasoning
+    answerType: text-self-assessed
+    prompt: |
+      Escribe la respuesta a Gloria en 4-5 líneas: **el árbol que propones, qué rama explica el crecimiento de 2025 (con cifras), qué propietarios y contrapesos asignarías y qué vigilarías para 2027**.
+    hints:
+      - 'Empieza por la fórmula del árbol, da las tres contribuciones (75 % / 24 % / 1 %), y cierra con propietarios y contrapesos.'
+    explanation: |
+      Un buen mensaje enseña el árbol en una línea, atribuye el crecimiento con cifras y deja un modelo de seguimiento con responsables.
+rubric:
+  - 'Presento el árbol en una línea: ingresos = clientes activos × pedidos por cliente × ticket medio, con la subdivisión de clientes en nuevos y recurrentes.'
+  - 'Atribuyo el crecimiento de 2025 con cifras: ≈ 75 % clientes, ≈ 24 % frecuencia, ≈ 1 % ticket medio.'
+  - 'Señalo la dependencia de clientes nuevos (≈ 69 % de los ingresos de 2025) y su riesgo.'
+  - 'Asigno propietarios a las ramas (por ejemplo, Marketing, Producto/CRM, Comercial) y contrapesos (CAC, devoluciones, margen).'
+  - 'Defino qué vigilaría en 2027: retención y frecuencia de los clientes de 2025 y coste de adquisición.'
+modelReport: |
+  **Árbol.** Ingresos = clientes activos × pedidos por cliente × ticket medio. Los clientes se dividen en nuevos (adquisición) y recurrentes (retención). Son cuatro hojas con propietario: Marketing (adquisición), Producto/CRM (activación y frecuencia), Comercial (precio y mezcla) y Atención al cliente (devoluciones como contrapeso).
+
+  **Qué explicó 2025.** Los ingresos crecieron un 120,4 % (de 22,4 a 49,5 M€). En escala logarítmica, el 75 % se debe a más clientes activos (+81 %), el 24 % a una mayor frecuencia (de 3,42 a 4,13 pedidos por cliente) y solo el 1 % al ticket medio, que apenas cambió (305,87 €). Es crecimiento de volumen. Además, el 69 % de los ingresos de 2025 viene de clientes nuevos, por lo que el crecimiento depende de seguir captando.
+
+  **Para 2027.** Vigilaría los contrapesos (coste de adquisición, devoluciones y margen) y, sobre todo, la retención y frecuencia de la cohorte de 2025: si la captación se frena, el crecimiento seguiría solo con el 31 % de ingresos recurrentes de este año.
+---
+
+Este caso usa las tablas `orders`, `order_items` y `customers` del dataset Lumen.
+La teoría está en el módulo «Pensamiento de negocio» y en el de «Finanzas y operaciones».

@@ -1,1 +1,498 @@
-[]
+# Radar del analista · estado a octubre de 2026.
+# Anillos: adoptar (úsalo ya) · probar (merece un piloto) · evaluar (vigílalo, aún no lo bases todo en él) · evitar (no lo hagas / no sin garantías).
+# Cada entrada se revisa como máximo cada 3 meses (scripts/check-freshness.mjs) y se apoya en fuentes oficiales.
+
+# ---------------------------------------------------------------- Motores SQL
+- id: duckdb
+  name: DuckDB
+  category: sql-motores
+  ring: adoptar
+  asOf: 2026-10
+  summary: 'Motor analítico embebido y de código abierto: lee Parquet y CSV directamente, corre en el portátil, en el navegador (WASM) y dentro de Python, y habla un SQL muy cómodo (QUALIFY, GROUP BY ALL, PIVOT). La rama estable es la 1.5.x. Es la herramienta por defecto para analizar ficheros de decenas de millones de filas sin montar infraestructura.'
+  sources:
+    - title: 'DuckDB — Documentación'
+      url: 'https://duckdb.org/docs/stable/'
+    - title: 'DuckDB — Parquet overview (projection and filter pushdown)'
+      url: 'https://duckdb.org/docs/stable/data/parquet/overview'
+  relatedLessons:
+    - 'stack-moderno/04-analitica-local-first-con-duckdb-y-motherduck'
+    - 'python-analisis/04-duckdb-desde-python-y-como-elegir-herramienta'
+    - 'sql-iii/01-almacenamiento-columnar-y-planes'
+
+- id: motherduck
+  name: MotherDuck
+  category: sql-motores
+  ring: probar
+  asOf: 2026-10
+  summary: 'DuckDB en la nube: cómputo sin servidor, compartición de bases de datos y un servidor MCP de solo lectura. Encaja en equipos pequeños que ya usan DuckDB y quieren compartir datos sin gestionar un almacén grande. Comprueba límites, precios y funciones en su documentación antes de decidir.'
+  sources:
+    - title: 'MotherDuck — Documentación'
+      url: 'https://motherduck.com/docs/'
+  relatedLessons:
+    - 'stack-moderno/04-analitica-local-first-con-duckdb-y-motherduck'
+
+- id: ducklake
+  name: DuckLake
+  category: sql-motores
+  ring: evaluar
+  asOf: 2026-10
+  summary: 'Formato de lakehouse que guarda los metadatos en una base de datos SQL en lugar de en ficheros. La versión 1.0 se publicó el 13 de abril de 2026 con DuckDB 1.5.2; MotherDuck lo ofrece gestionado en vista previa pública. Interesante, pero joven frente a Iceberg y Delta: evalúalo en pilotos, no como base de la plataforma.'
+  sources:
+    - title: 'MotherDuck — Announcing DuckLake 1.0 on MotherDuck'
+      url: 'https://motherduck.com/blog/announcing-ducklake-1-0-on-motherduck'
+  relatedLessons:
+    - 'stack-moderno/01-warehouses-lakehouses-y-formatos-de-tabla-abiertos'
+
+- id: iceberg-delta
+  name: Apache Iceberg y Delta Lake
+  category: sql-motores
+  ring: probar
+  asOf: 2026-10
+  summary: 'Formatos de tabla abiertos sobre Parquet que añaden transacciones, evolución de esquema y viaje en el tiempo. Iceberg (Java) va por la 1.12.0 con la especificación v3; Delta Lake publica la rama 4.x. Elige el que tu almacén y tus herramientas ya lean y escriban, y prueba antes la interoperabilidad entre motores.'
+  sources:
+    - title: 'Apache Iceberg — Especificación de tabla'
+      url: 'https://iceberg.apache.org/spec/'
+    - title: 'Delta Lake 4.0'
+      url: 'https://delta.io/blog/2025-09-25-delta-lake-40/'
+  relatedLessons:
+    - 'stack-moderno/01-warehouses-lakehouses-y-formatos-de-tabla-abiertos'
+
+# ------------------------------------------------------- Herramientas Python
+- id: pandas-3
+  name: pandas 3
+  category: herramientas-python
+  ring: adoptar
+  asOf: 2026-10
+  summary: 'La versión estable es la 3.0.x (3.0.6, del 17 de septiembre de 2026; la 3.0.0 llegó en enero de 2026 y exige Python 3.11 o superior). Trae cadenas nativas (tipo str) y Copy-on-Write por defecto: menos copias y menos efectos laterales sorprendentes, pero código antiguo que dependía del comportamiento previo puede romperse. Revisa la guía de migración antes de actualizar.'
+  sources:
+    - title: "pandas 3.0.0 — What's new"
+      url: 'https://pandas.pydata.org/docs/whatsnew/v3.0.0.html'
+    - title: 'pandas — Copy-on-Write (CoW)'
+      url: 'https://pandas.pydata.org/docs/user_guide/copy_on_write.html'
+  relatedLessons:
+    - 'python-analisis/02-pandas-3-copy-on-write-y-cadenas'
+
+- id: polars
+  name: Polars 2
+  category: herramientas-python
+  ring: probar
+  asOf: 2026-10
+  summary: 'Biblioteca de DataFrames con expresiones y ejecución perezosa. Polars 2.0.0 se publicó el 6 de octubre de 2026 con cambios incompatibles (motor de streaming por defecto en la API perezosa, estrictez en casts y comparaciones, cambios peligrosos que pueden alterar resultados sin error). Merece un piloto en cargas grandes; migra desde 1.x con la guía oficial y pruebas.'
+  sources:
+    - title: 'Polars — Guía de actualización a la versión 2'
+      url: 'https://docs.pola.rs/releases/upgrade/2/'
+    - title: 'Polars — Documentación oficial'
+      url: 'https://docs.pola.rs/'
+  relatedLessons:
+    - 'python-analisis/03-polars-expresiones-y-ejecucion-perezosa'
+
+- id: uv
+  name: uv
+  category: herramientas-python
+  ring: adoptar
+  asOf: 2026-10
+  summary: 'Gestor de paquetes y entornos de Python muy rápido, con lockfile y ejecución de scripts con dependencias en línea. Es la opción más extendida para proyectos nuevos (versión 0.12 a esta fecha), aunque pip, conda y poetry siguen en uso. Lo importante es tener un fichero de dependencias y un lockfile en el repositorio.'
+  sources:
+    - title: 'uv — documentación (proyectos, lockfile y scripts)'
+      url: 'https://docs.astral.sh/uv/'
+    - title: 'uv — Running scripts (metadatos de script en línea)'
+      url: 'https://docs.astral.sh/uv/guides/scripts/'
+  relatedLessons:
+    - 'python-analisis/01-entorno-notebooks-y-reproducibilidad'
+
+- id: ruff
+  name: Ruff
+  category: herramientas-python
+  ring: adoptar
+  asOf: 2026-10
+  summary: 'Linter y formateador de Python en Rust, tan rápido que cabe en el editor y en CI. Sustituye a varias herramientas (flake8, isort, black) con una sola configuración. Úsalo en notebooks convertidos a scripts y en proyectos de análisis reproducibles.'
+  sources:
+    - title: 'Ruff — documentación (linter y formateador)'
+      url: 'https://docs.astral.sh/ruff/'
+  relatedLessons:
+    - 'python-analisis/01-entorno-notebooks-y-reproducibilidad'
+
+- id: marimo
+  name: marimo
+  category: herramientas-python
+  ring: probar
+  asOf: 2026-10
+  summary: 'Cuaderno reactivo de Python: las celdas forman un grafo de dependencias, de modo que el estado del cuaderno siempre coincide con el código visible, y el fichero es un script .py que se versiona bien con Git. Buena alternativa a Jupyter para análisis reproducibles y pequeñas aplicaciones; Jupyter sigue siendo el estándar más extendido.'
+  sources:
+    - title: 'marimo — documentación del cuaderno reactivo de Python'
+      url: 'https://docs.marimo.io/'
+    - title: 'marimo — Running cells (orden de ejecución y reactividad)'
+      url: 'https://docs.marimo.io/guides/reactivity/'
+  relatedLessons:
+    - 'python-analisis/01-entorno-notebooks-y-reproducibilidad'
+    - 'llm-copiloto/03-herramientas-notebooks-hojas-de-calculo-y-agentes-de-codigo'
+
+- id: jupyter
+  name: Jupyter
+  category: herramientas-python
+  ring: adoptar
+  asOf: 2026-10
+  summary: 'El cuaderno estándar para exploración y comunicación de análisis. Úsalo para explorar, y para entregar, convierte lo estable en módulos con pruebas; limpia el estado antes de compartir (Reiniciar y ejecutar todo). Con Jupyter AI se integran asistentes de IA en el cuaderno.'
+  sources:
+    - title: 'Project Jupyter'
+      url: 'https://jupyter.org/'
+    - title: 'Jupyter AI — Documentación'
+      url: 'https://jupyter-ai.readthedocs.io/en/latest/'
+  relatedLessons:
+    - 'python-analisis/01-entorno-notebooks-y-reproducibilidad'
+
+# ------------------------------------------------------------------------ BI
+- id: power-bi
+  name: Power BI con proyectos PBIP/PBIR
+  category: bi
+  ring: adoptar
+  asOf: 2026-10
+  summary: 'Según la documentación de Microsoft (septiembre de 2026), el formato de informe PBIR es el predeterminado y está en disponibilidad general, y las funciones DAX definidas por el usuario son GA desde junio de 2026. Los proyectos PBIP guardan modelo e informe como ficheros de texto, lo que permite Git, revisión y CI. Diseña siempre sobre un modelo en estrella.'
+  sources:
+    - title: 'Microsoft Learn — Power BI Desktop projects (PBIP)'
+      url: 'https://learn.microsoft.com/en-us/power-bi/developer/projects/projects-overview'
+    - title: 'Microsoft Learn — Understand star schema and the importance for Power BI'
+      url: 'https://learn.microsoft.com/en-us/power-bi/guidance/star-schema'
+  relatedLessons:
+    - 'dashboards-bi/02-power-bi-modelo-estrella-dax-y-pbip'
+
+- id: looker-lookml
+  name: Looker y LookML
+  category: bi
+  ring: probar
+  asOf: 2026-10
+  summary: "Plataforma de BI con una capa semántica en código (LookML) sobre la que Looker anunció en Google Cloud Next '26 (22 de abril de 2026) agentes de BI y mejoras de analítica conversacional. Es una opción natural si ya trabajas en Google Cloud; el valor está en la capa semántica gobernada, no en el asistente."
+  sources:
+    - title: "Google Cloud — Looker updates for agentic BI at Next '26'"
+      url: 'https://cloud.google.com/blog/products/business-intelligence/looker-updates-for-agentic-bi-at-next26'
+    - title: 'Google Cloud — What is LookML?'
+      url: 'https://cloud.google.com/looker/docs/what-is-lookml'
+  relatedLessons:
+    - 'dashboards-bi/03-tableau-looker-open-source-y-bi-as-code'
+    - 'capa-semantica/03-herramientas-y-estandares-de-capa-semantica'
+
+- id: superset
+  name: Apache Superset
+  category: bi
+  ring: probar
+  asOf: 2026-10
+  summary: 'BI de código abierto con dashboards y SQL Lab. La versión 6.1 se publicó en mayo de 2026. Una opción madura cuando quieres evitar licencias por usuario y tienes equipo para operarlo.'
+  sources:
+    - title: 'Apache Superset'
+      url: 'https://superset.apache.org/'
+  relatedLessons:
+    - 'dashboards-bi/03-tableau-looker-open-source-y-bi-as-code'
+
+- id: evidence
+  name: Evidence (BI como código)
+  category: bi
+  ring: evaluar
+  asOf: 2026-10
+  summary: 'Informes y dashboards escritos en Markdown con SQL, versionados en Git; código abierto con licencia MIT. Atractivo para equipos de datos que viven en el repositorio, aunque con menos autoservicio para usuarios no técnicos que las herramientas tradicionales de BI.'
+  sources:
+    - title: 'Evidence — documentación (BI como código)'
+      url: 'https://docs.evidence.dev/'
+  relatedLessons:
+    - 'dashboards-bi/03-tableau-looker-open-source-y-bi-as-code'
+
+# --------------------------------------------------------- Ingeniería analítica
+- id: dbt
+  name: dbt (v1.12 y v2 con Fusion)
+  category: ingenieria-analitica
+  ring: adoptar
+  asOf: 2026-10
+  summary: 'Estándar de transformación SQL con pruebas, documentación y linaje. La documentación distingue dbt v1 (Python; v1.12 de julio de 2026) y dbt v2, con el motor Rust Fusion y núcleo Apache 2.0, con fecha de lanzamiento el 14 de septiembre de 2026 en su tabla de versiones. Fivetran y dbt Labs completaron su fusión el 1 de junio de 2026. Migra primero a la v1.12 y comprueba tu adaptador antes de pasar a v2.'
+  sources:
+    - title: 'dbt — About the dbt Fusion engine'
+      url: 'https://docs.getdbt.com/docs/fusion/about-fusion'
+    - title: 'dbt — dbt Core v2 is here (alpha)'
+      url: 'https://docs.getdbt.com/blog/dbt-core-v2-is-here'
+  relatedLessons:
+    - 'ingenieria-analitica/01-proyecto-dbt-modelos-ref-y-capas'
+    - 'ingenieria-analitica/04-git-ci-y-el-ecosistema-dbt'
+
+- id: sqlmesh
+  name: SQLMesh
+  category: ingenieria-analitica
+  ring: evaluar
+  asOf: 2026-10
+  summary: 'Alternativa de código abierto para transformaciones de datos, de Tobiko Data, adquirida por Fivetran en septiembre de 2025. Ofrece entornos de desarrollo integrados y comprensión semántica del SQL. Vigila la evolución del proyecto y de su licencia antes de basar un equipo en él.'
+  sources:
+    - title: 'Fivetran — Fivetran acquires Tobiko Data (SQLMesh y SQLGlot)'
+      url: 'https://www.fivetran.com/press/fivetran-acquires-tobiko-data-to-power-the-next-generation-of-advanced-ai-ready-data-transformation'
+  relatedLessons:
+    - 'ingenieria-analitica/04-git-ci-y-el-ecosistema-dbt'
+
+- id: orquestacion
+  name: Airflow 3 y Dagster
+  category: ingenieria-analitica
+  ring: adoptar
+  asOf: 2026-10
+  summary: 'Orquestadores abiertos más usados: Apache Airflow (rama 3.x, con programación por activos) y Dagster (modelo centrado en activos). La tendencia es hacia la orquestación consciente del dato (activos, linaje, frescura) y a ejecutar dbt dentro del orquestador. Elige por el equipo y la plataforma que ya tienes.'
+  sources:
+    - title: 'Apache Airflow — Airflow 3.0 is here'
+      url: 'https://airflow.apache.org/blog/airflow-three-point-oh-is-here/'
+    - title: 'Dagster — Documentación'
+      url: 'https://docs.dagster.io/'
+  relatedLessons:
+    - 'stack-moderno/03-orquestacion-reverse-etl-y-streaming'
+
+- id: capa-semantica
+  name: Capa semántica de métricas
+  category: ingenieria-analitica
+  ring: adoptar
+  asOf: 2026-10
+  summary: 'Definir las métricas una vez (medidas, dimensiones, filtros) y consumirlas desde BI, notebooks y asistentes de IA. Snowflake ofrece vistas semánticas, Databricks vistas de métricas de Unity Catalog, Cube una capa de código abierto y MetricFlow (Apache 2.0) en el ecosistema dbt. Es la base para que la analítica con IA sea fiable.'
+  sources:
+    - title: 'Snowflake — Semantic views: overview'
+      url: 'https://docs.snowflake.com/en/user-guide/views-semantic/overview'
+    - title: 'dbt — About MetricFlow'
+      url: 'https://docs.getdbt.com/docs/build/about-metricflow'
+  relatedLessons:
+    - 'capa-semantica/01-por-que-una-capa-semantica'
+    - 'capa-semantica/04-capa-semantica-ia-y-gobierno-de-metricas'
+
+- id: osi
+  name: Open Semantic Interchange (OSI)
+  category: ingenieria-analitica
+  ring: evaluar
+  asOf: 2026-10
+  summary: 'Iniciativa de intercambio de modelos semánticos con apoyo de dbt Labs, Snowflake, Databricks y Salesforce, que publicó su primera versión (Apache 2.0) el 29 de enero de 2026 y está en incubación en Apache desde julio de 2026. Prometedor para evitar el bloqueo entre herramientas, pero aún joven: no bases tu estrategia en él todavía.'
+  sources:
+    - title: 'dbt Labs — Novedades de la especificación OSI (Open Semantic Interchange)'
+      url: 'https://www.getdbt.com/blog/the-osi-spec-updates'
+    - title: 'Apache Ossie (Incubating) — Ossie enters the Apache Incubator'
+      url: 'https://ossie.apache.org/updates/ossie-enters-apache-incubator/'
+  relatedLessons:
+    - 'capa-semantica/03-herramientas-y-estandares-de-capa-semantica'
+    - 'analista-2026/03-la-ia-y-el-stack-moderno'
+
+- id: contratos-de-datos
+  name: Contratos de datos (ODCS)
+  category: ingenieria-analitica
+  ring: probar
+  asOf: 2026-10
+  summary: 'Acuerdos explícitos y verificables entre productores y consumidores de datos: esquema, calidad, semántica y SLA. El Open Data Contract Standard (versión 3.2) ofrece un formato común, y dbt permite contratos de modelo. Empieza por las tablas críticas y automatiza la comprobación en CI.'
+  sources:
+    - title: 'Open Data Contract Standard (ODCS) v3.2'
+      url: 'https://bitol-io.github.io/open-data-contract-standard/latest/'
+    - title: 'dbt — Model contracts'
+      url: 'https://docs.getdbt.com/docs/mesh/govern/model-contracts'
+  relatedLessons:
+    - 'limpieza-calidad/04-validacion-y-contratos-de-datos'
+    - 'ingenieria-analitica/02-tests-contratos-y-documentacion'
+
+# ------------------------------------------------------------- IA analítica
+- id: copiloto-de-ia
+  name: Asistentes de IA como copiloto del analista
+  category: ia-analitica
+  ring: adoptar
+  asOf: 2026-10
+  summary: 'Úsalos para borradores de SQL y Python, explicar código, generar casos de prueba y proponer hipótesis, siempre con un protocolo de verificación: esquema y definiciones en el prompt, ejecución de la consulta, comprobación de cifras y sin datos personales en servicios sin contrato. Tú eres el responsable del resultado.'
+  sources:
+    - title: 'Anthropic — Effective context engineering for AI agents'
+      url: 'https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents'
+    - title: 'OpenAI — Prompt engineering'
+      url: 'https://platform.openai.com/docs/guides/prompt-engineering'
+  relatedLessons:
+    - 'llm-copiloto/02-prompting-para-analisis-esquema-definiciones-y-ejemplos'
+    - 'llm-copiloto/04-protocolo-de-verificacion-reproducibilidad-y-datos-que-no-se-pegan'
+
+- id: salidas-estructuradas
+  name: Salidas estructuradas con esquema JSON
+  category: ia-analitica
+  ring: adoptar
+  asOf: 2026-10
+  summary: 'La API de Claude (output_config.format y herramientas estrictas) y la de OpenAI (json_schema con strict) garantizan que la respuesta cumpla un esquema. Garantizan la forma, no la verdad: valida valores y rangos, maneja negativas y truncados, y mide el acierto contra etiquetas humanas.'
+  sources:
+    - title: 'Anthropic — Structured outputs'
+      url: 'https://platform.claude.com/docs/en/docs/build-with-claude/structured-outputs'
+    - title: 'OpenAI — Structured Outputs'
+      url: 'https://developers.openai.com/api/docs/guides/structured-outputs'
+  relatedLessons:
+    - 'llm-texto/01-clasificar-y-extraer-texto-con-salidas-estructuradas'
+
+- id: funciones-de-ia-en-sql
+  name: Funciones de IA en SQL (AI_CLASSIFY, AI.CLASSIFY, ai_classify)
+  category: ia-analitica
+  ring: probar
+  asOf: 2026-10
+  summary: 'Snowflake (Cortex AI Functions), BigQuery (funciones gestionadas, GA) y Databricks (AI Functions) permiten clasificar, extraer, puntuar y resumir texto sin salir de SQL. Úsalas con muestra, deduplicando, materializando el resultado y midiendo el acierto; no en vistas que se recalculan. Los nombres y estados (GA o beta) cambian deprisa.'
+  sources:
+    - title: 'Snowflake — Cortex AI Functions (including LLM functions)'
+      url: 'https://docs.snowflake.com/user-guide/snowflake-cortex/aisql'
+    - title: 'Google Cloud — BigQuery generative AI overview (managed AI functions)'
+      url: 'https://docs.cloud.google.com/bigquery/docs/generative-ai-overview'
+    - title: 'Databricks — AI Functions'
+      url: 'https://docs.databricks.com/aws/en/large-language-models/ai-functions'
+  relatedLessons:
+    - 'llm-texto/02-funciones-de-ia-en-sql-y-sus-limites'
+
+- id: texto-a-sql-con-capa-semantica
+  name: Texto a SQL sobre una capa semántica
+  category: ia-analitica
+  ring: probar
+  asOf: 2026-10
+  summary: 'Preguntas en lenguaje natural resueltas contra métricas y dimensiones gobernadas, con abstención cuando falta información. Los productos (Cortex Analyst, Genie, Copilot de Power BI, Tableau Next, Spotter, Looker) convergen en esta idea. Pilotea con un conjunto de preguntas de oro y mide la exactitud de ejecución, no la fluidez.'
+  sources:
+    - title: 'dbt Labs — Semantic Layer vs. text-to-SQL: 2026 benchmark'
+      url: 'https://docs.getdbt.com/blog/semantic-layer-vs-text-to-sql-2026'
+    - title: 'Microsoft — Copilot for Power BI overview'
+      url: 'https://learn.microsoft.com/en-us/power-bi/create-reports/copilot-introduction'
+  relatedLessons:
+    - 'text-to-sql/02-la-capa-semantica-como-solucion-y-cuando-no-basta'
+    - 'text-to-sql/03-productos-de-analitica-conversacional'
+
+- id: mcp-datos
+  name: Servidores MCP de datos
+  category: ia-analitica
+  ring: probar
+  asOf: 2026-10
+  summary: 'El Model Context Protocol (versión de esquema 2026-07-28; donado a la Linux Foundation el 9 de diciembre de 2025) conecta asistentes con herramientas y datos. Existen servidores de dbt, Snowflake, BigQuery y MotherDuck. Pruébalos en solo lectura, con cuentas de servicio de permisos mínimos, límites, registro y aprobación humana; sigue la guía de seguridad de MCP.'
+  sources:
+    - title: 'Model Context Protocol — Specification'
+      url: 'https://modelcontextprotocol.io/specification/latest'
+    - title: 'Model Context Protocol — Security Best Practices'
+      url: 'https://modelcontextprotocol.io/docs/tutorials/security/security_best_practices'
+  relatedLessons:
+    - 'analitica-agentica-mcp/02-model-context-protocol-y-servidores-de-datos'
+    - 'analitica-agentica-mcp/03-diseno-seguro-roles-de-solo-lectura-limites-e-inyeccion-de-instrucciones'
+
+- id: agentes-de-analisis
+  name: Agentes autónomos de análisis de datos
+  category: ia-analitica
+  ring: evaluar
+  asOf: 2026-10
+  summary: 'Sistemas que planifican, consultan y escriben informes por su cuenta. Los agentes de código son el caso maduro porque las pruebas dan retroalimentación objetiva; en análisis es más débil. Gartner pronosticó (junio de 2025) que más del 40 % de los proyectos agénticos se cancelarán antes de 2027. Evalúa en entornos acotados, con capa semántica, solo lectura y revisión humana de las conclusiones.'
+  sources:
+    - title: 'Anthropic — Building effective agents'
+      url: 'https://www.anthropic.com/engineering/building-effective-agents'
+    - title: 'Gartner — Over 40% of agentic AI projects will be canceled by end of 2027'
+      url: 'https://www.gartner.com/en/newsroom/press-releases/2025-06-25-gartner-predicts-over-40-percent-of-agentic-ai-projects-will-be-canceled-by-end-of-2027'
+  relatedLessons:
+    - 'analitica-agentica-mcp/01-agentes-y-flujos-de-trabajo-en-analitica'
+    - 'analitica-agentica-mcp/04-evaluar-las-conclusiones-de-un-agente-y-por-que-fallan-sin-capa-semantica'
+
+- id: modelos-fundacionales-series
+  name: Modelos fundacionales de series temporales
+  category: ia-analitica
+  ring: evaluar
+  asOf: 2026-10
+  summary: 'TimesFM 3.0 (agosto de 2026; pesos con licencia no comercial, uso comercial a través de servicios de Google Cloud como BigQuery ML), Chronos-2 (Amazon, octubre de 2025, Apache-2.0) y Moirai ofrecen pronósticos sin entrenar. Compáralos siempre contra una línea base estacional y un backtesting propio antes de usarlos; vigila las licencias.'
+  sources:
+    - title: 'Google Research — TimesFM (repositorio, README)'
+      url: 'https://github.com/google-research/timesfm'
+    - title: 'Amazon Science — Chronos (repositorio)'
+      url: 'https://github.com/amazon-science/chronos-forecasting'
+  relatedLessons:
+    - 'series-temporales/03-modelos-fundacionales-de-series-temporales'
+
+- id: texto-a-sql-sin-gobierno
+  name: Texto a SQL directo sobre tablas sin definiciones
+  category: ia-analitica
+  ring: evitar
+  asOf: 2026-10
+  summary: 'Dejar que un modelo escriba SQL sobre tablas crudas sin definiciones de negocio, para decisiones o métricas oficiales. Los benchmarks muestran una exactitud muy inferior a la humana en bases reales (BIRD: humanos 92,96 %) y los propios benchmarks tienen errores de anotación. Úsalo como borrador de un analista, no como fuente de verdad.'
+  sources:
+    - title: 'BIRD — Big Bench for Large-scale Database Grounded Text-to-SQL Evaluation'
+      url: 'https://bird-bench.github.io/'
+  relatedLessons:
+    - 'text-to-sql/01-como-funciona-el-texto-a-sql-y-por-que-falla'
+    - 'text-to-sql/04-evaluar-un-sistema-de-texto-a-sql-benchmarks-y-golden-sets'
+
+- id: datos-personales-en-asistentes
+  name: Pegar datos personales en asistentes de IA públicos
+  category: ia-analitica
+  ring: evitar
+  asOf: 2026-10
+  summary: 'Enviar a un servicio sin contrato ni base legal datos personales (nombres, correos, identificadores, tickets con datos de clientes). Minimiza, enmascara o seudonimiza antes y usa servicios con acuerdo de tratamiento; el RGPD y la LOPDGDD siguen aplicándose.'
+  sources:
+    - title: 'AEPD — Guía de Privacidad desde el Diseño'
+      url: 'https://www.aepd.es/guias/guia-privacidad-desde-diseno.pdf'
+  relatedLessons:
+    - 'llm-copiloto/04-protocolo-de-verificacion-reproducibilidad-y-datos-que-no-se-pegan'
+    - 'gobierno-etica/01-rgpd-y-lopdgdd-para-analistas'
+
+# ------------------------------------------------------------------ Técnicas
+- id: cuped
+  name: CUPED
+  category: tecnicas
+  ring: adoptar
+  asOf: 2026-10
+  summary: 'Reduce la varianza de un experimento usando una covariable previa al tratamiento (por ejemplo, el gasto anterior del usuario), de modo que se necesitan menos usuarios o menos días para la misma potencia. Descrita por Deng, Xu, Kohavi y Walker (2013) y disponible en plataformas como GrowthBook.'
+  sources:
+    - title: 'Deng, Xu, Kohavi & Walker (2013) — Improving the Sensitivity of Online Controlled Experiments by Utilizing Pre-Experiment Data'
+      url: 'https://exp-platform.com/Documents/2013-02-CUPED-ImprovingSensitivityOfControlledExperiments.pdf'
+    - title: 'GrowthBook — CUPED (documentación)'
+      url: 'https://docs.growthbook.io/statistics/cuped'
+  relatedLessons:
+    - 'experimentacion/03-cuped-y-reduccion-de-varianza'
+
+- id: tests-secuenciales
+  name: Pruebas secuenciales y análisis siempre válido
+  category: tecnicas
+  ring: probar
+  asOf: 2026-10
+  summary: 'Permiten mirar los resultados mientras corre un experimento sin inflar los falsos positivos. Plataformas como GrowthBook las ofrecen como mitigación del peeking en el motor frecuentista. Cada plataforma implementa variantes distintas: lee su documentación antes de interpretar un p-valor secuencial.'
+  sources:
+    - title: 'GrowthBook — Estadística (motores bayesiano y frecuentista, tests secuenciales)'
+      url: 'https://docs.growthbook.io/statistics/overview'
+  relatedLessons:
+    - 'experimentacion/04-peeking-tests-secuenciales-y-analisis-siempre-valido'
+
+- id: mmm-moderno
+  name: Marketing Mix Modeling moderno
+  category: tecnicas
+  ring: probar
+  asOf: 2026-10
+  summary: 'Modelos agregados de efecto del marketing, de moda de nuevo ante la pérdida de señal individual. Meridian (Google, bayesiano), Robyn (Meta) y PyMC-Marketing (PyMC Labs, Apache 2.0) son las opciones abiertas. Calibra con experimentos de incrementalidad y trata sus resultados como hipótesis, no como verdad.'
+  sources:
+    - title: 'PyMC Labs — PyMC-Marketing (repositorio)'
+      url: 'https://github.com/pymc-labs/pymc-marketing'
+    - title: 'Meta — Robyn (repositorio)'
+      url: 'https://github.com/facebookexperimental/Robyn'
+  relatedLessons:
+    - 'marketing-clientes/03-marketing-mix-modeling-moderno'
+    - 'marketing-clientes/02-incrementalidad-experimentos-y-geo-lift'
+
+- id: geo-lift
+  name: Experimentos geográficos y CausalImpact
+  category: tecnicas
+  ring: probar
+  asOf: 2026-10
+  summary: 'Medir el efecto incremental de una acción de marketing o de producto comparando regiones tratadas con otras de control, o con series sintéticas. Google publica CausalImpact y GeoexperimentsResearch. Necesitan regiones comparables, un periodo previo largo y una definición clara de la ventana de efecto.'
+  sources:
+    - title: 'Google — CausalImpact (repositorio)'
+      url: 'https://github.com/google/CausalImpact'
+    - title: 'Google — GeoexperimentsResearch (repositorio)'
+      url: 'https://github.com/google/GeoexperimentsResearch'
+  relatedLessons:
+    - 'marketing-clientes/02-incrementalidad-experimentos-y-geo-lift'
+    - 'causalidad/03-control-sintetico-y-causalimpact'
+
+- id: did-moderno
+  name: Diferencias en diferencias con estimadores modernos
+  category: tecnicas
+  ring: probar
+  asOf: 2026-10
+  summary: "Con adopción escalonada y efectos heterogéneos, el estimador clásico de dos vías puede sesgarse. Los estimadores modernos (por ejemplo, el paquete did de Callaway y Sant'Anna) corrigen el problema. Comprueba siempre las tendencias previas y la plausibilidad de las tendencias paralelas."
+  sources:
+    - title: 'Callaway — did: documentación del paquete'
+      url: 'https://bcallaway11.github.io/did/'
+  relatedLessons:
+    - 'causalidad/02-diferencias-en-diferencias'
+
+- id: peeking-sin-correccion
+  name: Mirar un A/B y pararlo cuando sale significativo
+  category: tecnicas
+  ring: evitar
+  asOf: 2026-10
+  summary: 'Consultar el p-valor cada día y detener el experimento cuando baja de 0,05 multiplica los falsos positivos. Define el tamaño de muestra o la duración de antemano, o usa pruebas secuenciales. Comprueba también el SRM antes de interpretar nada.'
+  sources:
+    - title: 'GrowthBook — Estadística (motores bayesiano y frecuentista, tests secuenciales)'
+      url: 'https://docs.growthbook.io/statistics/overview'
+    - title: 'Fabijan et al. (2019) — Diagnosing Sample Ratio Mismatch in Online Controlled Experiments'
+      url: 'https://doi.org/10.1145/3292500.3330722'
+  relatedLessons:
+    - 'experimentacion/04-peeking-tests-secuenciales-y-analisis-siempre-valido'
+    - 'experimentacion/02-validez-srm-experimentos-aa-y-ley-de-twyman'

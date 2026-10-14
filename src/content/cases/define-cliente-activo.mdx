@@ -1,0 +1,147 @@
+---
+title: 'Define «cliente activo» para el consejo'
+description: 'Un caso de definición de métricas: el consejo quiere una cifra única de «clientes activos» y cada área usa una definición distinta. Calculas el mismo indicador con cinco definiciones, ves que oscila entre 9.523 y 49.640, y redactas una definición sin ambigüedad con evento, ventana, población y fecha de corte.'
+difficulty: 2
+estimatedMinutes: 40
+role: finanzas
+datasets: ['customers', 'orders', 'web_sessions', 'subscriptions']
+brief: |
+  De: Andrés Calvo (Director Financiero)
+  Asunto: Clientes activos — cifra para el consejo
+
+  Hola, el lunes presento al consejo y necesito una única cifra de «clientes activos a cierre de junio de 2026». Esta semana me han llegado tres números distintos: Marketing habla de «los que han comprado en el último año», Producto de «los que han entrado en la web este mes» y Lumen+ de «los suscriptores». No sé cuál es bueno.
+
+  La base total es de 60.000 clientes registrados. ¿Puedes calcular cada una, decirme cuánto cambia el resultado y proponerme una definición que podamos defender y mantener en el tiempo?
+
+  Gracias, Andrés
+steps:
+  - id: s1-pedido-90-dias
+    tool: sql
+    answerType: numeric
+    answer: 23802
+    tolerance: 0
+    prompt: |
+      Empieza por la definición más habitual en comercio: cliente con **al menos un pedido no cancelado en los últimos 90 días** hasta el **30 de junio de 2026** (del 2 de abril al 30 de junio, ambos incluidos). ¿Cuántos clientes distintos son?
+    hints:
+      - "Filtra `status <> 'cancelado'` y `order_date >= '2026-04-02' AND order_date < '2026-07-01'`; cuenta `DISTINCT customer_id`."
+    explanation: |
+      **23.802 clientes** (el 39,7 % de la base de 60.000).
+
+  - id: s2-con-cancelados
+    tool: sql
+    answerType: numeric
+    answer: 581
+    tolerance: 0
+    prompt: |
+      ¿Cuántos clientes **menos** salen si, por error, se cuentan también los pedidos cancelados en esa misma ventana? Es decir: la diferencia entre contar con cancelados y sin ellos.
+    hints:
+      - 'Repite la consulta anterior sin el filtro de estado y resta.'
+    explanation: |
+      **581 clientes** más aparecen si se incluyen cancelados (24.383 frente a 23.802): clientes que solo han intentado comprar. Un detalle pequeño, pero ilustra por qué la definición debe decir qué es un «pedido».
+
+  - id: s3-pedido-365-dias
+    tool: sql
+    answerType: numeric
+    answer: 49640
+    tolerance: 0
+    prompt: |
+      Marketing usa «comprar en el último año». ¿Cuántos clientes tienen al menos un pedido no cancelado entre el 1 de julio de 2025 y el 30 de junio de 2026?
+    hints:
+      - "`order_date >= '2025-07-01' AND order_date < '2026-07-01'`."
+    explanation: |
+      **49.640 clientes**, el 82,7 % de la base. Con esta definición casi todos los clientes están «activos»: el indicador deja de distinguir.
+
+  - id: s4-sesion-30-dias
+    tool: sql
+    answerType: numeric
+    answer: 9523
+    tolerance: 0
+    prompt: |
+      Producto usa «ha entrado en la web este mes». ¿Cuántos clientes **identificados** (`customer_id` no nulo) tienen al menos una sesión en `web_sessions` en junio de 2026?
+    hints:
+      - "`started_at >= '2026-06-01' AND started_at < '2026-07-01'` y `customer_id IS NOT NULL`."
+    explanation: |
+      **9.523 clientes**. Las sesiones anónimas no se pueden atribuir a un cliente, y esta definición mide visitas, no compras.
+
+  - id: s5-suscripcion-activa
+    tool: sql
+    answerType: numeric
+    answer: 10870
+    tolerance: 0
+    prompt: |
+      Lumen+ usa «suscriptores». ¿Cuántos clientes distintos tienen una suscripción **activa a 30 de junio de 2026** (dada de alta antes del 1 de julio y sin cancelar o cancelada a partir de esa fecha)?
+    hints:
+      - "`started_at < '2026-07-01' AND (cancelled_at IS NULL OR cancelled_at >= '2026-07-01')`."
+    explanation: |
+      **10.870 clientes**. Es otra población: gente que paga una cuota, la haya usado o no.
+
+  - id: s6-union
+    tool: sql
+    answerType: numeric
+    answer: 34349
+    tolerance: 0
+    prompt: |
+      Alguien propone una definición «generosa»: activo si cumple **cualquiera** de estas tres: pedido en los últimos 90 días, sesión en junio o suscripción activa. ¿Cuántos clientes distintos son?
+    hints:
+      - 'Une con `UNION` los tres conjuntos de `customer_id` y cuenta.'
+    explanation: |
+      **34.349 clientes** (el 57 % de la base). Mezclar tres eventos distintos produce una cifra que no se puede explicar ni comparar: ¿activo en qué?
+
+  - id: s7-conclusion
+    tool: reasoning
+    answerType: single
+    answer: [1]
+    options:
+      - 'Cualquiera sirve: son todas «correctas».'
+      - 'Las cifras oscilan entre 9.523 y 49.640 según la definición: hay que elegir una, decirla con exactitud y mantenerla; las demás se publican con otro nombre.'
+      - 'Hay que usar siempre la más alta porque es la que mejor queda ante el consejo.'
+      - 'Hay que hacer la media de las cinco definiciones.'
+    prompt: |
+      Con estas cifras, ¿qué conclusión es la más sensata?
+    hints:
+      - 'Compara el rango de las cifras y lo que cada una mide realmente.'
+    explanation: |
+      El mismo nombre («clientes activos») esconde poblaciones y eventos distintos: el resultado cambia más de cinco veces. No hay una definición «verdadera»: hay una definición **elegida, documentada y única** para el uso (aquí, el consejo), y otras métricas con nombres propios («compradores en 12 meses», «visitantes mensuales», «suscriptores»).
+
+  - id: s8-definicion
+    tool: reasoning
+    answerType: multiple
+    answer: [0, 1, 2, 3]
+    options:
+      - 'El evento que cuenta (por ejemplo, «pedido no cancelado», no «sesión» ni «alta»).'
+      - 'La ventana y la fecha de corte (por ejemplo, 90 días hasta el último día del mes).'
+      - 'La población y las exclusiones (por ejemplo, clientes registrados; qué se hace con cuentas de prueba).'
+      - 'Un propietario y un único lugar donde vive la definición (por ejemplo, la capa semántica), con control de cambios.'
+      - 'Que la cifra suba siempre de un mes a otro.'
+    prompt: |
+      ¿Qué debe incluir una definición de métrica sin ambigüedad? (Marca todo lo que aplique.)
+    hints:
+      - 'Piensa en lo que hizo falta decidir en los pasos anteriores.'
+    explanation: |
+      Evento, ventana y corte, población y exclusiones, y propietario con un solo sitio donde vive la definición (módulo de capa semántica). Una métrica que «siempre sube» no es una definición: es un incentivo.
+
+  - id: s9-mensaje
+    tool: reasoning
+    answerType: text-self-assessed
+    prompt: |
+      Escribe la respuesta a Andrés en 4-5 líneas: **la definición que propones para el consejo, la cifra que resulta, cuánto cambiaría con otras definiciones y qué harías para que no vuelva a haber tres números**.
+    hints:
+      - 'Empieza con la cifra y su definición exacta, muestra el rango de las demás y cierra con la propuesta de gobierno.'
+    explanation: |
+      Un buen mensaje da una cifra defendible, aclara exactamente qué cuenta y hace visible que otras definiciones darían otro número.
+rubric:
+  - 'Doy una única cifra con su definición exacta (evento, ventana y fecha de corte): por ejemplo, 23.802 clientes con pedido no cancelado en los últimos 90 días a 30-jun-2026.'
+  - 'Muestro cuánto cambia el número con otras definiciones (9.523 a 49.640) y renombro las demás métricas.'
+  - 'Explico por qué elegí esa definición (relación con compra, sensibilidad, que no sea casi toda la base).'
+  - 'Propongo gobierno: propietario, definición en un único sitio y control de cambios.'
+  - 'Aviso de que cambiar la definición rompe la comparabilidad histórica y recalculo la serie.'
+modelReport: |
+  **Propuesta.** Para el consejo: **23.802 clientes activos a 30 de junio de 2026**, definidos como clientes registrados con al menos un pedido no cancelado en los 90 días anteriores (2 de abril a 30 de junio, ambos incluidos). Son el 39,7 % de los 60.000 registrados.
+
+  **Por qué esta definición.** Se apoya en un evento de valor (comprar), tiene ventana corta y distingue: «comprar en el último año» da 49.640 (el 83 % de la base) y casi todos son «activos»; «entrar en la web» (9.523) y «ser suscriptor» (10.870) miden otra cosa. Mezclarlas en una sola da 34.349, una cifra imposible de explicar. Si se contasen los pedidos cancelados, saldrían 581 clientes de más.
+
+  **Gobierno.** Publicaría las demás con su nombre propio (compradores en 12 meses, visitantes mensuales, suscriptores), dejaría la definición en la capa semántica con un propietario (Finanzas) y control de cambios, y recalcularía la serie histórica si alguna vez cambia la definición para que se pueda comparar.
+---
+
+Este caso usa las tablas `customers`, `orders`, `web_sessions` y `subscriptions` del dataset Lumen.
+La teoría está en el módulo «Capa semántica y métricas».

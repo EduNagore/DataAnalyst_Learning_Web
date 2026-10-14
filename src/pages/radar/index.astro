@@ -1,16 +1,40 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { url } from '../../lib/url';
 
-const entries = await getCollection('radar');
+const entries = (await getCollection('radar')).sort((a, b) =>
+  a.data.name.localeCompare(b.data.name, 'es'),
+);
+const lessons = await getCollection('lessons');
+const lessonTitle = new Map(lessons.map((l) => [l.id, l.data.title]));
 
-const ringLabels: Record<string, string> = {
-  adoptar: 'Adoptar',
-  probar: 'Probar',
-  evaluar: 'Evaluar',
-  evitar: 'Evitar',
-};
-const ringOrder = ['adoptar', 'probar', 'evaluar', 'evitar'];
+const rings = [
+  {
+    id: 'adoptar',
+    label: 'Adoptar',
+    help: 'Úsalo ya: está probado y es la opción por defecto.',
+    color: 'var(--color-success)',
+  },
+  {
+    id: 'probar',
+    label: 'Probar',
+    help: 'Merece un piloto acotado en un proyecto real.',
+    color: 'var(--color-accent)',
+  },
+  {
+    id: 'evaluar',
+    label: 'Evaluar',
+    help: 'Vigílalo y haz pruebas; no apuestes todo a él todavía.',
+    color: 'var(--color-warning)',
+  },
+  {
+    id: 'evitar',
+    label: 'Evitar',
+    help: 'No lo hagas, o no sin garantías.',
+    color: 'var(--color-danger)',
+  },
+];
 
 const categoryLabels: Record<string, string> = {
   'sql-motores': 'Motores SQL',
@@ -20,6 +44,12 @@ const categoryLabels: Record<string, string> = {
   'ia-analitica': 'IA analítica',
   tecnicas: 'Técnicas',
 };
+const usedCategories = Object.keys(categoryLabels).filter((c) =>
+  entries.some((e) => e.data.category === c),
+);
+
+const fmt = (d: Date) =>
+  d.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', timeZone: 'UTC' });
 ---
 
 <BaseLayout
@@ -31,44 +61,161 @@ const categoryLabels: Record<string, string> = {
     <p class="mt-2 max-w-2xl text-[var(--color-text-muted)]">
       Un vistazo rápido al estado del arte: qué herramientas y técnicas merece la pena adoptar hoy,
       cuáles probar, cuáles conviene evaluar con cautela y cuáles evitar. Cada entrada lleva la
-      fecha en que se revisó y sus fuentes.
+      fecha en que se revisó, sus fuentes y las lecciones donde se explica. Es una opinión razonada,
+      no un veredicto: tu contexto manda.
     </p>
 
     {entries.length === 0 ? (
       <div class="mt-10 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-subtle)] p-8 text-center">
         <p class="font-medium text-[var(--color-text)]">El radar todavía no tiene entradas.</p>
-        <p class="mt-2 text-sm text-[var(--color-text-muted)]">
-          Se completa a partir de la Fase 8 del plan de implementación, en paralelo con el contenido
-          de IA para analistas.
-        </p>
       </div>
     ) : (
-      <div class="mt-10 space-y-10">
-        {ringOrder.map((ring) => {
-          const ringEntries = entries.filter((e) => e.data.ring === ring);
-          if (ringEntries.length === 0) return null;
-          return (
-            <div>
-              <h2 class="text-xl font-semibold text-[var(--color-text)]">{ringLabels[ring]}</h2>
-              <div class="mt-4 grid gap-4 sm:grid-cols-2">
-                {ringEntries.map((entry) => (
-                  <div class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-5">
-                    <p class="text-xs font-medium text-[var(--color-text-muted)]">
-                      {categoryLabels[entry.data.category]} · a fecha de{' '}
-                      {entry.data.asOf.toLocaleDateString('es-ES', {
-                        year: 'numeric',
-                        month: 'long',
-                      })}
-                    </p>
-                    <h3 class="mt-1 font-semibold text-[var(--color-text)]">{entry.data.name}</h3>
-                    <p class="mt-2 text-sm text-[var(--color-text-muted)]">{entry.data.summary}</p>
-                  </div>
-                ))}
-              </div>
+      <>
+        <dl class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {rings.map((r) => (
+            <div class="rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-subtle)] p-3">
+              <dt class="flex items-center gap-2 text-sm font-semibold text-[var(--color-text)]">
+                <span
+                  class="inline-block h-3 w-3 rounded-full"
+                  style={`background:${r.color}`}
+                  aria-hidden="true"
+                />
+                {r.label}
+                <span class="font-normal text-[var(--color-text-muted)]">
+                  ({entries.filter((e) => e.data.ring === r.id).length})
+                </span>
+              </dt>
+              <dd class="mt-1 text-xs text-[var(--color-text-muted)]">{r.help}</dd>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </dl>
+
+        <div
+          class="mt-8 flex flex-wrap gap-2"
+          role="group"
+          aria-label="Filtrar por categoría"
+          id="radar-filters"
+        >
+          <button type="button" data-cat="todas" aria-pressed="true" class="radar-chip">
+            Todas
+          </button>
+          {usedCategories.map((c) => (
+            <button type="button" data-cat={c} aria-pressed="false" class="radar-chip">
+              {categoryLabels[c]}
+            </button>
+          ))}
+        </div>
+
+        <div class="mt-8 space-y-10">
+          {rings.map((r) => {
+            const ringEntries = entries.filter((e) => e.data.ring === r.id);
+            if (ringEntries.length === 0) return null;
+            return (
+              <div data-ring-section={r.id}>
+                <h2 class="flex items-center gap-2 text-xl font-semibold text-[var(--color-text)]">
+                  <span
+                    class="inline-block h-3 w-3 rounded-full"
+                    style={`background:${r.color}`}
+                    aria-hidden="true"
+                  />
+                  {r.label}
+                </h2>
+                <div class="mt-4 grid gap-4 sm:grid-cols-2">
+                  {ringEntries.map((entry) => (
+                    <article
+                      id={entry.data.id}
+                      data-cat={entry.data.category}
+                      class="radar-card rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-5"
+                    >
+                      <p class="text-xs font-medium text-[var(--color-text-muted)]">
+                        {categoryLabels[entry.data.category]} · revisado en {fmt(entry.data.asOf)}
+                      </p>
+                      <h3 class="mt-1 font-semibold text-[var(--color-text)]">{entry.data.name}</h3>
+                      <p class="mt-2 text-sm text-[var(--color-text-muted)]">
+                        {entry.data.summary}
+                      </p>
+                      {entry.data.relatedLessons && entry.data.relatedLessons.length > 0 && (
+                        <div class="mt-3">
+                          <p class="text-xs font-semibold text-[var(--color-text)]">En el curso</p>
+                          <ul class="mt-1 space-y-0.5 text-xs">
+                            {entry.data.relatedLessons.map((id) => {
+                              const [mod, slug] = id.split('/');
+                              return (
+                                <li>
+                                  <a
+                                    class="text-[var(--color-accent)] hover:underline"
+                                    href={url(`/teoria/${mod}/${slug}/`)}
+                                  >
+                                    {lessonTitle.get(id) ?? id}
+                                  </a>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      )}
+                      <div class="mt-3">
+                        <p class="text-xs font-semibold text-[var(--color-text)]">Fuentes</p>
+                        <ul class="mt-1 space-y-0.5 text-xs">
+                          {entry.data.sources.map((s) => (
+                            <li>
+                              <a
+                                class="text-[var(--color-accent)] hover:underline"
+                                href={s.url}
+                                rel="noopener noreferrer"
+                                target="_blank"
+                              >
+                                {s.title}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </>
     )}
   </section>
 </BaseLayout>
+
+<style>
+  .radar-chip {
+    border: 1px solid var(--color-border);
+    border-radius: 9999px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    background: var(--color-bg-raised);
+    cursor: pointer;
+  }
+  .radar-chip[aria-pressed='true'] {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: var(--color-accent-contrast);
+  }
+  .radar-chip:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+</style>
+
+<script>
+  const buttons = document.querySelectorAll<HTMLButtonElement>('#radar-filters [data-cat]');
+  const cards = document.querySelectorAll<HTMLElement>('.radar-card');
+  const sections = document.querySelectorAll<HTMLElement>('[data-ring-section]');
+  function apply(cat: string) {
+    buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cat === cat)));
+    cards.forEach((c) => {
+      c.hidden = cat !== 'todas' && c.dataset.cat !== cat;
+    });
+    sections.forEach((s) => {
+      s.hidden = [...s.querySelectorAll<HTMLElement>('.radar-card')].every((c) => c.hidden);
+    });
+  }
+  buttons.forEach((b) => b.addEventListener('click', () => apply(b.dataset.cat ?? 'todas')));
+</script>
