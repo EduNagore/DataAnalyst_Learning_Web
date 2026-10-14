@@ -71,3 +71,13 @@ test('cheat sheets, glosario y fuentes están disponibles', async ({ page }) => 
   await page.goto('novedades/');
   await expect(page.getByText('Lanzamiento de Data Analyst Academy')).toBeVisible();
 });
+
+test('el playground de LLM clasifica con el modelo simulado y muestra la validación', async ({
+  page,
+}) => {
+  await page.goto('practica/llm/');
+  await page.waitForLoadState('networkidle');
+  await page.getByRole('button', { name: /Clasificar 6 textos/ }).click();
+  await expect(page.getByText(/válidas a la primera: 4 · tras reintento: 2/)).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'válida tras reintento' }).first()).toBeVisible();
+});

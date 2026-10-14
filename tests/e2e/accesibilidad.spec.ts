@@ -22,6 +22,7 @@ const PAGES = [
   'progreso/',
   'practica/tests/',
   'practica/sql/',
+  'practica/llm/',
 ];
 
 for (const scheme of ['light', 'dark'] as const) {

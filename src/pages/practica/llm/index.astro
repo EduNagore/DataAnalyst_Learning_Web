@@ -1,0 +1,45 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import LlmPlayground from '../../../components/lab/LlmPlayground.tsx';
+import { url } from '../../../lib/url';
+
+// Textos reales (sintéticos) de `support_tickets`, uno o dos por categoría.
+const tickets = [
+  'La app me ha cobrado dos veces el mismo pedido.',
+  'He recibido solo parte de mi pedido, faltan artículos.',
+  "He devuelto el artículo pero el estado sigue como 'pendiente'.",
+  'El producto llegó defectuoso, necesito cambiarlo.',
+  'La calidad no es la esperada para el precio pagado.',
+  'No puedo iniciar sesión en la app desde la última actualización.',
+  'Me han cobrado dos veces por el mismo pedido.',
+  'La dirección de entrega era correcta pero el paquete volvió al almacén.',
+  'El descuento del cupón no se aplicó en el pago final.',
+  'No recibo la factura de mi última compra.',
+  'Quiero devolver un producto, ¿cómo genero la etiqueta de devolución?',
+  '¿Tienen disponible otra talla de este artículo?',
+];
+---
+
+<BaseLayout
+  title="Playground de LLM"
+  description="Clasifica tickets con un modelo simulado o con tu propia clave de API: valida la salida estructurada, reintenta con el error y mide tokens, coste y errores."
+>
+  <section class="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Playground de LLM</h1>
+    <p class="mt-2 text-[var(--color-text-muted)]">
+      Practica con un modelo de verdad lo que aprendiste con uno simulado en el módulo{' '}
+      <a
+        class="text-[var(--color-accent)]"
+        href={url('/teoria/llm-texto/01-clasificar-y-extraer-texto-con-salidas-estructuradas/')}
+      >
+        LLMs para datos no estructurados
+      </a>
+      : pide una clasificación en JSON, valida cada respuesta (esquema, valores, reintentos
+      acotados) y mira cuántos tokens y cuánto cuesta. Es opcional: el modelo simulado no necesita
+      clave ni red.
+    </p>
+    <div class="mt-8">
+      <LlmPlayground client:load tickets={tickets} />
+    </div>
+  </section>
+</BaseLayout>
