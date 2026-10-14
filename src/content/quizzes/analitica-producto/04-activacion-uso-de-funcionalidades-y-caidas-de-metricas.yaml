@@ -1,0 +1,62 @@
+lesson: analitica-producto/04-activacion-uso-de-funcionalidades-y-caidas-de-metricas
+questions:
+  - id: ap-04-q1
+    type: single
+    difficulty: 2
+    prompt: 'Los clientes de Lumen que hacen un segundo pedido en 30 días compran 2,27 veces en el resto del año y los demás 1,14. ¿Qué conclusión es correcta?'
+    options:
+      - 'Provocar una segunda compra pronto duplicará los pedidos de cada cliente'
+      - 'Es un buen candidato a hito de activación, pero la asociación puede deberse al sesgo de selección; hace falta un experimento para saber si provocarlo mejora la retención'
+      - 'No es útil porque es una correlación'
+      - 'El dato es erróneo porque debería ser igual en los dos grupos'
+    answer: [1]
+    explanation: 'Quien repite pronto probablemente ya era un cliente más comprometido. La asociación orienta la hipótesis, pero solo un experimento (incentivar al azar a una parte de los clientes nuevos) prueba el efecto causal.'
+    ref: '#activación-y-momento-aha'
+
+  - id: ap-04-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Por qué conviene una ventana corta y común para definir un hito de activación?'
+    options:
+      - 'Porque simplifica la consulta SQL'
+      - 'Porque con una ventana larga los clientes que se quedan tienen más tiempo para cumplir el hito y la correlación con la retención se infla'
+      - 'Porque los clientes nuevos no compran más de una vez'
+      - 'Porque lo exigen las herramientas de analítica'
+    answer: [1]
+    explanation: 'Es un sesgo de supervivencia: quien permanece más tiempo tiene más oportunidades de cumplir cualquier hito. La misma ventana para todos hace comparable la medida.'
+    ref: '#activación-y-momento-aha'
+
+  - id: ap-04-q3
+    type: single
+    difficulty: 2
+    prompt: 'Quienes usan una función nueva retienen el doble que quienes no la usan. ¿Cuál es el diseño más fiable para medir su impacto?'
+    options:
+      - 'Comparar usuarios y no usuarios'
+      - 'Un experimento que active la función a una mitad aleatoria'
+      - 'Comparar antes y después de la función'
+      - 'Preguntar a los usuarios si les gusta'
+    answer: [1]
+    explanation: 'Comparar usuarios con no usuarios arrastra sesgo de selección y comparar antes/después ignora la tendencia. El experimento aleatorio resuelve ambos; si no es posible, un lanzamiento escalonado o un emparejamiento.'
+    ref: '#uso-de-funcionalidades'
+
+  - id: ap-04-q4
+    type: numeric
+    difficulty: 2
+    prompt: 'Las unidades vendidas de Electrónica en Lumen pasaron de 9.062 en febrero de 2026 a 3.429 en marzo. ¿En qué porcentaje cayeron? (Entero, en valor absoluto.)'
+    answer: [62]
+    tolerance: 0.5
+    explanation: '3.429 / 9.062 − 1 ≈ −62 %. El total de pedidos del mes casi no se movió (20.034 y 19.869) porque el resto de categorías subió un 7 %: descomponer por categoría revela lo que el agregado oculta.'
+    ref: '#diagnóstico-de-una-caída-de-métrica'
+
+  - id: ap-04-q5
+    type: single
+    difficulty: 3
+    prompt: 'Una métrica cae. ¿Qué orden de comprobación es el más razonable?'
+    options:
+      - 'Causas externas, cambios de producto, mix, calendario, definición, tracking'
+      - 'Tracking y datos, definición, calendario, mix, cambios de producto, causas externas'
+      - 'Cambios de producto, causas externas, tracking, mix'
+      - 'Es indiferente: el orden no importa'
+    answer: [1]
+    explanation: 'Se va de lo más barato y probable (¿se mide bien? ¿se calcula igual?) a lo más raro (causas externas). Documentar lo que se descarta en cada paso ahorra trabajo en el siguiente incidente.'
+    ref: '#diagnóstico-de-una-caída-de-métrica'

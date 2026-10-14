@@ -1,0 +1,237 @@
+---
+title: 'Retención, cohortes, actividad y growth accounting'
+description: 'Cómo medir si los clientes vuelven: cohortes y curvas de retención, métricas de actividad (DAU, WAU, MAU, stickiness) y su sentido en comercio electrónico, y contabilidad del crecimiento (nuevos, retenidos, resucitados, perdidos) con el ratio rápido.'
+module: analitica-producto
+order: 3
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Construir una matriz de retención por cohortes y leer su forma (caída inicial, meseta, mejora o deterioro entre cohortes).'
+  - 'Calcular DAU, WAU, MAU y stickiness, y valorar cuándo tienen sentido para un producto transaccional.'
+  - 'Descomponer los clientes activos de cada mes en nuevos, retenidos, resucitados y perdidos y calcular el ratio rápido.'
+  - 'Comparar la retención entre segmentos y evitar los sesgos de cohortes inmaduras y de definición de «activo».'
+prerequisites: ['analitica-producto/02-embudos-de-conversion']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Amplitude — Retention analysis (documentación)'
+    url: 'https://amplitude.com/docs/analytics'
+    type: docs
+    authors: 'Amplitude'
+    year: 2026
+  - title: 'PostHog — Product analytics: retención, stickiness y ciclo de vida'
+    url: 'https://posthog.com/docs/product-analytics'
+    type: docs
+    authors: 'PostHog'
+    year: 2026
+  - title: 'Fader, Hardie & Lee — Counting Your Customers the Easy Way'
+    url: 'https://www.brucehardie.com/papers/018/fader_et_al_mksc_05.pdf'
+    type: paper
+    authors: 'Fader, P. S., Hardie, B. G. S., Lee, K. L.'
+    year: 2005
+relatedLabs: ['py-retencion-y-growth-accounting']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import VegaChart from '../../../components/content/VegaChart.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Dirección ve que los clientes activos de Lumen se estancan en torno a 10.000 al mes y pregunta:
+  «¿hay un problema de captación o de retención?». Para responder hay que separar quién llega, quién
+  se queda, quién se va y quién vuelve después de un tiempo. Las cohortes y el _growth accounting_
+  son las dos herramientas para ello.
+</BusinessContext>
+
+Una compra no es el final del negocio: es el principio de una relación (o no). Medirla exige seguir a **grupos de clientes a lo largo del tiempo**, no comparar fotografías del total.
+
+## Intuición
+
+Un cubo de agua con una fuga: puedes echar más agua (captación) o tapar la fuga (retención). El nivel del cubo (clientes activos) no te dice qué ocurre. Las **cohortes** miran cada «tanda» de clientes que entró a la vez y cuánta agua les queda con el tiempo; el _growth accounting_ hace el balance mensual de entradas, permanencias, regresos y salidas.
+
+## Cómo funciona
+
+### Cohortes y curvas de retención
+
+- **Cohorte:** conjunto de clientes que comparten un hecho de inicio (primer pedido en enero de 2025).
+- **Actividad:** el hecho que cuenta como «volver» (comprar, abrir la app, usar una función). Debe definirse **antes** y de forma coherente con el producto.
+- **Retención en el periodo $k$:** proporción de la cohorte activa $k$ periodos después del inicio.
+
+La matriz de retención tiene una cohorte por fila y $k$ por columna. Se lee de tres maneras: **por columnas** (¿mejoran las cohortes nuevas?), **por filas** (la curva de una cohorte) y **por diagonales** (efectos de calendario: una campaña o una rotura de stock afecta a todas las cohortes en el mismo mes).
+
+Con los pedidos no cancelados de Lumen (cohorte = mes del primer pedido; activo = algún pedido en el mes), la retención media de las cohortes de enero de 2024 a junio de 2025:
+
+| Meses desde el primer pedido ($k$) |      1 |      2 |      3 |      6 |     12 |
+| ---------------------------------- | -----: | -----: | -----: | -----: | -----: |
+| Retención media                    | 41,9 % | 14,1 % | 13,9 % | 14,4 % | 14,4 % |
+
+La curva muestra una **caída fuerte** del mes 0 al 2 y después una **meseta** en torno al 14 %: unos pocos clientes que vuelven con regularidad. Ese 14 % es la parte valiosa de la base. (El 42 % del primer mes incluye compras muy próximas a la primera, típicas del alta de un cliente nuevo.)
+
+<VegaChart
+  minHeight={300}
+  alt="Retención media por meses desde el primer pedido en Lumen: 41,9 % al mes 1, 14,1 % al mes 2, 13,9 % al mes 3, 14,4 % al mes 6 y 14,4 % al mes 12; la curva cae y se estabiliza."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    width: 'container',
+    height: 220,
+    background: 'transparent',
+    data: {
+      values: [
+        { k: 0, ret: 100 },
+        { k: 1, ret: 41.9 },
+        { k: 2, ret: 14.1 },
+        { k: 3, ret: 13.9 },
+        { k: 6, ret: 14.4 },
+        { k: 12, ret: 14.4 },
+      ],
+    },
+    layer: [
+      {
+        mark: { type: 'line', point: true, color: '#4C78A8' },
+        encoding: {
+          x: {
+            field: 'k',
+            type: 'quantitative',
+            title: 'Meses desde el primer pedido',
+            axis: { tickMinStep: 1 },
+          },
+          y: {
+            field: 'ret',
+            type: 'quantitative',
+            title: 'Clientes activos (%)',
+            scale: { domain: [0, 100] },
+          },
+        },
+      },
+      {
+        mark: { type: 'text', dy: -10, fontSize: 11 },
+        encoding: {
+          x: { field: 'k', type: 'quantitative' },
+          y: { field: 'ret', type: 'quantitative' },
+          text: { field: 'ret', type: 'quantitative', format: '.1f' },
+        },
+      },
+    ],
+  }}
+/>
+
+Por **segmento**, la diferencia es enorme (retención 3 meses después del primer mes activo):
+
+| Segmento  | A 1 mes | A 3 meses | A 6 meses |
+| --------- | ------: | --------: | --------: |
+| VIP       |  80,1 % |    31,6 % |    29,7 % |
+| Habitual  |  62,7 % |    18,9 % |    16,6 % |
+| Ocasional |  37,6 % |     9,0 % |     8,0 % |
+| Nuevo     |  22,6 % |     4,9 % |     4,5 % |
+
+Una retención promedio puede esconder poblaciones muy distintas: **segmenta antes de concluir**.
+
+### Actividad: DAU, WAU, MAU y stickiness
+
+- **DAU / WAU / MAU:** usuarios (o clientes) activos distintos al día, a la semana y al mes.
+- **Stickiness** = DAU / MAU (o WAU / MAU): qué fracción de los activos del mes lo es cada día; se acerca a 1 en productos de uso diario (mensajería) y es baja en productos de uso esporádico.
+
+En el comercio electrónico, la compra no es diaria: la actividad de compra mensual por cliente es naturalmente baja, y el DAU/MAU por compra carece de sentido. Para un producto transaccional son más útiles:
+
+- **Clientes activos mensuales** (con compra) y su descomposición (a continuación).
+- **Frecuencia de compra** y **tiempo entre compras**.
+- **Retención por cohortes** y **valor acumulado por cliente** (LTV).
+
+> Elige la ventana de actividad según el ritmo natural del producto: diaria para apps de mensajería, semanal para banca o contenidos, mensual o trimestral para compras de ropa o electrodomésticos.
+
+### Growth accounting
+
+Los clientes activos de cada mes se descomponen en cuatro tipos:
+
+| Tipo            | Definición                                                  |
+| --------------- | ----------------------------------------------------------- |
+| **Nuevos**      | Activos por primera vez                                     |
+| **Retenidos**   | Activos este mes y el mes anterior                          |
+| **Resucitados** | Activos este mes, inactivos el mes anterior, pero ya vistos |
+| **Perdidos**    | Activos el mes anterior e inactivos este mes                |
+
+Se cumple: $\text{activos}_t = \text{nuevos}_t + \text{retenidos}_t + \text{resucitados}_t$ y $\text{activos}_t - \text{activos}_{t-1} = \text{nuevos} + \text{resucitados} - \text{perdidos}$. El **ratio rápido** (_quick ratio_) = (nuevos + resucitados) / perdidos: por encima de 1 la base crece; por debajo, se contrae.
+
+Lumen, últimos meses:
+
+| Mes         |   Activos | Nuevos | Retenidos | Resucitados | Perdidos | Ratio rápido |
+| ----------- | --------: | -----: | --------: | ----------: | -------: | -----------: |
+| 2026-01     |    10.995 |  2.144 |     2.909 |       5.942 |    6.372 |         1,27 |
+| 2026-02     |    10.911 |  1.967 |     3.380 |       5.564 |    7.615 |         0,99 |
+| **2026-03** | **9.662** |  2.072 |     2.962 |   **4.628** |    7.949 |     **0,84** |
+| 2026-04     |     9.677 |  2.066 |     2.637 |       4.974 |    7.025 |         1,00 |
+| 2026-05     |    10.501 |  2.228 |     2.741 |       5.532 |    6.936 |         1,12 |
+| 2026-06     |    10.626 |  2.225 |     2.886 |       5.515 |    7.615 |         1,02 |
+
+Lecturas: la base de activos **se estanca** porque cada mes se pierden casi tantos clientes como se ganan; **los nuevos (≈ 2.100) son una minoría**: la mayor parte de la actividad la aportan clientes que **vuelven tras haber estado inactivos (resucitados)**. En marzo de 2026 (rotura de stock) los resucitados cayeron un 17 % (de 5.564 a 4.628) y el ratio rápido bajó a 0,84: los clientes recurrentes no encontraron lo que buscaban.
+Este tipo de análisis separa un problema de captación (pocos nuevos) de uno de retención (muchos perdidos) y de uno de reactivación (pocos resucitados).
+
+<Callout type="warning">
+  Cuidado con las **cohortes inmaduras**: los clientes de las cohortes más recientes no han tenido
+  tiempo de volver y su retención a $k$ meses aún no existe; compárala solo con periodos observables
+  en todas las cohortes. Y cuidado con **cambiar la definición de «activo»** a mitad del análisis:
+  rompe la comparación.
+</Callout>
+
+## En la práctica
+
+1. **Define «activo» y el periodo** de acuerdo con el ritmo del producto.
+2. **Construye la actividad** (cliente × periodo) y la cohorte de cada cliente.
+3. **Calcula la matriz de retención** y mira filas, columnas y diagonales; compara cohortes recientes y antiguas.
+4. **Segmenta** (adquisición, plan, dispositivo, comportamiento inicial) para encontrar quién retiene.
+5. **Haz el growth accounting** mensual y calcula el ratio rápido.
+6. **Conecta con la acción:** si falla la captación, marketing; si falla la retención, producto y experiencia; si falla la reactivación, campañas de reenganche.
+7. **Mide cualquier intervención** con un experimento y una cohorte de control.
+
+```python
+act = (orders[orders.status != "cancelado"]
+       .assign(mes=lambda d: d.order_date.dt.to_period("M"))[["customer_id", "mes"]].drop_duplicates())
+act["cohorte"] = act.groupby("customer_id")["mes"].transform("min")
+act["k"] = (act["mes"] - act["cohorte"]).apply(lambda d: d.n)
+t = act.groupby(["cohorte", "k"]).customer_id.nunique().unstack()
+retencion = t.div(t[0], axis=0)
+```
+
+En el lab construyes la matriz de retención, el growth accounting y la retención por segmento con los pedidos de Lumen.
+
+## Trade-offs y cuándo usarlo
+
+- **Retención de clientes frente a retención de ingresos:** la primera cuenta personas; la segunda pondera por valor (los VIP pesan mucho más).
+- **Cohortes mensuales frente a semanales:** las semanales ven más rápido los cambios, pero con más ruido.
+- **Retención «clásica» frente a «de rango»:** la clásica exige actividad exactamente en el periodo $k$; la de rango acepta actividad en cualquier momento a partir de $k$ (más generosa).
+- **Probabilidad de actividad (modelos como BG/NBD):** estiman cuántos clientes siguen «vivos» cuando no hay contrato; son la base del cálculo de LTV (módulo de marketing).
+
+## Errores comunes
+
+- **Comparar la retención de cohortes inmaduras con las maduras.**
+- **Definir «activo» de forma diferente entre cohortes o periodos.**
+- **Promediar la retención sin segmentar.**
+- **Usar DAU/MAU en un producto de compras esporádicas.**
+- **Contar como «nuevos» a clientes que ya existían** (por cambios de identidad).
+- **Concluir un problema de captación** cuando el de verdad es de retención (o viceversa).
+- **Olvidar el calendario:** una rotura de stock o una campaña afecta a una diagonal de la matriz.
+
+## Con IA
+
+Un asistente genera la matriz de retención con una cohorte por mes, pero a menudo mezcla el mes natural con el mes desde el primer pedido, deja las cohortes inmaduras sin marcar o define «activo» por un evento que no es el relevante. Pide que explicite la definición, que marque las celdas no observables y que verifique que `nuevos + retenidos + resucitados = activos`.
+
+## En una entrevista
+
+- _"¿Cómo mides la retención de un producto de compras esporádicas?"_ — Pista: cohortes por primera compra, actividad = compra en el periodo, curva con meseta, segmentos, LTV.
+- _"Los activos mensuales no crecen. ¿Qué analizas?"_ — Pista: growth accounting; nuevos, retenidos, resucitados y perdidos; ratio rápido.
+- _"¿Qué es el stickiness y cuándo no sirve?"_ — Pista: DAU/MAU; productos de uso diario; no para compras esporádicas.
+
+<KeyTakeaways
+  items={[
+    'Las cohortes siguen a grupos de clientes con un mismo inicio; la matriz de retención se lee por filas (curva), por columnas (mejora entre cohortes) y por diagonales (efectos de calendario).',
+    'En Lumen la retención cae del 100 % al 14 % entre el mes 0 y el 2 y se estabiliza en torno al 14 %; por segmentos, a 3 meses retiene el 31,6 % de los VIP y el 4,9 % de los nuevos.',
+    'DAU, WAU, MAU y stickiness solo tienen sentido con el ritmo de uso del producto; en un comercio con compras esporádicas son más útiles los clientes activos mensuales, la frecuencia y las cohortes.',
+    'El growth accounting descompone los activos en nuevos, retenidos, resucitados y perdidos; en marzo de 2026 el ratio rápido bajó a 0,84 al caer un 17 % los resucitados.',
+    'Define «activo» antes, marca las cohortes inmaduras y segmenta antes de concluir si el problema es de captación, de retención o de reactivación.',
+  ]}
+/>

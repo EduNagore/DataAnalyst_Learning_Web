@@ -1,0 +1,58 @@
+lesson: analitica-producto/03-retencion-cohortes-y-growth-accounting
+questions:
+  - id: ap-03-q1
+    type: single
+    difficulty: 1
+    prompt: 'En una matriz de retención por cohortes, ¿qué indica leerla por columnas?'
+    options:
+      - 'La curva de retención de una cohorte a lo largo del tiempo'
+      - 'Si las cohortes más recientes retienen mejor o peor que las antiguas en el mismo mes desde el inicio'
+      - 'El efecto de una campaña en un mes natural'
+      - 'El número de clientes de cada cohorte'
+    answer: [1]
+    explanation: 'Por filas se ve la curva de una cohorte; por columnas, la comparación entre cohortes en el mismo k; por diagonales, los efectos del calendario (campañas, roturas de stock).'
+    ref: '#cohortes-y-curvas-de-retención'
+
+  - id: ap-03-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'En marzo de 2026 Lumen tuvo 2.072 clientes nuevos, 4.628 resucitados y 7.949 perdidos. ¿Cuál es el ratio rápido? (Dos decimales.)'
+    answer: [0.84]
+    tolerance: 0.01
+    explanation: '(2.072 + 4.628) / 7.949 ≈ 0,84. Por debajo de 1, la base de clientes activos se contrae.'
+    ref: '#growth-accounting'
+
+  - id: ap-03-q3
+    type: single
+    difficulty: 2
+    prompt: 'En Lumen la retención cae del 100 % al 14 % entre el mes 0 y el 2 y luego se mantiene en torno al 14 %. ¿Qué lectura es correcta?'
+    options:
+      - 'Casi todos los clientes se pierden y no hay nada que hacer'
+      - 'Hay una caída inicial fuerte y una meseta: una parte de la base vuelve con regularidad y es la más valiosa'
+      - 'La retención seguirá bajando hasta cero'
+      - 'La curva indica un error de medición'
+    answer: [1]
+    explanation: 'La meseta es la parte recurrente de la base. El trabajo suele ser doble: subir la meseta (más clientes recurrentes) y reducir la caída inicial.'
+    ref: '#cohortes-y-curvas-de-retención'
+
+  - id: ap-03-q4
+    type: truefalse
+    difficulty: 2
+    prompt: 'En un comercio electrónico con compras esporádicas, el DAU/MAU de compra es una buena métrica de stickiness.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. La compra no es diaria, así que el DAU/MAU por compra sería muy bajo por naturaleza. Son más útiles los clientes activos mensuales, la frecuencia de compra y las cohortes.'
+    ref: '#actividad-dau-wau-mau-y-stickiness'
+
+  - id: ap-03-q5
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODOS los errores al analizar la retención por cohortes.'
+    options:
+      - 'Comparar cohortes recientes inmaduras con cohortes antiguas en un k que no han alcanzado'
+      - 'Cambiar la definición de «activo» a mitad del análisis'
+      - 'Promediar la retención sin segmentar (VIP y nuevos retienen de forma muy distinta)'
+      - 'Comprobar que nuevos + retenidos + resucitados = activos en el growth accounting'
+    answer: [0, 1, 2]
+    explanation: 'La última es una validación recomendable. Las tres primeras rompen la comparación: a 3 meses retiene el 31,6 % de los VIP y el 4,9 % de los clientes nuevos.'
+    ref: '#cohortes-y-curvas-de-retención'

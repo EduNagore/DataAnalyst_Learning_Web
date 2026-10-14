@@ -1,0 +1,219 @@
+---
+title: 'Embudos de conversión: pasos, fugas y comparaciones'
+description: 'Cómo construir y leer un embudo de conversión: definición de los pasos, sesiones frente a usuarios, ventana de tiempo, conversión por paso y total, comparación por segmentos con contrastes estadísticos y prioridad de las fugas.'
+module: analitica-producto
+order: 2
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Definir un embudo con pasos, unidad (sesión o usuario) y ventana de tiempo, y calcular la conversión por paso y total.'
+  - 'Comparar embudos por segmentos (plataforma, canal, dispositivo) con un contraste de proporciones y localizar el paso donde difieren.'
+  - 'Evitar los errores clásicos: pasos fuera de orden, mezcla de eventos y usuarios, ventanas inconsistentes y paradoja de Simpson.'
+  - 'Priorizar fugas por impacto potencial y convertir el diagnóstico en una hipótesis comprobable con un experimento.'
+prerequisites: ['analitica-producto/01-plan-de-tracking-y-calidad-de-los-eventos']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Amplitude — Funnel analysis (documentación)'
+    url: 'https://amplitude.com/docs/analytics'
+    type: docs
+    authors: 'Amplitude'
+    year: 2026
+  - title: 'PostHog — Product analytics: funnels'
+    url: 'https://posthog.com/docs/product-analytics'
+    type: docs
+    authors: 'PostHog'
+    year: 2026
+  - title: 'Kohavi, Tang & Xu — Trustworthy Online Controlled Experiments'
+    url: 'https://experimentguide.com/'
+    type: book
+    authors: 'Kohavi, R., Tang, D., Xu, Y.'
+    year: 2020
+relatedLabs: ['py-embudo-conversion']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import VegaChart from '../../../components/content/VegaChart.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Dirección quiere más ventas y pregunta: «¿dónde perdemos a los clientes?». De cada 1.000 sesiones,
+  solo 42 acaban en compra. Si mejoras un paso un 10 % relativo, ¿cuánto ganas? ¿Y es el mismo paso
+  el que falla en la web que en la app? Un embudo bien construido responde ambas preguntas y dice
+  por dónde empezar.
+</BusinessContext>
+
+Un **embudo** (_funnel_) cuenta cuántas unidades (sesiones o usuarios) pasan de un paso al siguiente en un proceso que debería completarse en orden: ver el producto, añadirlo al carrito, iniciar el pago, comprar. Su valor está en señalar **dónde** se pierde la conversión.
+
+## Intuición
+
+Imagina un cubo con tres agujeros a distinta altura. Si quieres que retenga más agua, tapar el agujero más grande a la altura más baja es lo que más ayuda… pero solo si el agua llega hasta ahí. El embudo muestra los agujeros, y el análisis dice cuáles se pueden tapar y cuáles son parte del diseño (no todo el que mira un producto quiere comprarlo).
+
+## Cómo funciona
+
+### Definir el embudo
+
+Cuatro decisiones, que deben ser **explícitas y constantes** para poder comparar:
+
+1. **Pasos:** eventos concretos y su orden (`page_view → add_to_cart → checkout → purchase`).
+2. **Unidad:** **sesión** (cada visita cuenta por separado) o **usuario** (un usuario cuenta una vez en toda la ventana). Con usuarios se mide la conversión a nivel de persona; con sesiones, la eficacia de cada visita.
+3. **Ventana de tiempo:** cuánto puede tardar un usuario en pasar de un paso al siguiente (misma sesión, 24 horas, 7 días…).
+4. **Orden:** **estricto** (los pasos deben ocurrir en ese orden) o **flexible** (basta con que todos ocurran).
+
+Con la unidad elegida, se cuentan las unidades **distintas** que alcanzan cada paso (no eventos: un usuario que añade tres veces al carrito cuenta una).
+
+$$
+\text{conv. paso}_k = \frac{N_k}{N_{k-1}}, \qquad \text{conv. total} = \frac{N_K}{N_1}
+$$
+
+### El embudo de Lumen
+
+Con 1.000.000 de sesiones (`web_sessions`) y la telemetría (`events`), contando sesiones distintas:
+
+| Paso          |  Sesiones | Conversión respecto al paso anterior | Conversión total |
+| ------------- | --------: | -----------------------------------: | ---------------: |
+| `page_view`   | 1.000.000 |                                    — |            100 % |
+| `add_to_cart` |   473.364 |                           **47,3 %** |           47,3 % |
+| `checkout`    |   186.148 |                           **39,3 %** |           18,6 % |
+| `purchase`    |    42.277 |                           **22,7 %** |            4,2 % |
+
+<VegaChart
+  minHeight={280}
+  alt="Embudo de conversión de las sesiones de Lumen: 1.000.000 de sesiones con vista de producto; 473.364 añaden al carrito (47,3 %); 186.148 llegan al checkout (18,6 %); 42.277 compran (4,2 %)."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    width: 'container',
+    height: 200,
+    background: 'transparent',
+    data: {
+      values: [
+        { paso: '1. page_view', orden: 1, pct: 100, etiqueta: '100 %' },
+        { paso: '2. add_to_cart', orden: 2, pct: 47.34, etiqueta: '47,3 %' },
+        { paso: '3. checkout', orden: 3, pct: 18.61, etiqueta: '18,6 %' },
+        { paso: '4. purchase', orden: 4, pct: 4.23, etiqueta: '4,2 %' },
+      ],
+    },
+    layer: [
+      {
+        mark: { type: 'bar', color: '#4C78A8' },
+        encoding: {
+          y: { field: 'paso', type: 'ordinal', sort: { field: 'orden' }, title: null },
+          x: {
+            field: 'pct',
+            type: 'quantitative',
+            title: '% de las sesiones iniciales',
+            scale: { domain: [0, 100] },
+          },
+        },
+      },
+      {
+        mark: { type: 'text', align: 'left', dx: 4 },
+        encoding: {
+          y: { field: 'paso', type: 'ordinal', sort: { field: 'orden' } },
+          x: { field: 'pct', type: 'quantitative' },
+          text: { field: 'etiqueta' },
+        },
+      },
+    ],
+  }}
+/>
+
+La **mayor fuga proporcional** está en el último paso (solo compra el 22,7 % de quienes llegan al pago); la **mayor fuga absoluta**, entre la vista de producto y el carrito (52,7 % de las sesiones se van sin añadir nada).
+
+### Comparar segmentos
+
+Se construye el mismo embudo por segmento y se compara **paso a paso** (conversión por paso), con un contraste estadístico para saber si la diferencia supera el azar. En Lumen:
+
+| Plataforma | Sesiones | Al carrito | Al checkout | A la compra | Conversión total | Checkout → compra |
+| ---------- | -------: | ---------: | ----------: | ----------: | ---------------: | ----------------: |
+| **Web**    |  476.467 |     47,6 % |      18,9 % |  **4,52 %** |           4,52 % |            23,9 % |
+| **App**    |  523.533 |     47,1 % |      18,4 % |  **3,96 %** |           3,96 % |            21,6 % |
+
+La web convierte **0,56 puntos porcentuales** más que la app (test z de dos proporciones: z = 13,8, p < 10⁻⁴⁰), y la diferencia está concentrada en el **último paso**: los primeros pasos son casi idénticos. Esa localización es oro: el problema no es atraer a los usuarios al carrito, sino algo en el pago de la app (rendimiento, formulario, métodos de pago).
+Por canal de adquisición, en cambio, las conversiones totales son casi iguales (entre 4,18 % y 4,28 %): no hay diferencia que explotar.
+
+### Sesiones frente a usuarios y otras trampas
+
+| Trampa                                  | Efecto                                                                           | Cómo evitarla                           |
+| --------------------------------------- | -------------------------------------------------------------------------------- | --------------------------------------- |
+| **Contar eventos en lugar de unidades** | Una compra duplicada o tres «añadir» inflan los pasos (caso de la app 4.2.0)     | `COUNT(DISTINCT sesión)` por paso       |
+| **Pasos fuera de orden**                | Un `purchase` sin `checkout` indica un fallo de tracking                         | Validar el orden; contar excepciones    |
+| **Ventanas distintas entre segmentos**  | La app registra pasos en la misma sesión; la web, en 7 días                      | Misma ventana y definición              |
+| **Cambio de composición**               | La mezcla de canales o de dispositivos cambia y arrastra la conversión (Simpson) | Comparar dentro de segmentos y ponderar |
+| **Cohortes inmaduras**                  | Los usuarios recientes aún no han podido completar el embudo                     | Excluir o dejar madurar la ventana      |
+| **Supervivencia**                       | Analizar solo a quien llega al paso 3 como si fuera representativo               | Mantener el denominador inicial         |
+
+### De la fuga a la acción
+
+1. **Cuantifica el potencial:** si la conversión del último paso en la app pasara del 21,6 % al 23,9 % (la de la web), la conversión total de la app subiría de 3,96 % a 4,40 %: unas 2.300 compras adicionales por cada 523.533 sesiones.
+2. **Busca la causa** con evidencia cualitativa y técnica (grabaciones de sesión, errores, tiempos de carga, métodos de pago) y con segmentación fina (versión de la app, sistema operativo, modelo de móvil).
+3. **Formula una hipótesis** («el formulario de pago de la app pierde un 10 % por errores de teclado») y decide el **experimento** (módulo de experimentación) que la pondría a prueba.
+4. **Mide el efecto** en la métrica del embudo y en guardarraíles (cancelaciones, devoluciones).
+
+<Callout type="note">
+  Un embudo describe **dónde** se pierde la gente, no **por qué**. Mejorar un paso con cambios
+  cosméticos que no resuelven una necesidad a veces solo desplaza el abandono al paso siguiente.
+  Combina el embudo con datos cualitativos antes de diseñar el cambio.
+</Callout>
+
+## En la práctica
+
+1. **Acuerda la definición** (pasos, unidad, ventana, orden) y documéntala en el plan de tracking.
+2. **Valida el orden y los duplicados** (lección anterior) antes de interpretar.
+3. **Calcula** conversión por paso y total, y el embudo por segmentos clave (plataforma, canal, dispositivo, versión).
+4. **Contrasta** las diferencias entre segmentos y localiza el paso afectado.
+5. **Prioriza** por potencial (volumen × mejora posible) y viabilidad.
+6. **Convierte** el hallazgo en hipótesis y experimento.
+
+```python
+pasos = ["page_view", "add_to_cart", "checkout", "purchase"]
+n = (events[events.event_type.isin(pasos)]
+     .drop_duplicates(["session_id", "event_type"])
+     .groupby("event_type").size().reindex(pasos))
+conv_paso = 100 * n / n.shift(1)
+conv_total = 100 * n / n.iloc[0]
+```
+
+En el lab construyes el embudo global y por plataforma y contrastas la diferencia entre web y app.
+
+## Trade-offs y cuándo usarlo
+
+- **Sesión frente a usuario:** la sesión es simple y sirve para optimizar la visita; el usuario es mejor cuando la compra se decide en varias visitas.
+- **Embudo estricto frente a flexible:** el estricto es más fiel al proceso; el flexible tolera tracking imperfecto.
+- **Embudos largos frente a cortos:** los embudos de muchos pasos dispersan la atención; céntrate en los pasos que tu producto puede cambiar.
+- **Conversión por paso frente a conversión total:** la primera localiza; la segunda es la métrica de negocio.
+
+## Errores comunes
+
+- **Contar eventos en vez de unidades distintas.**
+- **Comparar embudos con definiciones o ventanas diferentes.**
+- **Atribuir una diferencia entre segmentos a la plataforma** sin descartar la mezcla de usuarios (Simpson).
+- **Mejorar un paso sin mirar los siguientes** (el abandono se traslada).
+- **Ignorar la significación** (diferencias de décimas con pocas sesiones) **o la relevancia** (diferencias mínimas con muchísimas).
+- **Olvidar las sesiones sin eventos posteriores** (rebotes) al calcular el denominador.
+- **Tratar el 100 % de la conversión como objetivo.**
+
+## Con IA
+
+Un asistente puede generar la consulta del embudo en SQL, pero suele contar eventos en lugar de sesiones distintas, olvidar la ventana de tiempo o comparar segmentos sin test. Revisa el recuento por paso contra una consulta propia y pide que **explicite la unidad y la ventana** y que acompañe cada diferencia de un intervalo o de un p-valor.
+
+## En una entrevista
+
+- _"La conversión total cayó un 8 %. ¿Cómo la diagnosticas?"_ — Pista: embudo por pasos y segmentos (plataforma, canal, versión), validar tracking, mezcla de tráfico, comparar con periodos previos.
+- _"¿Qué diferencia hay entre un embudo de sesiones y uno de usuarios?"_ — Pista: unidad de conteo y ventana; compra en varias visitas.
+- _"¿Cómo sabes si una diferencia entre web y app es real?"_ — Pista: test de proporciones, intervalo, tamaño de efecto, y que no sea Simpson.
+
+<KeyTakeaways
+  items={[
+    'Un embudo se define con pasos, unidad (sesión o usuario), ventana de tiempo y orden; se cuentan unidades distintas por paso, no eventos.',
+    'El embudo de Lumen convierte 47,3 % → 39,3 % → 22,7 % entre pasos, con un 4,23 % de conversión total: la mayor fuga proporcional está en el pago y la mayor fuga absoluta, antes del carrito.',
+    'La web convierte 4,52 % frente al 3,96 % de la app (+0,56 pp, z = 13,8), y la diferencia se concentra en el último paso (23,9 % frente a 21,6 %): localizar el paso orienta la hipótesis.',
+    'Las trampas habituales son contar eventos, ventanas distintas, cambio de composición (Simpson) y cohortes inmaduras.',
+    'Un embudo dice dónde se pierde, no por qué: combina con datos cualitativos y convierte el hallazgo en un experimento.',
+  ]}
+/>

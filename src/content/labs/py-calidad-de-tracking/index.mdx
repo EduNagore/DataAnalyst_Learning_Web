@@ -1,0 +1,35 @@
+---
+title: 'Calidad del tracking: eventos duplicados y compras por versión de la app'
+description: 'Detecta eventos de compra duplicados en la telemetría de Lumen, mide cuánto sobreestiman la conversión por versión de la app, deduplica y comprueba la cobertura frente a los pedidos de la fuente de verdad.'
+language: python
+part: 'Parte IV · Analítica por dominio'
+module: analitica-producto
+difficulty: 2
+estimatedMinutes: 30
+concepts:
+  [
+    'calidad de datos de eventos',
+    'duplicados',
+    'versión de la app',
+    'conciliación con la fuente de verdad',
+  ]
+datasets: ['events', 'web_sessions', 'orders']
+packages: []
+output: console
+hints:
+  - 'Duplicados: filtra `event_type == "purchase"`, agrupa por `session_id` y quédate con las sesiones con más de un evento.'
+  - 'Por versión: cuenta eventos de compra por sesión (`groupby("session_id").size()`), asígnalo a `web_sessions` (0 si no hay), rellena `app_version` ausente con `"web"` y agrega: sesiones, suma de eventos, sesiones con al menos un evento.'
+  - 'Sobreestimación = `eventos_compra / sesiones_con_compra − 1` en %. Es 0 cuando cada sesión con compra tiene un solo evento.'
+  - 'Deduplicar: `drop_duplicates(subset=["session_id", "event_type", "properties"], keep="first")`. La cobertura divide las compras únicas entre los pedidos con `status != "cancelado"`.'
+relatedLessons: ['analitica-producto/01-plan-de-tracking-y-calidad-de-los-eventos']
+businessQuestion: '¿Está bien registrada la conversión de cada versión de la app y cuánto se parecen los eventos a los pedidos reales?'
+---
+
+Implementa cuatro funciones:
+
+1. **`sesiones_con_duplicados(events, tipo="purchase")`** → DataFrame con `session_id`, `n_eventos` y `app_version` de las sesiones con más de un evento de ese tipo.
+2. **`deduplicar(events)`** → eventos sin repeticiones de (sesión, tipo, propiedades), conservando el primero. (En datos reales conviene añadir una ventana temporal para no borrar repeticiones legítimas.)
+3. **`compras_por_version(events, sessions)`** → DataFrame indexado por versión de la app (`"web"` si no hay versión) con `sesiones`, `eventos_compra`, `sesiones_con_compra`, `por_100_eventos`, `por_100_sesiones` y `sobreestimacion_pct`.
+4. **`cobertura_frente_a_pedidos(events, orders)`** → porcentaje de compras únicas sobre los pedidos no cancelados.
+
+Resultado esperado: 75 sesiones duplicadas, todas de la versión 4.2.0, que sobreestima las compras un 5,1 %.

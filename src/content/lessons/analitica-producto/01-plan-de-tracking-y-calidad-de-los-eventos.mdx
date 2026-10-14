@@ -1,0 +1,199 @@
+---
+title: 'Plan de tracking y calidad de los eventos'
+description: 'Cómo diseñar qué se mide en un producto digital: taxonomía de eventos y propiedades, identidad de usuario, gobernanza, privacidad, y cómo detectar y corregir problemas de calidad como los eventos duplicados de una versión de la app.'
+module: analitica-producto
+order: 1
+level: intermedio
+estimatedMinutes: 45
+objectives:
+  - 'Diseñar un plan de tracking: eventos, propiedades, identidad, nomenclatura y responsables, ligado a las preguntas de negocio.'
+  - 'Distinguir eventos de producto, de negocio y de sistema, y decidir qué fuente es la «verdad» de cada métrica.'
+  - 'Detectar problemas de calidad típicos (duplicados, versiones defectuosas, huecos, desajuste con la fuente de verdad) con consultas de validación.'
+  - 'Cuantificar el impacto de un fallo de tracking y comunicarlo con una corrección reproducible.'
+prerequisites: ['limpieza-calidad/04-validacion-y-contratos-de-datos']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'PostHog — Product analytics (documentación)'
+    url: 'https://posthog.com/docs/product-analytics'
+    type: docs
+    authors: 'PostHog'
+    year: 2026
+  - title: 'Mixpanel — What is Mixpanel? (eventos, usuarios y propiedades)'
+    url: 'https://docs.mixpanel.com/docs/what-is-mixpanel'
+    type: docs
+    authors: 'Mixpanel'
+    year: 2026
+  - title: 'Amplitude — Analytics (documentación)'
+    url: 'https://amplitude.com/docs/analytics'
+    type: docs
+    authors: 'Amplitude'
+    year: 2026
+  - title: 'Kohavi, Tang & Xu — Trustworthy Online Controlled Experiments (calidad de datos e instrumentación)'
+    url: 'https://experimentguide.com/'
+    type: book
+    authors: 'Kohavi, R., Tang, D., Xu, Y.'
+    year: 2020
+relatedLabs: ['py-calidad-de-tracking']
+relatedCases: ['bug-tracking-app-42']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Producto presenta el panel de conversión por versión de la app: la 4.2.0 parece la mejor, con 4,29
+  compras por cada 100 sesiones frente a 3,9 de las versiones vecinas. Antes de celebrarlo hay que
+  preguntarse: ¿se ha mejorado el producto, o se está contando distinto? Las métricas de producto
+  solo son tan buenas como los eventos que las alimentan.
+</BusinessContext>
+
+La analítica de producto parte de una promesa: «cada vez que algo importante ocurre, queda registrado un evento». Cuando esa promesa se rompe (duplicados, huecos, versiones defectuosas, identificadores cambiantes), todos los embudos, retenciones y experimentos construidos encima mienten con total aparente exactitud.
+
+## Intuición
+
+Un evento es una **frase** sobre lo que hizo un usuario: «el usuario X añadió el producto Y al carrito a las 10:03 desde la app 4.3». Un plan de tracking es la gramática: qué frases existen, cómo se escriben y quién responde de ellas. Sin gramática, cada equipo inventa su dialecto y nadie puede leer lo de los demás.
+
+## Cómo funciona
+
+### Qué es un plan de tracking
+
+Un documento vivo (una hoja o un repositorio) que, para cada evento, define:
+
+| Campo                   | Ejemplo                                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------- |
+| **Nombre**              | `purchase` (verbo en infinitivo o pasado, siempre igual; en `snake_case`)                   |
+| **Cuándo se dispara**   | «Cuando el servidor confirma el pago, una vez por pedido» (precisión: ¿cliente o servidor?) |
+| **Propiedades**         | `order_id`, `value`, `currency`, `items` (tipos, obligatoriedad, valores permitidos)        |
+| **Identidad**           | `user_id` (si hay sesión iniciada), `anonymous_id`; cómo se enlazan                         |
+| **Plataformas**         | web, iOS, Android; versión mínima que lo emite                                              |
+| **Responsable**         | Quién lo implementa, quién lo valida, quién lo usa                                          |
+| **Pregunta de negocio** | Qué decisión alimenta (si ninguna, no se mide)                                              |
+| **Privacidad**          | Si contiene datos personales, base legal y retención                                        |
+
+Principios:
+
+1. **Empieza por las preguntas**, no por los eventos: ¿qué decisiones se tomarán con estos datos? Mide lo que necesitas, no todo lo que puedes.
+2. **Pocos eventos, bien definidos** frente a cientos ambiguos. En Lumen, el embudo mínimo es `page_view → add_to_cart → checkout → purchase`.
+3. **Propiedades en el evento** (`value`, `device`) en lugar de eventos distintos por variante (`purchase_mobile`).
+4. **Una convención de nombres** (verbo + objeto, minúsculas, sin acentos) y un catálogo que la haga cumplir.
+5. **Eventos de servidor** para lo que importa al negocio (compras, pagos): son más fiables que los de cliente (que se pierden con bloqueadores, redes lentas o cierres de app).
+6. **Identidad:** decidir cuándo se enlaza una persona anónima con un usuario identificado y qué pasa con varios dispositivos.
+7. **Privacidad desde el diseño:** consentimiento, minimización de datos y retención (RGPD en la UE); no registres datos personales en propiedades libres.
+
+### Fuentes: producto frente a verdad de negocio
+
+La telemetría de producto (eventos) y los sistemas transaccionales (pedidos, facturas) responden a preguntas distintas y **no coinciden exactamente**:
+
+|              | Eventos de producto                   | Sistema transaccional            |
+| ------------ | ------------------------------------- | -------------------------------- |
+| Qué registra | Comportamiento (clics, vistas, pasos) | Hechos de negocio (pedido, pago) |
+| Fiabilidad   | Pérdida y duplicados posibles         | Alta (es el registro contable)   |
+| Uso          | Embudos, retención, experimentos      | Ingresos, márgenes, conciliación |
+
+Regla: **las cifras de dinero salen del sistema transaccional**; los eventos explican el comportamiento. Y hay que **conciliar** ambos periódicamente. En el dataset de Lumen, los eventos de `purchase` únicos (42.277) cubren solo el 11,2 % de los 377.145 pedidos no cancelados: la telemetría de ejemplo es una muestra y no sirve para reconstruir los ingresos.
+Cuando el desajuste es una sorpresa en una empresa real, es una alerta de tracking.
+
+### Problemas de calidad más comunes
+
+| Problema                    | Síntoma                                                                | Comprobación                                           |
+| --------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------ |
+| **Eventos duplicados**      | Más eventos que entidades (más compras que pedidos)                    | Contar eventos por (sesión, tipo, id de negocio)       |
+| **Versión defectuosa**      | Una versión de la app se comporta distinto del resto                   | Métricas por versión y por plataforma                  |
+| **Huecos (pérdida)**        | Caída brusca de un evento tras un despliegue                           | Series diarias por evento y versión                    |
+| **Cambio de definición**    | Salto en la métrica sin cambio en el negocio                           | Registro de cambios del plan de tracking               |
+| **Identidad rota**          | Aumenta el número de usuarios «nuevos» o caen las sesiones por usuario | Ratio de usuarios identificados; fusiones de identidad |
+| **Campos inválidos**        | Valores nulos, importes negativos, fechas futuras                      | Contrato de datos y pruebas de calidad                 |
+| **Zona horaria y retrasos** | Eventos que llegan días después                                        | Diferencia entre `occurred_at` y llegada               |
+
+### El caso de la app 4.2.0
+
+Lumen registra 1.701.864 eventos en 1.000.000 de sesiones: cada sesión tiene una `page_view` y un 47,3 % añade al carrito, un 18,6 % llega al checkout y un 4,23 % compra. Por versión de la app (y la web, con `app_version` vacío):
+
+| Versión   | Sesiones | Compras por 100 sesiones (eventos) | Sesiones con compra por 100 |
+| --------- | -------: | ---------------------------------: | --------------------------: |
+| 3.8.0     |  151.051 |                              4,055 |                       4,055 |
+| 4.0.0     |   71.966 |                              4,034 |                       4,034 |
+| 4.1.0     |   40.844 |                              3,922 |                       3,922 |
+| **4.2.0** |   35.784 |                          **4,292** |                   **4,083** |
+| 4.3.0     |   77.443 |                              3,904 |                       3,904 |
+| 4.4.0     |  146.445 |                              3,843 |                       3,843 |
+| Web       |  476.467 |                              4,520 |                       4,520 |
+
+Solo la 4.2.0 (entre el 10 de noviembre de 2024 y el 31 de enero de 2025) tiene más eventos de compra que sesiones con compra: **75 sesiones registran dos eventos de compra con exactamente un segundo de diferencia y las mismas propiedades**. Sobreestima las compras un **5,1 %** (1.536 eventos frente a 1.461 sesiones con compra). Corrigiendo, su conversión real es del 4,08 %, en línea con las demás (3,9-4,1 %).
+Esta es la huella típica de un fallo de implementación (un doble disparo del evento) y una advertencia: sin comparar contra «sesiones con compra», el panel parecería mostrar una mejora de producto.
+
+<Callout type="warning">
+  Cuando una métrica de una versión o una plataforma destaca mucho de las demás, **primero sospecha
+  del tracking, después de la mejora**. Es el equivalente a la ley de Twyman en analítica de
+  producto.
+</Callout>
+
+## En la práctica
+
+1. **Escribe el plan** a partir de las preguntas del negocio y revísalo con ingeniería, producto y legal.
+2. **Valida en el desarrollo** (entorno de pruebas) cada evento nuevo: ¿se dispara una vez?, ¿con las propiedades?, ¿en todas las plataformas?
+3. **Monitoriza en producción** series diarias por evento y versión, con alertas de caída o subida anómala.
+4. **Concilia** con la fuente de verdad (pedidos, pagos) con una frecuencia fija.
+5. **Documenta los incidentes** (qué versión, qué periodo, cuánto afectó, cómo se corrigió) y marca los datos afectados.
+6. **Corrige con reproducibilidad:** una consulta o función de deduplicación versionada, no una edición manual.
+
+```python
+dup = (events[events.event_type == "purchase"]
+       .groupby("session_id").size().loc[lambda s: s > 1])
+limpio = events.drop_duplicates(subset=["session_id", "event_type", "properties"])
+```
+
+En el lab detectas los duplicados, mides la sobreestimación por versión y calculas la cobertura frente a los pedidos; en el caso «La app 4.2 convierte mejor… ¿o no?» comunicas el problema.
+
+<Snapshot date="2026-10">
+  Las plataformas de analítica de producto comparten un modelo de datos de **eventos, usuarios y
+  propiedades**. Mixpanel lo formula así en su documentación; Amplitude ofrece análisis de embudo,
+  retención, segmentación de eventos y recorridos (journeys); PostHog incluye tendencias, embudos,
+  rutas, _stickiness_ y ciclo de vida (_lifecycle_), con acceso por interfaz web, API y cliente MCP
+  para editores de IA. Los nombres de informes y las funciones de IA cambian con frecuencia:
+  consulta la documentación vigente antes de elegir herramienta, y verifica siempre qué eventos se
+  están registrando de verdad.
+</Snapshot>
+
+## Trade-offs y cuándo usarlo
+
+- **Autocaptura frente a eventos explícitos:** la autocaptura da cobertura rápida pero ruido y nombres frágiles; los eventos explícitos cuestan más y son más fiables.
+- **Cliente frente a servidor:** el cliente captura el contexto (dispositivo, pantalla) pero pierde eventos; el servidor garantiza el hecho de negocio pero ve menos contexto. Lo habitual es combinar.
+- **Más eventos frente a mantenibilidad:** cada evento es una deuda de mantenimiento y de privacidad; elimina los que nadie usa.
+- **Gobernanza centralizada frente a autonomía de equipos:** un catálogo con revisión evita el caos, pero no debe frenar a los equipos; automatiza las validaciones.
+
+## Errores comunes
+
+- **Instrumentar sin preguntas de negocio.**
+- **Dos nombres para el mismo evento** (`Purchase`, `purchase_completed`) o el mismo nombre para dos cosas.
+- **Fiarse de una métrica que destaca sin comprobar el tracking.**
+- **Calcular dinero con eventos de cliente** en lugar de la fuente transaccional.
+- **No registrar los cambios del plan** y no poder explicar saltos en las series.
+- **Recoger datos personales en propiedades libres.**
+- **Corregir a mano un dato defectuoso** sin dejar rastro.
+
+## Con IA
+
+Un asistente puede ayudarte a **redactar el plan de tracking** y a proponer consultas de validación, pero tiende a sugerir eventos de más y a no preguntar por la precisión del disparo ni por la privacidad. Dale las preguntas de negocio, exige un evento por decisión y revisa personalmente la parte legal; para la corrección de un incidente, pide la consulta y comprueba el recuento antes y después.
+
+## En una entrevista
+
+- _"Una versión de la app muestra una conversión mucho mayor. ¿Qué haces?"_ — Pista: sospechar del tracking; comparar eventos con sesiones/pedidos; duplicados; métricas por versión; fuente de verdad.
+- _"¿Qué incluye un plan de tracking?"_ — Pista: preguntas de negocio, eventos, propiedades, identidad, nomenclatura, responsables, privacidad, QA.
+- _"¿Por qué los eventos no cuadran con los pedidos?"_ — Pista: pérdida en el cliente, bloqueadores, duplicados, definiciones distintas, retrasos; conciliar.
+
+<KeyTakeaways
+  items={[
+    'Un plan de tracking define para cada evento su nombre, cuándo se dispara, propiedades, identidad, plataformas, responsable, pregunta de negocio y privacidad; se empieza por las decisiones, no por los eventos.',
+    'Los eventos de producto explican el comportamiento; el dinero sale del sistema transaccional, y ambos deben conciliarse (en Lumen, las compras únicas de la telemetría cubren solo el 11,2 % de los pedidos).',
+    'La app 4.2.0 de Lumen registró 75 compras duplicadas (dos eventos con un segundo de diferencia) y sobreestimó las compras un 5,1 %: 4,29 por cada 100 sesiones frente a 4,08 reales.',
+    'Una métrica que destaca de forma llamativa en una versión o plataforma debe tratarse primero como sospecha de tracking.',
+    'La corrección debe ser reproducible (deduplicación versionada), documentada y comunicada con su impacto.',
+  ]}
+/>

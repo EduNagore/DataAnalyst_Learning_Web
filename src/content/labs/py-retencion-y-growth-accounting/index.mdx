@@ -1,0 +1,29 @@
+---
+title: 'Retención por cohortes y growth accounting con los pedidos de Lumen'
+description: 'Construye la matriz de retención por cohortes de clientes compradores, el growth accounting mensual (nuevos, retenidos, resucitados, perdidos) y el ratio rápido, y compara la retención por segmento.'
+language: python
+part: 'Parte IV · Analítica por dominio'
+module: analitica-producto
+difficulty: 3
+estimatedMinutes: 40
+concepts: ['cohortes', 'retención', 'growth accounting', 'ratio rápido', 'segmentos']
+datasets: ['orders', 'customers']
+packages: []
+output: console
+hints:
+  - 'Actividad: pedidos no cancelados → mes del pedido (`dt.to_period("M")`) → pares únicos (cliente, mes). La cohorte de un cliente es su primer mes activo; `k` es la diferencia en meses (`(mes − cohorte).n`).'
+  - 'Retención: `groupby(["cohorte", "k"]).customer_id.nunique().unstack()` dividido por la columna `k = 0` de cada cohorte.'
+  - 'Growth accounting: para cada mes, `nuevos` = activos nunca vistos antes; `retenidos` = activos también el mes anterior; `resucitados` = activos hoy, no el mes anterior, pero sí vistos antes; `perdidos` = activos el mes anterior y no hoy. Mantén un conjunto acumulado de clientes vistos.'
+  - 'Retención por segmento: une la actividad con `customers.segment`, toma `k = 0` como base y `k` como numerador.'
+relatedLessons: ['analitica-producto/03-retencion-cohortes-y-growth-accounting']
+businessQuestion: '¿Cuántos clientes vuelven mes a mes y el negocio gana más clientes activos de los que pierde?'
+---
+
+Implementa cuatro funciones:
+
+1. **`actividad_mensual(orders)`** → DataFrame de pares únicos (`customer_id`, `mes`) con algún pedido no cancelado (`mes` es un `Period` mensual).
+2. **`matriz_retencion(actividad)`** → DataFrame con filas = cohorte (mes del primer pedido), columnas = `k` (meses desde el primero) y valores = proporción de la cohorte activa en ese mes (la columna 0 es 1).
+3. **`growth_accounting(actividad)`** → DataFrame indexado por mes con `activos`, `nuevos`, `retenidos`, `resucitados` y `perdidos`; y **`ratio_rapido(ga)`** → serie `(nuevos + resucitados) / perdidos`.
+4. **`retencion_por_segmento(actividad, customers, k)`** → serie con la proporción de cada segmento activa `k` meses después de su primer mes.
+
+Resultado esperado: la retención al mes siguiente ronda el 42 % y se estabiliza en torno al 14 % del 2.º mes en adelante; en marzo de 2026, 9.662 activos (2.072 nuevos, 2.962 retenidos y 4.628 resucitados) y 7.949 perdidos.

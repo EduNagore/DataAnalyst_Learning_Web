@@ -1,0 +1,28 @@
+# Consultas que RECALCULAN las respuestas numéricas del caso a partir de los datos
+# (las ejecuta tests/labs/test_cases.py; no se publican en la web).
+s1-eventos-por-100: |
+  SELECT ROUND(100.0 * COUNT(e.event_id) / COUNT(DISTINCT s.session_id), 2)
+  FROM web_sessions s LEFT JOIN events e ON e.session_id = s.session_id AND e.event_type = 'purchase'
+  WHERE s.app_version = '4.2.0'
+s2-sesiones-duplicadas: |
+  SELECT COUNT(*) FROM (
+    SELECT session_id FROM events WHERE event_type = 'purchase' GROUP BY 1 HAVING COUNT(*) > 1
+  )
+s3-segundos: |
+  SELECT MAX(epoch(t - t0)) FROM (
+    SELECT session_id, MAX(occurred_at) AS t, MIN(occurred_at) AS t0
+    FROM events WHERE event_type = 'purchase' GROUP BY 1 HAVING COUNT(*) > 1
+  )
+s5-conversion-real: |
+  SELECT ROUND(100.0 * COUNT(DISTINCT e.session_id) / COUNT(DISTINCT s.session_id), 2)
+  FROM web_sessions s LEFT JOIN events e ON e.session_id = s.session_id AND e.event_type = 'purchase'
+  WHERE s.app_version = '4.2.0'
+s6-sobreestimacion: |
+  SELECT ROUND(100.0 * (COUNT(e.event_id) * 1.0 / COUNT(DISTINCT e.session_id) - 1), 2)
+  FROM web_sessions s JOIN events e ON e.session_id = s.session_id AND e.event_type = 'purchase'
+  WHERE s.app_version = '4.2.0'
+s7-otras-versiones: |
+  SELECT COUNT(*) FROM (
+    SELECT s.session_id FROM web_sessions s JOIN events e ON e.session_id = s.session_id AND e.event_type = 'purchase'
+    WHERE s.app_version IS DISTINCT FROM '4.2.0' GROUP BY 1 HAVING COUNT(*) > 1
+  )

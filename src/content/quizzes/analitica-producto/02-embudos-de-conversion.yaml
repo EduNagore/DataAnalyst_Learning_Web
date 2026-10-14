@@ -1,0 +1,58 @@
+lesson: analitica-producto/02-embudos-de-conversion
+questions:
+  - id: ap-02-q1
+    type: numeric
+    difficulty: 1
+    prompt: 'En el embudo de Lumen, 186.148 sesiones llegan al checkout y 42.277 compran. ¿Qué porcentaje de las que llegan al checkout compra? (Un decimal.)'
+    answer: [22.7]
+    tolerance: 0.05
+    explanation: '42.277 / 186.148 ≈ 22,7 %. Es la conversión respecto al paso anterior, no respecto al total de sesiones (4,2 %).'
+    ref: '#el-embudo-de-lumen'
+
+  - id: ap-02-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Dónde está la mayor fuga proporcional del embudo de Lumen y dónde la mayor fuga absoluta?'
+    options:
+      - 'Proporcional: del carrito al checkout; absoluta: del checkout a la compra'
+      - 'Proporcional: del checkout a la compra; absoluta: de la vista de producto al carrito'
+      - 'Las dos están en la vista de producto'
+      - 'Las dos están en el paso de pago'
+    answer: [1]
+    explanation: 'Solo compra el 22,7 % de quienes llegan al pago (la fuga proporcional mayor), pero el 52,7 % de las sesiones se va sin añadir nada al carrito (la fuga absoluta mayor).'
+    ref: '#el-embudo-de-lumen'
+
+  - id: ap-02-q3
+    type: single
+    difficulty: 2
+    prompt: 'La web convierte un 4,52 % y la app un 3,96 %. ¿Cómo se localiza el origen de la diferencia?'
+    options:
+      - 'Comparando la conversión total, que ya lo explica'
+      - 'Construyendo el mismo embudo por plataforma y comparando la conversión de cada paso; aquí se concentra en el paso de checkout a compra'
+      - 'Excluyendo la app del análisis'
+      - 'Comparando solo el número de sesiones'
+    answer: [1]
+    explanation: 'Los primeros pasos son casi idénticos; la diferencia está en el último (23,9 % en la web frente a 21,6 % en la app). Localizar el paso guía dónde buscar la causa: rendimiento, formulario o métodos de pago.'
+    ref: '#comparar-segmentos'
+
+  - id: ap-02-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las trampas al analizar un embudo.'
+    options:
+      - 'Contar eventos en lugar de sesiones distintas por paso'
+      - 'Usar ventanas distintas entre los segmentos que se comparan'
+      - 'Incluir cohortes recientes que aún no han podido completar el embudo'
+      - 'Mantener el mismo denominador inicial para todos los pasos'
+    answer: [0, 1, 2]
+    explanation: 'Mantener el denominador inicial es lo correcto (evita el sesgo de supervivencia). Las tres primeras distorsionan la conversión.'
+    ref: '#sesiones-frente-a-usuarios-y-otras-trampas'
+
+  - id: ap-02-q5
+    type: truefalse
+    difficulty: 2
+    prompt: 'Un embudo explica por qué los usuarios abandonan en un paso.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Un embudo describe dónde se pierde la gente, no por qué. Hace falta evidencia cualitativa y técnica (grabaciones, errores, tiempos de carga) y, después, un experimento.'
+    ref: '#de-la-fuga-a-la-acción'

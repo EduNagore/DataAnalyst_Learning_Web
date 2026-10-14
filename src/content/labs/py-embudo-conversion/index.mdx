@@ -1,0 +1,30 @@
+---
+title: 'Embudo de conversión: pasos, fugas y diferencias entre web y app'
+description: 'Construye el embudo page_view → add_to_cart → checkout → purchase de las sesiones de Lumen, localiza el paso con más fuga y contrasta si la conversión de la app difiere de la web con un test z de dos proporciones.'
+language: python
+part: 'Parte IV · Analítica por dominio'
+module: analitica-producto
+difficulty: 2
+estimatedMinutes: 30
+concepts:
+  ['embudo', 'conversión por paso', 'sesiones únicas', 'segmentación', 'test de dos proporciones']
+datasets: ['events', 'web_sessions']
+packages: ['scipy']
+output: console
+hints:
+  - 'Cuenta **sesiones distintas** por tipo de evento (`drop_duplicates` sobre `session_id` y `event_type`), no eventos. Para segmentar, une con `web_sessions`; la plataforma es «web» si `app_version` es nulo y «app» si no.'
+  - 'Conversión por paso = sesiones del paso / sesiones del paso anterior (`shift(1)`); conversión total = sesiones del paso / sesiones del primer paso. Hazlo dentro de cada grupo si hay segmentación.'
+  - 'Test z de dos proporciones: `pool = (x1 + x2)/(n1 + n2)`, `z = (p1 − p2) / sqrt(pool(1 − pool)(1/n1 + 1/n2))` y `p = 2·norm.sf(|z|)`.'
+  - 'La mayor fuga es el paso con la menor conversión respecto al anterior (sin contar el primero).'
+relatedLessons: ['analitica-producto/02-embudos-de-conversion']
+businessQuestion: '¿En qué paso se pierden más sesiones y la app convierte distinto que la web?'
+---
+
+Implementa cuatro funciones:
+
+1. **`sesiones_por_paso(events, sessions, por=None)`** → DataFrame con `paso` (en el orden del embudo), `sesiones` (sesiones distintas que lo alcanzan) y la columna de segmentación `por` si se indica (`"plataforma"`, `"device"` o `"channel"`; `"plataforma"` vale «web» si no hay `app_version` y «app» si la hay).
+2. **`embudo(events, sessions, por=None)`** → lo anterior más `conv_paso` y `conv_total` (en %), dentro de cada grupo.
+3. **`comparar_proporciones(x1, n1, x2, n2)`** → diccionario con `diferencia_pp` (p1 − p2, en puntos porcentuales), `z` y `p` bilateral.
+4. **`mayor_fuga(tabla)`** → nombre del paso con menor conversión respecto al anterior.
+
+Resultado esperado: 47,3 % → 39,3 % → 22,7 % entre pasos y 4,23 % de conversión total; la web convierte 4,52 % y la app 3,96 % (z ≈ 13,8).

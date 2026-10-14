@@ -1,0 +1,187 @@
+---
+title: 'Activación, uso de funcionalidades y caídas de métricas'
+description: 'Cómo buscar el «momento aha» de un producto sin confundir correlación con causa, analizar la adopción de funcionalidades, diagnosticar con método una caída de métrica (como la rotura de stock de marzo de 2026) y elegir herramienta de analítica de producto.'
+module: analitica-producto
+order: 4
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Definir activación y buscar un candidato a «momento aha» comparando la retención de quienes lo alcanzan y quienes no.'
+  - 'Explicar por qué una asociación entre una conducta temprana y la retención no prueba que provocarla mejore la retención.'
+  - 'Analizar la adopción y el impacto de una funcionalidad con un diseño que controle el sesgo de selección.'
+  - 'Aplicar una lista de comprobación ordenada para diagnosticar una caída de métrica, desde el tracking hasta las causas externas.'
+prerequisites: ['analitica-producto/03-retencion-cohortes-y-growth-accounting']
+tools: ['sql', 'python']
+volatility: medium
+lastReviewed: 2026-10-14
+sources:
+  - title: 'PostHog — Product analytics (documentación)'
+    url: 'https://posthog.com/docs/product-analytics'
+    type: docs
+    authors: 'PostHog'
+    year: 2026
+  - title: 'Mixpanel — What is Mixpanel?'
+    url: 'https://docs.mixpanel.com/docs/what-is-mixpanel'
+    type: docs
+    authors: 'Mixpanel'
+    year: 2026
+  - title: 'Amplitude — Documentación'
+    url: 'https://amplitude.com/docs'
+    type: docs
+    authors: 'Amplitude'
+    year: 2026
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Producto quiere un objetivo claro para el equipo de crecimiento: «llevar a los clientes nuevos a
+  hacer algo que luego les haga quedarse». Y, cuando una métrica cae, quiere saber en una hora si es
+  un fallo de datos, un cambio real de comportamiento o algo del calendario. Esta lección da el
+  método para ambas cosas.
+</BusinessContext>
+
+## Intuición
+
+Dos preguntas, un mismo riesgo. **¿Qué hacen pronto los clientes que se quedan?** y **¿por qué ha caído esta métrica?** En ambas es fácil encontrar una explicación convincente y equivocada: la primera mezcla correlación con causa; la segunda, narrativa con diagnóstico. Lo que protege es el orden: primero descartar lo barato y más probable, después lo sofisticado.
+
+## Cómo funciona
+
+### Activación y «momento aha»
+
+- **Activación:** el hito temprano tras el cual un usuario tiene mucha más probabilidad de seguir. Es una **hipótesis** que se busca en los datos y se valida con un experimento.
+- **Momento aha:** el instante en que el usuario percibe el valor del producto. En una red social puede ser «seguir a 7 personas»; en un comercio, «una segunda compra pronto».
+
+El método estándar: definir candidatos de hito, compararlos por **retención posterior** de quienes lo alcanzan en una ventana frente a quienes no, y quedarse con los que sean frecuentes (hay a quien llevar), claros y accionables.
+
+En Lumen se toma a los 33.167 clientes cuyo primer pedido (no cancelado) fue hasta el 30 de junio de 2025, con al menos un año de observación, y se compara según hicieran o no **un segundo pedido en los 30 días siguientes**:
+
+| Grupo                                  | Clientes | Pedidos de los días 31 a 365 (media) | Con algún pedido en esos días |
+| -------------------------------------- | -------: | -----------------------------------: | ----------------------------: |
+| Segundo pedido en los 30 primeros días |   19.874 |                                 2,27 |                        79,4 % |
+| Sin segundo pedido en 30 días          |   13.293 |                                 1,14 |                        61,8 % |
+
+Quienes repiten pronto compran **el doble** durante el resto del año. Es un buen candidato a hito de activación: lo alcanza el 60 % de los clientes, se mide fácil y se puede intentar provocar con un recordatorio o una oferta de segunda compra.
+
+<Callout type="warning">
+  **Esto no demuestra que provocar una segunda compra aumente la retención.** Quien repite pronto ya
+  era, probablemente, un cliente más comprometido: la asociación puede ser un síntoma, no una
+  palanca (_sesgo de selección_). Fíjate en que la diferencia es idéntica en cada canal de captación
+  (≈ 2,27 frente a ≈ 1,13 pedidos en los seis): estratificar por una variable observada no la
+  explica, y las que no observamos (la intención de compra) quedan sin controlar. La forma de
+  saberlo es un **experimento**: incentivar al azar a la mitad de los clientes nuevos y comparar los
+  pedidos posteriores.
+</Callout>
+
+Otro riesgo es la **ventana**: una conducta medida con un periodo largo (p. ej. «compra en 90 días») correlaciona automáticamente con la retención porque los clientes que se quedan tienen más tiempo para cumplirla (sesgo de supervivencia). Fija la ventana corta y la misma para todos.
+
+### Uso de funcionalidades
+
+Para estudiar una funcionalidad (una lista de deseos, una suscripción, un buscador) hay tres preguntas:
+
+1. **Adopción:** ¿qué proporción de usuarios la prueba?, ¿cuántos la repiten? (embudo de adopción: conoce → prueba → repite).
+2. **Perfil:** ¿quién la usa? (si solo la adoptan los clientes más activos, su efecto aparente se infla).
+3. **Impacto:** ¿mejora el resultado de quien la usa? Aquí rige lo anterior: comparar usuarios con no usuarios es un diseño observacional con sesgo de selección. Las salidas, por orden de fiabilidad: **experimento** (activar la función a una mitad aleatoria), **lanzamiento escalonado** con diferencias en diferencias, o **emparejamiento** por el comportamiento previo (ver el módulo de causalidad).
+
+### Diagnóstico de una caída de métrica
+
+Cuando una métrica cae, recorre la lista **en este orden** (de lo más barato y probable a lo más raro):
+
+| Paso                               | Pregunta                                             | Cómo comprobarlo                                                                                                     |
+| ---------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 1. **Tracking y datos**            | ¿Es un fallo de medida?                              | Volumen de eventos por versión, fuente y día; valores nulos; retrasos de carga; conciliación con la fuente de verdad |
+| 2. **Definición**                  | ¿Ha cambiado cómo se calcula o el periodo comparado? | Versión de la métrica, filtros, zona horaria, días de la semana                                                      |
+| 3. **Estacionalidad y calendario** | ¿Es lo esperado en esa fecha?                        | Misma semana de años anteriores; festivos; días laborables                                                           |
+| 4. **Mix**                         | ¿Ha cambiado la composición, no el comportamiento?   | Descomposición por canal, dispositivo, región, categoría, cliente nuevo/recurrente                                   |
+| 5. **Cambios del producto**        | ¿Se lanzó algo?                                      | Calendario de versiones, experimentos, precios, promociones                                                          |
+| 6. **Causas externas**             | ¿Competencia, clima, noticias, incidencias?          | Contexto, soporte, redes                                                                                             |
+
+**Ejemplo: marzo de 2026 en Lumen.** Los pedidos mensuales apenas se mueven (20.034 en febrero y 19.869 en marzo), pero al descomponer por categoría aparece el origen:
+
+| Categoría           | Unidades en febrero | Unidades en marzo | Unidades en abril |
+| ------------------- | ------------------: | ----------------: | ----------------: |
+| Electrónica         |               9.062 |             3.429 |             8.810 |
+| Resto de categorías |              66.787 |            71.539 |            65.347 |
+
+Las unidades de **Electrónica caen un 62 %** en marzo y se recuperan en abril, mientras el resto sube un 7 %. Los ingresos de Electrónica pasan de 2,58 M€ a 1,17 M€. Una rotura de stock explica el patrón mejor que una caída de la demanda. Fíjate en cómo el agregado lo escondía: el total del mes casi no varió. Por eso el paso 4 (**mix**) es el que más caídas explica y el que más se omite.
+
+<Callout type="tip">
+  Descompón en el eje **donde crees que no está el problema** también: si todas las partes caen a la
+  vez, sospecha del tracking, del calendario o de una causa general; si cae una sola, busca la causa
+  específica.
+</Callout>
+
+## En la práctica
+
+1. **Define activación** con una pregunta de negocio y una ventana corta, común y medible.
+2. **Lista candidatos** de hito y compara la retención posterior de quien los alcanza y de quien no.
+3. **Escoge los accionables** (frecuentes, claros) y **valídalos con un experimento** antes de convertirlos en objetivo.
+4. **Mide cada funcionalidad** en tres niveles: adopción, perfil de usuarios e impacto, con diseño causal.
+5. **Ante una caída:** sigue la lista en orden y documenta lo descartado en cada paso.
+6. **Descompón** por dimensiones, también las que no esperas, y compara con las mismas fechas del año anterior.
+7. **Comunica** con la cifra, la causa más probable, el grado de certeza y la acción recomendada.
+
+```sql
+-- Hito: segundo pedido en los 30 primeros días
+WITH p AS (
+  SELECT customer_id, MIN(order_date) AS primero
+  FROM orders WHERE status <> 'cancelado' GROUP BY 1
+)
+SELECT p.customer_id,
+       BOOL_OR(o.order_date > p.primero AND o.order_date <= p.primero + INTERVAL 30 DAY) AS segundo_pedido_30d,
+       COUNT(*) FILTER (WHERE o.order_date > p.primero + INTERVAL 30 DAY
+                          AND o.order_date <= p.primero + INTERVAL 365 DAY) AS pedidos_31_365
+FROM p JOIN orders o ON o.customer_id = p.customer_id AND o.status <> 'cancelado'
+WHERE p.primero <= DATE '2025-06-30'
+GROUP BY 1, p.primero;
+```
+
+<Snapshot date="2026-10">
+  Mixpanel, Amplitude y PostHog ofrecen informes de embudo, retención, segmentación de eventos y
+  análisis de recorridos o de ciclo de vida sobre un mismo modelo de eventos. PostHog tiene además
+  un repositorio público de su código en GitHub. Los nombres de los informes, los planes y las
+  funciones de IA cambian con frecuencia: consulta la documentación vigente antes de elegir
+  herramienta y, sea cual sea, valida los eventos (lección 1) antes de confiar en un informe.
+</Snapshot>
+
+## Trade-offs y cuándo usarlo
+
+- **Un hito único frente a varios:** uno solo da foco al equipo, pero simplifica en exceso; lo habitual es 2-3 hitos y un orden entre ellos.
+- **Herramienta de producto frente a almacén de datos:** la herramienta da rapidez y autoservicio; el almacén (SQL) da control, historia completa y cruce con negocio. Se combinan.
+- **Rapidez frente a rigor en un incidente:** primero tapar la hemorragia (¿es el tracking?, ¿es la rotura?), después el análisis fino.
+- **Automatizar la detección:** alertas de anomalías (módulo de series temporales) ahorran horas, pero necesitan la lista de diagnóstico para que alguien interprete la alerta.
+
+## Errores comunes
+
+- **Convertir una correlación temprana en objetivo** sin comprobar que provocarla mejore la retención.
+- **Elegir un hito con ventana larga**, que favorece a quienes se quedan.
+- **Comparar usuarios y no usuarios de una función** y atribuirle todo el efecto.
+- **Mirar solo el total** y no descomponer: el agregado esconde la rotura de Electrónica.
+- **Saltar a la narrativa** (la competencia, el clima) antes de descartar el tracking.
+- **Comparar periodos con distinto número de días laborables.**
+- **No documentar lo descartado**: el siguiente incidente repite el trabajo.
+
+## Con IA
+
+Un asistente propone con soltura una «explicación» de una caída, pero lo hace sin mirar los datos; ofrece una lista de causas verosímiles que mezcla las de cada paso. Úsalo para generar la lista de hipótesis y las consultas de descomposición, no para decidir la causa: pide que cada hipótesis traiga la **consulta que la confirma o la descarta**, y ejecútalas tú en orden. Desconfía de las «causas» que no pueden refutarse con los datos.
+
+## En una entrevista
+
+- _"Las ventas han caído un 15 % esta semana. ¿Cómo investigas?"_ — Pista: tracking y definición → calendario → descomposición por dimensiones → cambios de producto → externas; qué datos pides en cada paso.
+- _"¿Cómo encuentras el momento aha de un producto?"_ — Pista: candidatos de hito, retención de quienes lo alcanzan y quienes no, ventana corta; después, experimento.
+- _"Los usuarios de la función X retienen el doble. ¿La función funciona?"_ — Pista: sesgo de selección; experimento, lanzamiento escalonado o emparejamiento.
+
+<KeyTakeaways
+  items={[
+    'La activación es una hipótesis de hito temprano: se busca comparando la retención de quienes lo alcanzan y quienes no, con una ventana corta y común.',
+    'En Lumen, quienes hacen un segundo pedido en 30 días compran 2,27 veces en los 11 meses siguientes frente a 1,14, pero eso no prueba que provocarlo mejore la retención: hace falta un experimento.',
+    'La adopción de una funcionalidad se analiza en tres niveles (adopción, perfil, impacto); el impacto exige un diseño causal por el sesgo de selección.',
+    'Ante una caída de métrica, sigue el orden: tracking y datos, definición, calendario, mix, cambios de producto y causas externas.',
+    'En marzo de 2026 el total de pedidos casi no cambió, pero las unidades de Electrónica cayeron un 62 % por una rotura de stock: descomponer revela lo que el agregado oculta.',
+  ]}
+/>

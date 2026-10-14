@@ -1,0 +1,154 @@
+---
+title: 'La app 4.2 convierte mejor… ¿o no?'
+description: 'Un caso de calidad de tracking: el panel dice que la versión 4.2 de la app convierte mejor, pero antes de celebrarlo compruebas si las compras están bien registradas, localizas el doble disparo del evento, corriges la métrica y comunicas el hallazgo.'
+difficulty: 2
+estimatedMinutes: 35
+role: producto
+datasets: ['events', 'web_sessions']
+brief: |
+  De: Marcos Ibáñez (Product Manager de la app)
+  Asunto: La versión 4.2 convierte mejor
+
+  Hola, en el panel de producto la versión 4.2.0 de la app destaca: más compras por sesión que el resto de versiones nativas. Quiero llevarlo a la reunión de dirección como «el rediseño del carrito funcionó».
+
+  Antes de hacerlo, ¿puedes confirmar que el dato es sólido?
+
+  Gracias, Marcos
+steps:
+  - id: s1-eventos-por-100
+    tool: sql
+    answerType: numeric
+    answer: 4.29
+    tolerance: 0.01
+    prompt: |
+      Reproduce primero el dato del panel. Cuenta los **eventos** `purchase` de las sesiones de la versión `4.2.0` (`web_sessions.app_version`) y divídelos entre las sesiones de esa versión.
+
+      ¿Cuántas **compras por cada 100 sesiones** muestra el panel? (Dos decimales.)
+    hints:
+      - 'Parte de `web_sessions` filtrada por versión y haz un `LEFT JOIN` a los eventos de tipo `purchase` para no perder las sesiones sin compra.'
+    explanation: |
+      El panel muestra **4,29 compras por cada 100 sesiones**, por encima del resto de versiones de la app (3,8-4,1).
+
+  - id: s2-sesiones-duplicadas
+    tool: sql
+    answerType: numeric
+    answer: 75
+    tolerance: 0
+    prompt: |
+      Antes de interpretar una mejora, comprueba la **integridad**: una sesión no debería registrar la misma compra dos veces.
+
+      ¿Cuántas sesiones tienen **más de un evento `purchase`**?
+    hints:
+      - 'Agrupa los eventos `purchase` por `session_id` y filtra con `HAVING COUNT(*) > 1`.'
+    explanation: |
+      Hay **75 sesiones** con dos eventos de compra.
+
+  - id: s3-segundos
+    tool: sql
+    answerType: numeric
+    answer: 1
+    tolerance: 0
+    prompt: |
+      Mira el patrón temporal de esos duplicados. En cada una de esas sesiones, calcula la diferencia en **segundos** entre el último y el primer evento `purchase`.
+
+      ¿Cuál es el **máximo** de esas diferencias?
+    hints:
+      - 'Usa `epoch(MAX(occurred_at) - MIN(occurred_at))` por sesión y toma el máximo.'
+    explanation: |
+      Los dos eventos distan **exactamente un segundo**. Una persona no completa la misma compra dos veces con un segundo de diferencia: es la huella de un **doble disparo** del evento.
+
+  - id: s4-diagnostico
+    tool: reasoning
+    answerType: single
+    answer: [1]
+    options:
+      - 'Una mejora real del carrito: los clientes compran dos veces.'
+      - 'Un fallo de tracking: el evento se dispara dos veces en algunas compras, lo que infla el recuento.'
+      - 'Un efecto de la estacionalidad de la campaña de invierno.'
+      - 'Un error del panel de visualización, no de los datos.'
+    prompt: |
+      ¿Cuál es la explicación más probable de esos pares de eventos?
+    hints:
+      - 'Piensa en si es plausible, comercialmente, que alguien haga la misma compra dos veces en un segundo.'
+    explanation: |
+      Dos eventos idénticos con un segundo de diferencia, solo en una versión, indican un **fallo de implementación**. Habría que confirmarlo con ingeniería, pero la hipótesis de partida es el doble disparo.
+
+  - id: s5-conversion-real
+    tool: sql
+    answerType: numeric
+    answer: 4.08
+    tolerance: 0.01
+    prompt: |
+      Corrige la métrica. Mide la conversión como **sesiones con al menos una compra** entre las sesiones totales de la versión `4.2.0`.
+
+      ¿Cuántas **sesiones con compra por cada 100 sesiones** tiene realmente? (Dos decimales.)
+    hints:
+      - 'Cambia el recuento de eventos por `COUNT(DISTINCT session_id)` de los eventos de compra.'
+    explanation: |
+      La conversión real es del **4,08 %**, en línea con las demás versiones (3,8-4,1 %). La «mejora» era un artefacto.
+
+  - id: s6-sobreestimacion
+    tool: sql
+    answerType: numeric
+    answer: 5.13
+    tolerance: 0.05
+    prompt: |
+      Cuantifica el error del panel. Entre las sesiones de la versión `4.2.0` **con compra**, ¿en qué **porcentaje** supera el número de eventos de compra al número de sesiones con compra? (Dos decimales.)
+    hints:
+      - 'Eventos de compra / sesiones con compra − 1, en %.'
+    explanation: |
+      Hay 1.536 eventos para 1.461 sesiones con compra: el panel **sobreestima las compras un 5,13 %**.
+
+  - id: s7-otras-versiones
+    tool: sql
+    answerType: numeric
+    answer: 0
+    tolerance: 0
+    prompt: |
+      ¿Está acotado el problema? Cuenta las sesiones con **más de un evento `purchase`** en versiones **distintas de la 4.2.0** (incluida la web, donde `app_version` es nulo).
+    hints:
+      - 'Usa `IS DISTINCT FROM` para tratar bien los nulos de la web.'
+    explanation: |
+      Ninguna: el fallo está **limitado a la versión 4.2.0**, lo que ayuda a ingeniería a localizar el cambio de código.
+
+  - id: s8-acciones
+    tool: reasoning
+    answerType: multiple
+    answer: [0, 1, 2]
+    options:
+      - 'Contestar a Marcos que la «mejora» es un artefacto del tracking, con la cifra corregida (4,08 %) y el tamaño del error (5,13 %).'
+      - 'Pedir a ingeniería que corrija el doble disparo y revisar los datos históricos de la versión 4.2.0.'
+      - 'Dejar una consulta o vista deduplicada y una prueba de calidad (compras ≤ sesiones) para detectar el problema automáticamente en el futuro.'
+      - 'Borrar a mano los eventos duplicados de la tabla sin dejar rastro, para no complicar el informe.'
+    prompt: |
+      ¿Qué debería incluir tu respuesta y tu plan? (Marca todo lo que aplique.)
+    hints:
+      - 'Piensa en la comunicación, en la causa raíz y en la prevención.'
+    explanation: |
+      Un buen análisis comunica el hallazgo con su impacto, deja corregir la causa y automatiza la detección. Editar datos a mano y sin trazabilidad es lo contrario de la reproducibilidad.
+
+  - id: s9-mensaje
+    tool: reasoning
+    answerType: text-self-assessed
+    prompt: |
+      Escribe la respuesta a Marcos en 4-5 líneas: **si puede presentar la mejora, qué ocurre en realidad, cuánto se equivocaba el panel y qué propones**.
+    hints:
+      - 'Empieza por la conclusión («no lo presentes así»), da las dos cifras y termina con el siguiente paso.'
+    explanation: |
+      Un buen mensaje protege a Marcos de un error en dirección, da las cifras corregidas y ofrece un siguiente paso (corregir el tracking y volver a medir el efecto del rediseño con un experimento).
+rubric:
+  - 'Empiezo por la conclusión: no es una mejora real, la presentación debe esperar.'
+  - 'Cito el dato inflado (4,29 por cada 100 sesiones) y el corregido (4,08 %), similar al de las demás versiones.'
+  - 'Explico la causa: 75 sesiones con dos compras separadas por un segundo, solo en la versión 4.2.0 (doble disparo del evento).'
+  - 'Cuantifico el error: el panel sobreestima las compras un 5,13 %.'
+  - 'Propongo corregir el tracking, deduplicar el histórico de forma reproducible y medir el rediseño del carrito con un experimento.'
+modelReport: |
+  **Conclusión.** No presentaría la 4.2 como una mejora del carrito: su conversión real es del **4,08 %** de las sesiones, en línea con las demás versiones (3,8-4,1 %). El 4,29 % del panel es un artefacto del tracking.
+
+  **Qué ocurre.** En la versión 4.2.0 hay 75 sesiones con dos eventos de compra separados exactamente por un segundo; ninguna otra versión ni la web tiene duplicados. Es el signo de un doble disparo del evento. Con 1.536 eventos frente a 1.461 sesiones con compra, el panel sobreestima las compras un 5,13 %.
+
+  **Qué propongo.** Que ingeniería corrija el doble disparo; deduplicar el histórico de la 4.2.0 con una consulta versionada (una compra por sesión, tipo y propiedades) y añadir una prueba automática de calidad (compras ≤ sesiones). Si queremos saber si el rediseño del carrito mejora la conversión, hay que medirlo con un experimento, no con una comparación entre versiones.
+---
+
+Este caso usa las tablas `events` y `web_sessions` del dataset Lumen. La teoría está en la lección «Plan de tracking y calidad
+de los eventos» y en el lab «Calidad de tracking».

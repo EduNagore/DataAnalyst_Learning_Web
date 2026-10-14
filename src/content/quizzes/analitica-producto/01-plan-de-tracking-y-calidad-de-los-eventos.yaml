@@ -1,0 +1,58 @@
+lesson: analitica-producto/01-plan-de-tracking-y-calidad-de-los-eventos
+questions:
+  - id: ap-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿De qué fuente debe salir la cifra de ingresos de un informe financiero?'
+    options:
+      - 'De los eventos de producto, porque registran cada compra al instante'
+      - 'Del sistema transaccional (pedidos y facturación), conciliado con los eventos'
+      - 'De la herramienta de analítica de producto con más usuarios'
+      - 'De una estimación a partir de las sesiones'
+    answer: [1]
+    explanation: 'Los eventos de producto explican el comportamiento, pero pueden perder o duplicar registros. El dinero sale del sistema transaccional, que es el registro contable, y se concilia periódicamente con la telemetría.'
+    ref: '#fuentes-producto-frente-a-verdad-de-negocio'
+
+  - id: ap-01-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'En la versión 4.2.0 de la app de Lumen hay 1.536 eventos de compra y 1.461 sesiones con compra. ¿En qué porcentaje sobreestima el recuento de eventos las compras reales? (Dos decimales.)'
+    answer: [5.13]
+    tolerance: 0.05
+    explanation: '1.536 / 1.461 − 1 ≈ 5,13 %. La causa son 75 sesiones con dos eventos de compra separados por un segundo: un doble disparo del evento.'
+    ref: '#el-caso-de-la-app-420'
+
+  - id: ap-01-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las señales de que un evento se está registrando por duplicado.'
+    options:
+      - 'Más eventos de compra que sesiones con compra en una versión concreta'
+      - 'Pares de eventos con las mismas propiedades separados por muy pocos segundos'
+      - 'Una conversión de una versión muy por encima de las demás sin un cambio de producto que lo explique'
+      - 'Que el volumen de eventos sea mayor los días de campaña'
+    answer: [0, 1, 2]
+    explanation: 'Un aumento de eventos en campaña es esperable. En cambio, más eventos que entidades, repeticiones casi simultáneas y un valor atípico en una sola versión son la huella típica de un fallo de implementación.'
+    ref: '#problemas-de-calidad-más-comunes'
+
+  - id: ap-01-q4
+    type: truefalse
+    difficulty: 2
+    prompt: 'En el dataset de Lumen, las compras únicas de la telemetría (42.277) permiten reconstruir los ingresos, porque cubren casi todos los pedidos.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Cubren solo el 11,2 % de los 377.145 pedidos no cancelados: la telemetría es una muestra y no se puede usar para reconstruir ingresos.'
+    ref: '#fuentes-producto-frente-a-verdad-de-negocio'
+
+  - id: ap-01-q5
+    type: single
+    difficulty: 3
+    prompt: 'El panel muestra que una versión de la app convierte un 5 % más que las demás justo tras un rediseño. ¿Qué haces primero?'
+    options:
+      - 'Presentar el resultado a dirección: el rediseño funcionó'
+      - 'Comprobar la integridad del tracking de esa versión (eventos frente a sesiones, duplicados) antes de interpretar la mejora'
+      - 'Lanzar un experimento en todas las versiones'
+      - 'Excluir la versión del análisis'
+    answer: [1]
+    explanation: 'Cuando una métrica destaca mucho, primero se sospecha del tracking y después de la mejora. Si los datos son correctos, se mide el efecto del rediseño con un experimento, no con una comparación entre versiones.'
+    ref: '#el-caso-de-la-app-420'
