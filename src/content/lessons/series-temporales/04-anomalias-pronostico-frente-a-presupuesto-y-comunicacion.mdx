@@ -1,0 +1,162 @@
+---
+title: 'Anomalías, pronóstico frente a presupuesto y comunicación de la incertidumbre'
+description: 'Cómo detectar anomalías usando el error de pronóstico, qué hacer con ellas al reentrenar, la diferencia entre pronóstico, presupuesto y objetivo, y cómo presentar un pronóstico con rangos y escenarios que la dirección pueda usar.'
+module: series-temporales
+order: 4
+level: intermedio
+estimatedMinutes: 45
+objectives:
+  - 'Detectar anomalías en una serie comparando lo observado con el pronóstico y usando un z robusto con rachas de varios días.'
+  - 'Decidir qué hacer con las anomalías en el entrenamiento (marcar, limpiar, modelar) para no contaminar futuros pronósticos.'
+  - 'Distinguir pronóstico, presupuesto y objetivo y explicar por qué no deben mezclarse.'
+  - 'Presentar un pronóstico con un rango, escenarios y supuestos, y planificar su actualización.'
+prerequisites: ['series-temporales/03-modelos-fundacionales-de-series-temporales']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Hyndman & Athanasopoulos — Forecasting: Principles and Practice (3.ª ed.), Prediction intervals'
+    url: 'https://otexts.com/fpp3/prediction-intervals.html'
+    type: book
+    authors: 'Hyndman, R. J., Athanasopoulos, G.'
+    year: 2021
+  - title: 'Hyndman & Athanasopoulos — Forecasting: Principles and Practice (3.ª ed.)'
+    url: 'https://otexts.com/fpp3/'
+    type: book
+    authors: 'Hyndman, R. J., Athanasopoulos, G.'
+    year: 2021
+  - title: 'statsmodels — ExponentialSmoothing'
+    url: 'https://www.statsmodels.org/stable/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html'
+    type: docs
+    authors: 'statsmodels'
+    year: 2026
+relatedLabs: ['py-anomalias-pronostico']
+relatedCases: ['forecast-q4']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  A finales de marzo de 2026, Operaciones pregunta: «¿cuándo empezó el problema de Electrónica y
+  cuánto duró?». Con el pronóstico de los ingresos diarios y un criterio sencillo de anomalía, se ve
+  que durante **21 días seguidos** (del 1 al 21 de marzo) los ingresos quedaron un 34 % por debajo
+  de lo esperado. Después, finanzas pregunta cuánto vender en el cuarto trimestre. Dos preguntas,
+  una misma herramienta: el **error de pronóstico**.
+</BusinessContext>
+
+Un pronóstico es también un **detector de sorpresas**: lo que se aleja mucho de lo esperado merece una explicación. Y es, a la vez, un ejercicio de comunicación: una cifra sola no sirve para decidir si no dice cuánto puede equivocarse.
+
+## Intuición
+
+Un termostato no se alarma porque la temperatura sea de 18 °C: se alarma porque debería ser 21 °C. La anomalía se define **respecto a lo esperado**, no respecto a un valor fijo. Por eso la mejor forma de detectar anomalías en una serie con tendencia y estacionalidad es pronosticar y mirar los errores.
+
+## Cómo funciona
+
+### Detectar anomalías con el error de pronóstico
+
+1. **Pronostica** cada periodo con un modelo entrenado solo con datos anteriores (origen móvil).
+2. **Calcula el error relativo** $e_t = \ln(y_t / \hat{y}_t)$ (en logaritmos, es el porcentaje de desviación).
+3. **Mide lo normal** con la mediana $m$ y el sigma robusto $\sigma = 1{,}4826 \cdot \text{MAD}$ de los errores de un periodo «normal».
+4. **Puntúa** $z_t = (e_t - m)/\sigma$ y marca $|z_t| > 3$.
+5. **Busca rachas:** varios días seguidos marcados con el mismo signo son una anomalía real; un día aislado puede ser ruido (con 3σ esperas un falso positivo cada ~370 días de una distribución normal).
+
+Con los ingresos diarios de Lumen desde enero de 2025 (532 días de errores de pronóstico a 28 días), $m = 0{,}003$ y $\sigma = 0{,}079$ (un 7,9 % de variabilidad típica). Resultado:
+
+| Racha           | Días | Dirección | z medio | Lectura                                               |
+| --------------- | ---: | --------- | ------: | ----------------------------------------------------- |
+| 1-21 mar. 2026  |   21 | **Baja**  |    −5,3 | **Rotura de stock de Electrónica**                    |
+| 25-27 mar. 2026 |    3 | Sube      |     3,1 | Rebote: el modelo se entrenó con el hueco y subestima |
+| 29 mar.-2 abr.  |    5 | Sube      |     3,8 | Ídem                                                  |
+| 5-15 abr. 2026  |   11 | Sube      |     3,8 | Ídem                                                  |
+
+Dos hechos importantes: (1) **antes de marzo no hay ninguna racha**: solo dos días aislados con z ≈ 3,2 y 3,4 en todo 2025, es decir, los falsos positivos esperables; (2) **después del hueco aparecen rachas de signo contrario**, porque el modelo reentrenado «aprendió» que los ingresos eran bajos y subestima la recuperación. Este segundo hecho enseña lo que hay que hacer con una anomalía antes de reentrenar.
+
+<Callout type="note">
+  Fíjate en la magnitud: los ingresos de los 21 días quedaron un 34 % por debajo del pronóstico,
+  bastante más que el −11 % que se ve al comparar marzo con febrero, porque el pronóstico incorpora
+  el crecimiento esperado del 6 % mensual. Medir contra el contrafactual esperado y no contra el mes
+  anterior da una cifra más honesta del impacto.
+</Callout>
+
+### Qué hacer con las anomalías al entrenar
+
+| Opción                                                 | Cuándo                                                      |
+| ------------------------------------------------------ | ----------------------------------------------------------- |
+| **Marcar y excluir** del ajuste                        | Causa conocida y única (rotura de stock, fallo de tracking) |
+| **Sustituir** por valores interpolados o pronosticados | Para modelos que exigen series completas                    |
+| **Modelar con una variable** (indicador de evento)     | La anomalía se repite (Black Friday, huelgas, promociones)  |
+| **Dejar**                                              | Si es parte del proceso normal y no se puede explicar       |
+
+Regla: **investiga primero la causa**. Una caída sin explicar puede ser un fallo de datos (tracking), un cambio real (nuevo competidor) o un evento operativo; cada caso exige una respuesta distinta y solo los dos últimos deberían cambiar el pronóstico.
+
+### Pronóstico, presupuesto y objetivo
+
+|                 | Qué es                                                    | Quién lo define       | Para qué sirve                         |
+| --------------- | --------------------------------------------------------- | --------------------- | -------------------------------------- |
+| **Pronóstico**  | Lo que **esperamos** que ocurra con la información actual | Analista / finanzas   | Planificar capacidad, caja, inventario |
+| **Presupuesto** | Lo que **nos comprometemos** a gastar o ingresar          | Dirección             | Asignar recursos, evaluar rendimiento  |
+| **Objetivo**    | Lo que **queremos** conseguir (ambición)                  | Dirección / comercial | Motivar, orientar la estrategia        |
+
+Mezclarlos es una fuente clásica de errores: un pronóstico inflado para "cuadrar" con el objetivo pierde su utilidad; un presupuesto igual al pronóstico no deja margen; un objetivo por debajo del pronóstico no motiva. Lo sano es mantener los tres, medir la **desviación** entre ellos y reconocer que el pronóstico se **actualiza** cuando llegan datos nuevos (pronóstico continuo o _rolling forecast_).
+
+### Comunicar un pronóstico
+
+Un pronóstico útil responde a tres preguntas: **¿cuánto?** (un rango, no una cifra), **¿por qué?** (supuestos y evidencia) y **¿qué pasa si me equivoco?** (riesgos y planes). Prácticas:
+
+- **Rango y escenarios:** presenta un caso central y un rango (por ejemplo, 80 %) o dos o tres escenarios con sus supuestos (prudente, base, optimista). Mejor "entre 25 y 29 M€" que "27 M€".
+- **Backtest a la vista:** «este método habría fallado un 14 % de media en los últimos 19 meses» da credibilidad.
+- **Separar supuestos de resultados:** si el rango cambia según un supuesto (el salto del segundo al cuarto trimestre), dilo.
+- **Fechas de actualización:** «lo revisaremos cuando tengamos julio-septiembre».
+- **Sin precisión falsa:** no des decimales que el modelo no puede sostener.
+
+## En la práctica
+
+1. **Construye el pronóstico base** con origen móvil y calibra la variabilidad normal.
+2. **Define el criterio de anomalía** ($|z| > 3$ durante al menos 3 días) y revisa cada alerta con el negocio.
+3. **Registra la causa** de cada anomalía y decide si excluirla, modelarla o dejarla.
+4. **Reentrena** tras limpiar o marcar y vigila los rebotes.
+5. **Para el pronóstico de negocio**, presenta rango y escenarios, backtest y supuestos; separa del presupuesto y del objetivo.
+6. **Programa la actualización** y compara pronóstico y resultado cada periodo (_forecast value added_: ¿mejora el pronóstico a la línea base?).
+
+En el lab detectas la racha de marzo con el error de pronóstico y en el caso «Necesitamos el forecast del Q4» presentas un rango de ingresos defendible.
+
+## Trade-offs y cuándo usarlo
+
+- **Umbral estricto frente a sensible:** 3σ y rachas largas reducen falsas alarmas pero tardan en detectar; 2σ detecta antes y genera ruido.
+- **Pronóstico estadístico frente a juicio experto:** combinar ambos suele ser mejor (el experto conoce campañas y lanzamientos que no están en los datos), siempre midiendo quién acierta más.
+- **Un solo número frente a un rango:** una cifra es cómoda y engañosa; un rango es incómodo y honesto.
+- **Detección en tiempo real frente a retrospectiva:** el análisis a posteriori usa todos los datos; en tiempo real, el modelo solo ve el pasado.
+
+## Errores comunes
+
+- **Definir la anomalía respecto a un valor fijo** en una serie con tendencia y estacionalidad.
+- **Alarmarse con un día aislado** sin buscar rachas.
+- **Reentrenar con el hueco incluido** sin marcarlo y subestimar la recuperación.
+- **Calibrar el sigma con datos que incluyen la anomalía.**
+- **Mezclar pronóstico, presupuesto y objetivo.**
+- **Presentar una cifra sin rango ni supuestos.**
+- **No actualizar el pronóstico** cuando llegan datos nuevos.
+
+## Con IA
+
+Un asistente puede aplicar un detector de anomalías (z-score, isolation forest) a la serie en bruto y marcar los picos de Black Friday como «anomalías». Pide que primero **pronostique y mida el error**, que use un estimador robusto y que busque **rachas**; y revisa que no incluya la anomalía al calibrar. Para el pronóstico de negocio, pídele ayuda para **estructurar los escenarios** y redactar el mensaje, no para escoger la cifra.
+
+## En una entrevista
+
+- _"¿Cómo detectas una anomalía en una serie con estacionalidad y tendencia?"_ — Pista: pronóstico base, error relativo, z robusto, rachas; investigar causa.
+- _"¿Diferencia entre pronóstico, presupuesto y objetivo?"_ — Pista: esperado frente a comprometido frente a deseado; no mezclarlos.
+- _"La dirección pide una cifra única. ¿Qué haces?"_ — Pista: dar el caso central con rango y supuestos, mostrar el backtest y proponer actualización.
+
+<KeyTakeaways
+  items={[
+    'Una anomalía se define respecto a lo esperado: se pronostica con origen móvil, se calcula el error en logaritmos, se estima lo normal con mediana y MAD, y se buscan rachas con |z| > 3.',
+    'En los ingresos de Lumen, la rotura de stock de Electrónica aparece como una racha de 21 días de baja (1-21 de marzo de 2026, z medio −5,3, un 34 % por debajo de lo esperado) y no hay ninguna racha antes de marzo.',
+    'Tras el hueco, el modelo reentrenado subestima la recuperación (rachas de signo contrario en abril): marca o excluye las anomalías explicadas antes de reentrenar.',
+    'Pronóstico (lo esperado), presupuesto (lo comprometido) y objetivo (lo deseado) son cosas distintas; mezclarlos destruye la utilidad del pronóstico.',
+    'Comunica rangos y escenarios con supuestos, el backtest del método y una fecha de actualización; evita la precisión falsa.',
+  ]}
+/>

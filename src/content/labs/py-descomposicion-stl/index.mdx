@@ -1,0 +1,37 @@
+---
+title: 'Descomponer los pedidos diarios: tendencia, semana y días especiales'
+description: 'Aplica STL robusto al logaritmo de los pedidos diarios de Lumen, extrae el crecimiento mensual, los factores del día de la semana y el efecto de Black Friday, Navidad y festivos nacionales a partir del residuo.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: series-temporales
+difficulty: 2
+estimatedMinutes: 35
+concepts:
+  [
+    'STL',
+    'descomposición multiplicativa',
+    'estacionalidad semanal',
+    'efectos de calendario',
+    'residuo robusto',
+  ]
+datasets: ['orders', 'calendar']
+packages: ['statsmodels']
+output: console
+hints:
+  - 'Serie diaria: filtra `status != "cancelado"`, cuenta pedidos por `order_date` (como fecha), `asfreq("D", fill_value=0)` y recorta con `.loc[desde:]`.'
+  - 'Descomposición: `STL(np.log(serie), period=7, trend=61, robust=True).fit()`. Los resultados son `res.trend`, `res.seasonal` y `res.resid`, todos en logaritmos.'
+  - 'Factor de cada día de la semana: `np.exp(res.seasonal.groupby(res.seasonal.index.dayofweek).mean())`. Crecimiento mensual: `exp(trend_final − trend_inicial) ** (30 / días) − 1`.'
+  - 'Sigma robusto: `1,4826 · mediana(|r − mediana(r)|)`. Efecto de un conjunto de días: `100 · (exp(media del residuo en esos días) − 1)`; selecciona con el calendario (`sale_event_name`, `is_holiday_national`).'
+relatedLessons: ['series-temporales/01-componentes-descomposicion-y-efectos-de-calendario']
+businessQuestion: '¿Cuánto crece la demanda por mes, cómo se reparte la semana y cuánto empujan Black Friday, Navidad y los festivos?'
+---
+
+Implementa cinco funciones:
+
+1. **`pedidos_diarios(orders, desde="2024-01-01")`** → `Series` diaria de pedidos no cancelados (0 en los días sin pedidos) desde `desde`.
+2. **`descomponer(serie, periodo=7, tendencia=61)`** → resultado de STL robusto sobre el logaritmo.
+3. **`factores_semanales(res)`** → `Series` con el factor multiplicativo de cada día de la semana (0 = lunes).
+4. **`crecimiento_mensual(res)`** y **`sigma_robusto(res)`** → crecimiento compuesto mensual de la tendencia (fracción) y desviación robusta del residuo.
+5. **`efecto_dias_especiales(res, calendar)`** → diccionario con el efecto medio (%) de `black_friday`, `navidad` y `festivo_nacional` sobre los pedidos.
+
+Comprueba que los pedidos crecen un 6,2 % al mes, que viernes y sábado pesan un 4-5 % por encima de la media y el domingo un 4,5 % por debajo.

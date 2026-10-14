@@ -1,0 +1,208 @@
+---
+title: 'Componentes de una serie temporal, descomposición STL y efectos de calendario'
+description: 'Cómo leer una serie temporal: tendencia, estacionalidad, efectos de calendario y ruido; por qué modelar pedidos y ticket por separado; descomposición STL multiplicativa con logaritmos y cómo medir el efecto de festivos y eventos.'
+module: series-temporales
+order: 1
+level: intermedio
+estimatedMinutes: 50
+objectives:
+  - 'Identificar tendencia, estacionalidad (semanal y anual), efectos de calendario y ruido en una serie temporal de negocio.'
+  - 'Aplicar la descomposición STL al logaritmo de una serie para obtener componentes multiplicativos interpretables.'
+  - 'Medir el efecto de festivos y eventos comerciales a partir del residuo, y entender por qué la ventana de tendencia importa.'
+  - 'Distinguir cantidad (pedidos) de valor (ticket e ingresos netos) cuando los descuentos y los eventos cambian la mezcla.'
+prerequisites: ['inferencia/04-introduccion-al-enfoque-bayesiano']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Hyndman & Athanasopoulos — Forecasting: Principles and Practice (3.ª ed.), STL decomposition'
+    url: 'https://otexts.com/fpp3/stl.html'
+    type: book
+    authors: 'Hyndman, R. J., Athanasopoulos, G.'
+    year: 2021
+  - title: 'statsmodels — STL'
+    url: 'https://www.statsmodels.org/stable/generated/statsmodels.tsa.seasonal.STL.html'
+    type: docs
+    authors: 'statsmodels'
+    year: 2026
+  - title: 'Hyndman & Athanasopoulos — Forecasting: Principles and Practice (3.ª ed.)'
+    url: 'https://otexts.com/fpp3/'
+    type: book
+    authors: 'Hyndman, R. J., Athanasopoulos, G.'
+    year: 2021
+relatedLabs: ['py-descomposicion-stl']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import VegaChart from '../../../components/content/VegaChart.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Dirección quiere un pronóstico de ventas y la primera pregunta es: «¿cuánto de lo que vemos es
+  crecimiento, cuánto es la semana, cuánto Black Friday?». Si no separas esas piezas, un pronóstico
+  confunde una racha de un fin de semana con una tendencia, o la campaña de diciembre con un cambio
+  de nivel. Descomponer la serie es el primer paso de cualquier pronóstico serio.
+</BusinessContext>
+
+Una serie temporal es una secuencia de valores ordenados en el tiempo con **dependencia entre observaciones**: lo que pasa hoy se parece a lo de ayer y a lo del mismo día de la semana pasada. Esa estructura es lo que permite pronosticar... y lo que obliga a usar métodos propios (nada de dividir al azar ni de tratar los días como independientes).
+
+## Intuición
+
+Piensa en el pulso de una tienda como una mezcla de cuatro cosas: **hacia dónde crece** (tendencia), **qué días son más fuertes** (estacionalidad semanal y anual), **qué días son especiales** (festivos, rebajas) y **lo que no se explica** (ruido). Cada pieza tiene un tipo de decisión distinto: la tendencia para planificar capacidad, la estacionalidad para el personal, los eventos para las campañas.
+
+## Cómo funciona
+
+### Componentes
+
+| Componente                | Qué es                                                           | Ejemplo en Lumen                                                          |
+| ------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **Tendencia**             | Nivel de largo plazo, crece, decrece o se estabiliza             | Los pedidos pasan de 119 a 744 al día entre enero de 2024 y junio de 2026 |
+| **Estacionalidad**        | Patrón periódico de periodo fijo (semana, año)                   | Viernes y sábado fuertes, domingo débil                                   |
+| **Efectos de calendario** | Días especiales con fecha propia (festivos, eventos comerciales) | Black Friday, Navidad, festivos nacionales                                |
+| **Ruido (residuo)**       | Variación irregular que no explican los demás                    | Un día con mal tiempo, un pico por una campaña de correo                  |
+
+Cuando la estacionalidad crece con el nivel (domingo = −4,5 % del nivel, sea cual sea), el modelo es **multiplicativo**: $Y_t = T_t \times S_t \times R_t$. Tomando logaritmos pasa a **aditivo**: $\ln Y_t = \ln T_t + \ln S_t + \ln R_t$. Por eso casi siempre se descompone el **logaritmo** de ventas o pedidos.
+
+### Descomposición STL
+
+**STL** (_Seasonal-Trend decomposition using Loess_) separa tendencia, estacionalidad y residuo con regresiones locales suavizadas. Ventajas: admite cualquier periodo, la estacionalidad puede cambiar lentamente y la versión **robusta** no se deja arrastrar por valores atípicos. Los parámetros que importan:
+
+- `period`: longitud del ciclo (7 para estacionalidad semanal con datos diarios).
+- `trend`: **ventana** de suavizado de la tendencia, en observaciones. Una ventana corta sigue de cerca los cambios (y **absorbe** eventos de pocos días en la tendencia); una larga deja que los eventos aparezcan en el residuo.
+- `robust=True`: reduce la influencia de atípicos.
+
+```python
+import numpy as np
+from statsmodels.tsa.seasonal import STL
+
+res = STL(np.log(pedidos), period=7, trend=61, robust=True).fit()
+res.trend, res.seasonal, res.resid        # en logaritmos
+np.exp(res.seasonal.groupby(res.seasonal.index.dayofweek).mean())   # factor por día
+```
+
+### Los pedidos diarios de Lumen
+
+Con 912 días (2024-01-01 a 2026-06-30) de pedidos no cancelados y STL robusto sobre el logaritmo (periodo 7, ventana de tendencia 61):
+
+| Día de la semana |    Factor |
+| ---------------- | --------: |
+| Lunes            |     0,996 |
+| Martes           |     0,986 |
+| Miércoles        |     0,986 |
+| Jueves           |     0,987 |
+| **Viernes**      | **1,049** |
+| **Sábado**       | **1,043** |
+| **Domingo**      | **0,955** |
+
+- **Tendencia:** crecimiento compuesto del **6,2 % mensual** (la serie se multiplica por 2,1 cada 12 meses).
+- **Ruido:** una desviación robusta del residuo del **4,7 %** (la mayoría de los días se desvían menos de un 5 % de lo esperado).
+- **Efectos de calendario** (media del residuo en esos días): **Black Friday +16,9 %**, **Navidad (15-24 de diciembre) +10,3 %**, **festivos nacionales −11,1 %** de pedidos.
+
+<VegaChart
+  minHeight={300}
+  alt="Factor multiplicativo de cada día de la semana en los pedidos de Lumen: lunes 0,996; martes 0,986; miércoles 0,986; jueves 0,987; viernes 1,049; sábado 1,043; domingo 0,955."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    width: 'container',
+    height: 220,
+    background: 'transparent',
+    data: {
+      values: [
+        { dia: 'L', orden: 0, factor: 0.996 },
+        { dia: 'M', orden: 1, factor: 0.986 },
+        { dia: 'X', orden: 2, factor: 0.986 },
+        { dia: 'J', orden: 3, factor: 0.987 },
+        { dia: 'V', orden: 4, factor: 1.049 },
+        { dia: 'S', orden: 5, factor: 1.043 },
+        { dia: 'D', orden: 6, factor: 0.955 },
+      ],
+    },
+    layer: [
+      {
+        mark: { type: 'bar', color: '#4C78A8' },
+        encoding: {
+          x: {
+            field: 'dia',
+            type: 'ordinal',
+            sort: { field: 'orden' },
+            title: 'Día de la semana',
+            axis: { labelAngle: 0 },
+          },
+          y: {
+            field: 'factor',
+            type: 'quantitative',
+            title: 'Factor sobre el nivel',
+            scale: { domain: [0.9, 1.08] },
+          },
+        },
+      },
+      { mark: { type: 'rule', color: '#888', strokeDash: [4, 4] }, encoding: { y: { datum: 1 } } },
+    ],
+  }}
+/>
+
+<Callout type="note">
+  **La ventana de tendencia cambia lo que ves.** Con la ventana por defecto de STL, el efecto de
+  Black Friday sobre los pedidos aparece como +14,8 %; con una ventana de 61 días, como +16,9 %; los
+  eventos largos como las rebajas de invierno (53 días cada año) quedan absorbidos por la tendencia
+  y no se pueden separar de ella. Con solo dos años y medio de datos y un crecimiento del 6 %
+  mensual, tampoco se puede estimar de forma fiable una estacionalidad **anual**: se confunde con el
+  crecimiento. Hacen falta varios años de historia o un modelo con variables de calendario.
+</Callout>
+
+### Pedidos frente a ingresos
+
+El efecto de Black Friday sobre los **ingresos** es mucho menor que sobre los **pedidos**. Entre el 28 de noviembre y el 1 de diciembre de 2025, Lumen tuvo de media 633 pedidos al día frente a 513 en las tres semanas anteriores (**+23 %**); pero el descuento medio pasó del 5 % al 20 % y el ticket medio de 330 € a 272 €, de modo que los **ingresos netos** apenas subieron (172.000 € frente a 169.000 € al día, **+1,7 %**).
+Moraleja: modela por separado **volumen** (pedidos) y **valor** (ticket), porque los eventos comerciales los mueven de forma distinta, y conviene separar la cifra comercial de la contable.
+
+## En la práctica
+
+1. **Dibuja la serie** (nivel y logaritmo) antes de modelar: ¿hay rupturas, valores atípicos, huecos?
+2. **Comprueba la frecuencia y los días sin datos** (un día sin pedidos no es lo mismo que un día sin registro).
+3. **Elige el periodo** (7, 12, 52…) y la transformación (logaritmo si el efecto es proporcional).
+4. **Descompón** con STL robusto y revisa los componentes; mide efectos de calendario en el residuo.
+5. **Valida con el negocio:** ¿tiene sentido que el domingo pese menos? ¿Y que el festivo caiga un 11 %?
+6. **Usa los componentes**: tendencia para planificar, estacionalidad para operaciones, residuos extremos para investigar (lecciones siguientes).
+
+En el lab descompones los pedidos diarios y calculas el crecimiento mensual, los factores semanales y los efectos de eventos.
+
+## Trade-offs y cuándo usarlo
+
+- **Aditivo frente a multiplicativo:** si la amplitud de la estacionalidad crece con el nivel, usa logaritmos.
+- **Ventana de tendencia corta frente a larga:** corta captura cambios de nivel pero absorbe eventos; larga separa eventos pero tarda en reaccionar a rupturas.
+- **STL frente a modelos con regresoras:** STL es descriptivo y robusto; un modelo con variables de calendario (festivos, eventos) estima efectos con intervalos y sirve para pronosticar.
+- **Frecuencia:** datos diarios muestran la semana; datos mensuales ocultan los efectos de días especiales y mezclan días laborables con fines de semana.
+
+## Errores comunes
+
+- **Descomponer la serie en bruto** cuando los efectos son proporcionales.
+- **Interpretar la estacionalidad anual con 2 años de datos y un fuerte crecimiento.**
+- **Ignorar los festivos móviles** (Semana Santa, Black Friday) y los efectos de calendario regionales.
+- **Tratar un cambio de nivel (rotura de stock, cambio de precio) como estacionalidad o ruido.**
+- **Mezclar cantidad y valor** y concluir que un evento «no funcionó» o «funcionó» por uno solo.
+- **Rellenar con 0 los días sin datos** cuando en realidad faltan datos (o al revés).
+- **Elegir la ventana de tendencia mirando el resultado que se desea.**
+
+## Con IA
+
+Un asistente puede descomponer una serie en una línea de código, pero suele omitir el logaritmo, usar el periodo equivocado o interpretar el residuo sin pensar en la ventana. Indica el periodo, la transformación y los eventos conocidos, y pídele que justifique cada elección. Comprueba los números contra una descomposición propia.
+
+## En una entrevista
+
+- _"¿Qué componentes tiene una serie temporal y cómo los separas?"_ — Pista: tendencia, estacionalidad, calendario, ruido; STL con logaritmos si es multiplicativa.
+- _"Black Friday sube las ventas un 20 % en pedidos pero los ingresos no. ¿Por qué?"_ — Pista: el descuento reduce el ticket; modelar cantidad y valor por separado.
+- _"¿Por qué no puedes estimar la estacionalidad anual con dos años de datos?"_ — Pista: se confunde con el crecimiento y solo hay 2 ciclos.
+
+<KeyTakeaways
+  items={[
+    'Una serie de negocio se descompone en tendencia, estacionalidad, efectos de calendario y ruido; con efectos proporcionales se trabaja con el logaritmo (modelo multiplicativo).',
+    'En los pedidos de Lumen (2024-2026): crecimiento del 6,2 % mensual, viernes +4,9 %, sábado +4,3 y domingo −4,5 % sobre el nivel, ruido robusto del 4,7 %, Black Friday +16,9 %, Navidad +10,3 % y festivos nacionales −11,1 %.',
+    'La ventana de tendencia de STL decide qué es «tendencia» y qué es «evento»: una ventana corta absorbe los eventos de pocos días; con solo dos años y medio y fuerte crecimiento no se puede estimar la estacionalidad anual.',
+    'Black Friday sube un 23 % los pedidos pero solo un 1,7 % los ingresos netos (el descuento medio pasa del 5 % al 20 %): modela cantidad y valor por separado.',
+    'Los componentes sirven para decidir: la tendencia para planificar, la estacionalidad para operar, los residuos extremos para investigar.',
+  ]}
+/>

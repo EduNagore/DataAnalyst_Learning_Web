@@ -1,0 +1,31 @@
+---
+title: 'Detectar anomalías con el error de pronóstico: la rotura de stock de marzo de 2026'
+description: 'Usa los errores de un backtesting con origen móvil para medir lo normal, calcula puntuaciones z robustas y encuentra rachas de días anómalos en los ingresos diarios de Lumen, incluida la rotura de stock de Electrónica.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: series-temporales
+difficulty: 3
+estimatedMinutes: 40
+concepts:
+  ['detección de anomalías', 'error de pronóstico', 'z robusto (MAD)', 'rachas', 'Holt-Winters']
+datasets: ['orders', 'order_items']
+packages: ['statsmodels']
+output: console
+hints:
+  - 'Ingresos diarios: `quantity * unit_price` por pedido (`groupby("order_id").sum()`), une con `orders` no cancelados, suma por día (`pd.to_datetime(order_date)`) y `asfreq("D", fill_value=0)`.'
+  - 'Errores log: para cada origen (cada 28 días desde `inicio`) entrena Holt-Winters sobre `log(train)` y calcula `log(real / pronóstico)` de los 28 días siguientes; concatena los orígenes con horizonte completo.'
+  - 'Robusto: mediana `m` y `sigma = 1,4826 · mediana(|e − m|)`. El z de cada día es `(e − m) / sigma`; estima `m` y `sigma` con los errores **anteriores** al periodo que quieres vigilar.'
+  - 'Rachas: recorre los días con `|z| > umbral` y signo constante; guarda inicio, fin, número de días y la dirección (`"baja"` si z < 0), y descarta las rachas más cortas que `minimo`.'
+relatedLessons: ['series-temporales/04-anomalias-pronostico-frente-a-presupuesto-y-comunicacion']
+businessQuestion: '¿Qué días de los ingresos fueron anómalos respecto a lo esperado, y cuánto duró la anomalía de marzo de 2026?'
+---
+
+Implementa cinco funciones:
+
+1. **`ingresos_diarios(orders, order_items, desde="2024-01-01")`** → `Series` diaria de ingresos de pedidos no cancelados (0 en los días vacíos).
+2. **`pronostico_hw(train, h)`** y **`errores_log(serie, inicio="2025-01-01", h=28, paso=28)`** → pronóstico Holt-Winters amortiguado (semanal, sobre logaritmos) y errores logarítmicos de todos los orígenes con horizonte completo.
+3. **`parametros_robustos(errores)`** → `(mediana, sigma)` con sigma = 1,4826 · MAD.
+4. **`puntuaciones_z(errores, mediana, sigma)`** → z robusto de cada error.
+5. **`rachas_anomalas(z, umbral=3.0, minimo=3)`** → DataFrame con `inicio`, `fin`, `dias`, `direccion` (`"baja"` o `"sube"`) y `z_medio` de cada racha de al menos `minimo` días consecutivos con `|z| > umbral` y el mismo signo.
+
+Con los parámetros estimados hasta el 28 de febrero de 2026, la primera racha debe ser de **21 días de baja** del 1 al 21 de marzo de 2026: la rotura de stock de Electrónica.

@@ -1,0 +1,71 @@
+lesson: series-temporales/02-pronosticos-clasicos-evaluacion-y-backtesting
+questions:
+  - id: ser-02-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Por qué conviene empezar siempre con una línea base como el naive estacional?'
+    options:
+      - 'Porque es el método más preciso'
+      - 'Porque es el listón que cualquier método más complejo debe superar de forma clara y consistente para justificarse'
+      - 'Porque no necesita datos'
+      - 'Porque evita el backtesting'
+    answer: [1]
+    explanation: 'Los métodos simples suelen ser sorprendentemente competitivos. Un modelo complejo que no los supera fuera de muestra no merece su complejidad.'
+    ref: '#métodos-de-referencia-y-clásicos'
+
+  - id: ser-02-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'Un método tiene un MAE de 37,2 pedidos/día y el naive estacional, de 43,3. ¿Cuánto reduce el MAE el primero, en %? (un decimal)'
+    answer: [14.1]
+    tolerance: 0.3
+    explanation: '(43,3 − 37,2) / 43,3 = 0,141, es decir, un 14 % menos de error absoluto medio.'
+    ref: '#el-caso-de-lumen-pedidos-a-28-días'
+
+  - id: ser-02-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los problemas del MAPE.'
+    options:
+      - 'Se indefine cuando el valor real es cero'
+      - 'Es asimétrico: penaliza más pronosticar de más que de menos'
+      - 'Se infla con valores reales pequeños'
+      - 'Solo funciona con series estacionales'
+    answer: [0, 1, 2]
+    explanation: 'El MAPE funciona con cualquier serie positiva, pero tiene esos tres problemas. El MASE los evita escalando por el error de un pronóstico naive.'
+    ref: '#métricas-de-error'
+
+  - id: ser-02-q4
+    type: single
+    difficulty: 2
+    prompt: 'Evalúas un modelo entrenando hasta diciembre y probando en enero. ¿Cuál es el principal problema?'
+    options:
+      - 'Ninguno: es un backtesting correcto'
+      - 'Un único corte da una nota muy dependiente de ese periodo; conviene repetir con un origen móvil y promediar'
+      - 'Que enero es un mes corto'
+      - 'Que el modelo se entrena con demasiados datos'
+    answer: [1]
+    explanation: 'Con un único origen el resultado puede deberse a lo fácil o difícil que fue ese mes. El origen móvil promedia muchos periodos y muestra la variabilidad.'
+    ref: '#backtesting-con-origen-móvil'
+
+  - id: ser-02-q5
+    type: single
+    difficulty: 3
+    prompt: 'En el backtesting de Lumen, el método «naive estacional + crecimiento» tuvo un MAE de 53,4, peor que el naive estacional (43,3). ¿Qué enseña?'
+    options:
+      - 'Que el crecimiento no existe'
+      - 'Que extrapolar el crecimiento reciente puede empeorar el pronóstico cuando el ritmo cambia; hay que medirlo en vez de suponerlo'
+      - 'Que el naive estacional es perfecto'
+      - 'Que el backtesting está mal'
+    answer: [1]
+    explanation: 'Añadir un componente aparentemente razonable sin validarlo puede empeorar el resultado. Por eso se decide con backtesting.'
+    ref: '#el-caso-de-lumen-pedidos-a-28-días'
+
+  - id: ser-02-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Un intervalo de predicción debería ser más estrecho cuanto mayor sea el horizonte del pronóstico.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. La incertidumbre crece con el horizonte, por lo que el intervalo debe ensancharse. Un intervalo que no lo hace da una falsa sensación de seguridad.'
+    ref: '#intervalos-de-predicción'

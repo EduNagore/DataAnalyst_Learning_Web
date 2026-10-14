@@ -1,0 +1,198 @@
+---
+title: 'Modelos fundacionales de series temporales: TimesFM, Chronos, Moirai y TimeGPT'
+description: 'Qué son los modelos fundacionales de series temporales, qué ofrecen hoy (zero-shot, covariables, intervalos), cómo se evalúan con honestidad frente a líneas base clásicas y cuándo merecen la pena frente a ETS, ARIMA o regresión con calendario.'
+module: series-temporales
+order: 3
+level: avanzado
+estimatedMinutes: 40
+objectives:
+  - 'Explicar qué es un modelo fundacional de series temporales y qué significa pronosticar «zero-shot».'
+  - 'Describir la foto actual de los principales modelos (TimesFM, Chronos, Moirai, TimeGPT) con sus licencias y formas de uso.'
+  - 'Diseñar una evaluación honesta de un modelo fundacional frente a líneas base clásicas con el mismo backtesting.'
+  - 'Decidir cuándo tiene sentido usarlos y qué riesgos (licencia, coste, privacidad, benchmarks propios) hay que valorar.'
+prerequisites: ['series-temporales/02-pronosticos-clasicos-evaluacion-y-backtesting']
+tools: ['python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Google Research — TimesFM (repositorio, README)'
+    url: 'https://github.com/google-research/timesfm'
+    type: docs
+    authors: 'Google Research'
+    year: 2026
+  - title: 'Google Research — TimesFM-3: A zero-shot foundation model for multivariate forecasting'
+    url: 'https://research.google/blog/timesfm-3-a-zero-shot-foundation-model-for-multivariate-forecasting/'
+    type: blog
+    authors: 'Google Research'
+    year: 2026
+  - title: 'Amazon Science — Chronos (repositorio)'
+    url: 'https://github.com/amazon-science/chronos-forecasting'
+    type: docs
+    authors: 'Amazon Science'
+    year: 2026
+  - title: 'Ansari et al. (2025) — Chronos-2: From Univariate to Universal Forecasting'
+    url: 'https://arxiv.org/abs/2510.15821'
+    type: paper
+    authors: 'Ansari, A. F. et al.'
+    year: 2025
+  - title: 'Salesforce AI Research — uni2ts (Moirai)'
+    url: 'https://github.com/SalesforceAIResearch/uni2ts'
+    type: docs
+    authors: 'Salesforce AI Research'
+    year: 2026
+  - title: 'Nixtla — TimeGPT (documentación)'
+    url: 'https://www.nixtla.io/docs/getting-started-about_timegpt'
+    type: docs
+    authors: 'Nixtla'
+    year: 2026
+  - title: 'Aksu et al. (2024) — GIFT-Eval: A Benchmark For General Time Series Forecasting Model Evaluation'
+    url: 'https://arxiv.org/abs/2410.10393'
+    type: paper
+    authors: 'Aksu, T. et al.'
+    year: 2024
+relatedLabs: []
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Logística quiere pronosticar la demanda semanal de 2.000 productos de Lumen, muchos con pocas
+  semanas de historial. Alguien propone: «usemos uno de esos modelos fundacionales que pronostican
+  sin entrenar». ¿Qué prometen realmente, cuánto cuestan y cómo sabes si mejoran a un Holt-Winters
+  por producto?
+</BusinessContext>
+
+Tras el éxito de los grandes modelos de lenguaje, varios laboratorios han preentrenado modelos sobre enormes colecciones de series temporales (decenas o cientos de miles de millones de observaciones) para pronosticar series **que nunca han visto**, sin reentrenar.
+
+## Intuición
+
+Un modelo clásico (ETS, ARIMA) se ajusta **a cada serie** con sus propios datos. Un modelo fundacional **ya ha visto** millones de series de todo tipo y reconoce patrones generales (estacionalidades, tendencias, tipos de ruido): se le pasa el historial como contexto y devuelve un pronóstico, como un modelo de lenguaje que continúa un texto. Es una forma de **transferir experiencia** entre series, útil
+cuando una serie concreta tiene poca historia.
+
+## Cómo funciona
+
+### Ideas comunes
+
+- **Preentrenamiento a gran escala** con series de múltiples dominios (más datos sintéticos).
+- **Entrada:** el historial reciente (_contexto_) de la serie, a veces normalizado y troceado en _parches_.
+- **Salida:** pronóstico puntual y/o **cuantiles** (intervalos), para un horizonte dado.
+- **Zero-shot:** se pronostica sin entrenar. Algunos permiten **afinar** (_fine-tuning_) con datos propios.
+- **Covariables:** las versiones recientes aceptan variables adicionales (festivos, precios, promociones), pasadas y futuras.
+
+### Foto actual de los modelos
+
+<Snapshot date="2026-10">
+  **TimesFM (Google Research).** Según su repositorio, la versión vigente es **TimesFM 3.0** (agosto
+  de 2026): pronóstico univariante y multivariante nativo, covariables pasadas y futuras, y primera
+  posición en los bancos de pruebas fev-bench, TIME y GIFT-Eval (resultados que publica el propio
+  equipo). La versión 2.5 tenía 200 millones de parámetros. **Licencia:** el código es Apache-2.0, y
+  los pesos hasta la 2.5 también; los pesos de la 3.0 se distribuyen con una licencia **no
+  comercial** (solo uso no productivo), y el uso comercial se permite a través de servicios de
+  Google Cloud autorizados como **BigQuery ML** (despliegue completado en septiembre de 2026).
+  TimesFM también está integrado en Hojas de cálculo de Google (Connected Sheets) y en Vertex AI.
+  <br />
+  **Chronos-2 (Amazon).** Publicado en octubre de 2025; versión base de 120 millones de parámetros
+  (y una pequeña de 28 millones); admite pronóstico univariante, multivariante y con covariables;
+  licencia Apache-2.0; se instala con `pip install chronos-forecasting`. Las familias anteriores,
+  Chronos y Chronos-Bolt (más rápida, con modelos de 9 a 205 millones de parámetros), siguen
+  disponibles.
+  <br />
+  **Moirai (Salesforce).** Moirai 2.0 (agosto de 2025, tamaño pequeño) y generaciones anteriores
+  (1.1, MoE); licencia Apache-2.0, dentro de la librería `uni2ts`.
+  <br />
+  **TimeGPT (Nixtla).** Modelo propietario ofrecido por API alojada, con opción de despliegue propio
+  y variante en Azure; admite pronóstico zero-shot, afinado, variables exógenas, detección de
+  anomalías e intervalos. Sus pesos no figuran como abiertos en la documentación.
+  <br />
+  **Bancos de pruebas:** GIFT-Eval (Salesforce) y fev-bench reúnen muchas series y tareas con
+  métricas como MASE y CRPS; las clasificaciones cambian cada pocas semanas y muchas son enviadas
+  por los propios autores.
+</Snapshot>
+
+### Qué pueden y qué no pueden hacer
+
+| Ventaja                                                                                  | Límite                                                                                                            |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Sin entrenamiento por serie:** útil con miles de series y poca historia (_cold start_) | **Caja negra:** difícil explicar por qué pronostica lo que pronostica                                             |
+| Buenas líneas base con poco esfuerzo; cuantiles incluidos                                | **Coste y latencia:** inferencia con GPU/CPU potente o API de pago; más lento que ETS                             |
+| Aceptan covariables en las versiones recientes                                           | **Eventos que no están en el contexto** (una rotura de stock, un cambio de precio) no se infieren                 |
+| Reducen el tiempo de prototipado                                                         | **Licencias y datos:** pesos no comerciales, envío de datos a terceros si es una API                              |
+| Capturan estructuras complejas sin especificarlas                                        | Pueden fallar en **series con estructura de negocio** (promociones, calendario) que un modelo explícito sí recoge |
+
+### Cómo evaluarlos con honestidad
+
+La clave es tratarlos como **un método más** dentro del mismo protocolo de la lección anterior:
+
+1. **Mismas series, mismos orígenes, mismo horizonte** que las líneas base.
+2. **Líneas base fuertes**: naive estacional, ETS/Holt-Winters por serie y, si hay eventos conocidos, regresión con calendario.
+3. **Métricas ligadas a la decisión** (MASE, MAE, sesgo) y, para los intervalos, **calibración** (¿el intervalo del 80 % contiene el 80 % de los valores?).
+4. **Sin fuga:** el contexto solo contiene datos anteriores al origen. Cuidado con series públicas que pudieron formar parte del preentrenamiento: puede inflar los resultados en benchmarks.
+5. **Coste total:** latencia, infraestructura, precio de la API, mantenimiento y gobernanza.
+6. **Decisión:** si el modelo fundacional no mejora de forma clara y consistente a ETS/regresión, no hay razón para su coste y su opacidad.
+
+```python
+# Esquema de evaluación (no se ejecuta en el navegador: requiere el paquete del modelo)
+for origen in origenes:
+    contexto = serie[:origen]                      # solo el pasado
+    p_base = holt_winters(contexto, h)
+    p_fund = modelo_fundacional.forecast(contexto, h)
+    guardar(origen, mase(real, p_base), mase(real, p_fund))
+```
+
+<Callout type="note">
+  Estos modelos requieren paquetes y pesos que no se ejecutan en el navegador, así que los labs de
+  esta web trabajan con ETS y backtesting. Para probarlos con Lumen en local, instala el paquete
+  oficial del modelo, carga la serie de pedidos diarios y repite exactamente el protocolo del lab de
+  backtesting con la misma ventana y horizonte.
+</Callout>
+
+## En la práctica
+
+1. **Empieza por las líneas base** y un backtesting sólido (lección anterior).
+2. **Si tienes miles de series o poca historia**, prueba un modelo fundacional en zero-shot como candidato más.
+3. **Evalúa con el mismo protocolo**, por segmentos (series cortas frente a largas, con y sin eventos).
+4. **Combina:** un conjunto (_ensemble_) de un modelo clásico y uno fundacional suele ser más robusto que cada uno.
+5. **Revisa licencia, privacidad y coste** antes de depender de él en producción.
+6. **Monitoriza** el error en producción y mantén la línea base como alarma.
+
+## Trade-offs y cuándo usarlo
+
+- **Fundacional frente a clásico por serie:** el primero gana con poca historia; el segundo, con series largas y bien comportadas y cuando necesitas explicar.
+- **Zero-shot frente a afinado:** afinar mejora el ajuste al dominio pero necesita datos, infraestructura y validación.
+- **API frente a modelo propio:** la API es rápida de usar pero envía datos fuera y tiene coste variable; los pesos abiertos dan control a cambio de infraestructura.
+- **Un modelo frente a un conjunto:** combinar suele reducir el riesgo de que uno falle en un régimen concreto.
+
+## Errores comunes
+
+- **Creer que «zero-shot» significa «sin evaluación».**
+- **Compararlo con una línea base débil** (o solo con el naive).
+- **Fiarse de los rankings de los benchmarks** como evidencia de rendimiento en tu dominio.
+- **Pasar datos sensibles a una API** sin revisar las condiciones.
+- **Ignorar la licencia** (pesos no comerciales en producción).
+- **No dar al modelo las covariables que importan** (festivos, promociones) cuando las admite.
+- **Olvidar que los eventos fuera del historial** (roturas de stock, cambios de precio) no se pronostican.
+
+## Con IA
+
+Estos modelos son parte de la propia «IA aplicada al análisis». Si le pides a un asistente que «pronostique con el mejor modelo», comprueba que la evaluación es con origen móvil y contra líneas base, que no mezcla datos futuros en el contexto y que la licencia del modelo permite tu uso.
+
+## En una entrevista
+
+- _"¿Qué es un modelo fundacional de series temporales y cuándo lo usarías?"_ — Pista: preentrenado en muchas series, zero-shot; útil con muchas series o poca historia; se evalúa con el mismo backtesting frente a líneas base.
+- _"¿Cómo sabes si merece la pena frente a Holt-Winters?"_ — Pista: mismo protocolo, métricas de decisión, coste, explicabilidad, calibración.
+- _"¿Qué riesgos tiene usarlo en producción?"_ — Pista: licencia, privacidad, latencia/coste, opacidad, benchmarks inflados.
+
+<KeyTakeaways
+  items={[
+    'Los modelos fundacionales de series temporales se preentrenan con enormes colecciones de series y pronostican zero-shot con solo el historial como contexto, a veces con covariables y cuantiles.',
+    'A fecha de octubre de 2026: TimesFM 3.0 (Google, agosto de 2026, multivariante y covariables; pesos no comerciales, uso comercial vía BigQuery ML), Chronos-2 (Amazon, 120 M de parámetros, Apache-2.0), Moirai 2.0 (Salesforce, Apache-2.0) y TimeGPT (Nixtla, API propietaria).',
+    'Los rankings de GIFT-Eval o fev-bench son un indicio, no una prueba para tu dominio: muchos resultados los publican los propios autores.',
+    'La evaluación honesta usa el mismo backtesting con origen móvil, líneas base fuertes (naive estacional, Holt-Winters, regresión con calendario), métricas de decisión y calibración de intervalos.',
+    'Valora también licencia, privacidad, coste y explicabilidad; un conjunto de un modelo clásico y uno fundacional suele ser más robusto que cada uno por separado.',
+  ]}
+/>

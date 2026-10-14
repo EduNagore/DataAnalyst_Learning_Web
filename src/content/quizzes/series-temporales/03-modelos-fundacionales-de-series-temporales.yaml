@@ -1,0 +1,75 @@
+lesson: series-temporales/03-modelos-fundacionales-de-series-temporales
+questions:
+  - id: ser-03-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué significa que un modelo fundacional de series temporales pronostica «zero-shot»?'
+    options:
+      - 'Que no necesita ningún dato'
+      - 'Que pronostica una serie nueva a partir de su historial como contexto, sin entrenarse con ella'
+      - 'Que siempre acierta'
+      - 'Que solo funciona con series de cero a uno'
+    answer: [1]
+    explanation: 'El modelo ya fue preentrenado con muchas series; al usarlo se le da el historial reciente de la nueva serie y devuelve un pronóstico, sin ajustar parámetros.'
+    ref: '#ideas-comunes'
+
+  - id: ser-03-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los elementos de una evaluación honesta de un modelo fundacional.'
+    options:
+      - 'Mismas series, orígenes y horizonte que las líneas base'
+      - 'Líneas base fuertes (naive estacional, Holt-Winters)'
+      - 'Que el contexto solo contenga datos anteriores al origen'
+      - 'Fiarse de la posición del modelo en un ranking público'
+    answer: [0, 1, 2]
+    explanation: 'Los rankings de benchmarks, muchas veces enviados por los propios autores, son un indicio, no una prueba de rendimiento en tu dominio.'
+    ref: '#cómo-evaluarlos-con-honestidad'
+
+  - id: ser-03-q3
+    type: single
+    difficulty: 3
+    prompt: 'Según el repositorio oficial (octubre de 2026), ¿qué ocurre con la licencia de los pesos de TimesFM 3.0?'
+    options:
+      - 'Son Apache-2.0 y se pueden usar libremente en producción'
+      - 'Se distribuyen con una licencia no comercial (solo uso no productivo); el uso comercial se permite a través de servicios de Google Cloud autorizados como BigQuery ML'
+      - 'No hay pesos publicados'
+      - 'Solo se permite su uso en investigación académica en Google'
+    answer: [1]
+    explanation: 'Esto es un dato volátil (a fecha de octubre de 2026): comprueba siempre la licencia vigente antes de usar un modelo en producción.'
+    ref: '#foto-actual-de-los-modelos'
+
+  - id: ser-03-q4
+    type: single
+    difficulty: 2
+    prompt: 'Tienes 2.000 productos, muchos con menos de ocho semanas de historial. ¿En qué caso es más razonable probar un modelo fundacional?'
+    options:
+      - 'Solo si todas las series tienen cinco años de historia'
+      - 'Con muchas series y poca historia (cold start), como candidato más junto a las líneas base, evaluado con el mismo backtesting'
+      - 'Nunca: los modelos clásicos siempre ganan'
+      - 'Siempre, sin evaluarlo, porque es más moderno'
+    answer: [1]
+    explanation: 'Su ventaja es transferir experiencia entre series. Aun así, hay que demostrar que mejora a ETS o a la regresión con calendario en tu caso.'
+    ref: '#qué-pueden-y-qué-no-pueden-hacer'
+
+  - id: ser-03-q5
+    type: single
+    difficulty: 2
+    prompt: 'Una rotura de stock que nunca aparece en el historial de una serie, ¿puede pronosticarla un modelo fundacional?'
+    options:
+      - 'Sí, porque ha visto millones de series'
+      - 'No: los eventos que no están en el contexto ni en las covariables no se infieren'
+      - 'Solo si usa una API'
+      - 'Solo en modelos de más de 100 millones de parámetros'
+    answer: [1]
+    explanation: 'Ningún modelo puede pronosticar un evento del que no tiene información. Para esos casos hay que dar covariables o escenarios explícitos.'
+    ref: '#qué-pueden-y-qué-no-pueden-hacer'
+
+  - id: ser-03-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Si un modelo fundacional queda primero en un benchmark público, ya no es necesario evaluarlo con tus propios datos.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Los benchmarks no representan tu dominio, pueden solaparse con los datos de preentrenamiento y a menudo los publican los propios autores. Hay que evaluarlo con tu backtesting.'
+    ref: '#errores-comunes'

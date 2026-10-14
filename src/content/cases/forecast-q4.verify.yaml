@@ -1,0 +1,41 @@
+# Consultas que RECALCULAN las respuestas numéricas del caso a partir de los datos
+# (las ejecuta tests/labs/test_cases.py; no se publican en la web).
+s1-q4-2025: |
+  SELECT ROUND(SUM(oi.quantity * oi.unit_price) / 1000000, 2)
+  FROM order_items oi JOIN orders o USING (order_id)
+  WHERE o.status <> 'cancelado' AND o.order_date >= DATE '2025-10-01' AND o.order_date < DATE '2026-01-01'
+s2-yoy: |
+  WITH q AS (
+    SELECT date_trunc('quarter', o.order_date) AS q, SUM(oi.quantity * oi.unit_price) AS rev
+    FROM order_items oi JOIN orders o USING (order_id) WHERE o.status <> 'cancelado' GROUP BY 1
+  )
+  SELECT ROUND(100 * (MAX(rev) FILTER (WHERE q = DATE '2026-04-01') / MAX(rev) FILTER (WHERE q = DATE '2025-04-01') - 1), 2) FROM q
+s3-backtest: |
+  WITH q AS (
+    SELECT date_trunc('quarter', o.order_date) AS q, SUM(oi.quantity * oi.unit_price) AS rev
+    FROM order_items oi JOIN orders o USING (order_id) WHERE o.status <> 'cancelado' GROUP BY 1
+  ), v AS (
+    SELECT MAX(rev) FILTER (WHERE q = DATE '2024-10-01') AS q4_24, MAX(rev) FILTER (WHERE q = DATE '2025-10-01') AS q4_25,
+           MAX(rev) FILTER (WHERE q = DATE '2024-01-01') + MAX(rev) FILTER (WHERE q = DATE '2024-04-01') AS h1_24,
+           MAX(rev) FILTER (WHERE q = DATE '2025-01-01') + MAX(rev) FILTER (WHERE q = DATE '2025-04-01') AS h1_25
+    FROM q
+  )
+  SELECT ROUND(100 * (q4_24 * h1_25 / h1_24 / q4_25 - 1), 2) FROM v
+s5-forecast-b: |
+  WITH q AS (
+    SELECT date_trunc('quarter', o.order_date) AS q, SUM(oi.quantity * oi.unit_price) AS rev
+    FROM order_items oi JOIN orders o USING (order_id) WHERE o.status <> 'cancelado' GROUP BY 1
+  )
+  SELECT ROUND(MAX(rev) FILTER (WHERE q = DATE '2026-04-01')
+         * MAX(rev) FILTER (WHERE q = DATE '2025-10-01') / MAX(rev) FILTER (WHERE q = DATE '2025-04-01') / 1000000, 2) FROM q
+s6-escenario-bajo: |
+  WITH q AS (
+    SELECT date_trunc('quarter', o.order_date) AS q, SUM(oi.quantity * oi.unit_price) AS rev
+    FROM order_items oi JOIN orders o USING (order_id) WHERE o.status <> 'cancelado' GROUP BY 1
+  ), r AS (
+    SELECT MAX(rev) FILTER (WHERE q = DATE '2026-04-01') AS q2_26,
+           MAX(rev) FILTER (WHERE q = DATE '2025-10-01') / MAX(rev) FILTER (WHERE q = DATE '2025-04-01') AS r25,
+           MAX(rev) FILTER (WHERE q = DATE '2024-10-01') / MAX(rev) FILTER (WHERE q = DATE '2024-04-01') AS r24
+    FROM q
+  )
+  SELECT ROUND(q2_26 * r25 * (r25 / r24) / 1000000, 2) FROM r

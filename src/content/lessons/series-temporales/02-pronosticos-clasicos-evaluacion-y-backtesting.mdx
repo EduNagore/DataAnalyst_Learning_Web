@@ -1,0 +1,184 @@
+---
+title: 'Pronósticos clásicos, evaluación y backtesting'
+description: 'Métodos de referencia (naive, naive estacional, suavizado exponencial Holt-Winters, ARIMA), cómo evaluarlos con MAE, RMSE, MAPE y MASE, por qué hay que usar un origen móvil, y cómo construir intervalos de predicción.'
+module: series-temporales
+order: 2
+level: avanzado
+estimatedMinutes: 55
+objectives:
+  - 'Construir pronósticos de referencia (naive, naive estacional, con crecimiento) y explicar por qué son el listón que superar.'
+  - 'Describir la idea del suavizado exponencial (ETS / Holt-Winters) y de ARIMA y cuándo usar cada uno.'
+  - 'Calcular MAE, RMSE, MAPE y MASE, conocer las limitaciones del MAPE y del sesgo y elegir la métrica según la decisión.'
+  - 'Diseñar un backtesting con origen móvil sin fuga de información y comparar métodos con honestidad.'
+  - 'Construir e interpretar intervalos de predicción.'
+prerequisites: ['series-temporales/01-componentes-descomposicion-y-efectos-de-calendario']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Hyndman & Koehler (2006) — Another look at measures of forecast accuracy'
+    url: 'https://robjhyndman.com/papers/mase.pdf'
+    type: paper
+    authors: 'Hyndman, R. J., Koehler, A. B.'
+    year: 2006
+  - title: 'Hyndman & Athanasopoulos — Forecasting: Principles and Practice (3.ª ed.), Holt-Winters'
+    url: 'https://otexts.com/fpp3/holt-winters.html'
+    type: book
+    authors: 'Hyndman, R. J., Athanasopoulos, G.'
+    year: 2021
+  - title: 'Hyndman & Athanasopoulos — Prediction intervals'
+    url: 'https://otexts.com/fpp3/prediction-intervals.html'
+    type: book
+    authors: 'Hyndman, R. J., Athanasopoulos, G.'
+    year: 2021
+  - title: 'Hyndman & Athanasopoulos — Time series cross-validation'
+    url: 'https://otexts.com/fpp3/tscv.html'
+    type: book
+    authors: 'Hyndman, R. J., Athanasopoulos, G.'
+    year: 2021
+  - title: 'statsmodels — ExponentialSmoothing'
+    url: 'https://www.statsmodels.org/stable/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html'
+    type: docs
+    authors: 'statsmodels'
+    year: 2026
+relatedLabs: ['py-backtesting-pronostico']
+relatedCases: ['forecast-q4']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Operaciones de Lumen necesita saber cuántos pedidos habrá en las próximas cuatro semanas para
+  dimensionar el almacén. Un compañero propone un modelo sofisticado; otro, «repite lo de la semana
+  pasada». ¿Cuál es mejor? No se puede saber con una intuición ni con el ajuste a los datos
+  históricos: hay que medirlo con un **backtesting**, simulando el pronóstico tal como se habría
+  hecho en el pasado.
+</BusinessContext>
+
+Pronosticar no consiste en ajustar una curva, sino en **predecir lo que aún no ha pasado**, y la evaluación honesta imita eso: entrenar con el pasado, pronosticar el futuro, medir el error y repetir en muchos puntos del tiempo.
+
+## Intuición
+
+Los pronósticos más simples suelen ser sorprendentemente buenos: «mañana será como hoy» (naive), «el lunes será como el lunes pasado» (naive estacional). Cualquier método más complejo debe ganarles **con claridad y de forma consistente** para justificar su complejidad. Los buenos analistas empiezan siempre por esa línea base.
+
+## Cómo funciona
+
+### Métodos de referencia y clásicos
+
+| Método                                         | Idea                                                                                               | Cuándo funciona                                                |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| **Naive**                                      | El pronóstico es el último valor                                                                   | Series sin estacionalidad ni tendencia clara                   |
+| **Naive estacional**                           | El pronóstico es el valor del mismo punto del ciclo anterior (hace 7 días)                         | Estacionalidad estable y poca tendencia                        |
+| **Naive + deriva / crecimiento**               | Naive estacional multiplicado por el crecimiento reciente                                          | Tendencia estable (peligroso si se acelera o frena)            |
+| **Suavizado exponencial (ETS / Holt-Winters)** | Medias ponderadas con pesos que decaen exponencialmente para nivel, tendencia y estacionalidad     | Series con tendencia y estacionalidad que cambian con lentitud |
+| **ARIMA / SARIMA**                             | Modela la autocorrelación de la serie (diferenciada) con partes autorregresiva y de medias móviles | Series estacionarias tras diferenciar; autocorrelación clara   |
+| **Regresión con variables de calendario**      | Tendencia + efectos de día de la semana y festivos estimados explícitamente                        | Muchos efectos conocidos (eventos, promociones)                |
+
+**Holt-Winters** mantiene tres estados que se actualizan con cada observación: nivel $\ell_t$, tendencia $b_t$ y estacionalidad $s_t$, con parámetros de suavizado entre 0 y 1 (más peso a lo reciente cuanto más cerca de 1). Una **tendencia amortiguada** (_damped_) frena el crecimiento proyectado con el horizonte, algo prudente con horizontes largos. Se suele ajustar sobre el logaritmo para efectos proporcionales.
+En Python: `ExponentialSmoothing(np.log(y), trend="add", damped_trend=True, seasonal="add", seasonal_periods=7)`. Las librerías de uso a escala (como `statsforecast`) implementan versiones muy rápidas de ETS, ARIMA y más para miles de series.
+
+### Métricas de error
+
+Con $e_t = y_t - \hat{y}_t$ sobre el horizonte de evaluación:
+
+| Métrica   | Fórmula                                                                  | Observaciones                                                                                                                               |
+| --------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| **MAE**   | $\operatorname{media}\lvert e_t\rvert$                                   | En las unidades de la serie; robusta; fácil de explicar                                                                                     |
+| **RMSE**  | $\sqrt{\operatorname{media}(e_t^2)}$                                     | Castiga los errores grandes; sensible a atípicos                                                                                            |
+| **MAPE**  | $100\,\operatorname{media}\lvert e_t / y_t\rvert$                        | Relativo e intuitivo, pero **indefinido con ceros**, **asimétrico** (penaliza más el exceso que el defecto) y se infla con valores pequeños |
+| **MASE**  | $\operatorname{MAE} / \operatorname{MAE}_{\text{naive (entrenamiento)}}$ | Sin unidades; compara series distintas; **< 1** = mejor que el naive del entrenamiento                                                      |
+| **Sesgo** | $100\,(\sum\hat{y}/\sum y - 1)$                                          | ¿El método se queda corto o largo de forma sistemática?                                                                                     |
+
+El **MASE** (Hyndman y Koehler, 2006) escala el error por el de un pronóstico naive (aquí, estacional de 7 días) calculado con los datos de **entrenamiento**: es robusto a ceros y comparable entre series. Con horizonte de 28 días, es normal que sea mayor que 1 porque el naive de referencia pronostica un paso (una semana) y el método evaluado, hasta 28 días.
+Elige la métrica según la **decisión**: el MAE si un pedido de más cuesta lo mismo que uno de menos; el sesgo si lo que importa es el total (presupuesto, stock); una asimétrica si faltar es peor que sobrar.
+
+### Backtesting con origen móvil
+
+Un único corte (entrenar hasta una fecha y probar después) da una nota muy dependiente de ese periodo. El **origen móvil** (_rolling origin_, validación cruzada de series temporales) repite el proceso:
+
+1. Elige un primer origen $t_0$ y un horizonte $h$.
+2. Entrena con los datos **anteriores** a $t_0$ y pronostica $h$ pasos.
+3. Compara con lo real y guarda las métricas.
+4. Avanza el origen un paso y repite hasta agotar la serie.
+
+Reglas: **nunca** uses datos posteriores al origen (ni para ajustar parámetros, ni para calcular la escala de las métricas, ni para estandarizar); usa el **mismo horizonte** que el de uso real; y promedia las métricas sobre muchos orígenes, mirando también su variabilidad (¿falla en los meses de rotura de stock?).
+
+### El caso de Lumen: pedidos a 28 días
+
+Serie diaria de pedidos no cancelados desde enero de 2024, 19 orígenes (cada 28 días desde el 1 de enero de 2025), horizonte de 28 días. Medias sobre los 19 orígenes:
+
+| Método                                       |      MAE |     RMSE | MAPE (%) |     MASE | Sesgo (%) |
+| -------------------------------------------- | -------: | -------: | -------: | -------: | --------: |
+| Naive estacional (repetir la semana)         |     43,3 |     53,4 |      8,6 |     1,75 |      −2,7 |
+| Naive estacional + crecimiento               |     53,4 |     64,2 |     10,7 |     2,14 |      +0,1 |
+| **Holt-Winters amortiguado (en logaritmos)** | **37,2** | **45,0** |  **7,5** | **1,50** |      −2,7 |
+
+Holt-Winters reduce el MAE un **14 %** respecto al naive estacional. Lo que parecía "más inteligente" (añadir el crecimiento reciente) **empeora** mucho el resultado: extrapola una tendencia que luego se frena. Dos lecciones: (1) mide, no supongas; (2) los métodos que extrapolan crecimientos son peligrosos cuando el crecimiento cambia (en el caso del forecast de Q4 verás qué pasa a escala trimestral).
+Los pronósticos de todos los métodos son **sesgados a la baja** (−2,7 %) porque la serie sigue creciendo más rápido de lo que los métodos proyectan.
+
+### Intervalos de predicción
+
+Un pronóstico puntual es una cifra; un **intervalo de predicción** dice entre qué valores caerá el dato futuro con cierta probabilidad (por ejemplo, el 80 % o el 95 %). Se construyen con los modelos (supuestos de normalidad de los errores), por simulación o, de forma empírica y simple, con los **errores del backtesting**: los cuantiles de los errores relativos observados a cada horizonte. Reglas:
+
+- El intervalo **se ensancha con el horizonte**.
+- Sus cuantiles se **calibran** (¿contiene el valor real el 80 % de las veces en el backtest?).
+- Un intervalo demasiado estrecho es peor que ninguno: da una falsa seguridad.
+
+<Callout type="warning">
+  Un modelo que se ajusta de maravilla al histórico puede pronosticar peor que el naive: ajustar es
+  sobreestimar con los mismos datos. Solo cuenta el error **fuera de muestra**, en orígenes que el
+  modelo no ha visto, con el horizonte real de uso.
+</Callout>
+
+## En la práctica
+
+1. **Define la decisión, el horizonte y la granularidad** (¿pedidos diarios a 4 semanas? ¿ingresos trimestrales a 6 meses?).
+2. **Empieza con las líneas base** (naive, naive estacional, media móvil estacional).
+3. **Prueba 2-3 métodos** (ETS, ARIMA, regresión con calendario) con orígenes móviles.
+4. **Evalúa con métricas ligadas a la decisión** y mira el sesgo y la variabilidad por origen.
+5. **Elige el método más simple** que gane de forma consistente; no el que mejor se ajuste.
+6. **Genera intervalos** y comprueba su calibración.
+7. **Documenta** los supuestos y reevalúa cuando cambie el régimen (nuevos productos, rupturas de stock, precios).
+
+En el lab implementas las métricas, los tres métodos y el origen móvil sobre los pedidos de Lumen.
+
+## Trade-offs y cuándo usarlo
+
+- **Simplicidad frente a precisión:** pasar de 43 a 37 pedidos de MAE puede o no justificar el modelo; depende del coste de un error de 6 pedidos al día.
+- **Un modelo global frente a uno por serie:** con miles de series (SKU, tienda), modelos globales o rápidos por serie escalan mejor que ajustar a mano.
+- **Estadísticos frente a aprendizaje automático:** los métodos clásicos son una línea base muy difícil de batir con pocas series y pocos datos; el aprendizaje automático ayuda con muchas series, covariables y relaciones complejas (lección siguiente).
+- **Horizonte corto frente a largo:** el error crece con el horizonte; a horizontes largos domina la incertidumbre sobre el régimen, no el método.
+
+## Errores comunes
+
+- **Evaluar con el ajuste a los datos de entrenamiento.**
+- **Un único corte** y concluir que un método es el mejor.
+- **Fuga de información en el backtesting** (usar el futuro para estandarizar, imputar o escalar).
+- **Usar MAPE con valores cercanos a cero.**
+- **Comparar métodos con horizontes o periodos distintos.**
+- **Extrapolar tendencias recientes** sin comprobar si se mantienen.
+- **Comunicar solo el pronóstico puntual.**
+
+## Con IA
+
+Un asistente puede generar el código de varios modelos y declarar «el mejor» según el ajuste, o hacer un solo corte temporal. Pídele un **backtesting con origen móvil**, las métricas por origen, la comparación con el naive estacional y los intervalos; y verifica que no usa datos posteriores al origen para ninguna operación (escalas incluidas).
+
+## En una entrevista
+
+- _"¿Cómo evalúas un modelo de pronóstico de ventas?"_ — Pista: origen móvil, horizonte real, métricas ligadas a la decisión (MAE, MASE, sesgo), línea base, intervalos calibrados.
+- _"¿Qué problemas tiene el MAPE?"_ — Pista: ceros, asimetría, valores pequeños; alternativa MASE o sMAPE/WAPE.
+- _"Un colega ajusta ARIMA y obtiene un R² de 0,99. ¿Qué piensas?"_ — Pista: ajuste en muestra, no pronóstico; comparar con naive fuera de muestra.
+
+<KeyTakeaways
+  items={[
+    'Antes de un modelo complejo, ten una línea base (naive estacional): cualquier método debe ganarle de forma clara y consistente fuera de muestra.',
+    'Holt-Winters amortiguado sobre logaritmos (tendencia + estacionalidad semanal) es una referencia sólida; ARIMA modela la autocorrelación; la regresión con calendario estima efectos de eventos con intervalos.',
+    'Elige la métrica según la decisión: MAE y RMSE en unidades, MAPE con cuidado (ceros, asimetría), MASE sin unidades (<1 = mejor que el naive del entrenamiento) y sesgo si importa el total.',
+    'En Lumen, a 28 días y sobre 19 orígenes, Holt-Winters tiene un MAE de 37,2 pedidos/día frente a 43,3 del naive estacional (−14 %), mientras que añadir el crecimiento reciente empeora a 53,4: medir evita decisiones intuitivas.',
+    'El backtesting con origen móvil usa solo datos anteriores a cada origen, el horizonte real de uso y muchas repeticiones; los intervalos de predicción se ensanchan con el horizonte y deben calibrarse con el propio backtesting.',
+  ]}
+/>

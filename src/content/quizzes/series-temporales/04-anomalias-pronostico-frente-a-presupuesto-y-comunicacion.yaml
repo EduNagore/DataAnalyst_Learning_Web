@@ -1,0 +1,71 @@
+lesson: series-temporales/04-anomalias-pronostico-frente-a-presupuesto-y-comunicacion
+questions:
+  - id: ser-04-q1
+    type: single
+    difficulty: 2
+    prompt: '¿Por qué es mejor detectar anomalías con el error de pronóstico que con un umbral fijo sobre la serie?'
+    options:
+      - 'Porque es más rápido'
+      - 'Porque la serie tiene tendencia y estacionalidad: una anomalía es lo que se aleja de lo esperado, no de un valor fijo'
+      - 'Porque el umbral fijo no existe'
+      - 'Porque así no hace falta modelo'
+    answer: [1]
+    explanation: 'Un valor que es normal un viernes de Black Friday sería una anomalía un martes de enero. El pronóstico incorpora esa expectativa.'
+    ref: '#detectar-anomalías-con-el-error-de-pronóstico'
+
+  - id: ser-04-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'Los errores logarítmicos normales tienen mediana 0,003 y sigma robusto 0,079. Un día tiene un error de −0,40. ¿Cuál es su z robusto? (un decimal)'
+    answer: [-5.1]
+    tolerance: 0.1
+    explanation: 'z = (−0,40 − 0,003) / 0,079 = −5,1: muy por debajo de −3.'
+    ref: '#detectar-anomalías-con-el-error-de-pronóstico'
+
+  - id: ser-04-q3
+    type: single
+    difficulty: 2
+    prompt: 'Un día aislado tiene |z| = 3,4, pero los demás son normales. ¿Qué haces?'
+    options:
+      - 'Declaras una anomalía grave'
+      - 'Lo consideras probablemente un falso positivo esperable y buscas rachas de varios días antes de actuar'
+      - 'Eliminas ese día de la serie'
+      - 'Cambias el modelo'
+    answer: [1]
+    explanation: 'Con un umbral de 3σ aparece algún falso positivo ocasional. Una racha de varios días consecutivos con el mismo signo es lo que sugiere un cambio real.'
+    ref: '#detectar-anomalías-con-el-error-de-pronóstico'
+
+  - id: ser-04-q4
+    type: multiple
+    difficulty: 3
+    prompt: 'Después de la rotura de stock de marzo, el modelo reentrenado subestima los ingresos de abril (rachas de signo contrario). Selecciona TODAS las medidas razonables.'
+    options:
+      - 'Marcar o excluir los días de la anomalía en el ajuste'
+      - 'Investigar y registrar la causa antes de decidir'
+      - 'Modelarla con una variable indicadora si el evento se va a repetir'
+      - 'Reentrenar sin tocar nada, porque el modelo siempre se corrige solo'
+    answer: [0, 1, 2]
+    explanation: 'Si no se marca, el modelo aprende que los ingresos eran bajos y subestima la recuperación.'
+    ref: '#qué-hacer-con-las-anomalías-al-entrenar'
+
+  - id: ser-04-q5
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál es la diferencia entre pronóstico, presupuesto y objetivo?'
+    options:
+      - 'Ninguna: son sinónimos'
+      - 'El pronóstico es lo esperado con la información actual; el presupuesto, lo comprometido; el objetivo, lo deseado'
+      - 'El pronóstico es siempre el más alto'
+      - 'El objetivo es el pronóstico más un margen de error'
+    answer: [1]
+    explanation: 'Mezclarlos lleva a pronósticos inflados para cuadrar con objetivos y a perder utilidad para planificar.'
+    ref: '#pronóstico-presupuesto-y-objetivo'
+
+  - id: ser-04-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Para comunicar un pronóstico a dirección es mejor dar una cifra única y precisa que un rango con supuestos.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Un rango con supuestos, el backtest y una fecha de actualización permiten decidir con conciencia de la incertidumbre; una cifra con decimales da una falsa precisión.'
+    ref: '#comunicar-un-pronóstico'

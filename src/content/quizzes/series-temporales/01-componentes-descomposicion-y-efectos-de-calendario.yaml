@@ -1,0 +1,71 @@
+lesson: series-temporales/01-componentes-descomposicion-y-efectos-de-calendario
+questions:
+  - id: ser-01-q1
+    type: single
+    difficulty: 1
+    prompt: 'Las ventas de domingo son siempre un 5 % inferiores al nivel de la semana, sea cual sea ese nivel. ¿Qué tipo de modelo de descomposición encaja?'
+    options:
+      - 'Aditivo, porque el efecto es constante en euros'
+      - 'Multiplicativo (o aditivo sobre el logaritmo), porque el efecto es proporcional al nivel'
+      - 'Ninguno'
+      - 'Solo uno con tendencia lineal'
+    answer: [1]
+    explanation: 'Si la amplitud de la estacionalidad crece con el nivel, el efecto es multiplicativo. Tomando logaritmos pasa a aditivo y se puede usar STL.'
+    ref: '#componentes'
+
+  - id: ser-01-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'Un factor semanal del sábado de 1,043 significa que los pedidos de sábado superan al nivel medio de la semana en un ... % (un decimal).'
+    answer: [4.3]
+    tolerance: 0.05
+    explanation: 'Un factor multiplicativo de 1,043 equivale a +4,3 %. El domingo, con 0,955, está un 4,5 % por debajo.'
+    ref: '#los-pedidos-diarios-de-lumen'
+
+  - id: ser-01-q3
+    type: single
+    difficulty: 2
+    prompt: 'Con STL, ¿qué ocurre si la ventana de la tendencia es demasiado corta?'
+    options:
+      - 'La tendencia es demasiado suave y no sigue los cambios'
+      - 'La tendencia sigue de cerca los cambios y absorbe los efectos de eventos de pocos días, que ya no aparecen en el residuo'
+      - 'La estacionalidad desaparece'
+      - 'La serie se vuelve estacionaria'
+    answer: [1]
+    explanation: 'Con una ventana corta, un evento de una semana se interpreta como un cambio de nivel y se queda en la tendencia. Una ventana más larga lo deja en el residuo, donde se puede medir.'
+    ref: '#descomposición-stl'
+
+  - id: ser-01-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las razones por las que no se puede estimar bien la estacionalidad anual con dos años y medio de datos y un crecimiento del 6 % mensual.'
+    options:
+      - 'Solo hay dos o tres ciclos anuales completos'
+      - 'La estacionalidad anual se confunde con el crecimiento'
+      - 'Los efectos de calendario cambian de fecha entre años'
+      - 'El crecimiento hace imposible calcular la tendencia'
+    answer: [0, 1, 2]
+    explanation: 'La tendencia sí se puede estimar (6,2 % mensual). Lo que no se puede es separar de ella un patrón anual con tan pocos ciclos.'
+    ref: '#los-pedidos-diarios-de-lumen'
+
+  - id: ser-01-q5
+    type: single
+    difficulty: 3
+    prompt: 'Durante Black Friday de 2025, Lumen tuvo un 23 % más de pedidos, pero los ingresos netos subieron solo un 1,7 %. ¿Cuál es la explicación?'
+    options:
+      - 'Un fallo en el registro de ingresos'
+      - 'El descuento medio pasó del 5 % al 20 % y el ticket medio bajó, de modo que el mayor volumen se compensó con un menor valor por pedido'
+      - 'Los clientes compraron productos más baratos por casualidad'
+      - 'Black Friday no tiene efecto'
+    answer: [1]
+    explanation: 'Los eventos mueven cantidad y valor de forma distinta. Por eso conviene pronosticar pedidos y ticket por separado.'
+    ref: '#pedidos-frente-a-ingresos'
+
+  - id: ser-01-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Es correcto rellenar con ceros los días sin datos de una serie sin comprobar si se debe a que no hubo ventas o a que faltan registros.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Un día sin pedidos es un dato (0); un día sin registro es un hueco. Confundirlos genera caídas ficticias que luego aparecen como anomalías.'
+    ref: '#errores-comunes'

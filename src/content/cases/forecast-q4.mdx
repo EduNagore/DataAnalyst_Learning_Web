@@ -1,0 +1,144 @@
+---
+title: 'Necesitamos el forecast del Q4'
+description: 'Un caso de pronóstico: estima los ingresos del cuarto trimestre de 2026 con datos hasta junio, prueba tu método sobre el Q4 anterior (backtest), descubre que el crecimiento se desacelera y presenta un rango con sus supuestos.'
+difficulty: 3
+estimatedMinutes: 45
+role: finanzas
+datasets: ['orders', 'order_items']
+brief: |
+  De: Elena Vidal (Dirección financiera)
+  Asunto: Forecast del Q4 2026
+
+  Hola, para el comité del mes que viene necesito una cifra de ingresos del cuarto trimestre (octubre-diciembre de 2026). Tenemos datos hasta el 30 de junio.
+
+  He pensado en aplicar al Q4 del año pasado el crecimiento que llevamos este año. ¿Te parece razonable? Necesito un número que pueda defender.
+
+  Gracias, Elena
+steps:
+  - id: s1-q4-2025
+    tool: sql
+    answerType: numeric
+    answer: 15.72
+    tolerance: 0.02
+    prompt: |
+      Empieza por el punto de partida. Define **ingresos** como la suma de `quantity * unit_price` de las líneas de los pedidos con `status <> 'cancelado'`, asignados al trimestre de `order_date`.
+
+      ¿Cuántos **millones de euros** ingresó Lumen en el cuarto trimestre de 2025 (octubre a diciembre)? (Dos decimales.)
+    hints:
+      - "Une `order_items` con `orders` y agrupa con `date_trunc('quarter', order_date)`."
+    explanation: |
+      Los ingresos del Q4 de 2025 fueron de unos **15,72 M€**, frente a 7,75 M€ en el Q4 de 2024.
+
+  - id: s2-yoy
+    tool: sql
+    answerType: numeric
+    answer: 84.95
+    tolerance: 0.1
+    prompt: |
+      ¿En qué **porcentaje** crecieron los ingresos del segundo trimestre de 2026 respecto al segundo trimestre de 2025? (Dos decimales.)
+    hints:
+      - 'Compara el trimestre que empieza el 1-abr-2026 con el que empieza el 1-abr-2025.'
+    explanation: |
+      Los ingresos del Q2 de 2026 (20,50 M€) superan en un **+84,95 %** a los del Q2 de 2025 (11,08 M€).
+
+  - id: s3-backtest
+    tool: sql
+    answerType: numeric
+    answer: 20.65
+    tolerance: 0.1
+    prompt: |
+      Pruebas el método de Elena **sobre el pasado** (un _backtest_): pronosticar el Q4 de 2025 como **Q4 de 2024 × (ingresos del primer semestre de 2025 / ingresos del primer semestre de 2024)**.
+
+      ¿Cuál habría sido el **error** de ese pronóstico, en % sobre el valor real del Q4 de 2025 (pronóstico / real − 1)? (Dos decimales; positivo si sobreestima.)
+    hints:
+      - 'Q4 2024 = 7,75 M€; el primer semestre es enero-junio. Necesitas los semestres de 2024 y 2025 y el Q4 real de 2025.'
+    explanation: |
+      El método habría pronosticado unos **18,97 M€** para el Q4 de 2025 cuando el real fue 15,72 M€: una **sobreestimación del 20,65 %**.
+
+  - id: s4-por-que
+    tool: reasoning
+    answerType: single
+    answer: [1]
+    options:
+      - 'Un error de cálculo: el método es correcto.'
+      - 'El crecimiento se desacelera: el H1 2025 creció un 145 % respecto del H1 2024, pero el Q4 2025 solo un 103 % respecto del Q4 2024; extrapolar el ritmo del primer semestre sobreestima.'
+      - 'Que el Q4 siempre es un trimestre malo.'
+      - 'Que faltan datos del cuarto trimestre de 2025.'
+    prompt: |
+      ¿Por qué falla el método?
+    hints:
+      - 'Compara el crecimiento interanual en distintos periodos: H1 2025 frente a H1 2024, y Q4 2025 frente a Q4 2024.'
+    explanation: |
+      Lumen crece cada vez más despacio en términos relativos (algo normal: partes de una base mayor). Aplicar a un trimestre futuro el crecimiento medio del semestre anterior ignora esa desaceleración y **sobreestima**.
+
+  - id: s5-forecast-b
+    tool: sql
+    answerType: numeric
+    answer: 29.08
+    tolerance: 0.1
+    prompt: |
+      Un método alternativo usa la **estacionalidad dentro del año**: Q4 2026 = ingresos del Q2 2026 × (ingresos del Q4 2025 / ingresos del Q2 2025).
+
+      ¿Cuántos **millones de euros** da para el Q4 de 2026? (Dos decimales.)
+    hints:
+      - 'Q2 2026 = 20,50 M€; Q2 2025 = 11,08 M€; Q4 2025 = 15,72 M€.'
+    explanation: |
+      20,50 × (15,72 / 11,08) ≈ **29,08 M€**. Pero este método supone que el salto del Q2 al Q4 de este año será igual que el del año pasado (×1,42), cuando en el anterior fue ×1,61: la desaceleración sigue.
+
+  - id: s6-escenario-bajo
+    tool: sql
+    answerType: numeric
+    answer: 25.56
+    tolerance: 0.1
+    prompt: |
+      Construye un escenario **prudente** que continúe la desaceleración: el salto del Q2 al Q4 se reduce de un año a otro en la misma proporción (×1,42 el año pasado frente a ×1,61 el anterior).
+
+      Q4 2026 = Q2 2026 × r₂₀₂₅ × (r₂₀₂₅ / r₂₀₂₄), con r = Q4 / Q2 de cada año. ¿Cuántos **millones de euros** da? (Dos decimales.)
+    hints:
+      - 'r₂₀₂₄ = 7,75 / 4,80 ≈ 1,614; r₂₀₂₅ = 15,72 / 11,08 ≈ 1,419.'
+    explanation: |
+      Con r₂₀₂₆ ≈ 1,25 el pronóstico es de **25,56 M€**: es el escenario prudente si la desaceleración continúa.
+
+  - id: s7-informe
+    tool: reasoning
+    answerType: multiple
+    answer: [0, 1, 2]
+    options:
+      - 'Dar un rango (aprox. 25-29 M€) en lugar de una cifra suelta, con el supuesto de cada extremo.'
+      - 'Mostrar el backtest: el método de Elena habría sobreestimado un 21 % en el Q4 del año pasado.'
+      - 'Avisar de los riesgos que no están en los datos: Black Friday y Navidad (más pedidos pero con más descuento, así que los ingresos netos suben poco), roturas de stock como la de marzo y la fecha de corte de los datos (30 de junio).'
+      - 'Quedarte solo con la cifra más alta para que el presupuesto sea ambicioso.'
+    prompt: |
+      ¿Qué debería incluir tu respuesta a Elena? (Marca todo lo que aplique.)
+    hints:
+      - 'Piensa en cómo comunicar la incertidumbre y qué evidencia respalda cada cifra.'
+    explanation: |
+      Un pronóstico útil es un rango con supuestos y con una prueba de cuánto se equivocaría el método en el pasado. Escoger la cifra más alta «por ambición» es mezclar el pronóstico con el objetivo.
+
+  - id: s8-mensaje
+    tool: reasoning
+    answerType: text-self-assessed
+    prompt: |
+      Escribe la respuesta a Elena en 4-5 líneas: **la cifra o rango del Q4, por qué el método que proponía no vale tal cual y qué supuestos defiendes**.
+    hints:
+      - 'Empieza por el rango, explica el backtest en una frase y termina con lo que revisaréis cuando lleguen los datos de julio-septiembre.'
+    explanation: |
+      Un buen mensaje separa pronóstico de presupuesto: «esperamos entre 25 y 29 M€; el objetivo puede ser otro». Y se compromete a actualizar el pronóstico con datos nuevos.
+rubric:
+  - 'Empiezo por el rango del Q4 2026 (≈ 25-29 M€) y no por una cifra suelta.'
+  - 'Cito el backtest del método propuesto: habría sobreestimado el Q4 de 2025 un 21 %.'
+  - 'Explico la causa: el crecimiento relativo se desacelera, así que extrapolar el ritmo del semestre anterior sobreestima.'
+  - 'Declaro los supuestos de cada extremo del rango (salto Q2→Q4 igual al del año pasado frente a desaceleración continuada).'
+  - 'Menciono los riesgos y propongo cuándo actualizar el pronóstico con datos nuevos.'
+modelReport: |
+  **Conclusión.** Para el Q4 de 2026 (octubre-diciembre) pronostico unos **25-29 M€** de ingresos, con 25,6 M€ si la desaceleración continúa y 29,1 M€ si el salto del Q2 al Q4 se repite como el año pasado. Desaconsejo aplicar tal cual el crecimiento del primer semestre al Q4 del año anterior (28,1 M€).
+
+  **Por qué.** He probado ese método sobre el pasado: aplicado al Q4 de 2025, habría dado 18,97 M€ frente a un real de 15,72 M€, un 21 % de sobreestimación. La causa es que el crecimiento se desacelera: el primer semestre de 2025 creció un 145 % interanual, el Q4 de 2025 un 103 % y el primer semestre de 2026 un 79 % (el Q2 de 2026, un 85 %). Extrapolar el ritmo del semestre anterior ignora esa tendencia.
+
+  **Supuestos del rango.** Extremo alto: el salto del Q2 al Q4 es igual que en 2025 (×1,42). Extremo bajo: ese salto sigue reduciéndose en la misma proporción que el año anterior (de ×1,61 a ×1,42 y a ×1,25).
+
+  **Riesgos y próximos pasos.** Black Friday y Navidad aumentan los pedidos (en torno al 17 % y 10 % sobre la tendencia) pero con más descuento, de modo que los ingresos netos suben poco; una rotura de stock como la de marzo podría restar ingresos. Los datos acaban el 30 de junio: sugiero actualizar el pronóstico en cuanto tengamos julio-septiembre y fijar el presupuesto como objetivo aparte del pronóstico.
+---
+
+Este caso usa las tablas `orders` y `order_items` del dataset Lumen. La teoría está en las lecciones «Pronósticos clásicos,
+evaluación y backtesting» y «Anomalías, pronóstico frente a presupuesto y comunicación».

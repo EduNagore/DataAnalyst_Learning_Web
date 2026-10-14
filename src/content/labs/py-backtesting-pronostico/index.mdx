@@ -1,0 +1,29 @@
+---
+title: 'Backtesting con origen móvil: naive estacional frente a Holt-Winters'
+description: 'Implementa métricas de pronóstico (MAE, RMSE, MAPE, MASE y sesgo), tres métodos de pronóstico y un backtesting con origen móvil sobre los pedidos diarios de Lumen para comparar métodos con honestidad.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: series-temporales
+difficulty: 3
+estimatedMinutes: 45
+concepts: ['naive estacional', 'Holt-Winters', 'origen móvil', 'MASE', 'MAPE', 'sesgo']
+datasets: ['orders']
+packages: ['statsmodels']
+output: console
+hints:
+  - 'Naive estacional: `ultimo = train[-m:]` y el pronóstico del día `i` es `ultimo[i % m]`. Con crecimiento: multiplícalo por `g ** (i + 1)` con `g = (media de los últimos m / media de los m de hace k días) ** (1 / k)`.'
+  - 'Holt-Winters sobre logaritmos: `ExponentialSmoothing(np.log(train), trend="add", damped_trend=True, seasonal="add", seasonal_periods=7).fit()`; el pronóstico es `np.exp(modelo.forecast(h))`.'
+  - 'MASE = MAE / escala, con escala = media de `|y[t] − y[t−7]|` en el **entrenamiento** de ese origen. MAPE = `100 · media(|error / real|)`. Sesgo = `100 · (suma(pred) / suma(real) − 1)`.'
+  - 'Backtest: para cada origen (`pd.date_range(inicio, fin, freq="28D")`) toma `test = serie[origen : origen + h − 1 días]` (si tiene menos de `h` días, termina) y `train = serie[: origen − 1 día]`.'
+relatedLessons: ['series-temporales/02-pronosticos-clasicos-evaluacion-y-backtesting']
+businessQuestion: '¿Qué método pronostica mejor los pedidos de las próximas cuatro semanas y cuánto nos podemos fiar?'
+---
+
+Implementa cinco funciones:
+
+1. **`pronostico_snaive(train, h, m=7)`** y **`pronostico_snaive_deriva(train, h, m=7, k=28)`** → arrays de `h` valores (naive estacional y naive estacional con crecimiento multiplicativo).
+2. **`pronostico_holt_winters(train, h)`** → Holt-Winters aditivo amortiguado con estacionalidad semanal, sobre el logaritmo de la serie.
+3. **`metricas(real, pred, escala)`** → diccionario con `mae`, `rmse`, `mape` (%), `mase` y `sesgo_pct` (%).
+4. **`backtest(serie, metodo, h=28, inicio="2025-01-01", paso=28)`** → DataFrame con las métricas de cada origen (índice `origen`).
+
+El script imprime la media de las métricas de los tres métodos. Resultado esperado: Holt-Winters gana (MAE ≈ 37 pedidos/día frente a 43 del naive estacional), y el «naive + crecimiento» empeora.
