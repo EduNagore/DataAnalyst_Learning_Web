@@ -40,13 +40,18 @@ function fmt(n: number): string {
       Generado automáticamente a partir del esquema real del generador — nunca se desincroniza a
       mano.
     </p>
-    <div class="mt-4">
-      <Diagram
-        client:visible
-        chart={erDiagram}
-        alt={`Diagrama entidad-relación de las ${tableNames.length} tablas de Lumen y sus relaciones`}
-      />
-    </div>
+    <details class="mt-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-4">
+      <summary class="cursor-pointer text-sm font-medium text-[var(--color-text)]">
+        Ver el diagrama entidad-relación (se carga al abrirlo)
+      </summary>
+      <div class="mt-4">
+        <Diagram
+          client:visible
+          chart={erDiagram}
+          alt={`Diagrama entidad-relación de las ${tableNames.length} tablas de Lumen y sus relaciones`}
+        />
+      </div>
+    </details>
 
     <h2 class="mt-12 text-xl font-semibold text-[var(--color-text)]">Diccionario de datos</h2>
     <div class="mt-4 space-y-6">

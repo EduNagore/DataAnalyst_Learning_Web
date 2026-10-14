@@ -21,7 +21,7 @@ export default defineConfig({
   trailingSlash: 'always',
   markdown: {
     processor: unified({ remarkPlugins: [remarkMath], rehypePlugins: [rehypeKatex] }),
-    shikiConfig: { themes: { light: 'github-light', dark: 'github-dark' } },
+    shikiConfig: { themes: { light: 'github-light-high-contrast', dark: 'github-dark-high-contrast' } },
   },
   integrations: [react(), mdx(), sitemap(), pagefind()],
   vite: {

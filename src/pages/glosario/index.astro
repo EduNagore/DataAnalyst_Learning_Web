@@ -65,12 +65,8 @@ const letters = [...new Set(terms.map((t) => initial(t.data.termEs)))];
                 data-text={`${term.data.termEs} ${term.data.termEn}`.toLowerCase()}
                 class="scroll-mt-20 py-4 target:bg-[var(--color-bg-subtle)]"
               >
-                {first && (
-                  <span id={`letra-${l}`} class="sr-only">
-                    {l}
-                  </span>
-                )}
                 <dt class="font-semibold text-[var(--color-text)]">
+                  {first && <span id={`letra-${l}`} />}
                   {term.data.termEs}{' '}
                   <span class="text-[var(--color-text-muted)]">· {term.data.termEn}</span>
                 </dt>
