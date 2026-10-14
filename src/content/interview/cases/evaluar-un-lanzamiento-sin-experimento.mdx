@@ -1,0 +1,44 @@
+---
+title: 'Evaluar un lanzamiento sin experimento'
+description: 'Una subida de precios se aplicó a toda Andalucía a la vez. Evalúa su efecto sin grupo aleatorio: diseño cuasi-experimental, supuestos, comprobaciones y comunicación honesta.'
+estimatedMinutes: 30
+clarifyingQuestions:
+  - '¿Qué cambió exactamente (qué productos, qué precios) y cuándo?'
+  - '¿Hay regiones o grupos que no se vieron afectados y sean razonablemente comparables?'
+  - '¿Cuántos meses de datos previos y posteriores tenemos?'
+  - '¿Hubo otros cambios simultáneos (campañas, rebajas, competencia, festivos)?'
+  - '¿Qué decisión depende del resultado: mantener, revertir o extender la subida?'
+commonMistakes:
+  - 'Comparar solo «antes y después» en la región tratada, sin control: mezcla efecto con tendencia y estacionalidad.'
+  - 'No comprobar tendencias previas paralelas.'
+  - 'Escoger un grupo de control a conveniencia después de ver los datos.'
+  - 'Afirmar causalidad con seguridad sin análisis de robustez.'
+  - 'Olvidar el calendario y los efectos de anticipación (compras antes de la subida).'
+seniorTake: 'Un sénior reconoce que no hay un grupo aleatorio y elige el diseño cuyas hipótesis son más defendibles: diferencias en diferencias con regiones de control similares (comprobando tendencias previas) o control sintético si hay pocos controles. Añade pruebas placebo, ventanas alternativas y sensibilidad, cuantifica la incertidumbre y comunica con claridad qué supuestos sostienen la conclusión y qué la invalidaría.'
+---
+
+## Enunciado
+
+«Subimos precios en Andalucía el 1 de abril. ¿Cuánto efecto tuvo en las ventas? No hicimos test.»
+
+## Marco de respuesta
+
+1. **Aclarar** el cambio, la fecha, los datos y los posibles confusores.
+2. **Elegir controles:** regiones no afectadas similares en nivel y tendencia previos.
+3. **Diseño:** diferencias en diferencias (efecto = cambio en Andalucía menos cambio en controles) o control sintético.
+4. **Comprobar tendencias previas** paralelas con gráficos y un test en periodos anteriores.
+5. **Estimar** con intervalo; considerar efecto en unidades, ingresos y margen.
+6. **Robustez:** placebos en fechas falsas, otros controles, ventanas distintas, anticipación.
+7. **Comunicar:** efecto, incertidumbre, supuestos y decisión.
+
+## Respuesta modelo
+
+«No puedo aleatorizar a posteriori, así que uso un diseño cuasi-experimental. Tomo Andalucía como tratada y construyo un grupo de control con regiones comparables que no tuvieron la subida. Compruebo que las ventas evolucionaban en paralelo durante los meses previos; si no, ajusto el control o paso a control sintético.
+
+El efecto es la diferencia entre lo que cambió Andalucía y lo que cambió el control tras abril. Miro unidades e ingresos, porque una subida de precio puede reducir unidades y aun así aumentar ingresos, y reporto el margen. Valido con placebos (repetir el análisis con una fecha falsa, esperando efecto cero), con otros controles y con una ventana más corta por si hubo compras de anticipación en marzo.
+
+Concluiría, por ejemplo, que la subida redujo las unidades un 4 % (intervalo −6 % a −2 %) y aumentó los ingresos un 3 %, con la advertencia de que depende de que no hubiera otros cambios que afectaran solo a Andalucía.»
+
+## Comentario del entrevistador
+
+Valora la elección razonada del diseño, la comprobación de tendencias paralelas, las pruebas de robustez y la honestidad sobre los supuestos. Las cifras del ejemplo son ilustrativas.

@@ -1,9 +1,150 @@
 ---
-import ComingSoon from '../../components/layout/ComingSoon.astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import QuestionBrowser from '../../components/interview/QuestionBrowser.tsx';
+import { labIdOf } from '../../lib/labs';
+import { url } from '../../lib/url';
+
+const questions = (await getCollection('interviewQuestions')).map((q) => q.data);
+const cases = (await getCollection('interviewCases')).sort((a, b) =>
+  a.data.title.localeCompare(b.data.title, 'es'),
+);
+const sqlLabs = (await getCollection('labs'))
+  .filter((l) => l.data.module === 'carrera-entrevistas' && l.data.language === 'sql')
+  .sort(
+    (a, b) =>
+      a.data.difficulty - b.data.difficulty || a.data.title.localeCompare(b.data.title, 'es'),
+  );
+
+const levels = [
+  { d: 1, label: 'Junior' },
+  { d: 2, label: 'Intermedio' },
+  { d: 3, label: 'Sénior' },
+];
 ---
 
-<ComingSoon
+<BaseLayout
   title="Entrevistas"
-  description="Más de 150 preguntas en español e inglés, SQL cronometrado y casos de entrevista (investigación de métricas, diseño de A/B test, take-home) con respuesta modelo."
-  phase="Fase 9 · Profesional y extras"
-/>
+  description={`${questions.length} preguntas en español e inglés, ${sqlLabs.length} ejercicios de SQL cronometrados y ${cases.length} casos de entrevista con respuesta modelo.`}
+>
+  <section class="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Entrevistas</h1>
+    <p class="mt-2 max-w-2xl text-[var(--color-text-muted)]">
+      Practica los tres tipos de prueba más habituales: preguntas técnicas y de negocio, SQL con
+      tiempo y casos abiertos. Estudia con la teoría de la
+      <a
+        class="text-[var(--color-accent)] hover:underline"
+        href={url('/teoria/carrera-entrevistas/')}
+      >
+        parte de carrera
+      </a>
+      y entrena el método: aclarar, estructurar, calcular, comprobar y recomendar.
+    </p>
+
+    <nav aria-label="Secciones" class="mt-6 flex flex-wrap gap-2 text-sm">
+      <a
+        class="rounded-full border border-[var(--color-border)] px-3 py-1 hover:border-[var(--color-accent)]"
+        href="#preguntas"
+      >
+        Preguntas ({questions.length})
+      </a>
+      <a
+        class="rounded-full border border-[var(--color-border)] px-3 py-1 hover:border-[var(--color-accent)]"
+        href="#sql"
+      >
+        SQL cronometrado ({sqlLabs.length})
+      </a>
+      <a
+        class="rounded-full border border-[var(--color-border)] px-3 py-1 hover:border-[var(--color-accent)]"
+        href="#casos"
+      >
+        Casos ({cases.length})
+      </a>
+      <a
+        class="rounded-full border border-[var(--color-border)] px-3 py-1 hover:border-[var(--color-accent)]"
+        href={url('/cheatsheets/')}
+      >
+        Cheat sheets
+      </a>
+    </nav>
+
+    <h2 id="preguntas" class="mt-12 scroll-mt-20 text-2xl font-semibold text-[var(--color-text)]">
+      Preguntas con respuesta modelo
+    </h2>
+    <p class="mt-1 text-sm text-[var(--color-text-muted)]">
+      Cada pregunta tiene respuesta en español e inglés. Intenta contestar en voz alta antes de
+      mostrar la respuesta; usa el modo flashcards para repasar y marca las que debes volver a ver
+      (se guarda solo en tu navegador).
+    </p>
+    <div class="mt-5">
+      <QuestionBrowser client:load questions={questions} />
+    </div>
+
+    <h2 id="sql" class="mt-14 scroll-mt-20 text-2xl font-semibold text-[var(--color-text)]">
+      SQL cronometrado sobre Lumen
+    </h2>
+    <p class="mt-1 text-sm text-[var(--color-text-muted)]">
+      Ejercicios tipo entrevista con el mismo motor de los laboratorios y un cronómetro orientativo.
+      Piensa en voz alta, aclara definiciones y comprueba el resultado antes de entregar.
+    </p>
+    <div class="mt-5 space-y-6">
+      {levels.map((lv) => {
+        const items = sqlLabs.filter((l) => l.data.difficulty === lv.d);
+        if (!items.length) return null;
+        return (
+          <div>
+            <h3 class="text-base font-semibold text-[var(--color-text)]">
+              {lv.label}{' '}
+              <span class="font-normal text-[var(--color-text-muted)]">({items.length})</span>
+            </h3>
+            <ul class="mt-2 grid gap-2 sm:grid-cols-2">
+              {items.map((l) => (
+                <li>
+                  <a
+                    class="block rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-3 hover:border-[var(--color-accent)]"
+                    href={url(`/practica/labs/${labIdOf(l.id)}/`)}
+                  >
+                    <span class="font-medium text-[var(--color-text)]">{l.data.title}</span>
+                    <span class="mt-1 block text-xs text-[var(--color-text-muted)]">
+                      {l.data.estimatedMinutes} min ·{' '}
+                      {l.data.concepts
+                        .filter((c: string) => c !== 'entrevista')
+                        .slice(0, 3)
+                        .join(', ')}
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
+    </div>
+
+    <h2 id="casos" class="mt-14 scroll-mt-20 text-2xl font-semibold text-[var(--color-text)]">
+      Casos de entrevista
+    </h2>
+    <p class="mt-1 text-sm text-[var(--color-text-muted)]">
+      Problemas abiertos con preguntas de aclaración, marco de respuesta, respuesta modelo, errores
+      típicos y lo que diría un sénior.
+    </p>
+    <ul class="mt-5 grid gap-3 sm:grid-cols-2">
+      {cases.map((c) => (
+        <li>
+          <a
+            class="block h-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-4 hover:border-[var(--color-accent)]"
+            href={url(`/entrevistas/casos/${c.id}/`)}
+          >
+            <span class="font-semibold text-[var(--color-text)]">{c.data.title}</span>
+            <span class="mt-1 block text-sm text-[var(--color-text-muted)]">
+              {c.data.description}
+            </span>
+            <span class="mt-2 block text-xs text-[var(--color-text-muted)]">
+              {c.data.estimatedMinutes} min
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+</BaseLayout>

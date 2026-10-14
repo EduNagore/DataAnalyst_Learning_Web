@@ -1,0 +1,44 @@
+---
+title: 'Diseñar las métricas de una función nueva'
+description: 'Lumen lanza «Guardar para después» en su app. Define qué éxito medir, qué métricas de contrapeso vigilar y cómo comprobar si la función funciona.'
+estimatedMinutes: 25
+clarifyingQuestions:
+  - '¿Cuál es el objetivo de negocio de la función (más conversión, más frecuencia, menos abandono de carrito)?'
+  - '¿A quién va dirigida (todos los usuarios, solo app, solo clientes registrados) y cuándo se lanza?'
+  - '¿Se puede aleatorizar el lanzamiento o se hará para todos a la vez?'
+  - '¿Qué métricas existen ya y con qué definición oficial?'
+  - '¿Qué sería un resultado suficientemente bueno para seguir invirtiendo?'
+commonMistakes:
+  - 'Proponer diez métricas sin decir cuál es la principal.'
+  - 'Medir solo adopción (cuántos usan la función) sin conectar con valor de negocio.'
+  - 'Comparar usuarios que usan la función con los que no, sin ver la autoselección.'
+  - 'Olvidar métricas de contrapeso (devoluciones, ingresos totales, rendimiento).'
+  - 'No definir población, ventana ni cálculo de cada métrica.'
+seniorTake: 'Un sénior parte del objetivo y de la decisión: ¿seguimos, cambiamos o retiramos la función? Elige una métrica principal ligada al valor (compras por usuario a 14 días), añade métricas de adopción y de proceso para diagnosticar, fija contrapesos y define de antemano qué efecto mínimo justifica el coste. Propone un lanzamiento aleatorizado y es explícito sobre qué no se podrá concluir si no hay experimento.'
+---
+
+## Enunciado
+
+«Vamos a lanzar en la app una función para guardar productos para más tarde. ¿Cómo medirías si tiene éxito?»
+
+## Marco de respuesta
+
+1. **Objetivo y hipótesis:** «guardar reduce el abandono y aumenta las compras futuras».
+2. **Árbol de la hipótesis:** visita → guardar → volver → comprar.
+3. **Métrica principal** (una): ligada al valor y medida en la población expuesta (compras por usuario en 14 días).
+4. **Métricas diagnósticas:** adopción (% de usuarios que guardan), guardados por usuario, ratio de guardado a compra, tiempo hasta la compra.
+5. **Métricas de contrapeso:** ingresos totales, devoluciones, rendimiento de la app, cancelaciones.
+6. **Diseño de la medición:** experimento aleatorizado por usuario, tamaño de muestra y duración; si no se puede, diferencias en diferencias con adopción escalonada.
+7. **Decisión:** qué resultado hace que sigamos, ajustemos o retiremos.
+
+## Respuesta modelo
+
+«El objetivo es que más usuarios acaben comprando. Mi métrica principal sería las compras por usuario en 14 días en el grupo expuesto frente al grupo de control; si es difícil de mover, usaría conversión a compra a 14 días. Para entender por qué, miraría adopción, guardados por usuario y el ratio de guardado a compra, y cuántos guardados caducan sin compra.
+
+Contrapesos: los ingresos totales por usuario (para detectar canibalización), la tasa de devoluciones y el rendimiento de la app. Lanzaría con un experimento aleatorizado al 50 %, con tamaño de muestra calculado para detectar un aumento relativo del 3 % en la conversión. Definiría hoy que, si el efecto es inferior al 1 % y el intervalo incluye cero, no seguimos invirtiendo.
+
+No compararía quienes usan la función con quienes no, porque los más motivados la usan más: esa comparación sobrestimaría el efecto.»
+
+## Comentario del entrevistador
+
+Buena respuesta: una principal, diagnósticas y contrapesos; razona sobre autoselección y propone un diseño causal. Mala: lista larga sin jerarquía y sin forma de atribuir causalidad.

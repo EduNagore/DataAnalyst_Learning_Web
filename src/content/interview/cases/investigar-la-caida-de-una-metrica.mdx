@@ -1,0 +1,44 @@
+---
+title: 'Investigar la caída de una métrica'
+description: 'La responsable de negocio te dice que las ventas de marzo cayeron un 12 %. Estructura la investigación, descarta lo aburrido, descompone y llega a una recomendación en 30 minutos.'
+estimatedMinutes: 30
+clarifyingQuestions:
+  - '¿Cómo se define «ventas» (ingresos brutos o netos, con o sin cancelados y devoluciones) y desde qué fuente sale la cifra?'
+  - '¿Con qué se compara el −12 %: con febrero, con marzo del año pasado o con el objetivo?'
+  - '¿Ha cambiado algo conocido: precios, campañas, stock, festivos (Semana Santa), la web o la app?'
+  - '¿La caída aparece en todos los canales, regiones y categorías o en alguno concreto?'
+  - '¿Quién usará la respuesta y qué decisión depende de ella?'
+commonMistakes:
+  - 'Lanzarse a explicar la causa de negocio sin comprobar antes si la cifra es correcta.'
+  - 'Comparar con un mes atípico (por ejemplo, un pico) sin mirar la serie larga ni la estacionalidad.'
+  - 'Ignorar el calendario: festivos y Semana Santa mueven semanas enteras.'
+  - 'Mezclar correlación con causa: «cayó el tráfico, luego el tráfico es la causa» sin descomponer.'
+  - 'Terminar con una lista de datos y sin recomendación.'
+seniorTake: 'Un sénior no investiga «la caída»: investiga la decisión que hay detrás. Empieza por comprobar la medición y el contexto (total, otras regiones, calendario), descompone con una identidad (clientes × frecuencia × ticket), cuantifica cuánto explica cada hipótesis, distingue lo transitorio de lo estructural (¿se recupera?) y evita acusar a un equipo con una correlación. Entrega una recomendación con su nivel de confianza y el siguiente dato que la confirmaría.'
+---
+
+## Enunciado
+
+«Las ventas de marzo han caído un 12 %. Dirección quiere saber por qué y qué hacemos. Tienes 30 minutos.»
+
+## Marco de respuesta
+
+1. **Aclarar** la métrica, la comparación, los cambios conocidos y quién decide (ver las preguntas).
+2. **Medición antes que negocio:** ¿la cifra está bien calculada? ¿Hay datos incompletos, duplicados, un cambio de definición o un retraso de carga?
+3. **Contexto:** compara con el total, con otras regiones y con la serie de los últimos 12-24 meses. Calendario: días laborables, festivos y estacionalidad.
+4. **Descomponer:** ingresos = clientes × pedidos por cliente × ticket medio; y por canal, región, categoría, dispositivo. El tamaño de cada contribución dice dónde mirar.
+5. **Hipótesis priorizadas** (probabilidad × coste de comprobar): rotura de stock, precio, campaña, incidencia técnica, competencia.
+6. **Comprobar con datos** y descartar. Cuantificar lo explicado.
+7. **Recomendación** con confianza, riesgos y el siguiente paso.
+
+## Respuesta modelo
+
+«Primero compruebo que −12 % es real: recalculo desde la tabla de pedidos con la definición oficial (no cancelados) y miro si la carga estuvo completa. Después lo comparo con marzo del año anterior y con la serie larga, porque el mes pasado fue un pico y Semana Santa cayó en marzo.
+
+Descompongo en clientes activos, pedidos por cliente y ticket medio. Si la caída está casi entera en clientes activos y en una categoría concreta, busco la causa allí (stock, precios, campaña). Si aparece en todos los canales a la vez, sospecho de medición o de calendario; si solo en uno, de un cambio específico (por ejemplo, un fallo del checkout en móvil).
+
+Con una hipótesis comprobada, por ejemplo una rotura de stock en Electrónica, cuantifico cuánto de los −12 % explica y si ya se recupera. Mi recomendación: no actuar sobre equipos comerciales con este dato, resolver el abastecimiento y vigilar la recuperación semanal. Dejaría una alerta con definición única para detectar antes la próxima caída.»
+
+## Comentario del entrevistador
+
+Valora: pide aclaraciones, descarta lo barato primero, usa una descomposición con identidad, cuantifica y recomienda. Penaliza: causas de negocio sin comprobar la medición, comparaciones con meses atípicos y ausencia de siguiente paso.

@@ -1,0 +1,43 @@
+---
+title: 'Diseñar un test A/B'
+description: 'Producto quiere probar un nuevo checkout en una sola página. Diseña el experimento: hipótesis, unidad, métricas, tamaño de muestra, duración, comprobaciones y criterio de decisión.'
+estimatedMinutes: 30
+clarifyingQuestions:
+  - '¿Cuál es la tasa de conversión actual del checkout y qué mejora relativa sería relevante para el negocio?'
+  - '¿Cuántos usuarios o sesiones pasan por el checkout al día?'
+  - '¿Puede un mismo usuario ver ambas versiones (dispositivos, sesiones) y cómo se identifica?'
+  - '¿Hay estacionalidad, campañas o festivos en las próximas semanas?'
+  - '¿Qué no se puede empeorar (tiempo de carga, devoluciones, errores de pago)?'
+commonMistakes:
+  - 'No calcular el tamaño de muestra y parar el test cuando «sale significativo».'
+  - 'Aleatorizar por sesión cuando el usuario puede volver y ver las dos versiones.'
+  - 'No comprobar el SRM antes de interpretar el resultado.'
+  - 'Elegir varias métricas principales y quedarse con la que sale bien.'
+  - 'Ignorar los ciclos semanales y lanzar el test solo cuatro días.'
+seniorTake: 'Un sénior documenta el plan de análisis antes de empezar (métrica principal, población, duración, regla de decisión), calcula la potencia con una línea base real, valida la plataforma con un A/A o con datos históricos, vigila SRM y contrapesos, y decide qué haría con cada resultado posible (mejora, nulo, empeoramiento). Considera CUPED si hay covariables previas y pruebas secuenciales si habrá que mirar antes de tiempo.'
+---
+
+## Enunciado
+
+«Queremos probar un checkout en una sola página frente al actual en tres pasos. ¿Cómo diseñas el experimento?»
+
+## Marco de respuesta
+
+1. **Hipótesis:** el checkout corto aumenta la tasa de compra completada sin aumentar errores ni devoluciones.
+2. **Unidad y población:** usuario (cookie o cuenta) que llega al checkout; excluir bots y tráfico interno.
+3. **Métrica principal:** compras completadas por usuario que inicia el checkout. **Contrapesos:** errores de pago, tiempo de carga, ingresos por usuario, devoluciones.
+4. **Tamaño de muestra y duración:** línea base, MDE, α = 0,05, potencia 0,8; dividir entre el tráfico y redondear a semanas completas.
+5. **Reparto y aleatorización:** 50/50 por usuario, persistente.
+6. **Comprobaciones:** A/A o validación histórica, SRM, instrumentación de eventos por variante.
+7. **Análisis:** plan fijado de antemano; intervalo del efecto; segmentación solo exploratoria y con corrección.
+8. **Decisión:** reglas para los tres escenarios.
+
+## Respuesta modelo
+
+«Aleatorizo por usuario, 50/50, solo para quienes inician el checkout. La métrica principal es la tasa de compra completada; contrapesos: errores de pago, latencia y devoluciones a 30 días. Con una línea base del 62 % y un efecto mínimo relevante de +1,5 puntos, con α = 0,05 y potencia 0,8 necesito unos 16.300 usuarios por grupo; con 3.000 usuarios diarios (1.500 por grupo) son unos 11 días, que redondeo a dos semanas completas para cubrir los ciclos semanales.
+
+Antes de leer nada compruebo el SRM; si hay desajuste, paro y busco la causa. Analizo con un intervalo de confianza del efecto; si lo veo cerca del MDE y los contrapesos están bien, lanzo; si es nulo, no lanzo salvo que simplifique el mantenimiento; si empeora algún contrapeso, investigo antes. Sé que mirar cada día infla los falsos positivos, así que fijo la duración o uso pruebas secuenciales si hace falta mirar antes.»
+
+## Comentario del entrevistador
+
+Busca: unidad correcta, una métrica principal, cálculo de potencia, SRM, regla de decisión previa y conciencia del peeking. Los números del ejemplo son ilustrativos: lo importante es el razonamiento.

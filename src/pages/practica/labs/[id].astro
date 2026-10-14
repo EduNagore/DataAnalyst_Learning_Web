@@ -3,6 +3,7 @@ import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import SqlLab from '../../../components/lab/SqlLab.tsx';
 import PyLab from '../../../components/lab/PyLab.tsx';
+import InterviewTimer from '../../../components/lab/InterviewTimer.tsx';
 import { labIdOf } from '../../../lib/labs';
 import { url } from '../../../lib/url';
 import schemaManifest from '../../../../public/data/_schema.json';
@@ -69,6 +70,9 @@ const difficultyLabel = ['', 'Fácil', 'Media', 'Difícil'][d.difficulty];
       <span>{difficultyLabel}</span>
       <span>{d.estimatedMinutes} min</span>
     </div>
+    {d.module === 'carrera-entrevistas' && (
+      <InterviewTimer client:load minutes={d.estimatedMinutes} />
+    )}
 
     <div class="mt-6 grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
       <div>

@@ -1,1 +1,2298 @@
-[]
+- id: iq-sql-01
+  topic: SQL
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Cuál es la diferencia entre WHERE y HAVING?
+  promptEn: >-
+    What is the difference between WHERE and HAVING?
+  answerEs: >-
+    WHERE filtra filas antes de agrupar y no puede usar funciones de agregación; HAVING filtra grupos después
+    de la agregación y sí puede usarlas (HAVING COUNT(*) > 5). Orden lógico de ejecución: FROM, WHERE, GROUP BY,
+    HAVING, SELECT, ORDER BY. Regla práctica: lo que se pueda filtrar en WHERE, mejor ahí, porque reduce los datos antes de agrupar.
+  answerEn: >-
+    WHERE filters rows before grouping and cannot use aggregate functions; HAVING filters groups after aggregation
+    and can (HAVING COUNT(*) > 5). Logical execution order: FROM, WHERE, GROUP BY, HAVING, SELECT, ORDER BY.
+    Rule of thumb: filter in WHERE whenever possible, because it shrinks the data before grouping.
+
+- id: iq-sql-02
+  topic: SQL
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿En qué se diferencian COUNT(*), COUNT(columna) y COUNT(DISTINCT columna)?
+  promptEn: >-
+    How do COUNT(*), COUNT(column) and COUNT(DISTINCT column) differ?
+  answerEs: >-
+    COUNT(*) cuenta filas, incluidas las que tienen NULL. COUNT(columna) cuenta las filas donde esa columna no es
+    NULL. COUNT(DISTINCT columna) cuenta valores distintos no nulos. Ejemplo típico: tras un JOIN con líneas de pedido,
+    COUNT(*) cuenta líneas y COUNT(DISTINCT order_id) cuenta pedidos.
+  answerEn: >-
+    COUNT(*) counts rows, including those with NULLs. COUNT(column) counts rows where that column is not NULL.
+    COUNT(DISTINCT column) counts distinct non-null values. Typical example: after joining order lines,
+    COUNT(*) counts lines while COUNT(DISTINCT order_id) counts orders.
+
+- id: iq-sql-03
+  topic: SQL
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Qué diferencia hay entre INNER JOIN, LEFT JOIN y FULL OUTER JOIN? ¿Cuándo usarías cada uno?
+  promptEn: >-
+    What is the difference between INNER, LEFT and FULL OUTER JOIN? When would you use each?
+  answerEs: >-
+    INNER JOIN devuelve solo las filas con correspondencia en ambas tablas. LEFT JOIN conserva todas las de la
+    tabla izquierda y rellena con NULL cuando no hay correspondencia (útil para «clientes con o sin pedidos»).
+    FULL OUTER JOIN conserva las de ambas (útil para conciliar dos fuentes). Cuidado: un filtro en WHERE sobre la
+    tabla derecha de un LEFT JOIN lo convierte en un INNER JOIN; ponlo en el ON.
+  answerEn: >-
+    INNER JOIN returns only rows with a match on both sides. LEFT JOIN keeps every row from the left table and
+    fills with NULL when there is no match (useful for "customers with or without orders"). FULL OUTER JOIN keeps
+    both sides (useful to reconcile two sources). Beware: a WHERE filter on the right table of a LEFT JOIN turns
+    it into an INNER JOIN; put the condition in the ON clause.
+
+- id: iq-sql-04
+  topic: SQL
+  level: junior
+  type: debugging
+  promptEs: >-
+    Unes pedidos con sus líneas y los ingresos totales salen el triple de lo esperado. ¿Qué ha pasado?
+  promptEn: >-
+    You join orders with their lines and total revenue comes out three times too high. What happened?
+  answerEs: >-
+    Casi seguro un fan-out: el importe está en el nivel de pedido y al unir con las líneas se repite una vez
+    por línea (un pedido con tres líneas suma tres veces). Comprueba el grano de cada tabla, suma el importe en el
+    nivel correcto (agrega las líneas antes de unir, o suma desde order_items) y verifica con un total conocido.
+  answerEn: >-
+    Almost certainly a fan-out: the amount lives at order level and joining to lines repeats it once per line
+    (an order with three lines is summed three times). Check each table's grain, aggregate at the right level
+    (aggregate lines before joining, or sum from order_items) and validate against a known total.
+
+- id: iq-sql-05
+  topic: SQL
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Cómo se comporta NULL en comparaciones y agregaciones?
+  promptEn: >-
+    How does NULL behave in comparisons and aggregations?
+  answerEs: >-
+    NULL significa «desconocido»: NULL = NULL no es verdadero (es NULL), por eso se usa IS NULL / IS NOT NULL.
+    Las agregaciones (SUM, AVG, COUNT(col)) ignoran los NULL; AVG divide entre las filas no nulas. En un NOT IN con
+    una subconsulta que devuelve NULL, el resultado es vacío: usa NOT EXISTS. COALESCE sustituye NULL por un valor.
+  answerEn: >-
+    NULL means "unknown": NULL = NULL is not true (it is NULL), so use IS NULL / IS NOT NULL. Aggregates (SUM, AVG,
+    COUNT(col)) ignore NULLs; AVG divides by the non-null rows. NOT IN with a subquery that returns NULL yields
+    nothing: use NOT EXISTS. COALESCE replaces NULL with a value.
+
+- id: iq-sql-06
+  topic: SQL
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Cuál es la diferencia entre UNION y UNION ALL?
+  promptEn: >-
+    What is the difference between UNION and UNION ALL?
+  answerEs: >-
+    UNION combina resultados y elimina duplicados (requiere ordenar o hacer hash, más lento); UNION ALL los
+    conserva todos y es más rápido. Usa UNION ALL por defecto y UNION solo cuando necesites explícitamente deduplicar.
+    Ambos exigen el mismo número de columnas con tipos compatibles.
+  answerEn: >-
+    UNION combines results and removes duplicates (needs a sort or hash, slower); UNION ALL keeps everything and
+    is faster. Default to UNION ALL and use UNION only when you explicitly need deduplication. Both require the
+    same number of columns with compatible types.
+
+- id: iq-sql-07
+  topic: SQL
+  level: junior
+  type: design
+  promptEs: >-
+    Escribe en palabras cómo obtendrías el cliente con mayor gasto de cada región.
+  promptEn: >-
+    Describe in words how you would get the highest-spending customer in each region.
+  answerEs: >-
+    Calcular el gasto por cliente y región (agregar líneas de pedidos no cancelados), numerar a los clientes de
+    cada región por gasto descendente con ROW_NUMBER() OVER (PARTITION BY region ORDER BY gasto DESC, customer_id)
+    y quedarse con el número 1 (QUALIFY o subconsulta). Decir cómo se resuelven los empates (ROW_NUMBER elige uno;
+    RANK devuelve todos) y qué cuenta como gasto.
+  answerEn: >-
+    Compute spend per customer and region (aggregate non-cancelled order lines), number customers within each
+    region by descending spend with ROW_NUMBER() OVER (PARTITION BY region ORDER BY spend DESC, customer_id) and
+    keep number 1 (QUALIFY or a subquery). State how ties are handled (ROW_NUMBER picks one; RANK returns all)
+    and what counts as spend.
+
+- id: iq-sql-08
+  topic: SQL
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿En qué se diferencian ROW_NUMBER, RANK y DENSE_RANK?
+  promptEn: >-
+    How do ROW_NUMBER, RANK and DENSE_RANK differ?
+  answerEs: >-
+    Con valores empatados, ROW_NUMBER asigna números consecutivos únicos (1, 2, 3) de forma arbitraria si no hay
+    desempate; RANK da el mismo número a los empates y salta los siguientes (1, 1, 3); DENSE_RANK da el mismo número
+    y no salta (1, 1, 2). Para top-N sin duplicados, ROW_NUMBER con un desempate determinista; para incluir empates, RANK.
+  answerEn: >-
+    With tied values, ROW_NUMBER assigns unique consecutive numbers (1, 2, 3), arbitrarily if there is no tiebreaker;
+    RANK gives ties the same number and skips the next (1, 1, 3); DENSE_RANK gives the same number without skipping
+    (1, 1, 2). For top-N without duplicates use ROW_NUMBER with a deterministic tiebreaker; to include ties use RANK.
+
+- id: iq-sql-09
+  topic: SQL
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo calcularías el porcentaje de clientes que repite compra en los 90 días siguientes a la primera?
+  promptEn: >-
+    How would you compute the share of customers who buy again within 90 days of their first purchase?
+  answerEs: >-
+    Numerar los pedidos válidos de cada cliente (ROW_NUMBER), tomar el primero y unir con el segundo mediante LEFT JOIN
+    para no perder a quien no repite, y marcar repite si la diferencia de fechas es ≤ 90. Limitar a clientes cuyo primer pedido
+    tenga al menos 90 días de observación (censura), si no se subestima la tasa. Dividir repetidores entre clientes.
+  answerEn: >-
+    Number each customer's valid orders (ROW_NUMBER), take the first and LEFT JOIN the second so non-repeaters are not
+    lost, and flag repeat if the date difference is ≤ 90. Restrict to customers whose first order has at least 90 days
+    of observation (censoring), otherwise the rate is underestimated. Divide repeaters by customers.
+
+- id: iq-sql-10
+  topic: SQL
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué es una CTE y cuándo la preferirías a una subconsulta?
+  promptEn: >-
+    What is a CTE and when would you prefer it to a subquery?
+  answerEs: >-
+    Una CTE (WITH nombre AS (...)) da nombre a un resultado intermedio que se puede reutilizar en la consulta principal.
+    Mejora la legibilidad al partir una consulta en pasos y permite referenciar el mismo resultado varias veces. En muchos
+    motores no cambia el rendimiento por sí sola (el optimizador la trata como subconsulta o la materializa según el caso).
+    Las CTE recursivas permiten recorrer jerarquías.
+  answerEn: >-
+    A CTE (WITH name AS (...)) names an intermediate result that the main query can reuse. It improves readability by
+    splitting a query into steps and lets you reference the same result several times. In many engines it does not change
+    performance by itself (the optimizer inlines or materializes it depending on the case). Recursive CTEs walk hierarchies.
+
+- id: iq-sql-11
+  topic: SQL
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo calcularías una media móvil de 7 días de los ingresos diarios sin huecos de fechas?
+  promptEn: >-
+    How would you compute a 7-day moving average of daily revenue without date gaps?
+  answerEs: >-
+    Generar una tabla de fechas continua (calendario o generate_series), unirla con los ingresos diarios con LEFT JOIN
+    y rellenar los días sin ventas con 0 (COALESCE). Después AVG(ingresos) OVER (ORDER BY fecha ROWS BETWEEN 6 PRECEDING AND
+    CURRENT ROW). Sin la tabla de fechas, ROWS contaría 7 filas y no 7 días cuando faltan días; RANGE con intervalos también lo resolvería.
+  answerEn: >-
+    Generate a continuous date table (calendar or generate_series), LEFT JOIN it to daily revenue and fill days without sales
+    with 0 (COALESCE). Then AVG(revenue) OVER (ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW). Without the date table,
+    ROWS would count 7 rows rather than 7 days when days are missing; RANGE with intervals would also solve it.
+
+- id: iq-sql-12
+  topic: SQL
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué diferencia hay entre ROWS y RANGE en una ventana?
+  promptEn: >-
+    What is the difference between ROWS and RANGE in a window frame?
+  answerEs: >-
+    ROWS define el marco por posición física (las N filas anteriores). RANGE lo define por valor de la columna de
+    ordenación: incluye todas las filas con valores dentro del intervalo, y los empates se tratan como pares (todas
+    las filas con el mismo valor entran juntas). Con un ORDER BY sin marco explícito, el marco por defecto suele ser RANGE
+    UNBOUNDED PRECEDING hasta la fila actual, lo que sorprende en sumas acumuladas con empates.
+  answerEn: >-
+    ROWS defines the frame by physical position (the previous N rows). RANGE defines it by the ordering value: it includes
+    all rows whose values fall within the interval, and ties are peers (all rows with the same value enter together). With
+    an ORDER BY and no explicit frame, the default is usually RANGE UNBOUNDED PRECEDING to the current row, which surprises
+    in running totals with ties.
+
+- id: iq-sql-13
+  topic: SQL
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo encontrarías los clientes que nunca han hecho un pedido?
+  promptEn: >-
+    How would you find customers who never placed an order?
+  answerEs: >-
+    Con un anti-join: LEFT JOIN de clientes con pedidos y filtrar donde la clave del pedido es NULL, o NOT EXISTS (correlacionado).
+    Evita NOT IN si la subconsulta puede devolver NULL. Aclara qué es «pedido» (¿se cuentan los cancelados?): esa condición va en el
+    ON del LEFT JOIN o en la subconsulta, no en el WHERE final.
+  answerEn: >-
+    With an anti-join: LEFT JOIN customers to orders and keep rows where the order key is NULL, or a correlated NOT EXISTS. Avoid
+    NOT IN if the subquery can return NULL. Clarify what an "order" is (are cancelled ones counted?): that condition goes in the
+    LEFT JOIN's ON or inside the subquery, not in the final WHERE.
+
+- id: iq-sql-14
+  topic: SQL
+  level: mid
+  type: debugging
+  promptEs: >-
+    Tu consulta con LEFT JOIN devuelve menos clientes que la tabla de clientes. ¿Por qué puede ser?
+  promptEn: >-
+    Your LEFT JOIN query returns fewer customers than the customers table. Why could that be?
+  answerEs: >-
+    Probablemente un filtro sobre la tabla de la derecha en el WHERE (por ejemplo, WHERE o.status = 'completado') que elimina las
+    filas con NULL y convierte el LEFT JOIN en INNER. Mueve la condición al ON. También puede ser un GROUP BY que pierde filas,
+    o un filtro previo sobre la tabla izquierda. Compara COUNT(*) y COUNT(DISTINCT customer_id) en cada paso.
+  answerEn: >-
+    Probably a WHERE filter on the right-hand table (for example WHERE o.status = 'completed') that drops the NULL rows and turns
+    the LEFT JOIN into an INNER JOIN. Move the condition into the ON clause. It could also be a GROUP BY that loses rows or a
+    prior filter on the left table. Compare COUNT(*) and COUNT(DISTINCT customer_id) at each step.
+
+- id: iq-sql-15
+  topic: SQL
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo detectarías y eliminarías pedidos duplicados quedándote con el más reciente?
+  promptEn: >-
+    How would you detect and remove duplicate orders keeping the most recent one?
+  answerEs: >-
+    Detectar con GROUP BY clave HAVING COUNT(*) > 1. Para quedarte con uno: ROW_NUMBER() OVER (PARTITION BY clave ORDER BY
+    actualizado_en DESC) y filtrar = 1 (QUALIFY). Define qué es «duplicado» (clave de negocio frente a fila idéntica), investiga
+    la causa en origen, y no borres sin guardar el original: crea una vista o tabla limpia.
+  answerEn: >-
+    Detect with GROUP BY key HAVING COUNT(*) > 1. To keep one: ROW_NUMBER() OVER (PARTITION BY key ORDER BY updated_at DESC)
+    and filter = 1 (QUALIFY). Define what "duplicate" means (business key vs identical row), investigate the cause upstream,
+    and do not delete without keeping the original: create a clean view or table.
+
+- id: iq-sql-16
+  topic: SQL
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Cuándo usarías EXISTS frente a IN?
+  promptEn: >-
+    When would you use EXISTS rather than IN?
+  answerEs: >-
+    EXISTS comprueba la existencia de al menos una fila correlacionada y se detiene al encontrarla; maneja bien los NULL y suele ser
+    la opción segura para semi-joins y anti-joins (NOT EXISTS). IN compara con una lista o subconsulta de valores; con NOT IN y NULL
+    en la lista da resultados inesperados. Los optimizadores modernos suelen convertirlos al mismo plan, pero por claridad y seguridad
+    ante NULL, prefiere EXISTS.
+  answerEn: >-
+    EXISTS checks for at least one correlated row and stops when it finds one; it handles NULLs well and is usually the safe choice
+    for semi- and anti-joins (NOT EXISTS). IN compares against a list or subquery of values; with NOT IN and a NULL in the list it gives
+    unexpected results. Modern optimizers often produce the same plan, but for clarity and NULL-safety prefer EXISTS.
+
+- id: iq-sql-17
+  topic: SQL
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué es un join no equitativo (non-equi join) y para qué sirve?
+  promptEn: >-
+    What is a non-equi join and what is it for?
+  answerEs: >-
+    Es un JOIN cuya condición no es una igualdad (rangos, desigualdades): por ejemplo, unir cada pedido con la tarifa vigente en su
+    fecha (valid_from <= fecha < valid_to) o encajar eventos en intervalos. Es la base de las dimensiones de variación lenta (SCD2)
+    y de los ASOF JOIN. Cuidado con el rendimiento y con intervalos solapados, que duplican filas.
+  answerEn: >-
+    A JOIN whose condition is not an equality (ranges, inequalities): for example matching each order to the rate valid on its date
+    (valid_from <= date < valid_to) or fitting events into intervals. It underlies slowly changing dimensions (SCD2) and ASOF JOINs.
+    Watch performance and overlapping intervals, which duplicate rows.
+
+- id: iq-sql-18
+  topic: SQL
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo calcularías rachas de meses consecutivos con compra por cliente?
+  promptEn: >-
+    How would you compute streaks of consecutive purchasing months per customer?
+  answerEs: >-
+    Gaps and islands: reducir a un registro por cliente y mes, numerar con ROW_NUMBER por cliente ordenando por mes y restar ese número
+    al índice del mes (meses desde una fecha fija). Los meses consecutivos dan el mismo valor de grupo; contar filas por grupo da la
+    longitud de la racha. Alternativa con LAG y una suma acumulada de «inicios de racha».
+  answerEn: >-
+    Gaps and islands: reduce to one row per customer and month, number rows with ROW_NUMBER per customer ordered by month and subtract it
+    from the month index (months since a fixed date). Consecutive months yield the same group value; counting rows per group gives the
+    streak length. Alternative: LAG plus a running sum of "streak starts".
+
+- id: iq-sql-19
+  topic: SQL
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo modelarías y consultarías una dimensión de cliente que cambia con el tiempo (SCD tipo 2)?
+  promptEn: >-
+    How would you model and query a customer dimension that changes over time (SCD type 2)?
+  answerEs: >-
+    Una fila por versión con valid_from, valid_to (o is_current) y una clave sustituta. Al cambiar un atributo se cierra la fila vigente y
+    se inserta una nueva. Para analizar un hecho con el valor vigente en su fecha: join por clave de negocio y fecha entre valid_from
+    y valid_to (semiabierto). dbt snapshots automatizan la captura. Riesgos: intervalos solapados o con huecos y atributos que cambian a menudo.
+  answerEn: >-
+    One row per version with valid_from, valid_to (or is_current) and a surrogate key. When an attribute changes, close the current row and
+    insert a new one. To analyze a fact with the value valid on its date: join on the business key and date between valid_from and valid_to
+    (half-open). dbt snapshots automate capture. Risks: overlapping or gapped intervals and frequently changing attributes.
+
+- id: iq-sql-20
+  topic: SQL
+  level: senior
+  type: conceptual
+  promptEs: >-
+    ¿Qué diferencia hay entre un modelo en estrella y uno normalizado (3NF) y cuándo usar cada uno?
+  promptEn: >-
+    What is the difference between a star schema and a normalized (3NF) model and when to use each?
+  answerEs: >-
+    3NF minimiza la redundancia y protege la integridad: es ideal para sistemas transaccionales (OLTP). La estrella desnormaliza en tablas
+    de hechos (eventos medibles con su grano) y dimensiones (contexto): simplifica las consultas analíticas, mejora el rendimiento en
+    almacenes columnares y encaja con las herramientas de BI. Se elige estrella para analítica, 3NF para la fuente operativa.
+  answerEn: >-
+    3NF minimizes redundancy and protects integrity: ideal for transactional systems (OLTP). A star schema denormalizes into fact tables
+    (measurable events at a declared grain) and dimensions (context): it simplifies analytical queries, performs well on columnar
+    warehouses and suits BI tools. Choose star for analytics, 3NF for the operational source.
+
+- id: iq-sql-21
+  topic: SQL
+  level: senior
+  type: debugging
+  promptEs: >-
+    Una consulta que ayer tardaba 5 segundos hoy tarda 5 minutos. ¿Cómo investigas?
+  promptEn: >-
+    A query that took 5 seconds yesterday takes 5 minutes today. How do you investigate?
+  answerEs: >-
+    Mirar el plan de ejecución (EXPLAIN / EXPLAIN ANALYZE) y compararlo con el anterior: cambios de plan, escaneos completos, joins que
+    explotan filas, falta de poda de particiones o estadísticas desactualizadas. Revisar qué cambió: volumen de datos, un nuevo join,
+    un filtro que ya no se empuja, concurrencia o tamaño del cómputo. Reducir el problema (LIMIT, subconjunto) y medir cada CTE.
+  answerEn: >-
+    Look at the execution plan (EXPLAIN / EXPLAIN ANALYZE) and compare it to the previous one: plan changes, full scans, joins that blow up
+    rows, missing partition pruning or stale statistics. Check what changed: data volume, a new join, a filter no longer pushed down,
+    concurrency or compute size. Narrow the problem (LIMIT, subset) and time each CTE.
+
+- id: iq-sql-22
+  topic: SQL
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo atribuirías cada compra al canal de la última sesión previa del cliente?
+  promptEn: >-
+    How would you attribute each purchase to the channel of the customer's latest prior session?
+  answerEs: >-
+    Un join «hacia atrás en el tiempo»: ASOF JOIN (donde exista) o una ventana: unir pedidos y sesiones del cliente con sesión <= pedido,
+    y quedarse con la más reciente (ROW_NUMBER por pedido ordenando por inicio DESC). Acotar la ventana de atribución (por ejemplo, 30 días),
+    decidir qué pasa sin sesión («directo/desconocido») y recordar que el último contacto no mide incrementalidad.
+  answerEn: >-
+    A "look back in time" join: ASOF JOIN (where available) or a window: join orders and the customer's sessions with session <= order and
+    keep the most recent (ROW_NUMBER per order ordered by start DESC). Bound the attribution window (for example 30 days), decide what to do
+    without a session ("direct/unknown") and remember last touch does not measure incrementality.
+
+- id: iq-sql-23
+  topic: SQL
+  level: senior
+  type: conceptual
+  promptEs: >-
+    ¿Qué significa que una consulta sea idempotente y por qué importa en pipelines?
+  promptEn: >-
+    What does it mean for a query or load to be idempotent and why does it matter in pipelines?
+  answerEs: >-
+    Ejecutarla varias veces con la misma entrada deja el mismo resultado final, sin duplicar ni perder datos. Importa porque los
+    reintentos y las reejecuciones son normales. Se consigue con MERGE/upsert por clave, cargas por partición con sobrescritura
+    (delete+insert de la ventana) y claves naturales; se evita con INSERT ciegos y marcas de tiempo del momento de ejecución.
+  answerEn: >-
+    Running it several times with the same input leaves the same final result, without duplicating or losing data. It matters because
+    retries and reruns are normal. Achieve it with MERGE/upsert by key, partition-level overwrite loads (delete+insert the window) and
+    natural keys; avoid blind INSERTs and execution-time timestamps.
+
+- id: iq-sql-24
+  topic: SQL
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo calcularías el MRR mensual con altas, bajas y cambios de plan?
+  promptEn: >-
+    How would you compute monthly MRR with new, churned and plan-changed subscriptions?
+  answerEs: >-
+    Una tabla de meses cruzada con las suscripciones: MRR final = suma del MRR de las activas a fin de mes (empezaron antes del mes siguiente
+    y no se cancelaron antes). Nuevo = altas del mes; perdido = bajas del mes; expansión/contracción = cambios de importe de quienes
+    siguen activos (requiere historial de versiones de la suscripción). Comprobar que MRR fin = MRR inicio + nuevo + expansión − contracción − perdido.
+  answerEn: >-
+    A month table crossed with subscriptions: ending MRR = sum of MRR of subscriptions active at month end (started before next month and not
+    cancelled before). New = month's sign-ups; churned = month's cancellations; expansion/contraction = amount changes of those still active
+    (requires subscription version history). Check that ending MRR = starting MRR + new + expansion − contraction − churned.
+
+- id: iq-sql-25
+  topic: SQL
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Por qué una consulta con DISTINCT puede esconder un problema?
+  promptEn: >-
+    Why can a query with DISTINCT hide a problem?
+  answerEs: >-
+    Si añades DISTINCT para «arreglar» duplicados, quizá estás tapando un join mal planteado (fan-out o clave no única) que además puede
+    falsear sumas. Además cuesta rendimiento. Primero entiende por qué hay duplicados (grano, claves) y corrígelo en el join o agrega antes;
+    usa DISTINCT solo cuando de verdad quieras valores únicos.
+  answerEn: >-
+    If you add DISTINCT to "fix" duplicates, you may be masking a bad join (fan-out or non-unique key) that can also distort sums. It also
+    costs performance. First understand why duplicates appear (grain, keys) and fix it in the join or aggregate earlier; use DISTINCT only
+    when you really want unique values.
+
+- id: iq-sql-26
+  topic: SQL
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Qué hace GROUP BY y qué reglas siguen las columnas del SELECT?
+  promptEn: >-
+    What does GROUP BY do and what rules apply to SELECT columns?
+  answerEs: >-
+    Agrupa las filas por los valores de las columnas indicadas y permite calcular agregados por grupo. Toda columna del SELECT debe
+    estar en el GROUP BY o ir dentro de una función de agregación (algunos motores relajan la regla con GROUP BY ALL o columnas funcionalmente
+    dependientes). Una fila de salida por grupo.
+  answerEn: >-
+    It groups rows by the values of the listed columns and lets you compute aggregates per group. Every SELECT column must be in the GROUP BY
+    or inside an aggregate function (some engines relax this with GROUP BY ALL or functionally dependent columns). One output row per group.
+
+- id: iq-sql-27
+  topic: SQL
+  level: mid
+  type: debugging
+  promptEs: >-
+    Un AVG de una columna con NULL da un resultado distinto al esperado. ¿Por qué y cómo lo tratas?
+  promptEn: >-
+    An AVG over a column with NULLs gives an unexpected result. Why and how do you handle it?
+  answerEs: >-
+    AVG ignora los NULL: divide la suma entre el número de filas no nulas, no entre todas. Si el NULL significa «cero» (sin compras), la media
+    sube artificialmente; usa COALESCE(col, 0) si esa es la regla de negocio. Si significa «desconocido», la media sobre los conocidos puede
+    estar sesgada. Documenta la decisión y comprueba cuántos NULL hay.
+  answerEn: >-
+    AVG ignores NULLs: it divides the sum by the number of non-null rows, not all rows. If NULL means "zero" (no purchases) the average is
+    inflated; use COALESCE(col, 0) if that is the business rule. If it means "unknown", the average over known values may be biased.
+    Document the decision and check how many NULLs there are.
+
+- id: iq-sql-28
+  topic: SQL
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo calcularías un embudo de conversión (visita, carrito, checkout, compra) en SQL?
+  promptEn: >-
+    How would you compute a conversion funnel (visit, add to cart, checkout, purchase) in SQL?
+  answerEs: >-
+    Definir si el embudo es por sesión o por usuario y la ventana. Por sesión: por cada sesión, marcar con MAX(CASE WHEN event_type = ... THEN 1 END)
+    qué pasos alcanzó y contar sesiones por paso; la conversión de cada paso es sobre el paso anterior (y sobre el total). Si el orden importa,
+    comparar marcas de tiempo mínimas por paso. Vigilar eventos duplicados y la calidad del tracking.
+  answerEn: >-
+    Define whether the funnel is per session or per user and the window. Per session: for each session flag the steps reached with
+    MAX(CASE WHEN event_type = ... THEN 1 END) and count sessions per step; each step's conversion is relative to the previous step (and to the total).
+    If order matters, compare minimum timestamps per step. Watch for duplicate events and tracking quality.
+
+- id: iq-sql-29
+  topic: SQL
+  level: senior
+  type: conceptual
+  promptEs: >-
+    ¿Qué es la poda de particiones o el empuje de predicados (predicate pushdown) y cómo lo aprovechas?
+  promptEn: >-
+    What are partition pruning and predicate pushdown and how do you exploit them?
+  answerEs: >-
+    Son optimizaciones que evitan leer datos innecesarios: la poda descarta particiones enteras (por ejemplo, por fecha) cuando el filtro
+    usa la columna de partición; el empuje de predicados traslada los filtros al formato de almacenamiento (Parquet con estadísticas por bloque).
+    Se aprovechan filtrando sobre columnas de partición o ordenación sin envolverlas en funciones (WHERE fecha >= ... en vez de WHERE year(fecha) = ...)
+    y seleccionando solo las columnas necesarias.
+  answerEn: >-
+    They are optimizations that avoid reading unnecessary data: pruning discards whole partitions (for example by date) when the filter uses the
+    partition column; predicate pushdown moves filters into the storage format (Parquet with per-block statistics). Exploit them by filtering on
+    partition or sort columns without wrapping them in functions (WHERE date >= ... rather than WHERE year(date) = ...) and selecting only needed columns.
+
+- id: iq-sql-30
+  topic: SQL
+  level: senior
+  type: design
+  promptEs: >-
+    Te piden «pedidos por cliente» en un dashboard y hay una tabla de hechos con grano de línea de pedido. ¿Cómo evitas errores de grano?
+  promptEn: >-
+    You are asked for "orders per customer" in a dashboard and the fact table has order-line grain. How do you avoid grain errors?
+  answerEs: >-
+    Declarar el grano de cada tabla y de la métrica, contar siempre COUNT(DISTINCT order_id) (no filas), y agregar antes de unir cuando haya varias
+    relaciones uno-a-muchos. En BI, definir la medida una vez en la capa semántica (con su grano) y no dejar que cada usuario la recalcule.
+    Añadir pruebas: el total del dashboard debe coincidir con una consulta de control y con el sistema transaccional.
+  answerEn: >-
+    Declare the grain of each table and of the metric, always COUNT(DISTINCT order_id) (not rows), and aggregate before joining when several one-to-many
+    relationships exist. In BI, define the measure once in the semantic layer (with its grain) rather than letting each user recompute it.
+    Add tests: the dashboard total must match a control query and the transactional system.
+
+- id: iq-est-01
+  topic: Estadística
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Cuándo usarías la mediana en lugar de la media?
+  promptEn: >-
+    When would you use the median instead of the mean?
+  answerEs: >-
+    Cuando la distribución es asimétrica o tiene valores extremos (ingresos, tiempos de entrega, importes de pedido): la media se arrastra hacia
+    la cola y la mediana describe mejor al caso típico. Conviene mostrar ambas y, si la cola importa para el negocio (ingresos totales), también
+    percentiles. La media sigue siendo la métrica correcta cuando se quiere el total (media × n).
+  answerEn: >-
+    When the distribution is skewed or has extreme values (income, delivery times, order amounts): the mean is pulled toward the tail while the
+    median describes the typical case. Show both and, if the tail matters to the business (total revenue), percentiles too. The mean remains the right
+    metric when you want the total (mean × n).
+
+- id: iq-est-02
+  topic: Estadística
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Qué es un p-valor? ¿Y qué no es?
+  promptEn: >-
+    What is a p-value? And what is it not?
+  answerEs: >-
+    Es la probabilidad de observar un resultado igual o más extremo que el obtenido si la hipótesis nula fuera cierta (y se cumplen los supuestos
+    del modelo). No es la probabilidad de que la hipótesis nula sea cierta, ni de que el resultado sea fruto del azar, ni mide el tamaño o la
+    importancia del efecto. Un p-valor pequeño indica incompatibilidad de los datos con el modelo nulo.
+  answerEn: >-
+    It is the probability of observing a result at least as extreme as the one obtained if the null hypothesis were true (and the model assumptions
+    hold). It is not the probability that the null is true, nor that the result is due to chance, and it does not measure effect size or importance.
+    A small p-value indicates the data are incompatible with the null model.
+
+- id: iq-est-03
+  topic: Estadística
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Cómo interpretas un intervalo de confianza del 95 %?
+  promptEn: >-
+    How do you interpret a 95% confidence interval?
+  answerEs: >-
+    Es el resultado de un procedimiento que, repetido muchas veces con muestras nuevas, contiene el valor verdadero en el 95 % de las ocasiones.
+    No es «hay un 95 % de probabilidad de que el parámetro esté en este intervalo» (el parámetro es fijo; el intervalo es aleatorio). En la
+    práctica se lee como el rango de valores razonablemente compatibles con los datos; su anchura expresa la precisión.
+  answerEn: >-
+    It is the output of a procedure that, repeated many times with new samples, contains the true value 95% of the time. It is not "there is a 95%
+    probability the parameter lies in this interval" (the parameter is fixed; the interval is random). In practice read it as the range of values
+    reasonably compatible with the data; its width expresses precision.
+
+- id: iq-est-04
+  topic: Estadística
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Qué dice el teorema central del límite y por qué importa en analítica?
+  promptEn: >-
+    What does the central limit theorem say and why does it matter in analytics?
+  answerEs: >-
+    Que la distribución de la media muestral tiende a una normal al crecer n, con error estándar σ/√n, aunque los datos no sean normales (con varianza
+    finita). Por eso funcionan los intervalos y contrastes sobre medias con muestras grandes. Con distribuciones muy asimétricas o con colas pesadas
+    hace falta más n; con muestras pequeñas conviene remuestreo o métodos exactos.
+  answerEn: >-
+    That the distribution of the sample mean tends to a normal as n grows, with standard error σ/√n, even if the data are not normal (with finite
+    variance). This is why intervals and tests on means work with large samples. With very skewed or heavy-tailed distributions you need larger n;
+    with small samples prefer resampling or exact methods.
+
+- id: iq-est-05
+  topic: Estadística
+  level: mid
+  type: conceptual
+  promptEs: >-
+    Diferencia entre error de tipo I y de tipo II, y cómo se relacionan con la potencia.
+  promptEn: >-
+    Difference between type I and type II errors and how they relate to power.
+  answerEs: >-
+    Tipo I (α): rechazar la nula siendo cierta (falso positivo). Tipo II (β): no rechazarla siendo falsa (falso negativo). Potencia = 1 − β: probabilidad de
+    detectar un efecto real de un tamaño dado. Para un α fijo, la potencia aumenta con el tamaño de muestra, con efectos mayores y con menor varianza.
+  answerEn: >-
+    Type I (α): rejecting a true null (false positive). Type II (β): failing to reject a false null (false negative). Power = 1 − β: the probability of
+    detecting a real effect of a given size. For a fixed α, power increases with sample size, larger effects and lower variance.
+
+- id: iq-est-06
+  topic: Estadística
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo calcularías el tamaño de muestra para comparar dos tasas de conversión?
+  promptEn: >-
+    How would you size a sample to compare two conversion rates?
+  answerEs: >-
+    Definir la tasa base, el efecto mínimo relevante (MDE) en términos absolutos o relativos, α (0,05), potencia (0,8) y si el contraste es bilateral. Con esa
+    información la fórmula (o statsmodels / una calculadora) da n por grupo; es aproximadamente 16·p(1−p)/δ² para α = 0,05 y potencia 0,8 (δ = diferencia absoluta).
+    Luego dividir entre el tráfico diario para obtener la duración, redondeada a semanas completas.
+  answerEn: >-
+    Define the baseline rate, the minimum detectable effect (MDE) in absolute or relative terms, α (0.05), power (0.8) and whether the test is two-sided. With
+    that, the formula (or statsmodels / a calculator) gives n per group; it is roughly 16·p(1−p)/δ² for α = 0.05 and power 0.8 (δ = absolute difference).
+    Then divide by daily traffic to get duration, rounded to full weeks.
+
+- id: iq-est-07
+  topic: Estadística
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué es la corrección por comparaciones múltiples y cuándo se necesita?
+  promptEn: >-
+    What is multiple comparison correction and when is it needed?
+  answerEs: >-
+    Al hacer m contrastes con α = 0,05, la probabilidad de al menos un falso positivo crece (≈ 1 − 0,95^m). Se corrige controlando la tasa de error por familia
+    (Bonferroni, Holm; conservadores) o la tasa de falsos descubrimientos (Benjamini-Hochberg; más potente, adecuado para exploración). Se necesita cuando
+    miras muchos segmentos, métricas o variantes y presentas «lo que sale significativo».
+  answerEn: >-
+    With m tests at α = 0.05, the probability of at least one false positive grows (≈ 1 − 0.95^m). Correct by controlling the family-wise error rate
+    (Bonferroni, Holm; conservative) or the false discovery rate (Benjamini-Hochberg; more powerful, suited to exploration). Needed when you look at many
+    segments, metrics or variants and report "what came out significant".
+
+- id: iq-est-08
+  topic: Estadística
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué es la paradoja de Simpson? Da un ejemplo.
+  promptEn: >-
+    What is Simpson's paradox? Give an example.
+  answerEs: >-
+    Una tendencia que aparece en el conjunto se invierte o desaparece al desagregar por una variable de agrupación (confusor). Ejemplo: el canal A tiene
+    mayor conversión que el B en cada dispositivo, pero menor en total porque A recibe mucho más tráfico del dispositivo que convierte peor. La lección:
+    decidir con el modelo causal en mente qué nivel de agregación es el relevante antes de comparar.
+  answerEn: >-
+    A trend that appears in the aggregate reverses or vanishes when disaggregated by a grouping variable (a confounder). Example: channel A converts better
+    than B on every device but worse overall because A gets much more traffic from the device that converts worse. Lesson: decide, with a causal model in mind,
+    which aggregation level is relevant before comparing.
+
+- id: iq-est-09
+  topic: Estadística
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Correlación implica causalidad? ¿Qué necesitas para afirmar un efecto causal?
+  promptEn: >-
+    Does correlation imply causation? What do you need to claim a causal effect?
+  answerEs: >-
+    No: puede haber confusores, causalidad inversa o azar. Para afirmar causalidad: un experimento aleatorizado, o un diseño cuasi-experimental
+    (diferencias en diferencias, control sintético, discontinuidad, variables instrumentales) cuyas hipótesis sean defendibles, con ajuste por confusores observados
+    y análisis de sensibilidad. Siempre explicar qué supuestos sostienen la conclusión.
+  answerEn: >-
+    No: there may be confounders, reverse causality or chance. To claim causality you need a randomized experiment or a quasi-experimental design (difference-in-differences,
+    synthetic control, regression discontinuity, instrumental variables) whose assumptions are defensible, with adjustment for observed confounders and sensitivity
+    analysis. Always state which assumptions the conclusion rests on.
+
+- id: iq-est-10
+  topic: Estadística
+  level: mid
+  type: debugging
+  promptEs: >-
+    Un resultado es «estadísticamente significativo» pero el efecto es minúsculo. ¿Qué haces?
+  promptEn: >-
+    A result is "statistically significant" but the effect is tiny. What do you do?
+  answerEs: >-
+    Distinguir significación estadística de relevancia práctica. Con muestras enormes cualquier diferencia diminuta es significativa. Mirar el tamaño del efecto
+    y su intervalo, compararlo con el MDE y con el coste de implementar el cambio, y decidir por impacto esperado (euros) y no por el p-valor.
+  answerEn: >-
+    Distinguish statistical significance from practical relevance. With huge samples any tiny difference is significant. Look at the effect size and its interval,
+    compare it to the MDE and to the cost of shipping the change, and decide on expected impact (euros), not the p-value.
+
+- id: iq-est-11
+  topic: Estadística
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué es la regresión a la media y cómo puede engañarte?
+  promptEn: >-
+    What is regression to the mean and how can it fool you?
+  answerEs: >-
+    Los valores extremos tienden a ser menos extremos en la medición siguiente por pura variabilidad. Si intervienes sobre quienes tuvieron el peor mes y el
+    mes siguiente mejora, parte de la mejora ocurriría sin tu intervención. Se controla con un grupo de control o seleccionando con una medida distinta de la evaluada.
+  answerEn: >-
+    Extreme values tend to be less extreme on the next measurement purely through variability. If you intervene on those with the worst month and the next month
+    improves, part of the improvement would have happened anyway. Control it with a control group or by selecting on a measure different from the evaluated one.
+
+- id: iq-est-12
+  topic: Estadística
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué supuestos tiene la regresión lineal y cómo comprobarlos?
+  promptEn: >-
+    What assumptions does linear regression make and how do you check them?
+  answerEs: >-
+    Linealidad de la relación, independencia de los errores, varianza constante (homocedasticidad) y, para la inferencia con muestras pequeñas, normalidad de los residuos;
+    además, ausencia de colinealidad severa. Se comprueban con gráficos de residuos frente a valores ajustados, QQ-plot, VIF y contrastes. Si fallan, transformar variables,
+    usar errores robustos o modelos adecuados.
+  answerEn: >-
+    Linearity of the relationship, independent errors, constant variance (homoscedasticity) and, for small-sample inference, normal residuals; also no severe
+    collinearity. Check with residuals-vs-fitted plots, QQ-plot, VIF and tests. If they fail, transform variables, use robust errors or a more suitable model.
+
+- id: iq-est-13
+  topic: Estadística
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Cuándo usarías regresión logística en lugar de lineal?
+  promptEn: >-
+    When would you use logistic rather than linear regression?
+  answerEs: >-
+    Cuando la variable respuesta es binaria (compra / no compra, baja / no baja): la logística modela la probabilidad mediante la función logit y los coeficientes se interpretan como
+    cambios en el logaritmo de las odds (exponenciados, odds ratios). La lineal puede dar probabilidades fuera de [0,1] y viola la homocedasticidad. Se evalúa con curvas ROC/AUC,
+    calibración y métricas por umbral.
+  answerEn: >-
+    When the response is binary (buy / not buy, churn / not churn): logistic models probability through the logit and coefficients are read as changes in log-odds (exponentiated,
+    odds ratios). Linear can give probabilities outside [0,1] and violates homoscedasticity. Evaluate with ROC/AUC, calibration and threshold metrics.
+
+- id: iq-est-14
+  topic: Estadística
+  level: senior
+  type: conceptual
+  promptEs: >-
+    ¿Qué es la fuga de información (data leakage) en un modelo predictivo y cómo se evita?
+  promptEn: >-
+    What is data leakage in a predictive model and how do you avoid it?
+  answerEs: >-
+    Usar en el entrenamiento información que no estaría disponible en el momento de predecir (variables posteriores al evento, estadísticas calculadas con todos los datos, el
+    mismo cliente en entrenamiento y prueba). Infla la métrica y falla en producción. Se evita definiendo la fecha de predicción, construyendo las variables solo con datos previos,
+    separando por tiempo o por cliente y ajustando preprocesado dentro de cada pliegue.
+  answerEn: >-
+    Using during training information that would not be available at prediction time (post-event variables, statistics computed on all data, the same customer in train and test).
+    It inflates the metric and fails in production. Avoid it by fixing the prediction date, building features only from prior data, splitting by time or by customer, and fitting
+    preprocessing within each fold.
+
+- id: iq-est-15
+  topic: Estadística
+  level: senior
+  type: conceptual
+  promptEs: >-
+    Explica el sesgo de supervivencia con un ejemplo de negocio.
+  promptEn: >-
+    Explain survivorship bias with a business example.
+  answerEs: >-
+    Analizar solo a quienes «sobrevivieron» a un filtro y sacar conclusiones sobre el total. Ejemplo: calcular la satisfacción media solo de clientes activos y concluir que el
+    producto gusta, ignorando a quienes se dieron de baja por insatisfacción. Se corrige incluyendo a los que salieron del conjunto (análisis de supervivencia, cohortes completas) y
+    preguntándose siempre qué observaciones faltan.
+  answerEn: >-
+    Analyzing only those who "survived" a filter and drawing conclusions about the whole. Example: computing average satisfaction only among active customers and concluding the product
+    is liked, ignoring those who churned due to dissatisfaction. Fix by including those who left (survival analysis, full cohorts) and always asking which observations are missing.
+
+- id: iq-est-16
+  topic: Estadística
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo comunicarías la incertidumbre de una previsión a un directivo?
+  promptEn: >-
+    How would you communicate forecast uncertainty to an executive?
+  answerEs: >-
+    Con un rango y un escenario central, no con un único número: «entre X e Y con un 80 % de probabilidad», una banda en el gráfico y qué supuestos pueden mover el resultado. Evitar la
+    falsa precisión, explicar qué decisiones cambian según el extremo del rango y actualizar la previsión con regularidad comparando previsto y real.
+  answerEn: >-
+    With a range and a central scenario, not a single number: "between X and Y with 80% probability", a band on the chart and which assumptions could move the result. Avoid false precision,
+    explain which decisions change at each end of the range, and update the forecast regularly comparing predicted vs actual.
+
+- id: iq-est-17
+  topic: Estadística
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué es el bootstrap y cuándo lo usarías?
+  promptEn: >-
+    What is the bootstrap and when would you use it?
+  answerEs: >-
+    Remuestreo con reemplazo de la muestra observada para aproximar la distribución de un estadístico y obtener errores estándar e intervalos sin fórmulas cerradas (medianas, percentiles,
+    ratios, métricas complejas). Se usa cuando no hay una fórmula sencilla o los supuestos paramétricos son dudosos. Limitaciones: asume una muestra representativa e independiente y funciona
+    mal con muestras muy pequeñas o colas extremas.
+  answerEn: >-
+    Resampling with replacement from the observed sample to approximate a statistic's distribution and get standard errors and intervals without closed formulas (medians, percentiles,
+    ratios, complex metrics). Use it when no simple formula exists or parametric assumptions are doubtful. Limitations: it assumes a representative, independent sample and works poorly
+    with very small samples or extreme tails.
+
+- id: iq-est-18
+  topic: Estadística
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Qué miden la desviación típica y el rango intercuartílico?
+  promptEn: >-
+    What do standard deviation and interquartile range measure?
+  answerEs: >-
+    Ambos miden dispersión. La desviación típica resume la distancia media a la media y es sensible a valores extremos. El rango intercuartílico (Q3 − Q1) es la anchura del 50 % central de los datos y
+    es robusto. Con distribuciones asimétricas o con outliers, el IQR (y la mediana) describen mejor la variación típica.
+  answerEn: >-
+    Both measure spread. Standard deviation summarizes typical distance from the mean and is sensitive to extreme values. The interquartile range (Q3 − Q1) is the width of the central 50% of the
+    data and is robust. With skewed distributions or outliers, the IQR (and median) describe typical variation better.
+
+- id: iq-est-19
+  topic: Estadística
+  level: mid
+  type: debugging
+  promptEs: >-
+    La media de tu métrica cambia mucho al quitar un cliente. ¿Qué haces?
+  promptEn: >-
+    Your metric's mean changes a lot when you remove one customer. What do you do?
+  answerEs: >-
+    Hay un valor influyente. Investigar si es un error (duplicado, importe mal registrado) o un cliente real extremo (un mayorista). Si es error, corregir en origen; si es real, no eliminarlo sin
+    criterio: informar con y sin él, usar medidas robustas (mediana, media recortada, winsorización) o segmentar, y documentar la regla de tratamiento.
+  answerEn: >-
+    There is an influential value. Investigate whether it is an error (duplicate, mis-recorded amount) or a real extreme customer (a wholesaler). If an error, fix at source; if real, do not drop it
+    arbitrarily: report with and without it, use robust measures (median, trimmed mean, winsorization) or segment, and document the treatment rule.
+
+- id: iq-est-20
+  topic: Estadística
+  level: senior
+  type: conceptual
+  promptEs: >-
+    ¿Qué diferencia hay entre un enfoque bayesiano y uno frecuentista en un A/B?
+  promptEn: >-
+    What is the difference between a Bayesian and a frequentist approach to an A/B test?
+  answerEs: >-
+    El frecuentista pregunta qué tan raros serían los datos si no hubiera efecto (p-valor, intervalos de confianza) y controla errores a largo plazo. El bayesiano combina una distribución a priori con
+    los datos para obtener una distribución posterior del efecto y responde «¿cuál es la probabilidad de que B sea mejor?» o la pérdida esperada. Ambos necesitan un buen diseño; el bayesiano no es inmune
+    al peeking si se usa mal, y la elección del a priori importa con pocos datos.
+  answerEn: >-
+    The frequentist approach asks how unusual the data would be with no effect (p-value, confidence intervals) and controls long-run error rates. The Bayesian approach combines a prior with the data to
+    obtain a posterior for the effect and answers "what is the probability B is better?" or the expected loss. Both need good design; Bayesian is not immune to peeking if misused, and the prior matters with little data.
+
+- id: iq-est-21
+  topic: Estadística
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo comprobarías si dos grupos de clientes difieren en la tasa de conversión?
+  promptEn: >-
+    How would you check whether two customer groups differ in conversion rate?
+  answerEs: >-
+    Definir la métrica y la población, calcular la tasa y el intervalo de la diferencia (prueba de dos proporciones, chi-cuadrado o exacto de Fisher con pocos casos), comprobar el tamaño del efecto y el
+    tamaño de muestra, y comentar la posible confusión: si los grupos no son comparables (no aleatorios), la diferencia no es causal. Ajustar por covariables con una regresión logística si hace falta.
+  answerEn: >-
+    Define the metric and population, compute each rate and the interval for the difference (two-proportion test, chi-square or Fisher's exact with few cases), check effect size and sample size, and
+    comment on possible confounding: if groups are not comparable (non-random) the difference is not causal. Adjust for covariates with logistic regression if needed.
+
+- id: iq-est-22
+  topic: Estadística
+  level: senior
+  type: conceptual
+  promptEs: >-
+    ¿Qué es la autocorrelación en series temporales y por qué importa en inferencia?
+  promptEn: >-
+    What is autocorrelation in time series and why does it matter for inference?
+  answerEs: >-
+    Es la correlación de una serie consigo misma en retardos distintos. Si los errores están autocorrelacionados, los errores estándar calculados asumiendo independencia son demasiado pequeños y los
+    contrastes salen falsamente significativos. Se detecta con ACF/PACF y Durbin-Watson, y se trata con modelos de serie temporal, errores robustos (HAC/Newey-West) o agregando a un nivel donde se
+    recupere la independencia.
+  answerEn: >-
+    It is the correlation of a series with itself at different lags. If errors are autocorrelated, standard errors computed assuming independence are too small and tests appear falsely significant.
+    Detect with ACF/PACF and Durbin-Watson, and handle with time-series models, robust errors (HAC/Newey-West) or aggregating to a level where independence is recovered.
+
+- id: iq-exp-01
+  topic: Experimentación
+  level: junior
+  type: design
+  promptEs: >-
+    ¿Qué elementos debe tener el diseño de un test A/B?
+  promptEn: >-
+    What must the design of an A/B test include?
+  answerEs: >-
+    Hipótesis, unidad de aleatorización (usuario, sesión, tienda), población, métrica principal (una), métricas de contrapeso y diagnósticas, tamaño de muestra y duración (potencia), reparto del tráfico,
+    comprobaciones previas (A/A, SRM), plan de análisis y criterio de decisión definidos antes de empezar, y riesgos (interferencia, novedad, estacionalidad).
+  answerEn: >-
+    Hypothesis, randomization unit (user, session, store), population, primary metric (one), guardrail and diagnostic metrics, sample size and duration (power), traffic split, pre-checks (A/A, SRM),
+    analysis plan and decision criterion defined before starting, and risks (interference, novelty, seasonality).
+
+- id: iq-exp-02
+  topic: Experimentación
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Por qué se aleatoriza?
+  promptEn: >-
+    Why do we randomize?
+  answerEs: >-
+    Porque la asignación aleatoria hace que, en promedio, los grupos sean comparables en todas las características (observadas y no observadas), de modo que las diferencias en el resultado pueden atribuirse
+    al tratamiento. Elimina el sesgo de selección y los confusores que invalidan las comparaciones observacionales.
+  answerEn: >-
+    Because random assignment makes groups comparable on average on all characteristics (observed and unobserved), so differences in outcome can be attributed to the treatment. It removes selection
+    bias and confounders that undermine observational comparisons.
+
+- id: iq-exp-03
+  topic: Experimentación
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué es un SRM (Sample Ratio Mismatch) y qué haces si lo detectas?
+  promptEn: >-
+    What is an SRM (Sample Ratio Mismatch) and what do you do if you detect one?
+  answerEs: >-
+    Es una desviación significativa entre el reparto observado de usuarios y el diseñado (por ejemplo, 50,8/49,2 en lugar de 50/50 con un chi-cuadrado muy significativo). Indica un fallo en la asignación,
+    el registro o los filtros, e invalida el análisis. No interpretes el efecto: busca la causa (redirecciones, bots, errores de la variante, filtros que dependen del tratamiento), corrígela y repite.
+  answerEn: >-
+    A significant deviation between the observed user split and the designed one (for example 50.8/49.2 instead of 50/50 with a highly significant chi-square). It indicates a failure in assignment, logging
+    or filters, and invalidates the analysis. Do not interpret the effect: find the cause (redirects, bots, variant errors, filters that depend on treatment), fix it and rerun.
+
+- id: iq-exp-04
+  topic: Experimentación
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué es el peeking y cómo lo evitas?
+  promptEn: >-
+    What is peeking and how do you avoid it?
+  answerEs: >-
+    Mirar los resultados repetidamente y parar cuando el p-valor baja de 0,05. Cada mirada es una oportunidad extra de falso positivo y la tasa real de error se dispara. Se evita fijando de antemano la
+    duración o el tamaño de muestra, o usando pruebas secuenciales / análisis siempre válido con límites diseñados para mirar de forma continua.
+  answerEn: >-
+    Looking at results repeatedly and stopping when the p-value drops below 0.05. Each look is an extra chance for a false positive and the real error rate balloons. Avoid it by fixing duration or sample size
+    in advance, or using sequential tests / always-valid inference with boundaries designed for continuous monitoring.
+
+- id: iq-exp-05
+  topic: Experimentación
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué es CUPED y por qué reduce la varianza?
+  promptEn: >-
+    What is CUPED and why does it reduce variance?
+  answerEs: >-
+    Ajusta la métrica de cada usuario restando la parte explicada por una covariable previa al experimento (por ejemplo, su gasto anterior): Y' = Y − θ(X − media(X)). Como X es previa, no está afectada
+    por el tratamiento y el estimador sigue sin sesgo, pero la varianza baja en proporción a 1 − ρ² (ρ = correlación entre X y Y). Permite detectar el mismo efecto con menos usuarios o menos tiempo.
+  answerEn: >-
+    It adjusts each user's metric by subtracting the part explained by a pre-experiment covariate (for example prior spend): Y' = Y − θ(X − mean(X)). Because X is pre-treatment it is unaffected by treatment
+    and the estimator stays unbiased, yet variance drops by a factor of 1 − ρ² (ρ = correlation between X and Y). It detects the same effect with fewer users or less time.
+
+- id: iq-exp-06
+  topic: Experimentación
+  level: mid
+  type: design
+  promptEs: >-
+    No puedes aleatorizar. ¿Cómo evaluarías el efecto de una subida de precios en una región?
+  promptEn: >-
+    You cannot randomize. How would you evaluate the effect of a price rise in one region?
+  answerEs: >-
+    Un diseño cuasi-experimental: diferencias en diferencias comparando la región tratada con regiones de control antes y después, comprobando tendencias paralelas previas; o control sintético si hay pocos
+    controles. Complementar con análisis de robustez (placebos, ventanas alternativas) y cuidado con efectos de calendario y otras intervenciones simultáneas. Comunicar los supuestos y la incertidumbre.
+  answerEn: >-
+    A quasi-experimental design: difference-in-differences comparing the treated region with control regions before and after, checking pre-trends; or synthetic control if there are few controls.
+    Complement with robustness checks (placebos, alternative windows) and care about calendar effects and other simultaneous interventions. Communicate assumptions and uncertainty.
+
+- id: iq-exp-07
+  topic: Experimentación
+  level: senior
+  type: conceptual
+  promptEs: >-
+    ¿Qué es la interferencia entre unidades (efectos de red/mercado) y cómo afecta a un A/B?
+  promptEn: >-
+    What is interference between units (network/marketplace effects) and how does it affect an A/B test?
+  answerEs: >-
+    Ocurre cuando el tratamiento de un usuario afecta al resultado de otro (redes sociales, marketplaces con inventario limitado, equipos que comparten recursos). Rompe el supuesto SUTVA y sesga el efecto
+    estimado. Se mitiga aleatorizando por clústeres (regiones, comunidades), por tiempo (switchback) o midiendo el efecto de equilibrio con diseños específicos.
+  answerEn: >-
+    It occurs when one user's treatment affects another's outcome (social networks, marketplaces with limited inventory, teams sharing resources). It breaks SUTVA and biases the estimated effect. Mitigate
+    by randomizing at cluster level (regions, communities), over time (switchback) or with designs that measure the equilibrium effect.
+
+- id: iq-exp-08
+  topic: Experimentación
+  level: mid
+  type: debugging
+  promptEs: >-
+    El experimento sube la conversión pero baja los ingresos por usuario. ¿Qué haces?
+  promptEn: >-
+    The experiment lifts conversion but lowers revenue per user. What do you do?
+  answerEs: >-
+    No decidir con una métrica sola: revisar el árbol de métricas (conversión × ticket medio), la métrica principal definida de antemano y las de contrapeso. Mirar la distribución de los pedidos (¿más
+    compras pequeñas? ¿un descuento escondido?), segmentar con cuidado y comprobar la significación de cada efecto. La decisión es de negocio: valor a largo plazo (margen, recompra, devoluciones).
+  answerEn: >-
+    Do not decide on one metric: review the metric tree (conversion × average order value), the pre-defined primary metric and guardrails. Look at the order distribution (more small purchases? a hidden
+    discount?), segment carefully and check the significance of each effect. The decision is a business one: long-term value (margin, repeat purchase, returns).
+
+- id: iq-exp-09
+  topic: Experimentación
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué es un test A/A y para qué sirve?
+  promptEn: >-
+    What is an A/A test and what is it for?
+  answerEs: >-
+    Un experimento en el que los dos grupos reciben la misma experiencia. Sirve para validar la plataforma y la métrica: debería dar un p-valor uniforme (≈ 5 % de significativos con α = 0,05), sin SRM y
+    con varianza esperada. Detecta problemas de aleatorización, de registro o de cálculo antes de invertir en un test real.
+  answerEn: >-
+    An experiment in which both groups get the same experience. It validates the platform and metric: it should produce uniformly distributed p-values (≈ 5% significant at α = 0.05), no SRM and the expected variance.
+    It detects randomization, logging or calculation problems before investing in a real test.
+
+- id: iq-exp-10
+  topic: Experimentación
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo evaluarías el impacto de una campaña de marketing si el canal no permite un test aleatorio?
+  promptEn: >-
+    How would you evaluate a marketing campaign's impact when the channel does not allow a randomized test?
+  answerEs: >-
+    Con un experimento geográfico (regiones tratadas y de control, medición de la diferencia incremental, con series previas largas y emparejamiento), un holdout cuando sea posible, o un modelo causal de series (CausalImpact,
+    control sintético). No atribuir por último contacto: mide ventas que no habrían ocurrido sin la campaña. Complementar con un MMM calibrado con esos experimentos.
+  answerEn: >-
+    With a geo experiment (treated and control regions, measuring the incremental difference with long pre-periods and matching), a holdout when possible, or a causal time-series model (CausalImpact, synthetic control).
+    Do not attribute by last touch: measure sales that would not have happened without the campaign. Complement with an MMM calibrated with those experiments.
+
+- id: iq-exp-11
+  topic: Experimentación
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué es el efecto novedad o de primacía?
+  promptEn: >-
+    What are novelty and primacy effects?
+  answerEs: >-
+    El efecto novedad: los usuarios reaccionan más a un cambio solo porque es nuevo, y el efecto decae. El de primacía: los usuarios habituales se adaptan despacio y el efecto crece. Por eso conviene que el experimento
+    dure al menos uno o dos ciclos completos (semanas), mirar la tendencia del efecto en el tiempo y segmentar entre usuarios nuevos y recurrentes.
+  answerEn: >-
+    Novelty effect: users react more to a change merely because it is new, and the effect decays. Primacy effect: habitual users adapt slowly and the effect grows. Hence run at least one or two full cycles (weeks),
+    look at the effect trend over time and segment new vs returning users.
+
+- id: iq-exp-12
+  topic: Experimentación
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo elegirías la métrica principal de un experimento?
+  promptEn: >-
+    How would you choose an experiment's primary metric?
+  answerEs: >-
+    Debe reflejar el objetivo del cambio, ser sensible (detectar efectos en el tiempo disponible), estar causada por el tratamiento, ser medible sin sesgos y alinearse con el valor de negocio a largo plazo. Si la métrica final
+    es lenta, usar una métrica proxy validada. Elegir una sola principal, añadir contrapesos y definir de antemano la población, la ventana y el cálculo.
+  answerEn: >-
+    It should reflect the goal of the change, be sensitive (detect effects in the available time), be caused by the treatment, be measurable without bias and align with long-term business value. If the ultimate metric is slow,
+    use a validated proxy. Pick a single primary metric, add guardrails and define population, window and calculation in advance.
+
+- id: iq-exp-13
+  topic: Experimentación
+  level: senior
+  type: conceptual
+  promptEs: >-
+    ¿Cómo se analiza una métrica de ratio (por ejemplo, ingresos por sesión) cuando la unidad de aleatorización es el usuario?
+  promptEn: >-
+    How do you analyze a ratio metric (for example revenue per session) when the randomization unit is the user?
+  answerEs: >-
+    Las sesiones del mismo usuario no son independientes, así que un t-test sobre sesiones subestima la varianza. Se usa el método delta (varianza de un ratio de sumas por usuario), un bootstrap por usuario, o se cambia a
+    una métrica por usuario (ingresos por usuario). Lo importante es que la unidad de análisis coincida con la de aleatorización o se corrija el error estándar.
+  answerEn: >-
+    Sessions from the same user are not independent, so a t-test over sessions understates variance. Use the delta method (variance of a ratio of per-user sums), a user-level bootstrap, or switch to a per-user metric
+    (revenue per user). The key is that the unit of analysis matches the randomization unit or the standard error is corrected.
+
+- id: iq-exp-14
+  topic: Experimentación
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cuánto debe durar un experimento?
+  promptEn: >-
+    How long should an experiment run?
+  answerEs: >-
+    Lo que dicte el cálculo de potencia (muestra necesaria / tráfico diario), redondeado a ciclos completos de comportamiento (semanas completas, para captar el efecto del día de la semana) y suficiente para ver la estabilidad del efecto
+    (novedad). Fijarlo de antemano y no parar antes por un resultado atractivo; si hay que mirar antes, usar una prueba secuencial.
+  answerEn: >-
+    What the power calculation dictates (required sample / daily traffic), rounded up to full behavioral cycles (whole weeks, to capture day-of-week effects) and long enough to see the effect stabilize (novelty). Fix it in advance and do not
+    stop early on an attractive result; if you must look earlier, use a sequential test.
+
+- id: iq-exp-15
+  topic: Experimentación
+  level: senior
+  type: conceptual
+  promptEs: >-
+    ¿Qué es la ley de Twyman y cómo influye en tu forma de leer resultados?
+  promptEn: >-
+    What is Twyman's law and how does it shape how you read results?
+  answerEs: >-
+    «Cualquier cifra que parece interesante o diferente suele ser errónea.» Un efecto espectacular merece más sospecha que entusiasmo: antes de celebrarlo, comprobar SRM, errores de instrumentación, filtros, duplicados y la
+    plausibilidad. Los resultados extraordinarios se replican o se verifican con un segundo método antes de actuar.
+  answerEn: >-
+    "Any figure that looks interesting or different is usually wrong." A spectacular effect deserves more suspicion than enthusiasm: before celebrating check SRM, instrumentation errors, filters, duplicates and plausibility.
+    Extraordinary results are replicated or verified with a second method before acting.
+
+- id: iq-exp-16
+  topic: Experimentación
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo montarías una cultura de experimentación en una empresa que casi no experimenta?
+  promptEn: >-
+    How would you build an experimentation culture in a company that barely experiments?
+  answerEs: >-
+    Empezar pequeño con una plataforma fiable (aleatorización correcta, SRM automático, métricas estándar), elegir 2-3 experimentos de alto impacto y bajo coste, y publicar los resultados, incluidos los fracasos. Establecer un proceso
+    (hipótesis, revisión del diseño, registro), formar a los equipos, medir tasa de éxito y velocidad, y evitar el «teatro» de experimentos sin decisiones asociadas.
+  answerEn: >-
+    Start small with a reliable platform (correct randomization, automatic SRM, standard metrics), pick 2-3 high-impact low-cost experiments and publish the results, including failures. Establish a process
+    (hypothesis, design review, registry), train teams, track success rate and velocity, and avoid experiment "theater" without associated decisions.
+
+- id: iq-exp-17
+  topic: Experimentación
+  level: mid
+  type: debugging
+  promptEs: >-
+    El test A/B no es significativo. ¿Qué conclusiones puedes sacar?
+  promptEn: >-
+    The A/B test is not significant. What conclusions can you draw?
+  answerEs: >-
+    «No significativo» no significa «no hay efecto». Mira el intervalo de confianza: ¿descarta los efectos que importan al negocio? Si el intervalo es ancho (poca potencia), el test no es concluyente. Si es estrecho y
+    centrado en cero, puedes descartar efectos mayores que el MDE. Decide con el coste de implementar y el riesgo, y considera repetir con más potencia o CUPED.
+  answerEn: >-
+    "Not significant" does not mean "no effect". Look at the confidence interval: does it rule out effects that matter to the business? If it is wide (low power), the test is inconclusive. If narrow and centered at zero, you can rule out
+    effects larger than the MDE. Decide on implementation cost and risk, and consider rerunning with more power or CUPED.
+
+- id: iq-exp-18
+  topic: Experimentación
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué son las métricas de contrapeso (guardrails)?
+  promptEn: >-
+    What are guardrail metrics?
+  answerEs: >-
+    Métricas que no se quiere empeorar mientras se optimiza la principal: latencia, tasa de devoluciones, reclamaciones, ingresos totales, cancelaciones. Se monitorizan para evitar ganar en lo medido a costa de algo
+    importante. Se fija de antemano qué deterioro es aceptable y se corrigen las comparaciones múltiples.
+  answerEn: >-
+    Metrics you do not want to worsen while optimizing the primary one: latency, return rate, complaints, total revenue, cancellations. They are monitored to avoid winning on what is measured at the expense of something important.
+    Fix in advance what degradation is acceptable and correct for multiple comparisons.
+
+- id: iq-exp-19
+  topic: Experimentación
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo evaluarías el lanzamiento de una función que ya se ha desplegado a todos, sin experimento?
+  promptEn: >-
+    How would you evaluate a feature already launched to everyone, with no experiment?
+  answerEs: >-
+    Con métodos cuasi-experimentales: comparar antes y después con un grupo de control no expuesto (diferencias en diferencias) o usar adopción escalonada, discontinuidad temporal o series causales. Verificar tendencias previas,
+    ajustar por estacionalidad y otros cambios simultáneos, y ser explícito con los supuestos. Un simple antes/después sin control es débil.
+  answerEn: >-
+    With quasi-experimental methods: compare before and after with an unexposed control group (difference-in-differences) or use staggered adoption, time discontinuity or causal time-series. Verify pre-trends, adjust for seasonality
+    and simultaneous changes, and be explicit about assumptions. A simple before/after without a control is weak.
+
+- id: iq-exp-20
+  topic: Experimentación
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Qué es la hipótesis nula en un A/B?
+  promptEn: >-
+    What is the null hypothesis in an A/B test?
+  answerEs: >-
+    Que no hay diferencia real entre las variantes en la métrica (el efecto es cero). El contraste calcula cuán compatibles son los datos con esa hipótesis; si son muy incompatibles (p-valor bajo), se rechaza. Se formula antes
+    del experimento junto con la hipótesis alternativa.
+  answerEn: >-
+    That there is no real difference between variants on the metric (the effect is zero). The test computes how compatible the data are with that hypothesis; if very incompatible (low p-value) it is rejected. It is stated before
+    the experiment along with the alternative hypothesis.
+
+- id: iq-prod-01
+  topic: Producto y métricas
+  level: junior
+  type: design
+  promptEs: >-
+    Las ventas cayeron un 12 % en marzo. ¿Cómo investigas?
+  promptEn: >-
+    Sales dropped 12% in March. How do you investigate?
+  answerEs: >-
+    Aclarar la definición, el periodo de comparación y la magnitud (¿frente a febrero o a marzo del año anterior?). Descartar primero lo aburrido: error de medición, datos incompletos, cambio de definición, calendario y
+    estacionalidad. Después descomponer (ingresos = clientes × frecuencia × ticket; por canal, región, categoría, dispositivo), formular hipótesis priorizadas, comprobarlas con datos y cerrar con una recomendación y un siguiente paso.
+  answerEn: >-
+    Clarify the definition, the comparison period and the size (vs February or vs March last year?). Rule out the boring first: measurement error, incomplete data, definition change, calendar and seasonality. Then decompose
+    (revenue = customers × frequency × AOV; by channel, region, category, device), form prioritized hypotheses, test them with data and close with a recommendation and next step.
+
+- id: iq-prod-02
+  topic: Producto y métricas
+  level: junior
+  type: design
+  promptEs: >-
+    ¿Qué métricas usarías para medir el éxito de una nueva función de «guardar para después»?
+  promptEn: >-
+    What metrics would you use to measure the success of a new "save for later" feature?
+  answerEs: >-
+    Objetivo: más compras futuras sin canibalizar. Principal: tasa de conversión de usuarios que guardan frente a quienes no (con cuidado de la selección) o, en un experimento, compras por usuario. Diagnósticas: adopción
+    (% de usuarios que guardan), guardados por usuario, ratio de guardado-a-compra. Contrapeso: ingresos totales, devoluciones, rendimiento. Definir población y ventana, y validar con un experimento.
+  answerEn: >-
+    Goal: more future purchases without cannibalization. Primary: conversion rate of users who save vs those who do not (careful with selection) or, in an experiment, purchases per user. Diagnostics: adoption (% of users who save),
+    saves per user, save-to-purchase ratio. Guardrails: total revenue, returns, performance. Define population and window and validate with an experiment.
+
+- id: iq-prod-03
+  topic: Producto y métricas
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué es la retención y cómo la calcularías?
+  promptEn: >-
+    What is retention and how would you compute it?
+  answerEs: >-
+    El porcentaje de usuarios de una cohorte (por mes de alta) que vuelve a realizar la acción clave en periodos posteriores. Se calcula agrupando usuarios por cohorte, contando cuántos activos hay en cada periodo (día 1, 7, 30 o mes N)
+    y dividiendo entre el tamaño de la cohorte. Hay que definir qué es «activo», si la retención es de ventana exacta o acumulada, y representarla como curva de retención.
+  answerEn: >-
+    The percentage of a cohort's users (by sign-up month) who perform the key action again in later periods. Group users by cohort, count the active ones in each period (day 1, 7, 30 or month N) and divide by cohort size.
+    Define what "active" means, whether retention is exact-window or cumulative, and show it as a retention curve.
+
+- id: iq-prod-04
+  topic: Producto y métricas
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo definirías «cliente activo» para el consejo de administración?
+  promptEn: >-
+    How would you define "active customer" for the board?
+  answerEs: >-
+    Con un evento de valor (pedido no cancelado), una ventana y una fecha de corte (por ejemplo, ≥ 1 pedido en los últimos 90 días a fin de mes), una población (clientes registrados) y exclusiones (cuentas de prueba). Mostrar cuánto
+    cambia la cifra con otras definiciones (compra en 12 meses, sesión mensual, suscripción), nombrarlas distinto, asignar un propietario y dejar la definición en un único lugar (capa semántica) con control de cambios.
+  answerEn: >-
+    With a value event (non-cancelled order), a window and a cut-off date (for example ≥ 1 order in the last 90 days at month end), a population (registered customers) and exclusions (test accounts). Show how much the figure changes under
+    other definitions (purchase in 12 months, monthly session, subscription), name them differently, assign an owner and keep the definition in a single place (semantic layer) with change control.
+
+- id: iq-prod-05
+  topic: Producto y métricas
+  level: mid
+  type: debugging
+  promptEs: >-
+    Las conversiones en la app se han disparado de repente. ¿Qué compruebas?
+  promptEn: >-
+    App conversions suddenly spiked. What do you check?
+  answerEs: >-
+    Primero la instrumentación: ¿hay eventos duplicados tras una nueva versión de la app (mismo evento enviado dos veces)?, ¿cambió la definición del evento?, ¿hay bots o tráfico interno? Comparar pedidos reales en la base de datos
+    transaccional con los eventos de analítica; segmentar por versión de la app, sistema operativo y fecha. Un salto brusco y aislado en una versión suele ser un error de tracking, no un éxito de negocio.
+  answerEn: >-
+    First instrumentation: are there duplicate events after a new app version (same event sent twice)? Did the event definition change? Are there bots or internal traffic? Compare real orders in the transactional database with analytics events;
+    segment by app version, operating system and date. A sudden isolated jump on one version is usually a tracking bug, not a business win.
+
+- id: iq-prod-06
+  topic: Producto y métricas
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Qué métricas de salud mirarías para un servicio de suscripción?
+  promptEn: >-
+    What health metrics would you look at for a subscription service?
+  answerEs: >-
+    MRR y su descomposición (nuevo, expansión, contracción, perdido), tasa de baja de clientes y de ingresos (churn, GRR, NRR), retención por cohorte, CAC y periodo de recuperación, valor de vida (LTV) y su relación con CAC, ARPU,
+    conversión de prueba a pago y calidad de la facturación (impagos). Segmentar por plan, canal de adquisición y cohorte.
+  answerEn: >-
+    MRR and its breakdown (new, expansion, contraction, churned), customer and revenue churn (GRR, NRR), cohort retention, CAC and payback period, lifetime value (LTV) and its ratio to CAC, ARPU, trial-to-paid conversion and billing quality
+    (failed payments). Segment by plan, acquisition channel and cohort.
+
+- id: iq-prod-07
+  topic: Producto y métricas
+  level: senior
+  type: design
+  promptEs: >-
+    Dos equipos te piden prioridades contradictorias para el mismo analista. ¿Qué haces?
+  promptEn: >-
+    Two teams ask for conflicting priorities from the same analyst. What do you do?
+  answerEs: >-
+    Entender el impacto y la urgencia de cada petición (qué decisión se toma, cuándo, cuánto vale), hacer visible el conflicto a quien prioriza (tu responsable o un comité) con una comparación clara, proponer una secuencia o un
+    alcance reducido que dé valor a ambos, y comunicar el resultado a los dos equipos. No decidir en silencio ni decir sí a todo.
+  answerEn: >-
+    Understand each request's impact and urgency (which decision it informs, when, how valuable), surface the conflict to whoever prioritizes (your manager or a committee) with a clear comparison, propose a sequence or reduced scope that
+    gives value to both, and communicate the outcome to both teams. Do not decide silently or say yes to everything.
+
+- id: iq-prod-08
+  topic: Producto y métricas
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Qué es un KPI y en qué se diferencia de una métrica cualquiera?
+  promptEn: >-
+    What is a KPI and how does it differ from any metric?
+  answerEs: >-
+    Un KPI es una métrica ligada a un objetivo estratégico, con propietario, objetivo y umbrales de acción. Cualquier cifra medible es una métrica; un KPI es la que se usa para decidir y rendir cuentas. Un buen KPI tiene
+    una definición única, es comprensible, accionable y difícil de manipular, y se acompaña de indicadores de contrapeso.
+  answerEn: >-
+    A KPI is a metric tied to a strategic goal, with an owner, target and action thresholds. Any measurable figure is a metric; a KPI is the one used to decide and be held accountable. A good KPI has a single definition, is understandable,
+    actionable and hard to game, and is accompanied by guardrail indicators.
+
+- id: iq-prod-09
+  topic: Producto y métricas
+  level: mid
+  type: design
+  promptEs: >-
+    Diseña un árbol de métricas para los ingresos de una tienda online.
+  promptEn: >-
+    Design a metric tree for an online store's revenue.
+  answerEs: >-
+    Ingresos = clientes activos × pedidos por cliente × ticket medio. Clientes = nuevos (adquisición: tráfico × conversión, CAC) + recurrentes (retención). Frecuencia = intervalo entre compras y activación. Ticket medio = unidades por pedido ×
+    precio medio (mezcla y descuentos). Cada rama con propietario y contrapeso (devoluciones, margen, coste de adquisición). Descomposiciones MECE, hojas accionables y definiciones únicas.
+  answerEn: >-
+    Revenue = active customers × orders per customer × average order value. Customers = new (acquisition: traffic × conversion, CAC) + returning (retention). Frequency = purchase interval and activation. AOV = units per order × average price
+    (mix and discounts). Each branch has an owner and a guardrail (returns, margin, acquisition cost). Use MECE decompositions, actionable leaves and single definitions.
+
+- id: iq-prod-10
+  topic: Producto y métricas
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo estimarías el valor de vida de un cliente (LTV) y qué precauciones tomarías?
+  promptEn: >-
+    How would you estimate customer lifetime value (LTV) and what precautions would you take?
+  answerEs: >-
+    Un enfoque simple: margen medio por periodo × (1 / tasa de abandono), mejor por cohorte y segmento; uno más riguroso: modelos probabilísticos de recompra (BG/NBD + Gamma-Gamma). Usar margen y no ingresos, descontar el futuro,
+    limitar el horizonte, validar con cohortes reales, no extrapolar de cohortes jóvenes y compararlo con el CAC. Cuidado con medias sesgadas por unos pocos clientes muy grandes.
+  answerEn: >-
+    A simple approach: average margin per period × (1 / churn rate), better by cohort and segment; a more rigorous one: probabilistic repurchase models (BG/NBD + Gamma-Gamma). Use margin rather than revenue, discount the future, limit the
+    horizon, validate with real cohorts, do not extrapolate from young cohorts and compare with CAC. Beware means skewed by a few very large customers.
+
+- id: iq-prod-11
+  topic: Producto y métricas
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué significa la métrica «estrella del norte» (North Star) y qué riesgos tiene?
+  promptEn: >-
+    What does a "North Star" metric mean and what are its risks?
+  answerEs: >-
+    Una métrica única que capta el valor que el producto entrega a los clientes y se correlaciona con el crecimiento a largo plazo (por ejemplo, pedidos completados por cliente al mes). Alinea equipos, pero tiene riesgos: simplificar
+    en exceso, incentivar manipulaciones (Ley de Goodhart), ignorar calidad o márgenes y desplazar el foco de los equipos con otros objetivos. Se acompaña de métricas de entrada y de contrapeso.
+  answerEn: >-
+    A single metric capturing the value the product delivers to customers and correlating with long-term growth (for example completed orders per customer per month). It aligns teams, but has risks: oversimplifying, encouraging gaming (Goodhart's
+    law), ignoring quality or margins and displacing the focus of teams with other goals. Pair it with input and guardrail metrics.
+
+- id: iq-prod-12
+  topic: Producto y métricas
+  level: mid
+  type: debugging
+  promptEs: >-
+    Dos dashboards muestran cifras distintas de «clientes activos». ¿Cómo lo resuelves?
+  promptEn: >-
+    Two dashboards show different "active customers" figures. How do you resolve it?
+  answerEs: >-
+    Comparar las definiciones (evento, ventana, población, filtros, zona horaria, fecha de corte) y las fuentes. Documentar cuál es la oficial y por qué, y dejar la definición en un único sitio (capa semántica o modelo compartido) para que
+    todas las herramientas la consuman. Renombrar las demás variantes, añadir pruebas de conciliación y comunicar el cambio para no romper la comparabilidad histórica.
+  answerEn: >-
+    Compare the definitions (event, window, population, filters, time zone, cut-off date) and sources. Document which one is official and why, and keep the definition in a single place (semantic layer or shared model) so all tools consume it.
+    Rename the other variants, add reconciliation tests and communicate the change to avoid breaking historical comparability.
+
+- id: iq-prod-13
+  topic: Producto y métricas
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo medirías el impacto de un programa de fidelización sin experimento?
+  promptEn: >-
+    How would you measure the impact of a loyalty program without an experiment?
+  answerEs: >-
+    Los socios se autoseleccionan (los más leales se apuntan), así que comparar socios y no socios sobrestima el efecto. Opciones: emparejamiento o ponderación por propensión con covariables previas, diferencias en diferencias comparando
+    antes y después contra no socios similares, o aprovechar una apertura escalonada por tiendas/regiones. Reportar el efecto incremental con incertidumbre y las limitaciones.
+  answerEn: >-
+    Members self-select (the most loyal sign up), so comparing members and non-members overstates the effect. Options: matching or propensity weighting with pre-period covariates, difference-in-differences comparing before and after against
+    similar non-members, or exploiting a staggered rollout across stores/regions. Report the incremental effect with uncertainty and limitations.
+
+- id: iq-prod-14
+  topic: Producto y métricas
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo analizarías por qué los clientes se dan de baja de un servicio de suscripción?
+  promptEn: >-
+    How would you analyze why customers cancel a subscription service?
+  answerEs: >-
+    Definir baja y ventana, analizar la curva de supervivencia por cohorte, segmentar por plan, canal y antigüedad, y buscar señales previas (menos uso, incidencias de entrega, tickets de soporte, impagos). Combinar el análisis cuantitativo con
+    los motivos declarados, cuidando el sesgo de respuesta. Proponer intervenciones testables (ofertas de retención, mejoras de entrega) y medir su efecto incremental.
+  answerEn: >-
+    Define churn and window, analyze the survival curve by cohort, segment by plan, channel and tenure, and look for leading signals (lower usage, delivery issues, support tickets, failed payments). Combine quantitative analysis with stated reasons,
+    mindful of response bias. Propose testable interventions (retention offers, delivery improvements) and measure incremental effect.
+
+- id: iq-prod-15
+  topic: Producto y métricas
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Qué es la tasa de conversión y por qué hay que definir bien su denominador?
+  promptEn: >-
+    What is conversion rate and why must its denominator be defined carefully?
+  answerEs: >-
+    Es el porcentaje de usuarios (o sesiones) que completan una acción objetivo sobre el total que podría hacerlo. El denominador cambia el significado: sesiones, visitantes únicos o usuarios elegibles dan tasas distintas, y comparar tasas con
+    denominadores diferentes engaña. Hay que fijar la unidad, la ventana (¿conversión en la misma sesión o en 7 días?) y la población.
+  answerEn: >-
+    The percentage of users (or sessions) who complete a target action out of the total who could. The denominator changes the meaning: sessions, unique visitors or eligible users give different rates, and comparing rates with different denominators
+    misleads. Fix the unit, the window (same-session or within 7 days conversion?) and the population.
+
+- id: iq-prod-16
+  topic: Producto y métricas
+  level: senior
+  type: design
+  promptEs: >-
+    Te piden un forecast de ventas del último trimestre. ¿Cómo lo abordas?
+  promptEn: >-
+    You are asked for a sales forecast for the last quarter. How do you approach it?
+  answerEs: >-
+    Aclarar el uso (presupuesto, stock, caja) y el horizonte; descomponer la serie (tendencia, estacionalidad semanal y anual, festivos, eventos como Black Friday) y partir de una línea base simple (estacional ingenua); probar modelos clásicos y,
+    si aportan, otros más complejos con backtesting en ventana móvil; entregar un rango con escenarios, supuestos explícitos y un seguimiento de previsto frente a real. Ser honesto sobre la incertidumbre.
+  answerEn: >-
+    Clarify the use (budget, stock, cash) and horizon; decompose the series (trend, weekly and annual seasonality, holidays, events like Black Friday) and start from a simple baseline (seasonal naive); try classical models and, if they add value,
+    more complex ones with rolling-window backtesting; deliver a range with scenarios, explicit assumptions and tracking of forecast vs actual. Be honest about uncertainty.
+
+- id: iq-prod-17
+  topic: Producto y métricas
+  level: mid
+  type: debugging
+  promptEs: >-
+    Una métrica sube en todos los segmentos pero baja en el total. ¿Cómo es posible?
+  promptEn: >-
+    A metric rises in every segment but falls overall. How is that possible?
+  answerEs: >-
+    Es la paradoja de Simpson por efecto de composición: el peso relativo de los segmentos cambió (más volumen en el segmento con peor valor), de modo que el promedio global cae aunque cada segmento mejore. Se descompone el cambio total en
+    efecto de tasa (dentro de cada segmento) y efecto de mezcla (cambio de pesos) y se explica cuál domina.
+  answerEn: >-
+    It is Simpson's paradox via a composition effect: the relative weight of segments changed (more volume in the lower-valued segment), so the overall average falls even if each segment improves. Decompose the total change into a rate effect
+    (within segments) and a mix effect (change in weights) and explain which dominates.
+
+- id: iq-prod-18
+  topic: Producto y métricas
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo decidirías si una función nueva merece un experimento o basta con lanzarla?
+  promptEn: >-
+    How would you decide whether a new feature deserves an experiment or can just be launched?
+  answerEs: >-
+    Comparar el coste de equivocarse (riesgo para ingresos, reputación, legal) con el coste de experimentar (tiempo, complejidad, tráfico) y con la capacidad de medir el efecto. Experimentar cuando el cambio es incierto, medible y de impacto
+    relevante; lanzar sin test los arreglos evidentes, cambios legales o de baja incertidumbre, vigilando métricas de contrapeso y con opción de reversión.
+  answerEn: >-
+    Compare the cost of being wrong (risk to revenue, reputation, legal) with the cost of experimenting (time, complexity, traffic) and the ability to measure the effect. Experiment when the change is uncertain, measurable and of relevant impact;
+    launch without a test obvious fixes, legal changes or low-uncertainty changes, watching guardrail metrics with a rollback option.
+
+- id: iq-prod-19
+  topic: Producto y métricas
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Qué es una cohorte y por qué se analiza por cohortes?
+  promptEn: >-
+    What is a cohort and why analyze by cohorts?
+  answerEs: >-
+    Un grupo de usuarios que comparten un hecho inicial en un periodo (por ejemplo, la fecha de alta o de primera compra). Analizar por cohortes permite comparar grupos en la misma etapa de su vida y separar el efecto de la antigüedad del
+    de la calidad de la adquisición, evitando que las medias globales se mezclen con clientes nuevos y antiguos.
+  answerEn: >-
+    A group of users sharing a starting event in a period (for example sign-up or first purchase date). Cohort analysis lets you compare groups at the same stage of their life and separate the effect of tenure from acquisition quality,
+    avoiding global averages that mix new and old customers.
+
+- id: iq-prod-20
+  topic: Producto y métricas
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo medirías si el canal de pago (paid search) es rentable?
+  promptEn: >-
+    How would you measure whether a paid channel (paid search) is profitable?
+  answerEs: >-
+    Calcular el CAC y el valor de vida de los clientes que llegan por ese canal, el retorno incremental de la inversión (no solo el último clic) y el periodo de recuperación. Medir incrementalidad con experimentos geográficos o de exclusión
+    y complementar con un MMM; tener en cuenta la canibalización de tráfico orgánico y de marca. La decisión de presupuesto se apoya en el retorno marginal, no en el medio.
+  answerEn: >-
+    Compute CAC and lifetime value of customers arriving via that channel, incremental return on spend (not just last click) and payback period. Measure incrementality with geo or holdout experiments and complement with an MMM; consider
+    cannibalization of organic and brand traffic. The budget decision rests on marginal return, not average.
+
+- id: iq-bi-01
+  topic: BI y visualización
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Cómo eliges el tipo de gráfico adecuado?
+  promptEn: >-
+    How do you choose the right chart type?
+  answerEs: >-
+    Partiendo de la pregunta: comparación entre categorías (barras), evolución en el tiempo (líneas), relación entre dos variables (dispersión), distribución (histograma o caja), composición (barras apiladas; evitar tartas con muchos trozos) y
+    ranking (barras ordenadas). Se prioriza la legibilidad: eje que empieza en cero en barras, etiquetas directas, color con propósito y un título que diga la conclusión.
+  answerEn: >-
+    Start from the question: comparison across categories (bars), change over time (lines), relationship between two variables (scatter), distribution (histogram or box), composition (stacked bars; avoid pies with many slices) and ranking
+    (sorted bars). Prioritize legibility: zero baseline on bars, direct labels, purposeful color and a title that states the conclusion.
+
+- id: iq-bi-02
+  topic: BI y visualización
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Por qué un modelo en estrella es la base recomendada para Power BI?
+  promptEn: >-
+    Why is a star schema the recommended foundation for Power BI?
+  answerEs: >-
+    Porque el motor está optimizado para tablas de hechos estrechas y dimensiones que filtran por relaciones uno-a-muchos: consultas más rápidas, DAX más simple y menos ambigüedad en los filtros. Las dimensiones comparten contexto (fecha, producto,
+    cliente) y los hechos tienen un grano claro. Evitar tablas planas enormes y relaciones muchos-a-muchos innecesarias.
+  answerEn: >-
+    Because the engine is optimized for narrow fact tables and dimensions filtering through one-to-many relationships: faster queries, simpler DAX and less filter ambiguity. Dimensions share context (date, product, customer) and facts have a
+    clear grain. Avoid huge flat tables and unnecessary many-to-many relationships.
+
+- id: iq-bi-03
+  topic: BI y visualización
+  level: mid
+  type: conceptual
+  promptEs: >-
+    En DAX, ¿qué diferencia hay entre contexto de filas y contexto de filtro?
+  promptEn: >-
+    In DAX, what is the difference between row context and filter context?
+  answerEs: >-
+    El contexto de filtro es el conjunto de filtros activos (segmentaciones, filas y columnas del visual, relaciones) que determinan qué filas ve una medida. El contexto de filas existe al iterar una tabla (columnas calculadas, funciones iteradoras como
+    SUMX) y se refiere a la fila actual. CALCULATE modifica el contexto de filtro y convierte el de filas en filtro (transición de contexto).
+  answerEn: >-
+    Filter context is the set of active filters (slicers, visual rows and columns, relationships) that determine which rows a measure sees. Row context exists while iterating a table (calculated columns, iterators like SUMX) and refers to the current row.
+    CALCULATE modifies the filter context and turns row context into a filter (context transition).
+
+- id: iq-bi-04
+  topic: BI y visualización
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué diferencia hay entre una medida y una columna calculada en DAX?
+  promptEn: >-
+    What is the difference between a measure and a calculated column in DAX?
+  answerEs: >-
+    Una columna calculada se evalúa fila a fila al cargar/actualizar el modelo y se almacena (consume memoria); una medida se evalúa en el momento de la consulta según el contexto de filtro y no se almacena. Para agregaciones (ingresos, ratios) usa
+    medidas; las columnas calculadas sirven para atributos que filtran o agrupan y que no pueden calcularse en origen.
+  answerEn: >-
+    A calculated column is evaluated row by row on model load/refresh and stored (uses memory); a measure is evaluated at query time under the filter context and is not stored. For aggregations (revenue, ratios) use measures; calculated columns serve
+    attributes that filter or group and cannot be computed at source.
+
+- id: iq-bi-05
+  topic: BI y visualización
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo implementarías una comparación con el mismo periodo del año anterior en Power BI?
+  promptEn: >-
+    How would you implement a same-period-last-year comparison in Power BI?
+  answerEs: >-
+    Con una tabla de fechas continua marcada como tabla de fechas, una medida base (Ingresos) y una medida de inteligencia de tiempo con SAMEPERIODLASTYEAR o DATEADD dentro de CALCULATE; después la variación absoluta y porcentual con DIVIDE para evitar divisiones por cero.
+    Controlar los periodos incompletos (comparar el mismo número de días) y los efectos de calendario (festivos, días de la semana).
+  answerEn: >-
+    With a continuous date table marked as the date table, a base measure (Revenue) and a time-intelligence measure using SAMEPERIODLASTYEAR or DATEADD inside CALCULATE; then absolute and percentage variation with DIVIDE to avoid division by zero.
+    Handle incomplete periods (compare the same number of days) and calendar effects (holidays, weekdays).
+
+- id: iq-bi-06
+  topic: BI y visualización
+  level: junior
+  type: debugging
+  promptEs: >-
+    Un gráfico de barras exagera una diferencia pequeña. ¿Qué miras?
+  promptEn: >-
+    A bar chart exaggerates a small difference. What do you check?
+  answerEs: >-
+    Casi seguro el eje vertical no empieza en cero: en barras la longitud codifica el valor, y truncarlo magnifica las diferencias. Reiniciarlo en cero (o usar puntos/líneas si el rango pequeño es lo relevante), revisar escalas distintas entre gráficos, el uso de
+    áreas 3D y de color engañoso, y mostrar la incertidumbre si la diferencia es pequeña.
+  answerEn: >-
+    Almost certainly the vertical axis does not start at zero: in bars length encodes value, and truncating it magnifies differences. Reset to zero (or use dots/lines if the narrow range is what matters), check differing scales between charts, 3D areas and
+    misleading color, and show uncertainty if the difference is small.
+
+- id: iq-bi-07
+  topic: BI y visualización
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo diseñarías un dashboard ejecutivo?
+  promptEn: >-
+    How would you design an executive dashboard?
+  answerEs: >-
+    Partir de las decisiones: 5-8 indicadores clave con su variación frente a objetivo y periodo anterior en la parte superior, tendencias debajo y desglose accionable bajo demanda. Definiciones únicas y visibles, fechas de actualización, color con propósito,
+    accesibilidad y carga rápida. Probar con usuarios reales, retirar lo que no se usa y establecer un propietario y una cadencia de revisión.
+  answerEn: >-
+    Start from the decisions: 5-8 key indicators with variance vs target and prior period at the top, trends below and actionable drill-down on demand. Single visible definitions, refresh dates, purposeful color, accessibility and fast load. Test with real users,
+    retire what is not used and set an owner and review cadence.
+
+- id: iq-bi-08
+  topic: BI y visualización
+  level: senior
+  type: conceptual
+  promptEs: >-
+    ¿Qué es la seguridad a nivel de fila (RLS) y cuándo la necesitas?
+  promptEn: >-
+    What is row-level security (RLS) and when do you need it?
+  answerEs: >-
+    Restringe qué filas del modelo ve cada usuario según su identidad o rol (por ejemplo, un gerente solo ve su región) mediante filtros DAX u otras reglas del modelo semántico. Se necesita cuando un mismo informe sirve a audiencias con permisos distintos.
+    Hay que probarla con los roles reales, tenerla en cuenta en el rendimiento y complementarla con permisos sobre el origen y con gobierno de acceso.
+  answerEn: >-
+    It restricts which model rows each user sees based on identity or role (for example a manager sees only their region) through DAX filters or other semantic model rules. Needed when one report serves audiences with different permissions. Test it with the real roles,
+    account for performance and complement it with source permissions and access governance.
+
+- id: iq-bi-09
+  topic: BI y visualización
+  level: mid
+  type: debugging
+  promptEs: >-
+    Un dashboard tarda 40 segundos en cargar. ¿Cómo lo mejoras?
+  promptEn: >-
+    A dashboard takes 40 seconds to load. How do you improve it?
+  answerEs: >-
+    Medir qué es lento (analizador de rendimiento / consultas generadas). Reducir columnas y filas del modelo, agregar en origen, usar un modelo en estrella, evitar columnas calculadas pesadas y medidas con iteradores innecesarios, reducir el número de visuales por página y limitar
+    los filtros de alta cardinalidad. Con consultas directas, empujar los filtros al origen (query folding) y valorar agregaciones o importación.
+  answerEn: >-
+    Measure what is slow (performance analyzer / generated queries). Reduce model columns and rows, aggregate at source, use a star schema, avoid heavy calculated columns and measures with unnecessary iterators, reduce visuals per page and limit high-cardinality
+    filters. With direct queries push filters to the source (query folding) and consider aggregations or import mode.
+
+- id: iq-bi-10
+  topic: BI y visualización
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Cuándo usarías una tabla en lugar de un gráfico?
+  promptEn: >-
+    When would you use a table rather than a chart?
+  answerEs: >-
+    Cuando el lector necesita valores exactos o consultar muchos elementos con varias medidas (por ejemplo, un listado de sucursales con ventas, margen y variación) más que ver un patrón. Una tabla bien diseñada (pocas columnas, alineación, formato numérico,
+    formato condicional discreto) puede ser más clara que un gráfico recargado.
+  answerEn: >-
+    When the reader needs exact values or to look up many items with several measures (for example a list of branches with sales, margin and variance) more than to see a pattern. A well-designed table (few columns, alignment, number formatting, discreet
+    conditional formatting) can be clearer than a cluttered chart.
+
+- id: iq-bi-11
+  topic: BI y visualización
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo garantizas que un informe de Excel/Power BI sea reproducible y auditable?
+  promptEn: >-
+    How do you make an Excel/Power BI report reproducible and auditable?
+  answerEs: >-
+    Fuentes y transformaciones documentadas (Power Query / SQL versionado), parámetros en lugar de valores incrustados, hojas de supuestos separadas de los cálculos, comprobaciones de totales y de reconciliación con otra fuente, control de versiones (proyectos PBIP en Git
+    o historial de versiones) y registro de cambios. Evitar pegados manuales y fórmulas ocultas.
+  answerEn: >-
+    Documented sources and transformations (Power Query / versioned SQL), parameters instead of hard-coded values, assumptions sheets separate from calculations, total and reconciliation checks against another source, version control (PBIP projects in Git or version
+    history) and a change log. Avoid manual pastes and hidden formulas.
+
+- id: iq-bi-12
+  topic: BI y visualización
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué es el query folding en Power Query?
+  promptEn: >-
+    What is query folding in Power Query?
+  answerEs: >-
+    Es la capacidad de traducir los pasos de transformación a una única consulta nativa (SQL) que ejecuta el origen, en lugar de traer los datos y transformarlos localmente. Mejora mucho el rendimiento de las actualizaciones. Algunos pasos (por ejemplo, ciertas
+    operaciones con columnas personalizadas) rompen el plegado, y conviene ordenarlos para que los pasos que pliegan vayan primero.
+  answerEn: >-
+    The ability to translate transformation steps into a single native query (SQL) executed by the source, rather than pulling data and transforming it locally. It greatly improves refresh performance. Some steps (for example certain custom column operations)
+    break folding, so order steps so that those that fold come first.
+
+- id: iq-bi-13
+  topic: BI y visualización
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo evitarías que el informe de ventas de Finanzas y el de Comercial den cifras distintas?
+  promptEn: >-
+    How would you prevent Finance's and Sales' sales reports from showing different figures?
+  answerEs: >-
+    Definir una métrica oficial con propietario, evento, filtros y fecha de corte, y publicarla en una capa semántica (medidas certificadas) que consuman ambos informes. Si hay definiciones legítimamente distintas (ventas facturadas frente a pedidas), nombrarlas
+    de forma distinta y documentar la conciliación. Añadir pruebas automáticas de conciliación y un proceso de cambio.
+  answerEn: >-
+    Define an official metric with owner, event, filters and cut-off date, and publish it in a semantic layer (certified measures) consumed by both reports. If there are legitimately different definitions (invoiced vs ordered sales), name them differently and document
+    the reconciliation. Add automated reconciliation tests and a change process.
+
+- id: iq-bi-14
+  topic: BI y visualización
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Por qué hay que cuidar el color y la accesibilidad en una visualización?
+  promptEn: >-
+    Why must you care about color and accessibility in a visualization?
+  answerEs: >-
+    Porque el color debe codificar información con propósito (no decorar) y porque entre el 5 y el 8 % de los hombres tiene alguna forma de daltonismo, y hay lectores con baja visión o con pantallas deficientes. Usa paletas aptas para daltonismo, no dependas solo del color
+    (añade etiquetas, formas o patrones), asegura contraste suficiente y revisa la escala (secuencial, divergente o categórica) según el dato.
+  answerEn: >-
+    Because color must encode information purposefully (not decorate), and roughly 5-8% of men have some form of color vision deficiency, plus readers with low vision or poor displays. Use colorblind-safe palettes, do not rely on color alone (add labels, shapes or patterns),
+    ensure enough contrast and match the scale (sequential, diverging or categorical) to the data.
+
+- id: iq-bi-15
+  topic: BI y visualización
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo presentarías una cifra clave con su incertidumbre a un público no técnico?
+  promptEn: >-
+    How would you present a key figure with its uncertainty to a non-technical audience?
+  answerEs: >-
+    Con un titular claro («esperamos entre X e Y») y una visualización sencilla de la incertidumbre (banda sombreada, rango, barras de error explicadas con una frase). Evitar términos como «intervalo de confianza al 95 %» sin traducir; explicar qué cambiaría la decisión en cada
+    extremo del rango y aportar el supuesto principal.
+  answerEn: >-
+    With a clear headline ("we expect between X and Y") and a simple display of uncertainty (shaded band, range, error bars explained in one sentence). Avoid terms like "95% confidence interval" without translating; explain what would change the decision at each end of the range and give
+    the main assumption.
+
+- id: iq-py-01
+  topic: Python
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Qué diferencia hay entre una Series y un DataFrame de pandas?
+  promptEn: >-
+    What is the difference between a pandas Series and a DataFrame?
+  answerEs: >-
+    Una Series es una columna etiquetada de datos con un tipo y un índice; un DataFrame es una tabla bidimensional formada por varias Series que comparten el índice. Seleccionar una columna de un DataFrame devuelve una Series. Ambos permiten operaciones vectorizadas
+    y alineación por índice.
+  answerEn: >-
+    A Series is a labeled column of data with a dtype and an index; a DataFrame is a two-dimensional table made of several Series sharing the index. Selecting a column from a DataFrame returns a Series. Both support vectorized operations and index alignment.
+
+- id: iq-py-02
+  topic: Python
+  level: junior
+  type: debugging
+  promptEs: >-
+    Te sale un SettingWithCopyWarning (o un cambio que no se guarda) en pandas. ¿Qué ocurre y qué cambia en pandas 3?
+  promptEn: >-
+    You get a SettingWithCopyWarning (or a change that is not saved) in pandas. What is happening and what changes in pandas 3?
+  answerEs: >-
+    Encadenar selecciones (df[df.a > 0]['b'] = 1) puede modificar una copia en lugar del original. En pandas 3, Copy-on-Write está siempre activo: cada resultado se comporta como una copia independiente y la asignación encadenada no modifica el DataFrame original.
+    La forma correcta es una única operación con .loc (df.loc[df.a > 0, 'b'] = 1) o asignar el resultado.
+  answerEn: >-
+    Chained indexing (df[df.a > 0]['b'] = 1) may modify a copy instead of the original. In pandas 3 Copy-on-Write is always on: every result behaves as an independent copy and chained assignment does not modify the original DataFrame. The correct way is a single
+    .loc operation (df.loc[df.a > 0, 'b'] = 1) or assigning the result.
+
+- id: iq-py-03
+  topic: Python
+  level: junior
+  type: design
+  promptEs: >-
+    ¿Cómo calcularías ingresos por mes y región con pandas?
+  promptEn: >-
+    How would you compute revenue by month and region with pandas?
+  answerEs: >-
+    Unir los pedidos con sus líneas y los clientes, calcular el importe (cantidad × precio unitario), filtrar los cancelados, crear la columna de mes (df['mes'] = df.order_date.dt.to_period('M')) y agrupar:
+    df.groupby(['mes', 'region'], as_index=False)['importe'].sum(). Comprobar el número de filas tras cada merge para evitar fan-out y validar un total conocido.
+  answerEn: >-
+    Join orders with their lines and customers, compute the amount (quantity × unit price), filter out cancelled, create the month column (df['month'] = df.order_date.dt.to_period('M')) and group:
+    df.groupby(['month', 'region'], as_index=False)['amount'].sum(). Check row counts after each merge to avoid fan-out and validate a known total.
+
+- id: iq-py-04
+  topic: Python
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Por qué es preferible vectorizar frente a un bucle for o apply fila a fila?
+  promptEn: >-
+    Why is vectorizing preferable to a for loop or row-wise apply?
+  answerEs: >-
+    Las operaciones vectorizadas se ejecutan en código compilado sobre columnas completas, órdenes de magnitud más rápidas que iterar en Python fila a fila, y son más legibles. Apply por filas ejecuta Python en cada fila. Alternativas: expresiones vectorizadas, np.where, map con diccionarios,
+    merge y operaciones de ventana; en Polars, expresiones perezosas.
+  answerEn: >-
+    Vectorized operations run in compiled code over whole columns, orders of magnitude faster than iterating row by row in Python, and are more readable. Row-wise apply executes Python for each row. Alternatives: vectorized expressions, np.where, dict-based map, merge and window operations;
+    in Polars, lazy expressions.
+
+- id: iq-py-05
+  topic: Python
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Cuándo elegirías Polars o DuckDB en lugar de pandas?
+  promptEn: >-
+    When would you choose Polars or DuckDB over pandas?
+  answerEs: >-
+    Cuando los datos superan cómodamente la memoria o el rendimiento importa: Polars ofrece expresiones, ejecución perezosa y paralelismo; DuckDB permite SQL sobre ficheros Parquet/CSV sin cargarlos enteros. Pandas sigue siendo el estándar para exploración, compatibilidad con el ecosistema (scikit-learn,
+    statsmodels) y conjuntos moderados. Pueden combinarse: transformar con SQL/Polars y pasar el resultado a pandas.
+  answerEn: >-
+    When data comfortably exceeds memory or performance matters: Polars offers expressions, lazy execution and parallelism; DuckDB runs SQL over Parquet/CSV files without loading them entirely. Pandas remains the standard for exploration, ecosystem compatibility (scikit-learn, statsmodels) and moderate
+    datasets. They combine: transform with SQL/Polars and pass the result to pandas.
+
+- id: iq-py-06
+  topic: Python
+  level: mid
+  type: debugging
+  promptEs: >-
+    Un merge en pandas devuelve muchas más filas de las esperadas. ¿Qué haces?
+  promptEn: >-
+    A pandas merge returns many more rows than expected. What do you do?
+  answerEs: >-
+    Es un fan-out por claves duplicadas en una de las tablas. Comprobar la unicidad de la clave (df.key.is_unique, duplicated), usar validate='one_to_one' / 'one_to_many' en merge para que falle si no se cumple, deduplicar o agregar antes de unir y comparar el número de filas antes y después.
+  answerEn: >-
+    It is a fan-out due to duplicate keys in one table. Check key uniqueness (df.key.is_unique, duplicated), use validate='one_to_one' / 'one_to_many' in merge so it fails if violated, deduplicate or aggregate before joining and compare row counts before and after.
+
+- id: iq-py-07
+  topic: Python
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo harías un análisis reproducible en Python?
+  promptEn: >-
+    How would you make a Python analysis reproducible?
+  answerEs: >-
+    Entorno declarado (pyproject y lockfile con uv/pip), semillas fijas en procesos aleatorios, datos de entrada versionados o con origen documentado, código en funciones y módulos con pruebas, notebooks que se ejecutan de principio a fin (o cuadernos reactivos como marimo), rutas relativas
+    y un README con los comandos para reproducir. Registrar versiones de librerías y la fecha de extracción de datos.
+  answerEn: >-
+    Declared environment (pyproject and lockfile with uv/pip), fixed seeds in random processes, versioned input data or documented origin, code in functions and modules with tests, notebooks that run top to bottom (or reactive notebooks like marimo), relative paths and a README with the
+    commands to reproduce. Record library versions and the data extraction date.
+
+- id: iq-py-08
+  topic: Python
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Cómo tratas los valores ausentes en un DataFrame?
+  promptEn: >-
+    How do you handle missing values in a DataFrame?
+  answerEs: >-
+    Primero entender el mecanismo (¿completamente al azar, dependiente de otras variables, informativo?) y cuantificarlos (df.isna().mean()). Opciones: eliminar filas si son pocas y aleatorias, imputar (mediana, valor por grupo, modelos) con una marca de «imputado», o conservarlos como
+    categoría. Evitar imputar con información del futuro o de la muestra de prueba, y documentar la decisión.
+  answerEn: >-
+    First understand the mechanism (completely at random, dependent on other variables, informative?) and quantify it (df.isna().mean()). Options: drop rows if few and random, impute (median, group value, models) with an "imputed" flag, or keep as a category. Avoid imputing with future
+    information or from the test set, and document the decision.
+
+- id: iq-py-09
+  topic: Python
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Qué diferencia hay entre loc e iloc?
+  promptEn: >-
+    What is the difference between loc and iloc?
+  answerEs: >-
+    loc selecciona por etiquetas del índice y de las columnas (con el extremo final incluido en los rangos de etiquetas) y admite máscaras booleanas; iloc selecciona por posición entera (con el final excluido, como en las listas de Python). Con un índice por defecto
+    pueden coincidir al principio, pero tras filtrar o reordenar dejan de hacerlo.
+  answerEn: >-
+    loc selects by index and column labels (with the end included in label slices) and accepts boolean masks; iloc selects by integer position (end excluded, like Python lists). With a default index they may coincide at first but stop doing so after filtering or reordering.
+
+- id: iq-py-10
+  topic: Python
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo evaluarías un modelo de clasificación de churn?
+  promptEn: >-
+    How would you evaluate a churn classification model?
+  answerEs: >-
+    Separar entrenamiento y prueba por tiempo (evitar fuga), elegir métricas según el coste del error (precisión/exhaustividad, PR-AUC con clases desbalanceadas, ROC-AUC, calibración), compararlo con una línea base sencilla (regla o regresión logística), medir el valor de negocio de
+    intervenir (coste de la oferta frente a beneficio por cliente salvado) y vigilar la deriva en producción.
+  answerEn: >-
+    Split train and test by time (avoid leakage), choose metrics by cost of error (precision/recall, PR-AUC with imbalanced classes, ROC-AUC, calibration), compare to a simple baseline (rule or logistic regression), measure the business value of intervening (offer cost vs benefit per saved customer)
+    and monitor drift in production.
+
+- id: iq-py-11
+  topic: Python
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo estructurarías un proyecto de análisis para que lo mantenga un equipo?
+  promptEn: >-
+    How would you structure an analysis project so a team can maintain it?
+  answerEs: >-
+    Repositorio con README, entorno reproducible, datos fuera de Git (con script de descarga), código reutilizable en un paquete con pruebas, notebooks solo para exploración y comunicación, linting y formato automáticos (Ruff), integración continua que ejecute pruebas, y documentación de
+    decisiones y definiciones. Revisión de código y convenciones de nombres compartidas.
+  answerEn: >-
+    A repository with README, reproducible environment, data outside Git (with a download script), reusable code in a package with tests, notebooks only for exploration and communication, automatic linting and formatting (Ruff), continuous integration that runs tests, and documentation of decisions
+    and definitions. Code review and shared naming conventions.
+
+- id: iq-py-12
+  topic: Python
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué es un join asof y cuándo lo usarías?
+  promptEn: >-
+    What is an as-of join and when would you use it?
+  answerEs: >-
+    Un join que empareja cada fila con la fila más reciente anterior (o igual) de otra tabla según una clave ordenada, normalmente el tiempo: pedidos con el tipo de cambio vigente, eventos con la última sesión previa. En pandas, pd.merge_asof; en DuckDB, ASOF JOIN. Evita construir intervalos de vigencia a mano.
+  answerEn: >-
+    A join that matches each row to the most recent prior (or equal) row of another table along an ordered key, usually time: orders with the prevailing exchange rate, events with the latest previous session. In pandas pd.merge_asof; in DuckDB ASOF JOIN. It avoids building validity intervals by hand.
+
+- id: iq-py-13
+  topic: Python
+  level: junior
+  type: debugging
+  promptEs: >-
+    Al leer un CSV, la columna de fechas sale como texto. ¿Qué haces?
+  promptEn: >-
+    When reading a CSV, the date column comes in as text. What do you do?
+  answerEs: >-
+    Indicar el formato al leer (parse_dates, o pd.to_datetime con format explícito) en vez de dejar que pandas lo infiera, y gestionar los valores inválidos con errors='coerce' revisando cuántos fallan. Cuidado con formatos mezclados (dd/mm frente a mm/dd) y con zonas horarias: normalizar a UTC y convertir al mostrar.
+  answerEn: >-
+    Specify the format when reading (parse_dates, or pd.to_datetime with an explicit format) rather than letting pandas infer it, and handle invalid values with errors='coerce' while checking how many fail. Beware mixed formats (dd/mm vs mm/dd) and time zones: normalize to UTC and convert on display.
+
+- id: iq-py-14
+  topic: Python
+  level: senior
+  type: conceptual
+  promptEs: >-
+    ¿Qué es la validación cruzada y por qué en series temporales no se usa la aleatoria?
+  promptEn: >-
+    What is cross-validation and why not random cross-validation for time series?
+  answerEs: >-
+    Divide los datos en pliegues y rota cuál se usa para evaluar, para estimar el rendimiento fuera de muestra con menos varianza. En series temporales, mezclar al azar filtra información futura al entrenamiento y las observaciones están autocorrelacionadas; se usa validación con origen móvil (backtesting): entrenar con el pasado y evaluar sobre el periodo siguiente, repitiendo.
+  answerEn: >-
+    It splits data into folds and rotates which one is used for evaluation, to estimate out-of-sample performance with less variance. In time series, shuffling leaks future information into training and observations are autocorrelated; use rolling-origin validation (backtesting): train on the past and evaluate on the next period, repeating.
+
+- id: iq-py-15
+  topic: Python
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo automatizarías un informe semanal en Python con seguridad?
+  promptEn: >-
+    How would you safely automate a weekly report in Python?
+  answerEs: >-
+    Un script o flujo con parámetros (fecha de corte), entorno reproducible, consultas de solo lectura con credenciales fuera del código (variables de entorno o gestor de secretos), pruebas de calidad de datos antes de generar (frescura, recuentos, totales), registro de ejecuciones, alertas en caso de fallo y entrega por un canal acordado. Un orquestador programa la ejecución.
+  answerEn: >-
+    A script or flow with parameters (cut-off date), reproducible environment, read-only queries with credentials outside the code (environment variables or secret manager), data quality tests before generating (freshness, counts, totals), run logging, failure alerts and delivery through an agreed channel. An orchestrator schedules execution.
+
+- id: iq-ia-01
+  topic: IA para el análisis
+  level: junior
+  type: design
+  promptEs: >-
+    ¿Cómo usarías un asistente de IA en tu trabajo de análisis y cómo validarías sus resultados?
+  promptEn: >-
+    How would you use an AI assistant in your analysis work and how would you validate its output?
+  answerEs: >-
+    Para borradores de SQL y Python, explicar código, generar casos de prueba, redactar resúmenes y proponer hipótesis. Le doy el esquema, las definiciones y ejemplos; ejecuto el código, compruebo recuentos y totales conocidos, contrasto cifras con otra fuente y reviso los supuestos. No pego datos personales en servicios sin contrato y conservo
+    la responsabilidad del resultado.
+  answerEn: >-
+    For drafts of SQL and Python, explaining code, generating test cases, drafting summaries and proposing hypotheses. I give it the schema, definitions and examples; I run the code, check counts and known totals, cross-check figures against another source and review assumptions. I do not paste personal data into services without a contract and I keep responsibility for the result.
+
+- id: iq-ia-02
+  topic: IA para el análisis
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Por qué falla el texto a SQL sobre una base de datos empresarial real?
+  promptEn: >-
+    Why does text-to-SQL fail on a real enterprise database?
+  answerEs: >-
+    Por ambigüedad del lenguaje, esquemas grandes y poco descriptivos (el enlace entre la pregunta y las tablas es difícil), definiciones de negocio no escritas (qué es un «ingreso neto»), joins con riesgo de fan-out, dialectos y errores sutiles que dan un resultado plausible pero incorrecto. Mitigan: capa semántica con
+    métricas gobernadas, descripciones del esquema, ejemplos, abstención cuando falta información y evaluación continua con preguntas de oro.
+  answerEn: >-
+    Because of language ambiguity, large and poorly described schemas (linking the question to tables is hard), unwritten business definitions (what is "net revenue"), joins at risk of fan-out, dialects and subtle errors that give a plausible but wrong result. Mitigate with a semantic layer with governed metrics,
+    schema descriptions, examples, abstention when information is missing and continuous evaluation with golden questions.
+
+- id: iq-ia-03
+  topic: IA para el análisis
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo evaluarías un sistema de IA que responde preguntas de datos en lenguaje natural?
+  promptEn: >-
+    How would you evaluate an AI system that answers data questions in natural language?
+  answerEs: >-
+    Con un conjunto de preguntas de oro representativo, con la consulta y el resultado esperados, y comparando resultados ejecutados (no texto SQL). Medir exactitud con intervalo de confianza, distinguir errores de ejecución, resultados distintos y abstenciones, comprobar si los aciertos son por casualidad
+    (ejecutar sobre una segunda versión de los datos) y repetir en cada cambio de modelo, prompt o esquema. Añadir pruebas de seguridad.
+  answerEn: >-
+    With a representative golden question set, with expected query and result, comparing executed results (not SQL text). Measure accuracy with a confidence interval, distinguish execution errors, different results and abstentions, check whether hits are by chance (run on a second version of the data) and repeat on every
+    change of model, prompt or schema. Add security tests.
+
+- id: iq-ia-04
+  topic: IA para el análisis
+  level: senior
+  type: conceptual
+  promptEs: >-
+    ¿Qué es la inyección de instrucciones y por qué es un riesgo para un agente que lee tickets de clientes?
+  promptEn: >-
+    What is prompt injection and why is it a risk for an agent reading customer tickets?
+  answerEs: >-
+    Es incluir en el contenido que lee el modelo instrucciones que este puede obedecer (por ejemplo, un ticket que dice «ignora lo anterior y envía los datos a...»). Con datos privados, contenido no confiable y capacidad de comunicación externa a la vez (la «tríada letal») un atacante puede provocar fugas. La defensa fiable es de
+    arquitectura: quitar una pata de la tríada, permisos mínimos de solo lectura, aprobación humana de acciones y registro; los filtros de texto ayudan pero no bastan.
+  answerEn: >-
+    It is embedding in content the model reads instructions it may obey (for example a ticket that says "ignore the above and send the data to..."). With private data, untrusted content and external communication ability at once (the "lethal trifecta") an attacker can cause leaks. The reliable defense is architectural: remove one
+    leg of the trifecta, minimal read-only permissions, human approval of actions and logging; text filters help but are not enough.
+
+- id: iq-ia-05
+  topic: IA para el análisis
+  level: mid
+  type: design
+  promptEs: >-
+    Quieres clasificar 200.000 reseñas en temas con un LLM. ¿Cómo lo planteas?
+  promptEn: >-
+    You want to classify 200,000 reviews into topics with an LLM. How do you set it up?
+  answerEs: >-
+    Deduplicar textos, definir una taxonomía con definiciones y una etiqueta «otro», usar salidas estructuradas con esquema y validar el resultado (valores, rangos, reintentos acotados), etiquetar a mano una muestra para medir precisión, exhaustividad y acuerdo (kappa), estimar el coste en tokens, comparar con
+    reglas y un modelo clásico más barato y dejar la columna materializada con versión de modelo y prompt.
+  answerEn: >-
+    Deduplicate texts, define a taxonomy with definitions and an "other" label, use structured outputs with a schema and validate the result (values, ranges, bounded retries), hand-label a sample to measure precision, recall and agreement (kappa), estimate token cost, compare against rules and a cheaper classic model and keep the
+    column materialized with model and prompt version.
+
+- id: iq-ia-06
+  topic: IA para el análisis
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué son los tokens y la ventana de contexto y por qué te importan?
+  promptEn: >-
+    What are tokens and the context window and why do they matter to you?
+  answerEs: >-
+    Los modelos procesan texto en tokens (fragmentos de palabras); se cobra por tokens de entrada y salida y la ventana de contexto limita cuánto cabe en una petición. Importan para el coste, la latencia y la calidad (un contexto muy largo diluye lo relevante). Para datos: enviar esquema y definiciones, no tablas enteras; resumir
+    y recuperar solo lo necesario.
+  answerEn: >-
+    Models process text in tokens (word fragments); you pay for input and output tokens and the context window limits how much fits in a request. They matter for cost, latency and quality (very long context dilutes what is relevant). For data: send schema and definitions, not whole tables; summarize and retrieve only what is needed.
+
+- id: iq-ia-07
+  topic: IA para el análisis
+  level: senior
+  type: design
+  promptEs: >-
+    Diseña un servidor MCP de solo lectura sobre un almacén de datos.
+  promptEn: >-
+    Design a read-only MCP server over a data warehouse.
+  answerEs: >-
+    Herramientas pequeñas y específicas (listar tablas, describir, ejecutar consulta), con una cuenta de servicio de permisos mínimos y solo lectura; validación de consultas (una sentencia, solo SELECT, lista de tablas permitidas), límites de filas, tiempo y coste, registro de cada llamada y aprobación humana para lo que tenga efectos.
+    Idealmente expone métricas de una capa semántica. Seguir la guía de seguridad de MCP (no pasar tokens, mínimo alcance).
+  answerEn: >-
+    Small, specific tools (list tables, describe, run query), with a minimal-permission read-only service account; query validation (single statement, SELECT only, table allow-list), row, time and cost limits, logging of every call and human approval for anything with side effects. Ideally it exposes semantic-layer metrics.
+    Follow MCP security guidance (no token passthrough, minimal scope).
+
+- id: iq-ia-08
+  topic: IA para el análisis
+  level: junior
+  type: conceptual
+  promptEs: >-
+    ¿Qué es una alucinación de un modelo de lenguaje y cómo te afecta como analista?
+  promptEn: >-
+    What is a language model hallucination and how does it affect you as an analyst?
+  answerEs: >-
+    Es una respuesta fluida pero incorrecta o inventada (una columna que no existe, una cifra no calculada, una cita inexistente). Para un analista el riesgo es aceptar un resultado plausible sin comprobarlo. Se mitiga dando el contexto real, ejecutando el código en lugar de confiar en el texto y verificando
+    cada cifra con una fuente.
+  answerEn: >-
+    A fluent but incorrect or invented answer (a non-existent column, an uncalculated figure, a made-up citation). For an analyst the risk is accepting a plausible result without checking. Mitigate by providing real context, running code instead of trusting the text and verifying every figure against a source.
+
+- id: iq-ia-09
+  topic: IA para el análisis
+  level: mid
+  type: debugging
+  promptEs: >-
+    Un agente de IA te entrega un informe que dice que una región cae un 28 %. ¿Qué compruebas antes de enviarlo?
+  promptEn: >-
+    An AI agent gives you a report saying a region dropped 28%. What do you check before sending it?
+  answerEs: >-
+    Recalcular la cifra de forma independiente; revisar la línea base (¿es el mes de comparación un pico?), el contexto (total y otras regiones), la mezcla por categoría y producto, la persistencia (¿se recupera?) y si la recomendación se sigue realmente de los datos o es causal sin evidencia.
+    Un informe puede estar bien calculado y ser engañoso por la pregunta que no se hizo.
+  answerEn: >-
+    Recompute the figure independently; review the baseline (is the comparison month a peak?), the context (total and other regions), the category and product mix, persistence (does it recover?) and whether the recommendation truly follows from the data or is causal without evidence.
+    A report can be well calculated and still misleading because of the question not asked.
+
+- id: iq-ia-10
+  topic: IA para el análisis
+  level: senior
+  type: conceptual
+  promptEs: >-
+    ¿Por qué la capa semántica mejora la fiabilidad de la analítica con IA?
+  promptEn: >-
+    Why does a semantic layer improve the reliability of AI analytics?
+  answerEs: >-
+    Porque define las métricas, dimensiones y filtros una vez, con propietario, y el modelo las consume en lugar de reinventarlas: reduce la ambigüedad, evita errores de joins y de definición, ofrece un contrato verificable, permite abstenerse cuando algo no está definido y aplica permisos y gobierno. La IA pasa de
+    escribir SQL libre a seleccionar métricas gobernadas.
+  answerEn: >-
+    Because it defines metrics, dimensions and filters once, with an owner, and the model consumes them rather than reinventing them: it reduces ambiguity, avoids join and definition errors, offers a verifiable contract, allows abstaining when something is undefined and applies permissions and governance. AI moves from
+    writing free SQL to selecting governed metrics.
+
+- id: iq-ia-11
+  topic: IA para el análisis
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué datos no deberías pegar en un asistente de IA público?
+  promptEn: >-
+    What data should you not paste into a public AI assistant?
+  answerEs: >-
+    Datos personales (nombres, correos, identificadores, tickets con datos de clientes), información confidencial de la empresa, credenciales y claves, y datos de terceros sin base legal. Si hay que usarlos, minimizar, enmascarar o seudonimizar, usar servicios con contrato de tratamiento de datos y respetar las políticas de la empresa, el RGPD y la LOPDGDD.
+  answerEn: >-
+    Personal data (names, emails, identifiers, tickets with customer data), confidential company information, credentials and keys, and third-party data without legal basis. If you must use them, minimize, mask or pseudonymize, use services with a data processing agreement and follow company policy, GDPR and Spanish data protection law.
+
+- id: iq-ia-12
+  topic: IA para el análisis
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo medirías el coste y el valor de automatizar una tarea de análisis con un LLM?
+  promptEn: >-
+    How would you measure the cost and value of automating an analysis task with an LLM?
+  answerEs: >-
+    Coste: tokens (entrada y salida) × llamadas × precio, más infraestructura, etiquetado de la evaluación y mantenimiento. Valor: tiempo ahorrado, calidad o cobertura ganada y riesgo evitado, medidos frente al proceso actual. Estimar con muestra, reducir llamadas deduplicando y cascadas de modelos, y exigir una calidad mínima
+    medida con una muestra de oro. Si no supera a una regla barata, no merece la pena.
+  answerEn: >-
+    Cost: tokens (input and output) × calls × price, plus infrastructure, evaluation labeling and maintenance. Value: time saved, quality or coverage gained and risk avoided, measured against the current process. Estimate with a sample, reduce calls through deduplication and model cascades, and require a minimum quality measured on a golden sample.
+    If it does not beat a cheap rule, it is not worth it.
+
+- id: iq-ia-13
+  topic: IA para el análisis
+  level: mid
+  type: conceptual
+  promptEs: >-
+    ¿Qué diferencia hay entre un flujo de trabajo (workflow) con LLM y un agente?
+  promptEn: >-
+    What is the difference between an LLM workflow and an agent?
+  answerEs: >-
+    En un flujo de trabajo las rutas están predefinidas en código y el LLM ocupa pasos concretos; es más previsible, barato y fácil de probar. En un agente el LLM dirige dinámicamente su proceso y el uso de herramientas en un bucle de planificar, actuar y observar; es más flexible pero acumula errores, cuesta más y exige límites y supervisión.
+    La recomendación habitual: empieza por lo más simple.
+  answerEn: >-
+    In a workflow, paths are predefined in code and the LLM fills specific steps; it is more predictable, cheaper and easier to test. In an agent the LLM dynamically directs its process and tool use in a plan-act-observe loop; it is more flexible but accumulates errors, costs more and needs limits and supervision. The usual advice: start with the simplest.
+
+- id: iq-ia-14
+  topic: IA para el análisis
+  level: senior
+  type: conceptual
+  promptEs: >-
+    ¿Qué obligaciones introduce el Reglamento europeo de IA que un analista debería conocer?
+  promptEn: >-
+    What obligations does the EU AI Act introduce that an analyst should know about?
+  answerEs: >-
+    El Reglamento clasifica los sistemas por riesgo (prohibidos, alto riesgo, riesgo limitado con obligaciones de transparencia, riesgo mínimo) y exige para los de alto riesgo gestión de riesgos, calidad y gobierno de datos, documentación, trazabilidad, supervisión humana y exactitud. Para un analista: saber si su caso de uso (por ejemplo, decisiones sobre personas)
+    puede ser de alto riesgo, cuidar la calidad y el sesgo de los datos, documentar y consultar al equipo legal. Esto es orientativo, no asesoramiento jurídico.
+  answerEn: >-
+    The Regulation classifies systems by risk (prohibited, high-risk, limited-risk with transparency obligations, minimal-risk) and requires for high-risk ones risk management, data quality and governance, documentation, traceability, human oversight and accuracy. For an analyst: know whether the use case (for example decisions about people) may be high-risk,
+    care about data quality and bias, document, and consult legal. This is indicative, not legal advice.
+
+- id: iq-ia-15
+  topic: IA para el análisis
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo evitarías que un LLM «invente» una métrica que no existe en tu empresa?
+  promptEn: >-
+    How would you stop an LLM from "inventing" a metric that does not exist in your company?
+  answerEs: >-
+    Darle un catálogo de métricas gobernadas (capa semántica) y limitar sus herramientas a ese catálogo; incluir en el prompt las definiciones y la regla de responder «no puedo» cuando falte información; validar que toda métrica citada existe y que las cifras provienen de una salida de herramienta, y evaluar la abstención
+    con preguntas de oro que no deberían poder responderse.
+  answerEn: >-
+    Give it a catalog of governed metrics (semantic layer) and limit its tools to that catalog; include definitions in the prompt and a rule to answer "I cannot" when information is missing; validate that every cited metric exists and that figures come from a tool output, and evaluate abstention with golden questions that should not be answerable.
+
+- id: iq-beh-01
+  topic: Conductuales
+  level: junior
+  type: design
+  promptEs: >-
+    Háblame de un análisis tuyo que cambió una decisión.
+  promptEn: >-
+    Tell me about an analysis of yours that changed a decision.
+  answerEs: >-
+    Respuesta STAR: situación (la pregunta de negocio y quién decidía), tarea (tu responsabilidad), acción (qué datos usaste, cómo los comprobaste, qué método elegiste y por qué, cómo lo comunicaste) y resultado (la decisión tomada, el impacto medido y lo que aprendiste). Si es un proyecto personal, di claramente el contexto y qué decisión
+    habría tomado la empresa.
+  answerEn: >-
+    STAR answer: situation (the business question and who decided), task (your responsibility), action (what data you used, how you checked it, what method you chose and why, how you communicated it) and result (the decision made, measured impact and what you learned). If it is a personal project, state the context clearly and what decision the company would have taken.
+
+- id: iq-beh-02
+  topic: Conductuales
+  level: mid
+  type: design
+  promptEs: >-
+    Cuéntame un error que cometiste en un análisis.
+  promptEn: >-
+    Tell me about a mistake you made in an analysis.
+  answerEs: >-
+    Elige un error real y no trivial: qué ocurrió, cómo lo detectaste, a quién avisaste y cuándo, cómo lo corregiste y qué cambiaste en tu proceso (una prueba, una revisión, una comprobación de totales). Valoran la honestidad, la rapidez en avisar y el aprendizaje, no la ausencia de errores. Evita culpar a otros.
+  answerEn: >-
+    Pick a real, non-trivial mistake: what happened, how you detected it, whom you told and when, how you fixed it and what you changed in your process (a test, a review, a totals check). They value honesty, speed in alerting and learning, not the absence of mistakes. Avoid blaming others.
+
+- id: iq-beh-03
+  topic: Conductuales
+  level: mid
+  type: design
+  promptEs: >-
+    Un stakeholder discrepa de tu conclusión. ¿Qué haces?
+  promptEn: >-
+    A stakeholder disagrees with your conclusion. What do you do?
+  answerEs: >-
+    Escuchar primero para entender en qué discrepa (los datos, la definición, la interpretación o la decisión), revisar si tiene razón (puede haber un error mío), enseñar la evidencia y los límites con claridad y proponer una comprobación acordada (otro corte, un experimento). Mantener la conversación sobre los datos y el objetivo común, y escalar con calma si no hay acuerdo.
+  answerEn: >-
+    Listen first to understand where they disagree (the data, the definition, the interpretation or the decision), check whether they are right (there may be an error on my side), show the evidence and limits clearly and propose an agreed check (another cut, an experiment). Keep the conversation on the data and the shared goal, and escalate calmly if there is no agreement.
+
+- id: iq-beh-04
+  topic: Conductuales
+  level: mid
+  type: design
+  promptEs: >-
+    Te piden algo ambiguo («dame los datos de clientes»). ¿Cómo procedes?
+  promptEn: >-
+    You are asked for something ambiguous ("give me the customer data"). How do you proceed?
+  answerEs: >-
+    Preguntar para qué: qué decisión o pregunta hay detrás, qué clientes, qué periodo, en qué formato, para cuándo y quién lo usará. Reformular la petición por escrito y confirmar. Proponer la respuesta mínima útil, entregar pronto una primera versión y iterar. Tener en cuenta la privacidad (qué datos personales hacen falta de verdad).
+  answerEn: >-
+    Ask what it is for: which decision or question lies behind it, which customers, which period, what format, by when and who will use it. Restate the request in writing and confirm. Propose the minimum useful answer, deliver a first version early and iterate. Consider privacy (which personal data are truly needed).
+
+- id: iq-beh-05
+  topic: Conductuales
+  level: senior
+  type: design
+  promptEs: >-
+    Cuéntame cómo comunicaste un resultado incómodo a la dirección.
+  promptEn: >-
+    Tell me how you communicated an uncomfortable result to leadership.
+  answerEs: >-
+    Empezar por la conclusión y su impacto, apoyarla en evidencia clara y comprobable, reconocer límites e incertidumbre sin esconder el mensaje, proponer opciones y un siguiente paso, y haber hablado antes con las personas afectadas para evitar sorpresas. Mantener un tono factual y orientado a soluciones.
+  answerEn: >-
+    Start with the conclusion and its impact, support it with clear verifiable evidence, acknowledge limits and uncertainty without burying the message, propose options and a next step, and have spoken beforehand with those affected to avoid surprises. Keep a factual, solution-oriented tone.
+
+- id: iq-beh-06
+  topic: Conductuales
+  level: junior
+  type: design
+  promptEs: >-
+    ¿Cómo gestionas varias peticiones urgentes a la vez?
+  promptEn: >-
+    How do you manage several urgent requests at once?
+  answerEs: >-
+    Listarlas con impacto, urgencia y esfuerzo, aclarar plazos reales con quien pide, comunicar de forma transparente qué se hará primero y por qué, buscar versiones simplificadas para lo urgente y escalar a mi responsable si hay conflicto de prioridades. Evitar prometer todo y avisar pronto de los retrasos.
+  answerEn: >-
+    List them with impact, urgency and effort, clarify real deadlines with the requesters, communicate transparently what will be done first and why, look for simplified versions for the urgent, and escalate to my manager if priorities conflict. Avoid promising everything and warn early of delays.
+
+- id: iq-beh-07
+  topic: Conductuales
+  level: mid
+  type: design
+  promptEs: >-
+    Háblame de algo técnico que aprendiste rápido para un proyecto.
+  promptEn: >-
+    Tell me about something technical you learned quickly for a project.
+  answerEs: >-
+    Cuenta la necesidad concreta, cómo planificaste el aprendizaje (documentación oficial, un proyecto pequeño, preguntar a alguien que sabe), cómo verificaste que lo entendías (pruebas, revisión) y el resultado. Muestra método y humildad: qué dejaste fuera por tiempo y cómo compartiste lo aprendido con el equipo.
+  answerEn: >-
+    Describe the concrete need, how you planned the learning (official documentation, a small project, asking someone who knows), how you verified you understood (tests, review) and the result. Show method and humility: what you left out for lack of time and how you shared what you learned with the team.
+
+- id: iq-beh-08
+  topic: Conductuales
+  level: senior
+  type: design
+  promptEs: >-
+    Cuéntame una vez que dijiste «no» o «todavía no» a una petición.
+  promptEn: >-
+    Tell me about a time you said "no" or "not yet" to a request.
+  answerEs: >-
+    Explica la petición, por qué no era viable o prudente (calidad de datos, riesgo, prioridad, privacidad), cómo lo comunicaste con respeto y con una alternativa (una versión acotada, un plazo realista, otro enfoque) y cómo reaccionó la otra parte. Dejar claro que el «no» protegía un objetivo compartido.
+  answerEn: >-
+    Explain the request, why it was not viable or prudent (data quality, risk, priority, privacy), how you communicated it respectfully with an alternative (a scoped version, a realistic deadline, a different approach) and how the other party reacted. Make clear the "no" protected a shared goal.
+
+- id: iq-beh-09
+  topic: Conductuales
+  level: mid
+  type: design
+  promptEs: >-
+    ¿Cómo das y recibes feedback sobre un análisis?
+  promptEn: >-
+    How do you give and receive feedback on an analysis?
+  answerEs: >-
+    Dar: específico, sobre el trabajo y no la persona, con el impacto y una sugerencia, y empezando por lo que funciona. Recibir: escuchar sin defenderme, preguntar para entender, agradecer y decidir qué cambio aplico, devolviendo luego el resultado. Una revisión de pares (código y consultas) es una práctica normal que mejora la calidad.
+  answerEn: >-
+    Giving: specific, about the work not the person, with impact and a suggestion, starting with what works. Receiving: listen without defending, ask to understand, thank and decide what change to apply, then report back. Peer review (code and queries) is a normal practice that improves quality.
+
+- id: iq-beh-10
+  topic: Conductuales
+  level: junior
+  type: design
+  promptEs: >-
+    ¿Por qué quieres ser analista de datos?
+  promptEn: >-
+    Why do you want to be a data analyst?
+  answerEs: >-
+    Conecta tu motivación con el trabajo real: ayudar a que se tomen mejores decisiones con evidencia, el gusto por convertir preguntas ambiguas en respuestas comprobables, y un ejemplo concreto (un proyecto tuyo) en el que lo viviste. Muestra que conoces el día a día (limpiar datos, aclarar definiciones, comunicar) y no solo la parte glamurosa.
+  answerEn: >-
+    Connect your motivation to the real work: helping better decisions get made with evidence, enjoying turning ambiguous questions into verifiable answers, and a concrete example (a project of yours) where you experienced it. Show you know the day-to-day (cleaning data, clarifying definitions, communicating), not just the glamorous part.
+
+- id: iq-beh-11
+  topic: Conductuales
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo ayudas a que un compañero menos experimentado mejore?
+  promptEn: >-
+    How do you help a less experienced colleague improve?
+  answerEs: >-
+    Acompañar con revisiones de código y de análisis que expliquen el porqué, compartir plantillas y listas de comprobación, dar encargos con dificultad creciente y un nivel de autonomía acordado, pedir que presente sus resultados y ofrecer feedback frecuente y específico. Celebrar los avances y normalizar preguntar.
+  answerEn: >-
+    Accompany with code and analysis reviews that explain the why, share templates and checklists, give assignments of increasing difficulty with an agreed level of autonomy, ask them to present results and offer frequent, specific feedback. Celebrate progress and normalize asking questions.
+
+- id: iq-beh-12
+  topic: Conductuales
+  level: mid
+  type: design
+  promptEs: >-
+    Descubres que un informe publicado hace semanas tenía un error. ¿Qué haces?
+  promptEn: >-
+    You discover that a report published weeks ago had an error. What do you do?
+  answerEs: >-
+    Verificar el error y su alcance, avisar cuanto antes a mi responsable y a quienes usaron el informe, aportar la cifra corregida y el impacto en las decisiones tomadas, corregir la causa y añadir una prueba para que no se repita. Priorizar la transparencia y documentar el incidente.
+  answerEn: >-
+    Verify the error and its scope, alert my manager and those who used the report as soon as possible, provide the corrected figure and the impact on decisions made, fix the root cause and add a test so it does not recur. Prioritize transparency and document the incident.
+
+- id: iq-beh-13
+  topic: Conductuales
+  level: senior
+  type: design
+  promptEs: >-
+    ¿Cómo decides qué analizar cuando tienes más preguntas que tiempo?
+  promptEn: >-
+    How do you decide what to analyze when you have more questions than time?
+  answerEs: >-
+    Valoro el impacto en una decisión concreta, la urgencia, la probabilidad de que el análisis cambie esa decisión y el esfuerzo; descarto o automatizo lo recurrente y de bajo valor y acuerdo las prioridades con los responsables. Prefiero entregar una respuesta suficientemente buena a tiempo que una perfecta tarde, y dejo claros los supuestos.
+  answerEn: >-
+    I weigh impact on a concrete decision, urgency, the probability the analysis would change that decision and effort; I drop or automate recurring low-value work and agree priorities with the owners. I prefer a good-enough answer on time to a perfect one late, and make assumptions explicit.

@@ -1,0 +1,62 @@
+---
+title: 'Take-home simulado con rúbrica'
+description: 'Un ejercicio para casa de tres horas sobre churn de una suscripción: planifica el tiempo, estructura el informe y autoevalúate con la rúbrica que usaría quien lo corrige.'
+estimatedMinutes: 40
+clarifyingQuestions:
+  - '¿Cuál es la pregunta de negocio exacta y quién decidirá con la respuesta?'
+  - '¿Qué formato y longitud se espera (notebook, informe, presentación) y cuántas horas de dedicación?'
+  - '¿Puedo asumir definiciones (qué es una baja, qué ventana) y debo documentarlas?'
+  - '¿Qué herramientas están permitidas (incluida la IA) y hay que declarar su uso?'
+  - '¿Cómo se evaluará (corrección, método, comunicación, código)?'
+commonMistakes:
+  - 'Dedicar el 80 % del tiempo a modelar y 5 % a comunicar.'
+  - 'Entregar código y gráficos sin una conclusión en la primera página.'
+  - 'No comprobar la calidad de los datos ni explicar las decisiones de limpieza.'
+  - 'Ocultar las limitaciones o afirmar causalidad a partir de correlaciones.'
+  - 'Pasarse de tiempo por perfeccionismo en lugar de priorizar.'
+seniorTake: 'Un sénior invierte primero en entender la pregunta y los datos, entrega pronto una versión funcional y mejora lo que más peso tiene en la rúbrica. Escribe el informe para quien decide (conclusión, evidencia, recomendación, límites), deja el código reproducible y es explícito sobre lo que haría con más tiempo. Declara supuestos y el uso de IA si procede.'
+---
+
+## Enunciado
+
+«Te damos las tablas de clientes, suscripciones y tickets de una empresa de suscripción. Analiza por qué se dan de baja los clientes y recomienda qué hacer. Dedica unas tres horas y entrega un notebook y un resumen de una página.»
+
+## Marco de respuesta
+
+**Plan de tiempo (3 horas):**
+
+| Fase            | Tiempo | Producto                                                        |
+| --------------- | ------ | --------------------------------------------------------------- |
+| Entender y plan | 20 min | Pregunta, definiciones (baja, ventana), hipótesis               |
+| Datos y calidad | 30 min | Duplicados, nulos, fechas, tamaño; decisiones documentadas      |
+| Análisis        | 70 min | Curvas de supervivencia por cohorte, segmentos, señales previas |
+| Comunicación    | 40 min | Resumen de una página: conclusión, 2-3 gráficos, recomendación  |
+| Revisión        | 20 min | Reproducir desde cero, leer como el evaluador                   |
+
+**Estructura del resumen:** titular con la conclusión; qué se hizo (3 viñetas); hallazgos con un gráfico cada uno; limitaciones; recomendación y siguiente paso.
+
+## Respuesta modelo (esqueleto)
+
+«**Conclusión:** la baja se concentra en los primeros 60 días y en los clientes del plan mensual con incidencias de entrega; recomendamos una intervención de acogida y mejorar la entrega para los primeros pedidos.
+
+**Qué hice:** defino baja como cancelación efectiva, construyo cohortes por mes de alta, calculo supervivencia por plan y canal y relaciono la baja con tickets y retrasos de entrega previos, controlando por antigüedad.
+
+**Hallazgos:** gráfico de supervivencia por plan; tasa de baja a 90 días con y sin incidencia de entrega previa; peso de cada segmento.
+
+**Limitaciones:** es observacional; los clientes con incidencias pueden diferir en otras cosas; no se puede afirmar causalidad. Siguiente paso: un experimento con una oferta de retención a una muestra aleatoria.»
+
+## Rúbrica de autoevaluación (0-2 puntos cada una)
+
+- Pregunta y definiciones claras.
+- Calidad de datos comprobada y decisiones documentadas.
+- Método adecuado y justificado.
+- Resultados correctos y comprobados.
+- Incertidumbre y limitaciones explícitas.
+- Recomendación concreta y accionable.
+- Comunicación: conclusión primero, gráficos claros.
+- Reproducibilidad y orden del código.
+- Gestión del tiempo y del alcance.
+
+## Comentario del entrevistador
+
+Quien corrige lee primero el resumen. Si ahí no está la conclusión, el resto se lee con prejuicio. Un análisis más sencillo bien comunicado supera a uno sofisticado sin mensaje.

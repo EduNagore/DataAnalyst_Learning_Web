@@ -1,0 +1,45 @@
+---
+title: '«¿Cómo usarías IA en este análisis y cómo la validarías?»'
+description: 'Te piden clasificar 50.000 tickets de soporte y resumir los temas con ayuda de IA. Explica qué harías con un LLM, qué dejarías a reglas o a personas y cómo validarías el resultado.'
+estimatedMinutes: 25
+clarifyingQuestions:
+  - '¿Qué decisión depende del análisis y qué precisión necesita?'
+  - '¿Qué datos contienen los tickets (datos personales) y qué servicios de IA están aprobados por la empresa?'
+  - '¿Existen etiquetas anteriores o una taxonomía definida?'
+  - '¿Cuál es el presupuesto de coste y el plazo?'
+  - '¿Quién revisará los resultados y qué controles exige la empresa?'
+commonMistakes:
+  - 'Pegar los tickets, con datos personales, en un asistente público.'
+  - 'Pasar los 50.000 textos sin deduplicar ni estimar el coste.'
+  - 'Confiar en las etiquetas del modelo sin una muestra etiquetada por personas.'
+  - 'Pedir al modelo que diga si está acertando, en lugar de medirlo.'
+  - 'No guardar la versión del modelo y del prompt.'
+seniorTake: 'Un sénior usa la IA donde aporta (descubrir temas, proponer taxonomía, clasificar a escala) y mantiene reglas y personas donde corresponde. Protege los datos (enmascarado, servicios con contrato), deduplica, estima el coste, etiqueta una muestra para medir precisión, exhaustividad y acuerdo, vigila la deriva y documenta. Trata la salida del modelo como una estimación y la comunica así.'
+---
+
+## Enunciado
+
+«Tenemos 50.000 tickets de soporte del último año. Quiero saber de qué hablan nuestros clientes y qué temas crecen. ¿Cómo usarías IA y cómo comprobarías que el resultado es fiable?»
+
+## Marco de respuesta
+
+1. **Aclarar** la decisión, los datos personales y las herramientas permitidas.
+2. **Preparar los datos:** enmascarar datos personales, deduplicar, muestrear para explorar.
+3. **Descubrir temas:** vectorizar y agrupar (o pedir a un LLM que proponga temas sobre una muestra), leer ejemplos y nombrar.
+4. **Definir la taxonomía** con definiciones y una etiqueta «otro».
+5. **Clasificar:** reglas para lo evidente, LLM con salida estructurada para lo demás, validación de esquema y reintentos acotados.
+6. **Evaluar:** muestra aleatoria etiquetada a mano, matriz de confusión, precisión y exhaustividad por clase, acuerdo entre personas y modelo, intervalos de confianza.
+7. **Coste y mantenimiento:** estimar tokens, proceso incremental, versión de modelo y prompt, reevaluación periódica.
+8. **Comunicar** la incertidumbre y las limitaciones.
+
+## Respuesta modelo
+
+«Primero compruebo qué datos personales contienen los tickets y uso solo servicios aprobados por la empresa, enmascarando lo que no haga falta. Deduplico (los tickets suelen repetir plantillas) y exploro una muestra para descubrir temas: agrupo por similitud, leo ejemplos y propongo una taxonomía con una etiqueta “otro”.
+
+Para clasificar, uso reglas en lo evidente y un LLM con salida estructurada en el resto; valido el JSON y descarto con registro lo que falla. Para fiarme del resultado, etiqueto a mano unos 400 tickets aleatorios, calculo la matriz de confusión, precisión y exhaustividad por tema y la kappa entre una persona y el modelo, y reporto intervalos. Si un tema crece, lo confirmo en una segunda muestra antes de comunicarlo.
+
+Presento las cifras como estimaciones con margen, guardo la versión del modelo y del prompt y reevalúo cada trimestre y cada vez que cambie el modelo.»
+
+## Comentario del entrevistador
+
+Busca: protección de datos, deduplicación, evaluación con etiquetas humanas, conciencia de coste y de incertidumbre. Penaliza la confianza ciega en el modelo.
