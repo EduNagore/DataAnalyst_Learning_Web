@@ -78,7 +78,16 @@ jobs:
 
       - name: Instalar dependencias (uv)
         if: steps.has-pyproject.outputs.exists == 'true'
-        run: uv sync --all-extras
+        run: |
+          set +e
+          uv sync --all-extras > uv-sync.log 2>&1
+          code=$?
+          cat uv-sync.log
+          if [ $code -ne 0 ]; then
+            echo "::error title=uv sync::$(tail -c 1800 uv-sync.log | tr '
+' '|')"
+          fi
+          exit $code
 
       - name: Ruff
         if: steps.has-pyproject.outputs.exists == 'true'
