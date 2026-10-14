@@ -1,0 +1,71 @@
+lesson: regresion-modelos/02-validacion-fuga-de-informacion-e-interpretabilidad
+questions:
+  - id: reg-02-q1
+    type: single
+    difficulty: 2
+    prompt: 'Vas a predecir las bajas del mes que viene con datos históricos de dos años. ¿Cómo divides entrenamiento y prueba?'
+    options:
+      - 'Al azar, 70/30, para que ambos conjuntos sean representativos'
+      - 'Por fecha: entrenas con el periodo más antiguo y pruebas con el más reciente'
+      - 'Usando todo para entrenar y todo para probar'
+      - 'Por orden alfabético de cliente'
+    answer: [1]
+    explanation: 'Con datos temporales, una división aleatoria deja que el modelo conozca el futuro de los clientes al predecir su pasado. La separación por fecha imita el uso real.'
+    ref: '#entrenamiento-validación-y-prueba'
+
+  - id: reg-02-q2
+    type: single
+    difficulty: 3
+    prompt: 'Añades al modelo de bajas la variable «la suscripción está activa hoy» (tomada de la tabla actual de suscripciones) y el AUC pasa de 0,64 a 0,92. ¿Qué conclusión es correcta?'
+    options:
+      - 'El modelo ha mejorado enormemente y puede desplegarse'
+      - 'Es una fuga de información: la variable es el propio resultado y no estará disponible (o no tendrá sentido) en el momento de predecir'
+      - 'Es una señal de que el modelo necesita más datos'
+      - 'El AUC es una métrica poco fiable'
+    answer: [1]
+    explanation: 'Si una variable solo se conoce después del evento (o lo codifica), el modelo la lee en lugar de predecir. Un salto brusco de rendimiento al añadir una variable es una alerta.'
+    ref: '#el-caso-de-lumen-temporal-frente-a-fuga'
+
+  - id: reg-02-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los ejemplos de fuga de información.'
+    options:
+      - 'Calcular «compras totales del cliente» con todo su historial, incluido el posterior a la fecha de predicción'
+      - 'Estandarizar las variables con la media y desviación de todo el conjunto antes de dividir en entrenamiento y prueba'
+      - 'Tener al mismo cliente en entrenamiento y en prueba'
+      - 'Entrenar con el pasado y probar con el futuro'
+    answer: [0, 1, 2]
+    explanation: 'Entrenar con el pasado y probar con el futuro es justo la manera correcta de evaluar. Las otras tres filtran información del conjunto de prueba (o del futuro) al entrenamiento.'
+    ref: '#tipos-de-fuga'
+
+  - id: reg-02-q4
+    type: single
+    difficulty: 2
+    prompt: 'Un gradient boosting con cuatro variables da el mismo AUC (0,635) que una regresión logística con una sola variable. ¿Qué haces?'
+    options:
+      - 'Despliegas el boosting, porque es más moderno'
+      - 'Te quedas con la logística: es más simple, igual de buena y más fácil de explicar y mantener'
+      - 'Añades más árboles hasta que mejore'
+      - 'Descartas ambos'
+    answer: [1]
+    explanation: 'Si un modelo complejo no mejora a uno simple fuera de muestra, el simple gana por interpretabilidad, coste y mantenimiento.'
+    ref: '#árboles-y-gradient-boosting'
+
+  - id: reg-02-q5
+    type: numeric
+    difficulty: 2
+    prompt: 'Un modelo tiene un AUC de 0,80 en prueba. Si elegimos al azar un positivo y un negativo, ¿qué porcentaje de las veces el positivo recibe mayor puntuación? (en %)'
+    answer: [80]
+    tolerance: 0.1
+    explanation: 'El AUC es exactamente esa probabilidad: la de que un positivo elegido al azar reciba una puntuación mayor que la de un negativo elegido al azar.'
+    ref: '#métricas'
+
+  - id: reg-02-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Una variable con gran importancia por permutación o valores SHAP altos tiene un efecto causal grande sobre el resultado.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. La importancia mide cuánto depende el modelo de esa variable, no su efecto causal: puede ser un síntoma del resultado, una fuga o estar correlacionada con la verdadera causa.'
+    ref: '#interpretabilidad'

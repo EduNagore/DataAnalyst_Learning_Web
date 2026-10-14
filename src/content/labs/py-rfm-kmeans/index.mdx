@@ -1,0 +1,30 @@
+---
+title: 'RFM y k-means: segmentar a los clientes de Lumen'
+description: 'Calcula recencia, frecuencia y valor monetario con una fecha de corte, puntúalos por quintiles, ajusta k-means sobre variables transformadas y estandarizadas, y valora silueta, perfil y estabilidad de los segmentos.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: regresion-modelos
+difficulty: 2
+estimatedMinutes: 40
+concepts: ['RFM', 'quintiles', 'k-means', 'silueta', 'estabilidad de segmentos']
+datasets: ['orders', 'order_items']
+packages: ['scikit-learn']
+output: console
+hints:
+  - 'Importe de cada pedido: suma de `quantity * unit_price` por `order_id`. Filtra `status != "cancelado"` y `order_date <= fecha`; agrupa por cliente con `order_date.max()`, `order_id.nunique()` y la suma de importes. La recencia es `(fecha - ultima).dt.days`.'
+  - 'Quintiles: `pd.qcut(serie.rank(method="first"), 5, labels=[1,2,3,4,5])`. Para la recencia, **5 es la más reciente**: ordena con `ascending=False` en el `rank`.'
+  - 'k-means: `Z = np.log1p(rfm[[...]])`, estandariza con la media y la desviación (`ddof=1`) y ajusta `KMeans(n_clusters=k, n_init=10, random_state=seed)`.'
+  - 'Silueta: `silhouette_score(Z, etiquetas, sample_size=10000, random_state=0)`. El perfil agrupa por cluster y ordena por `monetario` descendente.'
+relatedLessons: ['regresion-modelos/03-segmentacion-rfm-y-k-means']
+businessQuestion: '¿Qué grupos de clientes distintos tiene Lumen y qué los diferencia en recencia, frecuencia y valor?'
+---
+
+Implementa cinco funciones:
+
+1. **`calcular_rfm(orders, order_items, fecha)`** → DataFrame con `customer_id`, `recencia` (días), `frecuencia` (pedidos distintos) y `monetario` (€) para los pedidos no cancelados hasta `fecha` (incluida).
+2. **`puntuar_quintiles(rfm)`** → copia con las columnas `R`, `F` y `M` (1 a 5, **5 = mejor**; en recencia, el cliente más reciente puntúa 5).
+3. **`kmeans_rfm(rfm, k, seed=0, n_init=10)`** → etiquetas de k-means sobre `log1p` del RFM estandarizado.
+4. **`silueta(rfm, etiquetas, muestra=10000)`** → silueta media sobre una muestra reproducible (`random_state=0`).
+5. **`perfil_clusters(rfm, etiquetas)`** → DataFrame con `clientes` y las medias de `recencia`, `frecuencia` y `monetario` por cluster, ordenado por `monetario` descendente.
+
+Comprueba con la fecha de corte `"2025-12-31"`: 44.737 clientes, 8.577 «campeones» (R, F y M ≥ 4) y, con k = 4, una silueta de 0,33.

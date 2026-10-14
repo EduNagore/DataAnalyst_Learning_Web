@@ -1,0 +1,67 @@
+lesson: regresion-modelos/01-regresion-lineal-y-logistica-para-negocio
+questions:
+  - id: reg-01-q1
+    type: numeric
+    difficulty: 2
+    prompt: 'En un modelo con ln(importe) como resultado, el coeficiente de una variable es 0,30. ¿En qué porcentaje cambia el importe por cada unidad más de esa variable? (redondea al entero)'
+    answer: [35]
+    tolerance: 0.6
+    explanation: 'El cambio es 100·(e^0,30 − 1) = 100·(1,3499 − 1) ≈ 35 %. No es 30 %: la aproximación coeficiente ≈ porcentaje solo vale para coeficientes pequeños.'
+    ref: '#interpretar-con-logaritmos'
+
+  - id: reg-01-q2
+    type: single
+    difficulty: 2
+    prompt: 'Con ln(importe) y ln(líneas), el coeficiente de ln(líneas) es 1,363. ¿Cómo se interpreta?'
+    options:
+      - 'Cada línea más suma 1,363 euros'
+      - 'Es una elasticidad: duplicar el número de líneas multiplica el importe por 2^1,363 ≈ 2,57'
+      - 'Cada línea más aumenta el importe un 136,3 %'
+      - 'Que el R² es 1,363'
+    answer: [1]
+    explanation: 'Con la variable explicativa y el resultado en logaritmos, el coeficiente es una elasticidad: un cambio del 100 % en X (duplicar) multiplica Y por 2^β.'
+    ref: '#interpretar-con-logaritmos'
+
+  - id: reg-01-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las consecuencias de la multicolinealidad entre dos predictores.'
+    options:
+      - 'Los coeficientes de esos predictores se vuelven inestables al añadir o quitar variables'
+      - 'Sus errores estándar aumentan'
+      - 'Se hace difícil atribuir el efecto a cada uno por separado'
+      - 'El modelo predice necesariamente peor'
+    answer: [0, 1, 2]
+    explanation: 'La predicción del conjunto no tiene por qué empeorar: lo que se degrada es la interpretación de los coeficientes individuales.'
+    ref: '#multicolinealidad'
+
+  - id: reg-01-q4
+    type: numeric
+    difficulty: 3
+    prompt: 'La probabilidad mensual de baja sin retraso es 3,5 % y la razón de odds del retraso grave es 17,5. ¿Cuál es la probabilidad de baja con retraso grave, en %? (un decimal)'
+    answer: [38.9]
+    tolerance: 0.4
+    explanation: 'Odds sin retraso = 0,035/0,965 = 0,0363. Con retraso: 0,0363 × 17,5 = 0,635, es decir, p = 0,635/1,635 = 38,8-38,9 %. Una razón de odds de 17,5 no significa 17,5 veces la probabilidad (que serían 61 %).'
+    ref: '#regresión-logística'
+
+  - id: reg-01-q5
+    type: single
+    difficulty: 3
+    prompt: 'Un retraso multiplica por 17,5 los odds de baja (efecto enorme) y aun así el AUC del modelo es 0,64. ¿Cómo se explica?'
+    options:
+      - 'El modelo está mal calculado'
+      - 'Solo una pequeña parte de las revisiones está expuesta y muchas bajas ocurren sin exposición: el efecto es grande pero explica pocas bajas'
+      - 'El AUC mide el efecto causal'
+      - 'La razón de odds es incorrecta'
+    answer: [1]
+    explanation: 'Efecto (cuánto cambia el riesgo cuando ocurre algo) y capacidad predictiva (cuánto separa a los que se van de los que se quedan) son preguntas distintas.'
+    ref: '#efecto-grande-no-es-buen-modelo'
+
+  - id: reg-01-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Los coeficientes de una regresión ridge o lasso son estimaciones insesgadas del efecto de cada variable.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. La penalización introduce sesgo a propósito para reducir varianza y mejorar la predicción. No son adecuados para interpretar efectos sin matizar.'
+    ref: '#regularización'

@@ -1,0 +1,30 @@
+---
+title: 'Regresión lineal a mano: importe de pedido, descuento y multicolinealidad'
+description: 'Implementa mínimos cuadrados con numpy sobre los pedidos de Lumen, interpreta un modelo en logaritmos y calcula el factor de inflación de la varianza para detectar predictores redundantes.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: regresion-modelos
+difficulty: 2
+estimatedMinutes: 35
+concepts:
+  ['OLS', 'errores estándar', 'modelo log-lineal', 'efecto porcentual', 'VIF', 'multicolinealidad']
+datasets: ['orders', 'order_items']
+packages: ['scipy']
+output: console
+hints:
+  - 'Por pedido: importe = suma de `quantity * unit_price`, `lineas` = número de líneas, `unidades` = suma de `quantity`. Une con `orders` completados (`status == "completado"`) y descarta importes ≤ 0. Añade `ln_importe = log(importe)` y `ln_lineas = log(lineas)`.'
+  - 'OLS: `X = [1, x1, x2, …]`, `beta = inv(X.T @ X) @ X.T @ y`, `sigma2 = residuos @ residuos / (n - k)`, errores estándar `sqrt(sigma2 * diag(inv(X.T @ X)))`, `t = beta / se`, `p = 2 * stats.t.sf(|t|, n - k)`.'
+  - '`R² = 1 - SSR / SST`, con `SSR = suma(residuos²)` y `SST = suma((y - media(y))²)`.'
+  - 'VIF de una variable: `1 / (1 - R²)` de regresar esa variable sobre las demás.'
+relatedLessons: ['regresion-modelos/01-regresion-lineal-y-logistica-para-negocio']
+businessQuestion: '¿Cuánto resta cada punto de descuento al importe de un pedido y qué variables son redundantes?'
+---
+
+Implementa cuatro funciones (sin `statsmodels`):
+
+1. **`datos_pedidos(orders, order_items)`** → DataFrame de los pedidos completados con importe positivo y las columnas `discount_pct`, `lineas`, `unidades`, `ln_importe` y `ln_lineas`.
+2. **`ols(df, y, x)`** → diccionario con `tabla` (DataFrame con `coef`, `se`, `t`, `p`, `ic_inf` e `ic_sup` por término, con índice `const` y los nombres de `x`) y `r2`.
+3. **`efecto_pct(beta, delta=1.0)`** → cambio porcentual de `y` cuando `x` sube `delta` en un modelo con `ln(y)`: `100·(exp(beta·delta) − 1)`.
+4. **`vif(df, x)`** → diccionario con el VIF de cada variable de `x`.
+
+Comprueba que, con `ln_lineas` y `discount_pct`, cada 10 puntos de descuento restan un 10,3 % al importe.

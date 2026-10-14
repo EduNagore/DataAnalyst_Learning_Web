@@ -1,0 +1,186 @@
+---
+title: 'Validación, fuga de información e interpretabilidad (árboles y boosting)'
+description: 'Cómo evaluar un modelo de forma honesta: separación temporal, validación cruzada, métricas, fuga de información (leakage), modelos de árboles y gradient boosting como herramienta exploratoria, e interpretabilidad con importancia por permutación y SHAP.'
+module: regresion-modelos
+order: 2
+level: avanzado
+estimatedMinutes: 55
+objectives:
+  - 'Diseñar una evaluación fuera de muestra con separación temporal y validación cruzada, y elegir métricas adecuadas.'
+  - 'Detectar y evitar la fuga de información (variables derivadas del resultado, del futuro o del estado actual).'
+  - 'Usar árboles y gradient boosting como herramienta exploratoria y compararlos con un modelo lineal.'
+  - 'Calcular e interpretar la importancia por permutación y explicar para qué sirven los valores SHAP y sus límites.'
+prerequisites: ['regresion-modelos/01-regresion-lineal-y-logistica-para-negocio']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'scikit-learn — Validación cruzada: evaluar el rendimiento del estimador'
+    url: 'https://scikit-learn.org/stable/modules/cross_validation.html'
+    type: docs
+    authors: 'scikit-learn'
+    year: 2026
+  - title: 'scikit-learn — Importancia por permutación'
+    url: 'https://scikit-learn.org/stable/modules/permutation_importance.html'
+    type: docs
+    authors: 'scikit-learn'
+    year: 2026
+  - title: 'Lundberg & Lee (2017) — A Unified Approach to Interpreting Model Predictions (SHAP)'
+    url: 'https://arxiv.org/abs/1705.07874'
+    type: paper
+    authors: 'Lundberg, S. M., Lee, S.-I.'
+    year: 2017
+  - title: 'Molnar — Interpretable Machine Learning'
+    url: 'https://christophm.github.io/interpretable-ml-book/'
+    type: book
+    authors: 'Molnar, C.'
+    year: 2025
+relatedLabs: ['py-validacion-temporal-y-fuga']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Un compañero de ciencia de datos te enseña un modelo que predice las bajas de Lumen+ con un **AUC
+  de 0,92**, y propone desplegarlo mañana. Tú sabes que, con las señales disponibles, el modelo
+  honesto no pasa de 0,64. ¿Qué ha ocurrido? Casi seguro que el modelo «ve» algo que en producción
+  no tendrá: una **fuga de información**. Saber detectarla es una de las habilidades más valiosas
+  del analista que trabaja con modelos.
+</BusinessContext>
+
+Un modelo no se evalúa por cómo se ajusta a los datos con los que se entrenó, sino por cómo **predice datos nuevos**, en las mismas condiciones en las que se usará. Esta lección fija cómo medir eso bien y cómo mirar dentro de un modelo.
+
+## Intuición
+
+Estudiar con las preguntas del examen no demuestra que sepas la asignatura. Un modelo que se evalúa con los mismos datos con los que se entrenó (o con datos que contienen pistas del resultado) obtiene una nota que no reflejará su rendimiento real. La evaluación honesta imita el futuro: entrena con el **pasado**, prueba con lo que viene **después**, y con las variables que existirán **en el momento de predecir**.
+
+## Cómo funciona
+
+### Entrenamiento, validación y prueba
+
+- **Entrenamiento:** donde el modelo aprende los parámetros.
+- **Validación:** donde eliges el modelo, los hiperparámetros y las variables.
+- **Prueba (_test_):** se toca **una vez**, al final, para estimar el rendimiento real.
+
+Con datos pequeños se usa **validación cruzada** (_k-fold_): se divide en $k$ partes, se entrena con $k-1$ y se evalúa en la restante, rotando. Estima el rendimiento y su variabilidad.
+
+**Para datos con tiempo (casi todos en negocio), separa por fecha**, no al azar: una división aleatoria deja que el modelo vea el futuro de un cliente al predecir su pasado, y no replica el uso real (predecir lo que aún no ha pasado). Con series o paneles se usa validación con **origen móvil** (_rolling origin_ o `TimeSeriesSplit`): entrenas hasta $t$, evalúas en $t+1$, avanzas.
+
+### Métricas
+
+| Problema      | Métricas habituales                                                        | Cuándo                                                                 |
+| ------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Regresión     | MAE, RMSE, $R^2$ fuera de muestra, MAPE (con cuidado)                      | Elige según el coste del error (MAE robusto; RMSE castiga los grandes) |
+| Clasificación | **AUC** (ranking), precisión/recall/F1 (umbral), **log-loss**, calibración | AUC mide el orden; si usas probabilidades, comprueba la calibración    |
+| Clases raras  | **Curva precisión-recall**, recall@k, ganancia/_lift_ en el top decil      | El AUC engaña con muy pocos positivos                                  |
+
+El **AUC** es la probabilidad de que un positivo reciba una puntuación mayor que un negativo; 0,5 es el azar y 1 el modelo perfecto. Una métrica solo importa si está ligada a la **decisión** (¿a cuántos clientes podemos llamar? entonces, recall@k).
+
+### El caso de Lumen+: temporal frente a fuga
+
+Panel suscriptor-mes (328.780 filas). Se entrena con las revisiones anteriores al 1 de julio de 2025 (194.309 filas, 4,0 % de bajas) y se evalúa con las posteriores (134.471 filas, 4,7 % de bajas):
+
+| Variables del modelo                                                         | AUC en prueba |
+| ---------------------------------------------------------------------------- | ------------: |
+| Retraso grave en los 30 días previos (logística)                             |         0,635 |
+| + plan, cuota y antigüedad, con gradient boosting                            |         0,635 |
+| + **`activa_hoy`** (estado actual de la suscripción en la tabla de clientes) |     **0,917** |
+
+La tercera fila es **fuga**: «¿sigue activa la suscripción hoy?» es el propio resultado disfrazado. Dentro del panel, todas las revisiones con baja pertenecen a suscripciones que hoy están canceladas; el modelo solo tiene que leer esa columna. En producción esa variable no existe en el momento de predecir (o, peor, existe y es la respuesta).
+Un salto grande de rendimiento al añadir una variable es una **alerta**, no una celebración.
+
+### Tipos de fuga
+
+| Tipo                                    | Ejemplo                                                                              | Cómo evitarlo                                                 |
+| --------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
+| **Variable derivada del resultado**     | `activa_hoy`, «número de tickets tras la baja», «motivo de baja»                     | Pregunta: ¿esta variable existe antes de la predicción?       |
+| **Información futura en la agregación** | «Compras totales del cliente» calculadas con todo su historial, incluyendo el futuro | Calcular las variables con una fecha de corte (_as of_)       |
+| **Fuga por el preprocesado**            | Estandarizar o imputar con estadísticas del conjunto completo antes de dividir       | Ajustar el preprocesado solo con el entrenamiento (pipelines) |
+| **Duplicados o grupos repartidos**      | Mismo cliente en entrenamiento y prueba                                              | Dividir por cliente (_GroupKFold_)                            |
+| **Fuga temporal**                       | Entrenar con datos posteriores a los de prueba                                       | Separar por fecha                                             |
+
+Las señales de alarma: rendimiento demasiado bueno para el problema, una variable con importancia desproporcionada o un rendimiento que se hunde en producción.
+
+### Árboles y gradient boosting
+
+Un **árbol de decisión** divide los datos con reglas «si-entonces» y es fácil de leer, pero es inestable y sobreajusta. **Random forest** promedia muchos árboles y el **gradient boosting** (HistGradientBoosting, XGBoost, LightGBM, CatBoost) construye árboles en secuencia, cada uno corrigiendo los errores del anterior. Son la referencia en datos tabulares porque capturan **interacciones y no linealidades** sin que las especifiques.
+
+Para el analista son una **herramienta exploratoria**: ayudan a descubrir qué variables importan, qué cortes funcionan y cuánto hay que ganar sobre un modelo lineal. En el panel de Lumen+, un gradient boosting con cuatro variables da el mismo AUC (0,635) que una logística con una: la señal es una sola variable binaria y no hay interacciones que descubrir. **Si un modelo complejo no mejora a uno simple, quédate con el simple.**
+
+### Interpretabilidad
+
+- **Importancia por permutación:** barajar los valores de una variable en el conjunto de prueba y medir cuánto **cae** el rendimiento. Es agnóstica al modelo y mide la dependencia del **modelo** (no un efecto causal). En el gradient boosting de Lumen+, barajar `expuesto` baja el AUC en 0,138; barajar plan, cuota o antigüedad, en menos de 0,003 (nada).
+- **Valores SHAP:** reparten la predicción de cada fila entre las variables según la teoría de juegos de Shapley (Lundberg y Lee, 2017). Dan explicaciones **locales** (por qué esta predicción) y globales (promedio del valor absoluto). Útiles, pero: dependen del modelo, se distorsionan con variables correlacionadas y **no son causales**.
+- **Gráficos de dependencia parcial / ICE:** cómo cambia la predicción al variar una variable promediando (o fila a fila) el resto.
+- **Modelos simples sustitutos:** un árbol pequeño o una regresión que aproxime al modelo complejo.
+
+<Callout type="warning">
+  La importancia de una variable en un modelo predictivo **no** es su efecto causal. Una variable
+  puede ser muy importante porque es un síntoma del resultado (fuga) o porque se correlaciona con la
+  causa. Para decidir una intervención, vuelve a los diseños causales.
+</Callout>
+
+## En la práctica
+
+1. **Define la predicción y el momento:** qué se predice, para quién y cuándo se usará (qué datos existen entonces).
+2. **Construye las variables con una fecha de corte** y separa por tiempo (y por cliente si procede).
+3. **Empieza con una línea base simple** (regla, logística) y mide con la métrica ligada a la decisión.
+4. **Prueba un modelo flexible** y compáralo fuera de muestra; si no mejora, descártalo.
+5. **Revisa la fuga:** lista cada variable con su «¿existe en el momento de predecir?» y desconfía de las mejoras bruscas.
+6. **Interpreta** con importancia por permutación y, si hace falta, SHAP; comunica los límites.
+7. **Monitoriza** el rendimiento tras desplegar (deriva de datos y de rendimiento).
+
+```python
+from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.inspection import permutation_importance
+from sklearn.metrics import roc_auc_score
+
+tr, te = panel[panel.t < "2025-07-01"], panel[panel.t >= "2025-07-01"]
+gb = HistGradientBoostingClassifier(random_state=0).fit(tr[cols], tr.cancela)
+roc_auc_score(te.cancela, gb.predict_proba(te[cols])[:, 1])
+permutation_importance(gb, te[cols], te.cancela, scoring="roc_auc", n_repeats=5, random_state=0)
+```
+
+En el lab dividirás por fecha, medirás el AUC, provocarás una fuga con `activa_hoy` y calcularás tú mismo la importancia por permutación.
+
+## Trade-offs y cuándo usarlo
+
+- **Simple frente a complejo:** un modelo lineal es fácil de explicar y mantener; uno de boosting puede mejorar el rendimiento pero cuesta más de interpretar y monitorizar.
+- **Validación cruzada frente a separación temporal:** la primera usa mejor los datos pero asume independencia; con tiempo, la separación temporal es la honesta.
+- **AUC frente a una métrica de decisión:** el AUC compara el orden global; la decisión suele depender del top de la lista.
+- **Interpretabilidad frente a rendimiento:** no siempre hay conflicto; con datos tabulares un modelo simple suele estar cerca.
+
+## Errores comunes
+
+- **Dividir al azar datos con tiempo** o repartir un mismo cliente entre entrenamiento y prueba.
+- **Usar la prueba para elegir** variables o hiperparámetros (prueba contaminada).
+- **Calcular variables con todo el historial** (incluido el futuro).
+- **Celebrar un AUC de 0,9+** sin buscar fuga.
+- **Preprocesar con todos los datos** antes de dividir.
+- **Interpretar la importancia o SHAP como causalidad.**
+- **Olvidar la calibración:** probabilidades que no se parecen a las frecuencias reales.
+- **No comparar con una línea base trivial** (siempre «no hay baja», regla simple).
+
+## Con IA
+
+Un asistente ajusta un modelo y devuelve un AUC alto sin cuestionar las variables, y a veces incluye columnas que son el propio resultado o posteriores a él. Pídele que **liste cada variable con su momento de disponibilidad**, que **separe por fecha** y que **compare con una línea base simple**; si el rendimiento parece demasiado bueno, pídele que busque fuga y verifícalo tú.
+
+## En una entrevista
+
+- _"Tu modelo tiene un AUC de 0,95 en prueba. ¿Qué compruebas?"_ — Pista: fuga de información, separación temporal, duplicados, variables derivadas del resultado, línea base.
+- _"¿Cómo evalúas un modelo que predice la demanda futura?"_ — Pista: separación temporal / origen móvil, métricas ligadas a la decisión, comparación con una línea base ingenua.
+- _"¿Qué te dice la importancia de una variable?"_ — Pista: dependencia del modelo, no causalidad; permutación frente a SHAP; variables correlacionadas.
+
+<KeyTakeaways
+  items={[
+    'Un modelo se evalúa fuera de muestra y en las condiciones del uso real: con datos temporales, se entrena con el pasado y se prueba con el futuro; la prueba se toca una vez.',
+    'La fuga de información (variables derivadas del resultado, del futuro o del estado actual) infla las métricas: en Lumen+, añadir `activa_hoy` sube el AUC de 0,635 a 0,917 sin aportar capacidad predictiva real.',
+    'Gradient boosting es una herramienta exploratoria excelente en datos tabulares, pero si no mejora a un modelo simple (aquí, ambos 0,635) hay que quedarse con el simple.',
+    'La importancia por permutación mide cuánto cae el rendimiento al barajar una variable (expuesto: −0,138 de AUC; el resto, nada); SHAP explica predicciones individuales; ninguna de las dos es causal.',
+    'Antes de desplegar: lista de variables con su disponibilidad en el momento de predecir, línea base, métrica ligada a la decisión y plan de monitorización.',
+  ]}
+/>

@@ -15,6 +15,7 @@ const DATAKIT_FILES = [
   'datakit/testing.py',
   'datakit/stats.py',
   'datakit/llm.py',
+  'datakit/lumen.py',
   'runner.py',
 ];
 

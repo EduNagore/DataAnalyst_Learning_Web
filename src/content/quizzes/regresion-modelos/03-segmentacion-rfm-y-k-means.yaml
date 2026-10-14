@@ -1,0 +1,71 @@
+lesson: regresion-modelos/03-segmentacion-rfm-y-k-means
+questions:
+  - id: reg-03-q1
+    type: single
+    difficulty: 1
+    prompt: 'En una puntuación RFM por quintiles, ¿qué significa que un cliente tenga R = 5?'
+    options:
+      - 'Que ha comprado hace mucho tiempo'
+      - 'Que su última compra es de las más recientes (quintil de menor recencia en días)'
+      - 'Que compra con mucha frecuencia'
+      - 'Que gasta más que el 80 % de los clientes'
+    answer: [1]
+    explanation: 'Por convención, 5 es siempre «mejor»: en recencia, el quintil con menos días desde la última compra. F y M puntúan 5 con más pedidos y más gasto.'
+    ref: '#rfm-por-quintiles'
+
+  - id: reg-03-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las buenas prácticas antes de aplicar k-means a recencia, frecuencia y valor monetario.'
+    options:
+      - 'Aplicar una transformación logarítmica a las variables sesgadas'
+      - 'Estandarizar las variables para que pesen igual'
+      - 'Calcular las variables con una fecha de corte, sin datos posteriores'
+      - 'Dejar las variables en sus unidades originales: euros pesan igual que días'
+    answer: [0, 1, 2]
+    explanation: 'K-means usa distancias: las variables con valores grandes (euros) dominarían a las pequeñas (pedidos) si no se estandarizan, y los extremos arrastrarían los centroides si no se transforman.'
+    ref: '#k-means'
+
+  - id: reg-03-q3
+    type: single
+    difficulty: 2
+    prompt: 'La silueta es 0,38 con k = 2, 0,30 con k = 3 y 0,33 con k = 4. ¿Qué decisión es más razonable?'
+    options:
+      - 'Elegir siempre k = 2, que tiene la mayor silueta'
+      - 'Considerar también la utilidad: k = 2 solo separa activos de inactivos (algo ya sabido); k = 4 da segmentos con acciones distintas y una silueta aceptable'
+      - 'Elegir k = 3 porque es el valor central'
+      - 'Elegir el k con mayor inercia'
+    answer: [1]
+    explanation: 'La silueta orienta, pero no decide: el número de segmentos debe ser operable y accionable. La inercia siempre baja al aumentar k, así que no sirve por sí sola.'
+    ref: '#k-means'
+
+  - id: reg-03-q4
+    type: single
+    difficulty: 2
+    prompt: 'Repites k-means con cinco semillas distintas y los segmentos son casi idénticos (índice de Rand ajustado ≥ 0,99). ¿Qué indica?'
+    options:
+      - 'Que los segmentos son causales'
+      - 'Que la segmentación es estable respecto a la inicialización'
+      - 'Que hay fuga de información'
+      - 'Que k es el óptimo'
+    answer: [1]
+    explanation: 'La estabilidad frente a la semilla es una buena señal, pero no demuestra que los segmentos sean reales ni útiles: también conviene probar submuestras y periodos distintos.'
+    ref: '#k-means'
+
+  - id: reg-03-q5
+    type: numeric
+    difficulty: 1
+    prompt: 'En Lumen, 8.577 de 44.737 clientes son «campeones» (R, F y M ≥ 4). ¿Qué porcentaje es? (un decimal)'
+    answer: [19.2]
+    tolerance: 0.1
+    explanation: '8.577 / 44.737 = 0,1917, es decir, el 19,2 %.'
+    ref: '#rfm-por-quintiles'
+
+  - id: reg-03-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Si un segmento «reacciona» a una campaña, queda demostrado que la campaña funciona.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Los clientes de un segmento pueden comprar igual sin campaña (los mejores clientes compran de todos modos). El efecto se mide comparando con un grupo de control del mismo segmento.'
+    ref: '#qué-hacer-con-los-segmentos'

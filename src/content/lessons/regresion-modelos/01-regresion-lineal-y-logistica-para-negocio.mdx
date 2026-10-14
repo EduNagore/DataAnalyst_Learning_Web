@@ -1,0 +1,237 @@
+---
+title: 'Regresión lineal y logística interpretadas para negocio'
+description: 'Cómo ajustar e interpretar una regresión lineal (con logaritmos y no linealidades) y una regresión logística (razones de odds), diagnosticar la multicolinealidad y comunicar coeficientes, intervalos y poder predictivo sin confundir asociación con causa.'
+module: regresion-modelos
+order: 1
+level: intermedio
+estimatedMinutes: 55
+objectives:
+  - 'Ajustar una regresión lineal por mínimos cuadrados e interpretar sus coeficientes, errores estándar, intervalos y R².'
+  - 'Usar transformaciones logarítmicas para interpretar efectos en porcentaje y detectar relaciones no lineales.'
+  - 'Diagnosticar multicolinealidad con el factor de inflación de la varianza (VIF) y saber qué estropea (los coeficientes, no la predicción).'
+  - 'Ajustar e interpretar una regresión logística con razones de odds e intervalos, distinguiendo efecto grande de buena capacidad predictiva.'
+  - 'Mencionar la regularización (ridge, lasso) y cuándo usarla.'
+prerequisites: ['inferencia/02-contrastes-p-valor-errores-y-potencia']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'statsmodels — Regresión lineal (OLS)'
+    url: 'https://www.statsmodels.org/stable/regression.html'
+    type: docs
+    authors: 'statsmodels'
+    year: 2026
+  - title: 'statsmodels — Modelos de elección discreta (Logit)'
+    url: 'https://www.statsmodels.org/stable/discretemod.html'
+    type: docs
+    authors: 'statsmodels'
+    year: 2026
+  - title: 'Hernán & Robins — Causal Inference: What If'
+    url: 'https://miguelhernan.org/whatifbook'
+    type: book
+    authors: 'Hernán, M. A., Robins, J. M.'
+    year: 2020
+  - title: 'scikit-learn — Modelos lineales (Ridge, Lasso)'
+    url: 'https://scikit-learn.org/stable/modules/linear_model.html'
+    type: docs
+    authors: 'scikit-learn'
+    year: 2026
+relatedLabs: ['py-regresion-importe', 'py-regresion-logistica-bajas']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import VegaChart from '../../../components/content/VegaChart.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Finanzas pide dos cosas. Primera: «¿de qué depende el importe de un pedido? ¿Cuánto resta cada
+  punto de descuento?». Segunda: «¿cuánto aumentan las bajas de Lumen+ cuando hay un retraso grave,
+  y podemos predecir quién se va?». Son dos preguntas de regresión: una sobre una cantidad continua
+  (importe) y otra sobre un suceso de sí o no (baja). Ambas se contestan con un modelo lineal, si
+  sabes leerlo.
+</BusinessContext>
+
+La regresión es la herramienta más versátil del analista: resume una relación con unos pocos números interpretables, da incertidumbre y sirve para explicar y para predecir. Su fuerza está en la interpretabilidad; su peligro, en leer como **causal** lo que solo es **asociación**.
+
+## Intuición
+
+Una regresión ajusta la mejor «recta» (o hiperplano) que resume cómo cambia el valor medio de $Y$ cuando cambian las variables explicativas $X$. Cada coeficiente responde a: **«si $X_j$ sube una unidad y todo lo demás se mantiene igual, ¿cuánto cambia $Y$ en promedio?»**. El «todo lo demás igual» es la clave y también el límite de la interpretación.
+
+## Cómo funciona
+
+### Regresión lineal por mínimos cuadrados
+
+Con $n$ observaciones, $Y = X\beta + \varepsilon$. Los mínimos cuadrados ordinarios (OLS) minimizan la suma de residuos al cuadrado y dan
+
+$$
+\hat{\beta} = (X^\top X)^{-1} X^\top y, \qquad \widehat{\operatorname{Var}}(\hat\beta) = \hat\sigma^2 (X^\top X)^{-1}, \qquad R^2 = 1 - \frac{\sum e_i^2}{\sum (y_i - \bar y)^2}
+$$
+
+El **error estándar** de cada coeficiente permite construir intervalos ($\hat\beta \pm t\,\text{SE}$) y contrastes. El **$R^2$** es la proporción de variación explicada **en la muestra**; no mide si el modelo es correcto ni si es causal.
+
+### Interpretar con logaritmos
+
+Los importes son asimétricos y los efectos suelen ser proporcionales. Un modelo en **logaritmo** del resultado,
+
+$$
+\ln(\text{importe}) = \beta_0 + \beta_1\,\text{descuento} + \beta_2\,\ln(\text{líneas}) + \dots
+$$
+
+se interpreta en **porcentaje**: un aumento de una unidad en $X_j$ multiplica el resultado por $e^{\beta_j}$ (cambio de $100\,(e^{\beta_j} - 1)$ %). Si $X_j$ también está en logaritmo, $\beta_j$ es una **elasticidad**: duplicar $X_j$ multiplica $Y$ por $2^{\beta_j}$.
+
+### Los pedidos de Lumen
+
+Con los 353.542 pedidos completados (importe = suma de `quantity × unit_price`, que ya descuenta el descuento), `lineas` el número de líneas y `unidades` la suma de cantidades:
+
+| Modelo                                        | Coeficientes (error estándar)                                | $R^2$ |
+| --------------------------------------------- | ------------------------------------------------------------ | ----: |
+| A: $\ln(\text{importe})$ ~ líneas + descuento | líneas 0,512 (0,001); descuento −1,088 (0,017)               | 0,356 |
+| B: ... con $\ln(\text{líneas})$               | $\ln(\text{líneas})$ 1,363 (0,003); descuento −1,091 (0,017) | 0,398 |
+| C: A + unidades                               | líneas 0,183; unidades 0,226; descuento −1,086               | 0,408 |
+
+Lecturas:
+
+- **Descuento:** cada 10 puntos más de descuento corresponden a un importe un **−10,3 %** menor ($e^{-1{,}091 	imes 0{,}1} - 1$), con intervalo para el coeficiente de −1,124 a −1,059. Es casi una identidad contable: el importe ya es neto del descuento (un 10 % de descuento resta un 10 %). La regresión confirma el mecanismo, no mide una «elasticidad de la demanda».
+- **No linealidad:** pasar de líneas a $\ln(\text{líneas})$ sube el $R^2$ de 0,356 a 0,398; el efecto de añadir una línea no es constante (rendimientos decrecientes en logaritmos).
+- **Predictores correlacionados:** al añadir unidades, el coeficiente de líneas baja de 0,512 a 0,183, porque `líneas` y `unidades` tienen una correlación de 0,86.
+
+<VegaChart
+  minHeight={300}
+  alt="Importe medio de los pedidos completados según el número de líneas: 116 euros con una línea, 235 con dos, 349 con tres, 471 con cuatro, 574 con cinco, 708 con seis, 843 con siete y 927 con ocho; crece de forma casi lineal."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    width: 'container',
+    height: 220,
+    background: 'transparent',
+    data: {
+      values: [
+        { lineas: 1, importe: 116.5 },
+        { lineas: 2, importe: 234.9 },
+        { lineas: 3, importe: 349.4 },
+        { lineas: 4, importe: 471.2 },
+        { lineas: 5, importe: 573.6 },
+        { lineas: 6, importe: 708.4 },
+        { lineas: 7, importe: 842.7 },
+        { lineas: 8, importe: 926.5 },
+      ],
+    },
+    mark: { type: 'line', point: true, color: '#4C78A8' },
+    encoding: {
+      x: {
+        field: 'lineas',
+        type: 'quantitative',
+        title: 'Líneas del pedido',
+        axis: { tickMinStep: 1 },
+      },
+      y: { field: 'importe', type: 'quantitative', title: 'Importe medio (€)' },
+    },
+  }}
+/>
+
+### Multicolinealidad
+
+Cuando dos predictores están muy correlacionados, el modelo no puede repartir el efecto entre ellos: los coeficientes se vuelven **inestables** (cambian mucho al añadir o quitar variables) y sus errores estándar crecen, aunque las predicciones sigan siendo buenas. Se diagnostica con el **VIF** de cada variable,
+
+$$
+\text{VIF}_j = \frac{1}{1 - R_j^2}
+$$
+
+donde $R_j^2$ es el de regresar $X_j$ sobre las demás. En el modelo C, líneas y unidades tienen un VIF de 3,76 (el error estándar se multiplica por $\sqrt{3{,}76} \approx 1{,}94$); con valores superiores a 5-10 conviene combinar o eliminar variables, o usar regularización. **Si solo quieres predecir, la multicolinealidad importa poco; si quieres interpretar coeficientes, mucho.**
+
+### Regresión logística
+
+Para un resultado binario (baja o no baja) se modela la **probabilidad** mediante el logit:
+
+$$
+\ln\frac{p}{1-p} = \beta_0 + \beta_1 x_1 + \dots, \qquad \text{OR}_j = e^{\beta_j}
+$$
+
+$e^{\beta_j}$ es la **razón de odds** (_odds ratio_): cuántas veces se multiplican los _odds_ (p/(1−p)) cuando $x_j$ sube una unidad. Se estima por máxima verosimilitud (en la práctica, con iteraciones de Newton-Raphson).
+
+Con el panel de Lumen+ (328.780 suscriptor-mes; cada fila es una revisión de 30 días y el resultado es darse de baja en ella):
+
+| Variable                             | Coeficiente | Razón de odds | Intervalo 95 % |
+| ------------------------------------ | ----------: | ------------: | -------------- |
+| Retraso grave en los 30 días previos |       2,865 |      **17,5** | de 16,7 a 18,4 |
+| Plan anual (frente a mensual)        |      −0,003 |          1,00 | de 0,96 a 1,04 |
+| Cuota mensual (€)                    |       0,002 |          1,00 | de 1,00 a 1,01 |
+| Nº de revisión (antigüedad)          |       0,001 |          1,00 | de 1,00 a 1,00 |
+
+Lectura: con un retraso grave, los odds de baja son 17,5 veces mayores (probabilidad mensual del 3,5 % al 38,9 %); el plan, la cuota y la antigüedad **no aportan** nada una vez conocido el retraso. Cuidado: las razones de odds **no son riesgos relativos**; con sucesos raros se parecen, con sucesos frecuentes exageran. Para negocio, traduce siempre a probabilidades (3,5 % frente a 38,9 %).
+
+### Efecto grande no es buen modelo
+
+Con ese mismo panel, un modelo logístico con estas variables entrenado hasta junio de 2025 y evaluado después tiene un **AUC de 0,635**: apenas mejor que el azar (0,5). ¿Contradicción? No: el efecto del retraso es enorme, pero solo el 3,5 % de las revisiones del periodo de prueba tienen retraso grave y **el 71 % de las bajas** ocurre en revisiones sin exposición. Saber que "un retraso multiplica el riesgo por 17" es una gran conclusión
+**explicativa**; predecir quién se va el mes que viene necesita otras señales. Distingue siempre la pregunta de **efecto** (coeficiente e intervalo) de la de **predicción** (métricas fuera de muestra).
+
+### Regularización
+
+Con muchas variables o mucha colinealidad, **ridge** (penalización $\lambda\sum\beta_j^2$) estabiliza los coeficientes y **lasso** (penalización $\lambda\sum|\beta_j|$) además lleva algunos a cero (selección de variables). Se elige $\lambda$ con validación cruzada. Los coeficientes penalizados están sesgados a propósito: sirven para predecir, no para dar un efecto sin sesgo.
+
+<Callout type="warning">
+  Un coeficiente es una asociación condicionada a las variables del modelo. Es causal solo si
+  controlas los confusores correctos y no los colisionadores ni mediadores (módulo de causalidad).
+  El «mantén todo lo demás igual» que dice la regresión puede describir un cliente que no existe.
+</Callout>
+
+## En la práctica
+
+1. **Define la pregunta:** ¿explicar un efecto, predecir o ambas? Cambia qué modelo y qué métricas importan.
+2. **Explora** distribuciones y relaciones; transforma (logaritmos) cuando los efectos son proporcionales.
+3. **Ajusta y lee**: coeficientes con intervalos, en unidades de negocio (porcentajes, probabilidades).
+4. **Diagnostica**: residuos frente a valores ajustados (no linealidad, heterocedasticidad), VIF, observaciones influyentes.
+5. **Valida fuera de muestra** si el uso es predictivo (lección siguiente).
+6. **Comunica** con un ejemplo concreto («un pedido de dos líneas con 20 % de descuento tiene un importe esperado de…») y con las limitaciones.
+
+```python
+import numpy as np
+import statsmodels.api as sm
+
+X = sm.add_constant(df[["ln_lineas", "descuento"]])
+modelo = sm.OLS(df["ln_importe"], X).fit()
+modelo.params, modelo.conf_int(), modelo.rsquared
+100 * (np.exp(modelo.params["descuento"] * 0.1) - 1)   # % por cada 10 puntos de descuento
+```
+
+En los labs implementas OLS y VIF con numpy sobre los pedidos de Lumen, y la regresión logística con razones de odds e intervalos sobre el panel de bajas.
+
+## Trade-offs y cuándo usarlo
+
+- **Lineal frente a modelos flexibles:** el modelo lineal es transparente y estable con pocos datos; los árboles y el boosting capturan interacciones y no linealidades automáticamente, pero explican peor.
+- **Explicar frente a predecir:** para explicar importan los coeficientes y su incertidumbre; para predecir, el error fuera de muestra.
+- **$R^2$ frente a AUC:** no se comparan; ni un $R^2$ alto ni un AUC alto garantizan un modelo útil o causal.
+- **Logit frente a probabilidad lineal:** el logit respeta el rango [0, 1]; la probabilidad lineal se interpreta más fácil y suele servir si las probabilidades no son extremas.
+
+## Errores comunes
+
+- **Interpretar coeficientes como causales** sin diagrama causal ni controles correctos.
+- **Fiarse del $R^2$** (se puede inflar añadiendo variables) o del «p < 0,05» sin ver el tamaño del efecto.
+- **No transformar variables asimétricas** y modelar importes en bruto.
+- **Ignorar la multicolinealidad** y dar coeficientes inestables como conclusiones.
+- **Confundir razón de odds con riesgo relativo.**
+- **Extrapolar fuera del rango de los datos.**
+- **Usar un modelo con un efecto «significativo» para predecir** sin evaluar fuera de muestra.
+
+## Con IA
+
+Un asistente puede ajustar la regresión y «explicarla», pero tiende a decir que «el descuento reduce el importe en 1,09» sin la escala (logaritmo), a leer razones de odds como probabilidades y a presentar efectos como causales. Pídele que traduzca los coeficientes a porcentajes o probabilidades, que muestre intervalos y que enumere supuestos; verifica los números recalculándolos.
+
+## En una entrevista
+
+- _"¿Cómo interpretas el coeficiente de una variable en una regresión log-lineal?"_ — Pista: $100(e^\beta - 1)$ % por unidad de $X$; elasticidad si ambos en logaritmo.
+- _"¿Qué es la multicolinealidad y qué rompe?"_ — Pista: predictores correlacionados; coeficientes inestables y errores grandes; la predicción no sufre.
+- _"El efecto es enorme pero el AUC es bajo. ¿Es posible?"_ — Pista: sí; efecto grande en un subgrupo pequeño; explicar frente a predecir.
+
+<KeyTakeaways
+  items={[
+    'OLS da coeficientes con error estándar e intervalos; el coeficiente es el cambio medio en Y por unidad de X con el resto igual, y el R² mide ajuste en muestra, no causalidad.',
+    'Con el resultado en logaritmo, cada unidad de X multiplica Y por e^β; en los pedidos de Lumen, +10 puntos de descuento ≈ −10,3 % de importe (casi una identidad contable), y pasar a ln(líneas) sube el R² de 0,356 a 0,398.',
+    'La multicolinealidad (líneas y unidades, r = 0,86; VIF = 3,76) hace inestables los coeficientes pero no empeora la predicción; la regularización (ridge, lasso) la mitiga con sesgo deliberado.',
+    'En la regresión logística, e^β es una razón de odds, no un riesgo relativo: un retraso grave tiene OR = 17,5 (16,7-18,4), es decir, la baja mensual pasa del 3,5 % al 38,9 %; traduce siempre a probabilidades.',
+    'Un efecto enorme puede convivir con poco poder predictivo (AUC 0,635 porque solo el 3,5 % de las revisiones tiene exposición): distingue explicar de predecir.',
+  ]}
+/>

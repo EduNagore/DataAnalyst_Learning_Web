@@ -1,0 +1,164 @@
+---
+title: 'Cuándo modelar y cuándo pasarlo a ciencia de datos'
+description: 'Un marco de decisión para el analista: qué modelos tiene sentido construir por su cuenta, cuándo hace falta un equipo de ciencia de datos o de ingeniería, cómo documentar un modelo (ficha), qué cambia con AutoML y asistentes de IA, y cómo traspasar un prototipo.'
+module: regresion-modelos
+order: 4
+level: intermedio
+estimatedMinutes: 35
+objectives:
+  - 'Distinguir tareas de análisis, de modelado exploratorio y de producto de datos en producción, y elegir quién debe hacer cada una.'
+  - 'Aplicar una lista de criterios (coste del error, frecuencia, latencia, riesgo, mantenimiento) para decidir si pasar un modelo a ciencia de datos.'
+  - 'Redactar la ficha de un modelo (propósito, datos, validación, límites, monitorización) y el traspaso de un prototipo.'
+  - 'Reconocer el papel de AutoML y de los asistentes de IA y los riesgos que no eliminan.'
+prerequisites: ['regresion-modelos/03-segmentacion-rfm-y-k-means']
+tools: ['python']
+volatility: medium
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Mitchell et al. (2019) — Model Cards for Model Reporting'
+    url: 'https://arxiv.org/abs/1810.03993'
+    type: paper
+    authors: 'Mitchell, M., Wu, S., Zaldivar, A., Barnes, P., Vasserman, L., Hutchinson, B., Spitzer, E., Raji, I. D., Gebru, T.'
+    year: 2019
+  - title: 'Sculley et al. (2015) — Hidden Technical Debt in Machine Learning Systems'
+    url: 'https://proceedings.neurips.cc/paper_files/paper/2015/hash/86df7dcfd896fcaf2674f757a2463eba-Abstract.html'
+    type: paper
+    authors: 'Sculley, D. et al.'
+    year: 2015
+  - title: 'scikit-learn — Common pitfalls and recommended practices'
+    url: 'https://scikit-learn.org/stable/common_pitfalls.html'
+    type: docs
+    authors: 'scikit-learn'
+    year: 2026
+relatedLabs: []
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Retención te pide un «modelo que avise de quién se va a dar de baja de Lumen+ para llamarles».
+  Puedes construir en una tarde un prototipo en un notebook. Pero ¿lo mantiene alguien? ¿Quién
+  decide a quién llamar? ¿Qué pasa cuando cambie la logística? ¿Qué nivel de error se tolera? La
+  decisión de **construir, traspasar o no modelar** es tan importante como el modelo.
+</BusinessContext>
+
+Un analista sólido sabe modelar, pero también sabe cuándo **no** debe. Un modelo en producción es un sistema que hay que mantener, vigilar y justificar; un prototipo en un notebook, no.
+
+## Intuición
+
+Hay tres niveles de «hacer un modelo»:
+
+1. **Para entender:** una regresión, un árbol o una segmentación para responder una pregunta puntual. Vive en un informe. Es trabajo propio del analista.
+2. **Para decidir de vez en cuando:** una puntuación calculada cada trimestre que alimenta una campaña. Un prototipo reproducible en un notebook programado puede bastar.
+3. **Para operar en el producto:** un servicio que decide en tiempo real (recomendaciones, antifraude, precios). Es **ingeniería y ciencia de datos**, con pruebas, monitorización y responsables.
+
+## Cómo funciona
+
+### Criterios para decidir quién y cómo
+
+| Criterio                         | Hacerlo el analista                               | Pasarlo a ciencia de datos / ingeniería                                                                        |
+| -------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Uso**                          | Una vez o de forma periódica, con revisión humana | Continuo, automático, sin revisión humana                                                                      |
+| **Latencia**                     | Horas o días                                      | Milisegundos o segundos                                                                                        |
+| **Coste del error**              | Bajo o reversible                                 | Alto, difícil de revertir, con impacto legal o en personas                                                     |
+| **Complejidad del modelo**       | Regresión, árbol, segmentación                    | Aprendizaje profundo, series complejas, texto/imagen                                                           |
+| **Datos**                        | Tablas ya limpias del almacén                     | Flujos en tiempo real, características en línea                                                                |
+| **Mantenimiento**                | Se recalcula a mano                               | Reentrenamiento, versiones, pruebas, alertas                                                                   |
+| **Equidad y riesgo regulatorio** | Sin decisiones sobre personas                     | Decisiones sobre personas (crédito, empleo, precios individuales): revisión de equidad, legal y explicabilidad |
+
+### Preguntas previas a cualquier modelo
+
+1. **¿Qué decisión cambia?** Si no cambia ninguna, no construyas el modelo.
+2. **¿Qué haría alguien sin el modelo?** La línea base (regla simple, ordenar por un campo) es el listón a superar.
+3. **¿Cuál es el valor por acierto y el coste por error?** Con esas cifras se calcula si compensa (p. ej., llamar a 1.000 clientes cuesta X; cada baja evitada vale Y).
+4. **¿Qué datos estarán disponibles en el momento de usarlo?** (fuga, lección anterior).
+5. **¿Cómo se medirá si funciona?** Idealmente con un experimento (A/B con un grupo de control sin acción).
+
+### Un ejemplo de cálculo de valor
+
+Supón que el modelo de bajas de Lumen+ tiene un AUC de 0,635 (el modelo honesto de la lección anterior) y que cada llamada de retención cuesta 5 € y evita la baja en el 20 % de los casos, con un valor de 17,71 € al mes por cliente durante un año (≈ 212 €). Llamar a los suscriptores con un retraso grave (probabilidad de baja del 38,9 %) tiene un valor esperado de 0,389 × 0,20 × 212 € ≈ 16,5 € frente a 5 € de coste: compensa. Llamar a los que no tienen retraso (3,5 % de baja) da 0,035 × 0,20 × 212 ≈ 1,5 €, menos que el coste: no compensa.
+Para esa decisión **no hace falta un modelo complejo**: basta una regla («retraso grave en los últimos 30 días → llamar») que se puede implementar y explicar hoy.
+
+### La ficha del modelo
+
+Aunque sea un prototipo, documenta (Mitchell et al., 2019, _model cards_):
+
+- **Propósito y decisión** a la que sirve; quién lo usa y quién no debería.
+- **Datos:** fuentes, periodo, población, fecha de corte, exclusiones.
+- **Método:** variables, algoritmo, versión del código y de las librerías, semilla.
+- **Validación:** separación (temporal), métricas con intervalo, comparación con la línea base, calibración.
+- **Límites y riesgos:** poblaciones donde no funciona, sesgos, deriva esperada.
+- **Monitorización:** qué se vigilará, con qué umbrales y quién actúa.
+- **Responsable y fecha de revisión.**
+
+### El traspaso a ciencia de datos
+
+Un buen prototipo del analista facilita enormemente la producción si incluye: **definición clara de la pregunta y del valor**, **datos y variables con su lógica de negocio** (SQL reproducible), **línea base y métricas**, **análisis de errores**, **lista de riesgos** y un **notebook ejecutable**. Lo que cambia al producir: pruebas automáticas, versionado de datos y modelos, canalizaciones de reentrenamiento, monitorización de deriva y un plan de reversión (Sculley et al., 2015, sobre la «deuda técnica oculta» de los sistemas de aprendizaje automático).
+
+### AutoML y asistentes de IA
+
+Las herramientas de AutoML y los asistentes de código pueden probar decenas de modelos y escribir el _pipeline_ en minutos. Lo que **no** resuelven:
+
+- Elegir la **pregunta** y la **decisión**.
+- La **fuga de información** y la separación correcta (siguen dando AUC de 0,92 si les das la variable equivocada).
+- Los **datos**: calidad, cobertura, sesgos.
+- La **interpretación causal** de lo que el modelo aprende.
+- La **responsabilidad** sobre el uso del modelo.
+
+Úsalos como aceleradores del trabajo mecánico y revisa lo que producen con la misma exigencia que el trabajo de un compañero.
+
+<Callout type="note">
+  Regla práctica: si la decisión se puede tomar con una regla simple y explicable casi igual de bien
+  que con un modelo, empieza con la regla. Mide su efecto. Solo cuando el valor de la mejora
+  marginal justifique el coste de mantener un modelo, construye (o encarga) el modelo.
+</Callout>
+
+## En la práctica
+
+1. **Aclara la decisión y el valor** con quien la toma (antes de abrir el notebook).
+2. **Calcula la línea base** y el valor máximo posible con un modelo perfecto (cota superior).
+3. **Prototipa** con la solución más simple que supere la línea base fuera de muestra.
+4. **Valida** con separación temporal y revisa fugas.
+5. **Prueba en pequeño** con un grupo de control antes de industrializar.
+6. **Documenta** la ficha del modelo y decide el siguiente paso: dejar como análisis, programar un cálculo periódico o traspasar a ciencia de datos con el paquete de traspaso.
+
+## Trade-offs y cuándo usarlo
+
+- **Velocidad frente a robustez:** un prototipo rápido valida la idea; ponerlo en producción sin pruebas crea deuda técnica.
+- **Regla frente a modelo:** las reglas se entienden y se auditan; los modelos capturan más matices pero cuestan más de mantener.
+- **Autonomía del analista frente a gobierno:** conviene un espacio donde probar, con normas claras para lo que acaba afectando a clientes.
+- **Interno frente a comprado:** un proveedor puede cubrir un caso estándar (antifraude, recomendaciones); valora el coste, la integración y la transparencia.
+
+## Errores comunes
+
+- **Construir un modelo sin una decisión asociada.**
+- **No comparar con una regla simple.**
+- **Llevar un prototipo a producción tal cual**, sin pruebas ni monitorización.
+- **Dejar un modelo sin dueño** ni fecha de revisión.
+- **Usar un modelo para decisiones sobre personas** sin revisión de equidad y de legalidad.
+- **Confiar en AutoML o en un asistente sin revisar las variables.**
+- **Medir el modelo solo con métricas técnicas** y no con el efecto en el negocio.
+
+## Con IA
+
+Pide a un asistente que te ayude a **redactar la ficha del modelo**, a **detectar riesgos** que no has considerado y a **preparar el paquete de traspaso** (resumen, SQL, casos de prueba). Pero no le delegues la decisión de si construir el modelo ni la valoración de su coste: requieren contexto de negocio que él no tiene.
+
+## En una entrevista
+
+- _"¿Cuándo no construirías un modelo?"_ — Pista: sin decisión asociada, sin ventaja sobre una regla, sin datos disponibles en el momento de uso, sin capacidad de mantenerlo.
+- _"Has hecho un prototipo que funciona. ¿Cómo lo pasas a producción?"_ — Pista: ficha, línea base, SQL reproducible, validación temporal, monitorización, responsable; colaborar con ciencia de datos/ingeniería.
+- _"¿Qué riesgos tiene automatizar decisiones sobre clientes?"_ — Pista: errores, sesgos y equidad, explicabilidad, normativa, reversión.
+
+<KeyTakeaways
+  items={[
+    'Hay tres niveles de modelo: para entender (analista), para decidir periódicamente (prototipo reproducible) y para operar en producto (ciencia de datos e ingeniería).',
+    'Decide por uso, latencia, coste del error, complejidad, datos, mantenimiento y riesgo sobre personas; y antes de modelar, define la decisión, la línea base y el valor por acierto y coste por error.',
+    'En el ejemplo de Lumen+, llamar solo a los suscriptores con retraso grave compensa (≈ 16,5 € de valor frente a 5 € de coste) y no hace falta un modelo: una regla explicable ya captura el valor.',
+    'Documenta siempre una ficha del modelo (propósito, datos, validación, límites, monitorización, responsable) y prepara un paquete de traspaso con SQL reproducible.',
+    'AutoML y los asistentes aceleran el trabajo mecánico, pero no eligen la pregunta, ni evitan la fuga de información, ni validan los datos, ni asumen la responsabilidad.',
+  ]}
+/>

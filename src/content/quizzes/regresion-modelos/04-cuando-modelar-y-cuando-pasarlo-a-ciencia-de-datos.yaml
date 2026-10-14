@@ -1,0 +1,72 @@
+lesson: regresion-modelos/04-cuando-modelar-y-cuando-pasarlo-a-ciencia-de-datos
+questions:
+  - id: reg-04-q1
+    type: single
+    difficulty: 1
+    prompt: 'Antes de construir un modelo, ¿cuál es la primera pregunta que debes resolver?'
+    options:
+      - '¿Qué algoritmo es el más preciso?'
+      - '¿Qué decisión va a cambiar y qué haría alguien sin el modelo?'
+      - '¿Cuántas variables tenemos disponibles?'
+      - '¿Qué herramienta de AutoML usamos?'
+    answer: [1]
+    explanation: 'Sin una decisión que cambie, el modelo no aporta valor. Y la línea base (lo que se haría sin el modelo) es el listón que hay que superar.'
+    ref: '#preguntas-previas-a-cualquier-modelo'
+
+  - id: reg-04-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las señales de que conviene pasar el modelo a ciencia de datos o ingeniería.'
+    options:
+      - 'Debe decidir en tiempo real y sin revisión humana'
+      - 'Un error tiene un coste alto o es difícil de revertir'
+      - 'Las decisiones afectan directamente a personas (crédito, empleo, precios individuales)'
+      - 'Se usará una sola vez para un informe interno'
+    answer: [0, 1, 2]
+    explanation: 'Un uso puntual con revisión humana es trabajo propio del analista. Los otros tres exigen pruebas, monitorización, revisión de equidad y mantenimiento.'
+    ref: '#criterios-para-decidir-quién-y-cómo'
+
+  - id: reg-04-q3
+    type: numeric
+    difficulty: 3
+    prompt: 'Una llamada de retención cuesta 5 € y evita la baja el 20 % de las veces; evitar una baja vale 212 €. Si la probabilidad de baja de un suscriptor es del 38,9 %, ¿cuál es el valor esperado neto de llamarle, en € (un decimal)? (valor esperado − coste)'
+    answer: [11.5]
+    tolerance: 0.2
+    explanation: 'Valor esperado = 0,389 × 0,20 × 212 ≈ 16,5 €; menos 5 € de coste = 11,5 € netos. Con una probabilidad de baja del 3,5 % sería 0,035 × 0,20 × 212 − 5 ≈ −3,5 €: no compensa.'
+    ref: '#un-ejemplo-de-cálculo-de-valor'
+
+  - id: reg-04-q4
+    type: single
+    difficulty: 2
+    prompt: 'Una regla simple («retraso grave en los últimos 30 días → llamar») captura casi todo el valor que un modelo complejo. ¿Qué haces?'
+    options:
+      - 'Construyes el modelo complejo de todos modos'
+      - 'Empiezas con la regla, mides su efecto y solo construyes el modelo si la mejora marginal justifica su mantenimiento'
+      - 'No haces nada'
+      - 'Compras una herramienta de AutoML'
+    answer: [1]
+    explanation: 'Una regla explicable se implementa hoy, se audita y se mantiene sin coste. Un modelo debe ganarse su sitio con una mejora medida.'
+    ref: '#un-ejemplo-de-cálculo-de-valor'
+
+  - id: reg-04-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODO lo que debe incluir la ficha de un modelo.'
+    options:
+      - 'Propósito y decisión a la que sirve'
+      - 'Datos usados, periodo y exclusiones'
+      - 'Validación: separación, métricas y comparación con la línea base'
+      - 'Límites, riesgos, monitorización y responsable'
+      - 'Las credenciales de acceso al almacén de datos'
+    answer: [0, 1, 2, 3]
+    explanation: 'Las credenciales nunca se documentan en una ficha. Las fichas de modelo (Mitchell et al., 2019) documentan todo lo necesario para que otros usen, auditen y mantengan el modelo con conocimiento de sus límites.'
+    ref: '#la-ficha-del-modelo'
+
+  - id: reg-04-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Con AutoML ya no es necesario revisar las variables del modelo ni preocuparse por la fuga de información.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. AutoML optimiza el rendimiento con las variables que le das: si una de ellas filtra el resultado, producirá un modelo excelente en prueba y inservible en producción.'
+    ref: '#automl-y-asistentes-de-ia'

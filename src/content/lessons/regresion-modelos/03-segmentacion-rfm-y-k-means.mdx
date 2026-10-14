@@ -1,0 +1,199 @@
+---
+title: 'Segmentación de clientes: RFM, k-means y sus trampas'
+description: 'Cómo segmentar clientes con RFM (recencia, frecuencia, valor monetario) y con k-means: construcción de las variables, puntuación por quintiles, transformaciones, elección de k, validación (silueta, estabilidad) y las trampas que hacen inútil una segmentación.'
+module: regresion-modelos
+order: 3
+level: intermedio
+estimatedMinutes: 50
+objectives:
+  - 'Calcular recencia, frecuencia y valor monetario con una fecha de corte y puntuarlos por quintiles.'
+  - 'Aplicar k-means a variables transformadas y estandarizadas y justificar la elección de k con silueta y criterios de negocio.'
+  - 'Describir y nombrar los segmentos resultantes en términos accionables.'
+  - 'Evaluar la estabilidad de una segmentación y conocer sus trampas habituales.'
+prerequisites: ['regresion-modelos/02-validacion-fuga-de-informacion-e-interpretabilidad']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'scikit-learn — Clustering (k-means)'
+    url: 'https://scikit-learn.org/stable/modules/clustering.html#k-means'
+    type: docs
+    authors: 'scikit-learn'
+    year: 2026
+  - title: 'scikit-learn — Silhouette score'
+    url: 'https://scikit-learn.org/stable/modules/clustering.html#silhouette-coefficient'
+    type: docs
+    authors: 'scikit-learn'
+    year: 2026
+  - title: 'Molnar — Interpretable Machine Learning'
+    url: 'https://christophm.github.io/interpretable-ml-book/'
+    type: book
+    authors: 'Molnar, C.'
+    year: 2025
+relatedLabs: ['py-rfm-kmeans']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Marketing de Lumen quiere dejar de enviar el mismo correo a 44.737 clientes. Pide: «agrúpalos en
+  unos pocos segmentos que podamos tratar de forma distinta». El riesgo: entregar una segmentación
+  elegante en el gráfico que no se traduce en ninguna acción distinta, o que cambia por completo
+  cada vez que se recalcula.
+</BusinessContext>
+
+La segmentación es la tarea más común de aprendizaje no supervisado en negocio. Su valor no está en el algoritmo sino en que los segmentos sean **distinguibles, estables y accionables**.
+
+## Intuición
+
+Un camarero distingue a la clienta que viene cada día de la que vino una vez hace un año, y trata distinto al que gasta mucho que al que gasta poco. RFM formaliza esas tres preguntas: **¿cuándo fue la última vez?** (recencia), **¿cuántas veces?** (frecuencia) y **¿cuánto?** (valor monetario). K-means busca grupos de clientes parecidos en esas dimensiones sin que tú definas las reglas.
+
+## Cómo funciona
+
+### Construir RFM con una fecha de corte
+
+Con una **fecha de corte** (_as of_), para cada cliente con pedidos no cancelados hasta esa fecha:
+
+- **Recencia:** días desde su último pedido.
+- **Frecuencia:** número de pedidos.
+- **Valor monetario:** ingresos totales.
+
+Al 31 de diciembre de 2025, Lumen tiene 44.737 clientes con al menos un pedido. Sus distribuciones están muy sesgadas:
+
+| Medida          | Mediana |   Media | Percentil 75 | Máximo |
+| --------------- | ------: | ------: | -----------: | -----: |
+| Recencia (días) |     112 |   165,6 |          232 |  1.086 |
+| Frecuencia      |       4 |     5,7 |            8 |     30 |
+| Monetario (€)   |   1.174 | 1.725,7 |        2.408 | 14.507 |
+
+### RFM por quintiles
+
+La forma clásica de puntuar: dividir cada variable en cinco grupos del mismo tamaño y asignar 1 a 5 (en recencia, **5 = más reciente**). Cada cliente recibe un código como `545` (muy reciente, muy frecuente, valor medio-alto). Reglas de negocio sencillas generan segmentos:
+
+- **Campeones:** R, F y M ≥ 4. En Lumen, 8.577 clientes (el 19,2 %).
+- **A reactivar:** F y M altos, R bajo (compraban mucho y se han enfriado).
+- **Nuevos prometedores:** R alto, F bajo.
+- **Perdidos:** R, F y M bajos.
+
+Ventajas: transparente, reproducible, explicable en una frase. Inconvenientes: los cortes por quintiles fuerzan el mismo tamaño en cada grupo (aunque la realidad no sea así) y las reglas combinan 125 códigos que alguien tiene que agrupar.
+
+### k-means
+
+K-means reparte los puntos en $k$ grupos minimizando la suma de distancias cuadráticas al centroide de cada grupo:
+
+$$
+\min_{C_1, \dots, C_k} \sum_{j=1}^{k} \sum_{x \in C_j} \lVert x - \mu_j \rVert^2
+$$
+
+Requisitos y buenas prácticas:
+
+1. **Transformar:** con variables sesgadas, aplica logaritmo (`log1p`) para que unos pocos clientes enormes no dominen.
+2. **Estandarizar:** distintas unidades (días, pedidos, euros) deben pesar igual.
+3. **Elegir $k$** con la **silueta** (cohesión frente a separación; de −1 a 1) y con criterios de negocio (cuántos tratamientos distintos podemos operar).
+4. **Inicializar varias veces** (`n_init`) y fijar la semilla.
+5. **Validar la estabilidad:** repite con otras semillas y submuestras; los segmentos reales se repiten.
+
+Con RFM transformado y estandarizado, la silueta (muestra de 10.000 clientes) es:
+
+| $k$ | Inercia | Silueta |
+| --: | ------: | ------: |
+|   2 |  74.553 |   0,381 |
+|   3 |  57.643 |   0,302 |
+|   4 |  44.226 |   0,330 |
+|   5 |  37.159 |   0,299 |
+|   6 |  32.235 |   0,291 |
+
+La silueta es máxima con $k=2$ (activos frente a inactivos), pero es una separación que el negocio ya conoce. Con $k=4$ hay otro máximo local (0,33) y segmentos más accionables:
+
+| Segmento (nombre sugerido)             | Clientes | Recencia media (días) | Frecuencia media | Valor medio (€) |
+| -------------------------------------- | -------: | --------------------: | ---------------: | --------------: |
+| **Mejores clientes**                   |   11.835 |                    65 |             12,0 |           3.820 |
+| **Activos recientes**                  |    5.878 |                    14 |              4,0 |           1.138 |
+| **Dormidos** (compraban, se enfriaron) |   17.253 |                   208 |              4,2 |           1.321 |
+| **Una compra y perdidos**              |    9.771 |                   303 |              1,6 |             258 |
+
+La segmentación es **estable**: con cinco semillas distintas y una sola inicialización, el índice de Rand ajustado entre las particiones es de 0,99 a 1,00. Pero **no coincide** con la etiqueta `segment` del sistema (índice de Rand ajustado 0,18): esa etiqueta se define con otras reglas.
+
+### Qué hacer con los segmentos
+
+Un segmento solo vale si cambia una **decisión**:
+
+| Segmento              | Acción                                                         | Métrica de éxito                         |
+| --------------------- | -------------------------------------------------------------- | ---------------------------------------- |
+| Mejores clientes      | Programa de fidelización, acceso anticipado, no descontar      | Retención, frecuencia                    |
+| Activos recientes     | Impulsar la segunda y tercera compra                           | Frecuencia a 90 días                     |
+| Dormidos              | Campaña de reactivación con incentivo moderado                 | Tasa de reactivación frente a un control |
+| Una compra y perdidos | Coste mínimo; incentivo fuerte o ninguno según la rentabilidad | Coste por reactivación                   |
+
+Y todo tratamiento debería medirse con un **grupo de control** (módulo de experimentación): que un segmento «reaccione» no demuestra que la campaña funcione.
+
+<Callout type="warning">
+  K-means siempre encuentra grupos, aunque los datos no los tengan. Una silueta baja, segmentos que
+  cambian con la semilla o sin diferencias en lo que importa al negocio son señales de que estás
+  dividiendo un continuo. No describas como «tipos de persona» lo que son cortes arbitrarios en una
+  nube de puntos.
+</Callout>
+
+## En la práctica
+
+1. **Define el objetivo y la acción** que cambiará el segmento antes de segmentar.
+2. **Construye las variables** con una fecha de corte (sin fugas del futuro) y revisa distribuciones y valores extremos.
+3. **Transforma y estandariza**; decide cuántas variables entran (más no es mejor).
+4. **Prueba varios $k$**, mira silueta, tamaños de segmento e interpretabilidad.
+5. **Perfila y nombra** los segmentos con sus medias y ejemplos; comprueba que son diferentes en métricas de negocio que no usaste (retención, margen).
+6. **Valida la estabilidad** con semillas y submuestras, y planifica la recalibración periódica.
+7. **Mide el efecto** de las acciones con un grupo de control.
+
+```python
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+
+Z = np.log1p(rfm[["recencia", "frecuencia", "monetario"]])
+Z = (Z - Z.mean()) / Z.std()
+km = KMeans(n_clusters=4, n_init=10, random_state=0).fit(Z)
+silhouette_score(Z, km.labels_, sample_size=10000, random_state=0)
+```
+
+En el lab construyes el RFM de Lumen, lo puntúas por quintiles, ajustas k-means y compruebas la silueta y la estabilidad.
+
+## Trade-offs y cuándo usarlo
+
+- **RFM por reglas frente a k-means:** las reglas son transparentes y fáciles de operar; k-means se adapta a la forma de los datos pero es menos explicable y puede variar entre recalculos.
+- **Pocas variables frente a muchas:** RFM funciona porque es sencillo y predictivo; añadir decenas de variables diluye la distancia (la «maldición de la dimensionalidad»).
+- **Segmentar frente a predecir:** si lo que quieres es decidir a quién tratar, un modelo de propensión o de incremento de ventas (_uplift_) suele ser más directo que un segmento descriptivo.
+- **Estática frente a dinámica:** los clientes cambian de segmento; define cada cuánto reasignas y cómo tratas las migraciones.
+
+## Errores comunes
+
+- **Aplicar k-means a variables sin transformar ni estandarizar.**
+- **Elegir $k$ solo por la silueta** o solo por el codo, sin criterio de negocio.
+- **No comprobar la estabilidad** (semillas, submuestras, periodos).
+- **Crear segmentos sin acción asociada.**
+- **Usar variables calculadas con datos posteriores a la fecha de corte.**
+- **Tratar los segmentos como categorías reales** («los clientes tipo B»).
+- **No medir con un control** el efecto de las acciones sobre los segmentos.
+
+## Con IA
+
+Un asistente puede segmentar en segundos, pero suele aplicar k-means a las variables en bruto, elegir $k=3$ o $5$ «porque es habitual» y poner nombres vistosos a los grupos sin mirar los perfiles. Pide que **transforme y estandarice**, que **muestre la silueta y la estabilidad** y que **describa cada segmento con números**; los nombres y las acciones son tuyos.
+
+## En una entrevista
+
+- _"¿Cómo segmentarías a los clientes de una tienda online?"_ — Pista: RFM con fecha de corte; transformación y estandarización; k-means o reglas; validar estabilidad; acción y control.
+- _"¿Cómo eliges k?"_ — Pista: silueta, estabilidad, tamaños, interpretabilidad y operatividad.
+- _"¿Qué problemas tiene k-means?"_ — Pista: sensible a la escala y a extremos, asume grupos esféricos de tamaño parecido, siempre devuelve grupos.
+
+<KeyTakeaways
+  items={[
+    'RFM resume a cada cliente con recencia, frecuencia y valor monetario calculados con una fecha de corte; en Lumen (31-dic-2025) son 44.737 clientes con distribuciones muy sesgadas (frecuencia mediana 4, valor mediano 1.174 €).',
+    'Puntuar por quintiles es transparente (8.577 «campeones», el 19,2 %), pero fuerza grupos del mismo tamaño; k-means se adapta a los datos pero exige transformar (log1p) y estandarizar.',
+    'Elegir k combina silueta (0,381 con k = 2; 0,330 con k = 4), estabilidad entre semillas (ARI ≥ 0,99) y utilidad de negocio: con k = 4 emergen mejores clientes, activos recientes, dormidos y una compra perdidos.',
+    'Un segmento solo vale si cambia una decisión y su efecto se mide con un grupo de control; k-means siempre produce grupos aunque no existan.',
+    'La segmentación de k-means no coincide con la etiqueta `segment` del sistema (ARI = 0,18): cada una responde a una definición distinta.',
+  ]}
+/>

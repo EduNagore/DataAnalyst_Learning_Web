@@ -1,0 +1,36 @@
+---
+title: 'Validación temporal, fuga de información e importancia por permutación'
+description: 'Divide el panel de bajas de Lumen+ por fecha, mide el AUC de un modelo lineal y de gradient boosting, provoca una fuga con una variable del estado actual y calcula a mano la importancia por permutación.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: regresion-modelos
+difficulty: 3
+estimatedMinutes: 40
+concepts:
+  [
+    'separación temporal',
+    'AUC',
+    'fuga de información',
+    'gradient boosting',
+    'importancia por permutación',
+  ]
+datasets: ['subscriptions', 'shipments', 'orders']
+packages: ['scikit-learn']
+output: console
+hints:
+  - '`dividir_temporal`: entrenamiento `t < corte` y prueba `t >= corte` (convierte `corte` con `pd.Timestamp`).'
+  - 'Logística: estandariza las columnas con la media y la desviación del **entrenamiento**, ajusta `LogisticRegression(max_iter=1000)` y evalúa `roc_auc_score(test.cancela, modelo.predict_proba(X_test)[:, 1])`.'
+  - 'Boosting: `HistGradientBoostingClassifier(random_state=seed).fit(train[cols], train.cancela)` y el mismo AUC en prueba.'
+  - 'Permutación: calcula el AUC base; para cada columna, copia `X`, baraja esa columna con `rng.permutation`, vuelve a puntuar y resta. Repite `n_rep` veces y promedia. Devuelve una Serie ordenada de mayor a menor.'
+relatedLessons: ['regresion-modelos/02-validacion-fuga-de-informacion-e-interpretabilidad']
+businessQuestion: '¿Cómo de bien podemos predecir las bajas con información disponible al predecir, y cuánto engaña una variable que no lo está?'
+---
+
+El panel de bajas (`panel`) ya está construido con `datakit.lumen.panel_bajas` y tiene `expuesto`, `anual`, `mrr_eur`, `k` y una variable más, **`activa_hoy`** (1 si la suscripción sigue activa hoy, según una tabla de estado). Implementa:
+
+1. **`dividir_temporal(panel, corte)`** → `(train, test)` con las filas anteriores y posteriores a la fecha de corte (columna `t`).
+2. **`auc_logistico(train, test, cols)`** → AUC en prueba de una regresión logística con las variables estandarizadas.
+3. **`auc_boosting(train, test, cols, seed=0)`** → AUC en prueba de un `HistGradientBoostingClassifier`.
+4. **`importancia_permutacion(modelo, X, y, n_rep=5, seed=0)`** → Serie con la caída media del AUC al barajar cada columna.
+
+Con el corte `"2025-07-01"` comprueba que `expuesto` da un AUC de 0,635, que el boosting no mejora y que incluir `activa_hoy` lo dispara a 0,917: eso es fuga.

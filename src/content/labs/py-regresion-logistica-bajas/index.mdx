@@ -1,0 +1,30 @@
+---
+title: 'Regresión logística a mano: razones de odds de las bajas de Lumen+'
+description: 'Implementa la regresión logística con Newton-Raphson sobre el panel suscriptor-mes de Lumen+, calcula razones de odds con intervalos y el AUC, y comprueba que un efecto enorme puede acompañarse de poco poder predictivo.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: regresion-modelos
+difficulty: 3
+estimatedMinutes: 40
+concepts:
+  ['regresión logística', 'Newton-Raphson', 'razón de odds', 'AUC', 'efecto frente a predicción']
+datasets: ['subscriptions', 'shipments', 'orders']
+packages: ['scipy']
+output: console
+hints:
+  - 'Newton-Raphson: parte de `beta = 0`; en cada iteración `p = 1/(1+exp(-X @ beta))`, `W = p(1-p)` y `beta += solve(X.T @ (X * W[:, None]), X.T @ (y - p))`. Para cuando el paso máximo sea menor que 1e-10.'
+  - 'Los errores estándar son la raíz de la diagonal de `inv(X.T @ (X * W[:, None]))` evaluada en el ajuste final.'
+  - 'Razón de odds = `exp(coef)`; intervalo = `exp(coef ± 1,96·se)` (usa `stats.norm.ppf(0.975)`).'
+  - 'AUC con rangos: `(suma de rangos de los positivos − n1(n1+1)/2) / (n1·n0)`, con `stats.rankdata(p)` (maneja empates con rangos medios).'
+relatedLessons: ['regresion-modelos/01-regresion-lineal-y-logistica-para-negocio']
+businessQuestion: '¿Cuánto aumentan los odds de baja con un retraso grave y sirve eso para predecir quién se va?'
+---
+
+El panel `panel` (una fila por suscriptor-mes) ya está construido con `datakit.lumen.panel_bajas`: `cancela` (1 si se da de baja en esa revisión), `expuesto` (retraso grave en los 30 días previos), `anual`, `mrr_eur` y `k` (antigüedad en revisiones). Implementa:
+
+1. **`ajustar_logit(df, y, x)`** → diccionario con `params` y `se` (Series con índice `const` más `x`), por Newton-Raphson.
+2. **`razones_de_odds(df, y, x)`** → DataFrame con `odds_ratio`, `ic_inf` e `ic_sup` de cada variable.
+3. **`probabilidades(df, params)`** → probabilidades predichas.
+4. **`auc(y, p)`** → área bajo la curva ROC calculada con rangos.
+
+Observa que la razón de odds del retraso es ≈ 17,5 y que el AUC en muestra de todo el panel es solo ≈ 0,60.
