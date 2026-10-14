@@ -1,0 +1,198 @@
+---
+title: 'Atribución: reglas, modelos data-driven y sus límites'
+description: 'Cómo repartir el crédito de una conversión entre los canales que la precedieron: reglas (último clic, primer clic, lineal, en U), modelos basados en datos (cadenas de Markov y Shapley), por qué ninguno es causal y cómo afectan al análisis el consentimiento y la pérdida de señal.'
+module: marketing-clientes
+order: 1
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Aplicar las reglas de atribución habituales a un conjunto de recorridos y explicar qué canales favorece o penaliza cada una.'
+  - 'Calcular un crédito data-driven con el efecto de eliminación de una cadena de Markov e interpretar sus diferencias con las reglas.'
+  - 'Explicar por qué la atribución mide asociación y no incrementalidad.'
+  - 'Describir cómo el consentimiento y las restricciones de cookies reducen la señal y qué se hace al respecto.'
+prerequisites: ['analitica-producto/02-embudos-de-conversion']
+tools: ['python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Google Analytics — Modelos de atribución (ayuda de GA4)'
+    url: 'https://support.google.com/analytics/answer/10596866'
+    type: docs
+    authors: 'Google'
+    year: 2026
+  - title: 'Google — Consent Mode (guía para etiquetas)'
+    url: 'https://developers.google.com/tag-platform/security/guides/consent'
+    type: docs
+    authors: 'Google'
+    year: 2026
+  - title: 'Google Privacy Sandbox — Next steps for Privacy Sandbox and tracking protections in Chrome'
+    url: 'https://privacysandbox.google.com/blog/privacy-sandbox-next-steps'
+    type: blog
+    authors: 'Chavez, A.'
+    year: 2025
+  - title: 'Gordon, Zettelmeyer, Bhargava & Chapsky — A Comparison of Approaches to Advertising Measurement'
+    url: 'https://www.kellogg.northwestern.edu/faculty/gordon_b/files/kellogg_fb_whitepaper.pdf'
+    type: paper
+    authors: 'Gordon, B., Zettelmeyer, F., Bhargava, N., Chapsky, D.'
+    year: 2019
+relatedLabs: ['py-atribucion-reglas']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Marketing mira el informe de atribución por último clic: la búsqueda de pago se lleva 122 de las
+  193 conversiones del trimestre y las redes sociales, 8. «Recortemos redes y pongamos ese dinero en
+  búsqueda», propone. Antes de mover presupuesto, hay que entender qué mide ese informe y qué no.
+</BusinessContext>
+
+La **atribución** reparte el mérito de cada conversión entre los puntos de contacto (_touchpoints_) del recorrido del cliente. Es una herramienta de **informe**, no de causalidad: la elección de la regla cambia el reparto, y ninguna regla responde a la pregunta «¿cuántas ventas no habría habido sin este canal?».
+
+## Intuición
+
+Un gol en fútbol: el delantero que remata se lleva la foto (último clic), pero la jugada empezó en el defensa que recuperó el balón (primer clic) y pasó por tres jugadores más. Repartir el mérito del gol por reglas (todo al que marca, a partes iguales, más al primero y al último) es una convención; para saber cuánto vale cada jugador habría que ver qué pasa **si no juega**. Esa es la idea de los modelos basados en datos, y también la razón de que la atribución no sustituya a un experimento.
+
+## Cómo funciona
+
+### Reglas de atribución
+
+Dada una conversión con un camino de $n$ canales, cada regla fija unos pesos que suman 1:
+
+| Regla               | Pesos                                          | Favorece                                   | Penaliza                  |
+| ------------------- | ---------------------------------------------- | ------------------------------------------ | ------------------------- |
+| **Último clic**     | 1 al último toque                              | Canales de cierre (búsqueda, marca, email) | Canales de descubrimiento |
+| **Primer clic**     | 1 al primer toque                              | Canales de descubrimiento                  | Canales de cierre         |
+| **Lineal**          | $1/n$ a cada toque                             | Caminos largos, canales frecuentes         | Ninguno en particular     |
+| **En U (posición)** | 40 % al primero, 40 % al último, 20 % al resto | Extremos del recorrido                     | Toques intermedios        |
+| **Decaimiento**     | Más peso cuanto más cerca de la conversión     | Canales de cierre                          | Canales tempranos         |
+
+Con 2.550 recorridos de ejemplo de Lumen (193 conversiones), el crédito de cada canal cambia mucho según la regla:
+
+| Canal            | Último clic | Primer clic | Lineal | En U | Markov |
+| ---------------- | ----------: | ----------: | -----: | ---: | -----: |
+| Búsqueda de pago |       122,0 |        40,0 |   77,3 | 78,8 |   81,7 |
+| Redes de pago    |         8,0 |        66,0 |   33,3 | 34,8 |   35,3 |
+| Email            |        18,0 |        24,0 |   28,3 | 25,4 |   34,4 |
+| Orgánico         |        24,0 |        42,0 |   33,0 | 33,0 |   27,5 |
+| Directo          |        21,0 |        21,0 |   21,0 | 21,0 |   14,1 |
+
+Las redes sociales reciben **8 conversiones con el último clic y 66 con el primero**: la regla que uses decide si parecen irrelevantes o el canal más importante. Ese es el primer límite: **la regla es una decisión de negocio, no un hecho**.
+
+### Modelos basados en datos
+
+En lugar de fijar pesos a priori, se estima el valor de cada canal a partir de los datos de recorridos.
+
+- **Cadena de Markov y efecto de eliminación.** Se modela el recorrido como una cadena: _inicio → canal → canal → … → conversión o abandono_. El **efecto de eliminación** de un canal es la caída relativa de la probabilidad de convertir si se elimina ese canal de la cadena (todo el que llega a él abandona):
+
+$$
+\text{EE}_c = 1 - \frac{P(\text{convertir sin } c)}{P(\text{convertir})}.
+$$
+
+Los efectos se normalizan para que sumen las conversiones totales. En el ejemplo, la probabilidad de convertir es del 7,6 %; quitar la búsqueda de pago la reduce un 63 %, y quitar las redes, un 27 %.
+
+- **Valor de Shapley.** Trata a los canales como jugadores de un juego cooperativo y reparte el valor de cada coalición según la contribución marginal media de cada canal sobre todos los órdenes posibles. Es una de las bases teóricas habituales de los modelos _data-driven_.
+- **Modelos de aprendizaje supervisado** (regresión logística sobre los toques, redes de secuencias): predicen la conversión y atribuyen según la contribución al modelo.
+
+<Snapshot date="2026-10">
+  Google Analytics 4 ofrece tres modelos de atribución para informes: **basado en datos**, **último
+  clic de canales pagados y orgánicos** y **último clic de canales de pago de Google**. Los modelos
+  de primer clic, lineal, con decaimiento temporal y basado en la posición dejaron de estar
+  disponibles en noviembre de 2023. Las plataformas cambian de modelos y de nombres con frecuencia;
+  comprueba la ayuda vigente de la herramienta que uses.
+</Snapshot>
+
+### Por qué no es causal
+
+La atribución comparte tres problemas, sea cual sea el modelo:
+
+1. **Solo ve a quien se puede seguir.** Los recorridos con cookies o identificadores representan una parte del tráfico; el resto (dispositivos distintos, sin consentimiento, publicidad vista y no clicada) no entra.
+2. **Reparte crédito entre quienes ya iban a comprar.** Alguien que ya había decidido comprar, y busca la marca, le da el último clic a la búsqueda de marca; sin ese anuncio habría comprado igual.
+3. **Se confunde con el sesgo de selección.** Los anuncios se dirigen a quienes tienen más probabilidad de comprar; compararlos con los que no los ven (por observación) sobreestima el efecto. En una gran batería de experimentos en Facebook (Gordon et al., 2019), los métodos observacionales a menudo no reprodujeron los efectos medidos con experimentos aleatorios, aun condicionando a muchas variables.
+
+La conclusión práctica: **la atribución sirve para operar el día a día (qué anuncio, qué palabra clave), no para decidir cuánto presupuesto asignar a un canal**. Para eso hay que medir el efecto causal (siguiente lección).
+
+<Callout type="warning">
+  Un canal con un buen ROAS atribuido y una incrementalidad baja es una trampa clásica: cada euro
+  parece rentable, pero la mayor parte de las ventas se habrían producido igualmente. En Lumen se ve
+  en el experimento de la lección siguiente: los anuncios en redes aparecen con +22,6 % de ingresos
+  atribuidos, pero el efecto causal es de +5,9 %.
+</Callout>
+
+### Consentimiento y pérdida de señal
+
+La señal en la que se apoya la atribución se reduce por el consentimiento y por las restricciones de los navegadores y los sistemas operativos:
+
+- **Consentimiento.** En el Espacio Económico Europeo, el uso de identificadores publicitarios exige el consentimiento del usuario. Google Consent Mode permite que las etiquetas ajusten su comportamiento al consentimiento mediante cuatro parámetros: `ad_storage`, `analytics_storage`, `ad_user_data` y `ad_personalization`.
+- **Modelado de conversiones.** Cuando no hay consentimiento, las plataformas **estiman** (modelan) parte de las conversiones que no pueden observar. Son estimaciones del proveedor: útiles para la optimización, pero un dato modelado no es un dato medido.
+- **Navegadores.** En abril de 2025 Google anunció que mantiene su enfoque actual en Chrome para las cookies de terceros (sin un nuevo aviso independiente) y que las API de Privacy Sandbox podrían tener otro papel; otros navegadores tienen sus propias restricciones.
+
+<Snapshot date="2026-10">
+  La política de cookies y de identificadores cambia con las plataformas y la regulación. A fecha de
+  esta lección, Google mantiene en Chrome la elección de cookies de terceros por el usuario, y el
+  modelado de conversiones por falta de consentimiento forma parte de las herramientas publicitarias
+  principales. Revisa la política vigente y la normativa aplicable a tu caso con tu equipo legal
+  antes de decidir la medición.
+</Snapshot>
+
+## En la práctica
+
+1. **Define la pregunta:** ¿operación diaria (qué anuncio funciona) o asignación de presupuesto (cuánto invertir)? Para la segunda, la atribución no basta.
+2. **Compara varias reglas** sobre los mismos recorridos; si un canal cambia mucho de rango según la regla, esa es la incertidumbre del informe.
+3. **Mide la cobertura:** qué parte de las conversiones tiene un recorrido observable.
+4. **Documenta la ventana** (7, 30, 90 días) y los canales incluidos; cambiarlos cambia el reparto.
+5. **Triangula:** contrasta con experimentos de incrementalidad y con un modelo de marketing mix.
+6. **Presenta rangos**, no una única cifra: «la búsqueda aporta entre el 21 % y el 63 % de las conversiones según el modelo».
+7. **No uses la atribución como evaluación del equipo** de un canal sin una medida causal: incentiva a mostrar anuncios a quien ya iba a comprar.
+
+```python
+def credito_posicion(rec, extremos=0.4):
+    def pesos(n):
+        if n == 1: return [1.0]
+        if n == 2: return [0.5, 0.5]
+        return [extremos] + [(1 - 2 * extremos) / (n - 2)] * (n - 2) + [extremos]
+    # crédito por canal = Σ conversiones del camino × peso de cada posición
+```
+
+En el lab aplicas las reglas y la cadena de Markov a los recorridos y comparas los repartos.
+
+## Trade-offs y cuándo usarlo
+
+- **Reglas frente a modelos basados en datos:** las reglas son transparentes y auditables; los modelos _data-driven_ se adaptan a los datos, pero son cajas más opacas y necesitan volumen.
+- **Ventana corta frente a larga:** una ventana corta favorece a los canales de cierre; una larga captura mejor los de descubrimiento, a costa de más ruido.
+- **Atribución determinista frente a modelada:** la determinista usa identificadores observados; la modelada completa los huecos con supuestos del proveedor.
+- **Atribución multitáctil frente a experimento:** la primera es continua y barata; el segundo responde a la pregunta causal, pero es puntual y costoso. Lo habitual es combinarlos.
+
+## Errores comunes
+
+- **Cambiar de regla y presentarlo como un cambio de rendimiento.**
+- **Asignar presupuesto con el ROAS atribuido** sin mirar la incrementalidad.
+- **Comparar canales con ventanas de atribución distintas.**
+- **Olvidar el tráfico sin recorrido observable** (sin consentimiento, entre dispositivos).
+- **Tomar el crédito modelado por la plataforma como un dato medido.**
+- **Atribuir a la campaña las ventas de clientes que ya estaban a punto de comprar** (búsqueda de marca).
+- **Evaluar a un equipo solo por su atribución.**
+
+## Con IA
+
+Un asistente propone con soltura una regla («usa el modelo en U») sin saber si tu negocio tiene ciclos largos. Pídele que enumere, para cada regla, **qué canales favorece y qué supuesto hace**, y compara siempre al menos tres. Cuando genere código de atribución, comprueba que los pesos suman 1 por conversión y que el crédito total coincide con las conversiones.
+
+## En una entrevista
+
+- _"Marketing quiere mover presupuesto según el último clic. ¿Qué dices?"_ — Pista: la regla es una convención; compara varias; ve a un experimento de incrementalidad para decidir presupuesto.
+- _"¿Qué es un modelo de atribución data-driven?"_ — Pista: Markov o Shapley; efecto de eliminación; sigue sin ser causal.
+- _"¿Cómo afecta la falta de consentimiento a la medición?"_ — Pista: cobertura, modelado de conversiones y triangulación con MMM y experimentos.
+
+<KeyTakeaways
+  items={[
+    'La atribución reparte el crédito de una conversión entre los canales de su recorrido; la regla elegida (último clic, primer clic, lineal, en U) es una convención que cambia el reparto: en el ejemplo de Lumen, las redes pasan de 8 a 66 conversiones.',
+    'Los modelos basados en datos (efecto de eliminación de una cadena de Markov, Shapley) estiman el valor de cada canal según lo que ocurriría sin él, pero siguen siendo asociativos, no causales.',
+    'La atribución no ve a quien no se puede seguir y reparte crédito a quienes ya iban a comprar: sirve para operar, no para asignar presupuesto.',
+    'El consentimiento y las restricciones de cookies reducen la señal; el modelado de conversiones de las plataformas completa huecos con estimaciones, no con datos medidos.',
+    'Triangula la atribución con experimentos de incrementalidad y modelos de marketing mix antes de mover dinero entre canales.',
+  ]}
+/>

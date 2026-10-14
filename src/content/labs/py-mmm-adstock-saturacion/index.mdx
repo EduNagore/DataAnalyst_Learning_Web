@@ -1,0 +1,32 @@
+---
+title: 'Marketing mix model: arrastre, saturación y mínimos cuadrados'
+description: 'Construye un modelo de marketing mix básico con efectos de arrastre (adstock) y saturación, ajústalo por rejilla y mínimos cuadrados sobre ventas semanales simuladas y compara el ROAS estimado con el verdadero.'
+language: python
+part: 'Parte IV · Analítica por dominio'
+module: marketing-clientes
+difficulty: 3
+estimatedMinutes: 45
+concepts:
+  ['marketing mix model', 'adstock', 'saturación', 'ROAS', 'identificabilidad', 'mínimos cuadrados']
+datasets: []
+packages: []
+output: console
+hints:
+  - 'Adstock geométrico: recorre la serie con `previo = x[t] + decay · previo` y guarda cada valor. Con `decay = 0` devuelve la serie original.'
+  - 'Saturación: `1 − exp(−x/k)`; con `k` pequeño se satura antes. Normaliza el adstock multiplicándolo por `(1 − decay)` para que dos canales con distinto arrastre sean comparables.'
+  - 'Para cada combinación de (decay, k) de ambos canales, arma la matriz `[1, t, sen, cos, sat₁, sat₂]`, resuelve con `np.linalg.lstsq` y guarda la combinación con menor suma de cuadrados. Los coeficientes de los canales son los `β`.'
+  - 'ROAS medio de un canal = `β · Σ saturación(adstock) / (1000 · Σ gasto)`; el gasto está en miles de euros.'
+relatedLessons: ['marketing-clientes/03-marketing-mix-modeling-moderno']
+businessQuestion: '¿Cuánto aporta cada canal a las ventas y con qué fiabilidad podemos saberlo?'
+---
+
+`simular_semanas()` (ya escrita) devuelve 156 semanas de inversión en dos canales (`gasto_busqueda`, `gasto_redes`, en miles de euros) y de `ventas`, generadas con un efecto **conocido**: arrastre y saturación distintos por canal, tendencia, estacionalidad anual y ruido. En la vida real no conoces la verdad; aquí sí, para ver cuánto se parece tu estimación.
+
+Implementa:
+
+1. **`adstock(x, decay)`**: arrastre geométrico.
+2. **`saturacion(x, k)`**: curva de rendimientos decrecientes.
+3. **`ajustar(df)`**: búsqueda en rejilla de `decay` y `k` por canal con mínimos cuadrados; devuelve `decay`, `k`, `beta` (por canal) y `r2`.
+4. **`roas_medio(df, ajuste)`**: ventas atribuibles por euro invertido en cada canal.
+
+Resultado esperado: la rejilla recupera el arrastre real (0,3 y 0,6) con R² ≈ 0,975, pero el ROAS estimado (≈ 1,55 y 1,60) se aleja del verdadero (≈ 1,97 y 1,79) e incluso ordena mal los canales: la saturación y los coeficientes se **identifican peor** que el arrastre. Por eso los MMM modernos se calibran con experimentos.

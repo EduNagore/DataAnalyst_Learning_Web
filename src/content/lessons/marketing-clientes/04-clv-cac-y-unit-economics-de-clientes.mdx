@@ -1,0 +1,192 @@
+---
+title: 'Valor del cliente (CLV), CAC y unit economics'
+description: 'Cómo estimar cuánto vale un cliente y cuánto cuesta conseguirlo: CLV contractual y no contractual, modelos BG/NBD y Gamma-Gamma, validación frente a líneas base ingenuas, CAC por canal, margen a 12 meses y razón valor/coste ajustada por incrementalidad.'
+module: marketing-clientes
+order: 4
+level: avanzado
+estimatedMinutes: 55
+objectives:
+  - 'Distinguir clientes contractuales y no contractuales y elegir una definición de CLV coherente con el negocio.'
+  - 'Interpretar un BG/NBD con Gamma-Gamma: qué supone, qué predice y cómo se valida fuera de muestra.'
+  - 'Calcular el CAC por canal y la razón entre el margen de los primeros 12 meses y el CAC.'
+  - 'Ajustar un CAC atribuido por la incrementalidad y valorar cómo cambia una decisión de presupuesto.'
+prerequisites:
+  [
+    'marketing-clientes/02-incrementalidad-experimentos-y-geo-lift',
+    'analitica-producto/03-retencion-cohortes-y-growth-accounting',
+  ]
+tools: ['python', 'sql']
+volatility: medium
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Fader, Hardie & Lee — «Counting Your Customers» the Easy Way: An Alternative to the Pareto/NBD Model'
+    url: 'https://www.brucehardie.com/papers/018/fader_et_al_mksc_05.pdf'
+    type: paper
+    authors: 'Fader, P. S., Hardie, B. G. S., Lee, K. L.'
+    year: 2005
+  - title: 'Fader & Hardie — The Gamma-Gamma Model of Monetary Value'
+    url: 'https://www.brucehardie.com/notes/025/gamma_gamma.pdf'
+    type: paper
+    authors: 'Fader, P. S., Hardie, B. G. S.'
+    year: 2013
+  - title: 'PyMC-Marketing — modelos de valor de cliente y MMM (repositorio)'
+    url: 'https://github.com/pymc-labs/pymc-marketing'
+    type: docs
+    authors: 'PyMC Labs'
+    year: 2026
+relatedLabs: ['py-clv-bgnbd']
+relatedCases: ['duplicar-presupuesto-redes']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Marketing pregunta cuánto puede gastar para captar un cliente nuevo y qué clientes actuales
+  conviene cuidar más. La respuesta combina dos números: cuánto margen dejará un cliente en el
+  tiempo (el **CLV**) y cuánto cuesta conseguirlo (el **CAC**). Ninguno de los dos es un dato
+  observado: ambos se estiman, y los dos pueden estar mal.
+</BusinessContext>
+
+## Intuición
+
+Un restaurante sabe que cada comensal nuevo cuesta, en publicidad y descuentos, 20 €. Si cada cliente deja de media 60 € de margen en su vida, captar compensa; si deja 15 €, no. Pero «de media» esconde que unos pocos clientes vuelven cada semana y la mayoría viene una vez. Medir el valor exige contar **cuántas veces vuelve** cada cliente y **cuánto gasta** cada vez; compararlo con el coste exige que ese coste sea **incremental**: lo que se gasta en convencer a quien ya iba a venir no cuenta como captación.
+
+## Cómo funciona
+
+### Contractual y no contractual
+
+- **Contractual** (suscripción, Lumen+): se sabe cuándo el cliente se va (baja). El valor es la suma de pagos esperados hasta la baja; se modela la **retención** (curvas de supervivencia, lección de cohortes).
+- **No contractual** (comercio): el cliente no avisa cuando se va; solo se observa que compra o no compra. Hay que estimar si «sigue vivo», además de cuánto compra. Es el caso de las compras de Lumen.
+
+Para ambos, el CLV es la suma, descontada al presente, del **margen** (no de los ingresos) que el cliente dejará en un horizonte definido. Define siempre horizonte, tasa de descuento y si incluye costes de servir (envíos, devoluciones).
+
+### BG/NBD y Gamma-Gamma
+
+Para clientes no contractuales, el modelo **BG/NBD** (Fader, Hardie y Lee, 2005) supone que:
+
+1. Mientras está vivo, cada cliente compra según un proceso de Poisson con tasa $\lambda$, distinta entre clientes ($\lambda \sim \text{Gamma}(r, \alpha)$).
+2. Tras cada compra repetida, el cliente se «pierde» con probabilidad $p$, distinta entre clientes ($p \sim \text{Beta}(a, b)$).
+
+Solo necesita, de cada cliente, tres números: las **compras repetidas** $x$, la **recencia** $t_x$ (semanas entre la primera y la última compra) y la **antigüedad** $T$. El modelo **Gamma-Gamma** (Fader y Hardie, 2013) describe el valor por compra y supone que no depende de la frecuencia. El CLV a $t$ semanas es el producto de ambos: compras esperadas × valor esperado.
+
+Con los 23.278 clientes de Lumen que habían comprado hasta el 31 de diciembre de 2024, el ajuste da $r \approx 0{,}48$, $\alpha \approx 2{,}04$, $a \approx 1{,}79$ y $b \approx 10{,}2$ (con $lpha$ en semanas). Se valida con el año siguiente, que el modelo no ha visto:
+
+| Magnitud de 2025                    | Previsto |     Real |  Error |
+| ----------------------------------- | -------: | -------: | -----: |
+| Compras (días de compra)            |   47.120 |   49.495 | −4,8 % |
+| Ingresos de los clientes de la base | 14,85 M€ | 15,16 M€ | −2,0 % |
+
+**El total está bien calibrado**, pero conviene mirar más a fondo.
+
+<Callout type="warning">
+  Calibrar el total **no significa ordenar bien a los clientes**. Con el mismo ajuste, la
+  correlación de rangos (Spearman) entre el CLV previsto y los ingresos reales de 2025 es de 0,22,
+  **menor** que la de simplemente contar las compras repetidas históricas (0,43). El decil de
+  clientes con mayor CLV previsto (2.371 € de media) ingresó 1.245 €; el de menor CLV previsto (26
+  €), 716 €. Las suposiciones del modelo (clientes que «mueren» y no vuelven) no describen bien este
+  comercio, donde los clientes que dejan de comprar un tiempo suelen volver (los «resucitados» de la
+  lección de cohortes).
+</Callout>
+
+Tres reglas de validación se desprenden:
+
+1. **Compara siempre con una línea base ingenua** (frecuencia histórica, ingresos del último año).
+2. **Valida por segmentos** (antigüedad, frecuencia, deciles de CLV), no solo el total.
+3. **Usa el modelo para lo que sabe hacer**: prever totales y escenarios (cuántas compras esperamos de la base), no para decidir uno a uno a quién llamar, a menos que supere a la línea base.
+
+### CAC y unit economics
+
+El **coste de adquisición de cliente (CAC)** es la inversión de captación dividida entre los clientes nuevos que genera. Con la inversión de marketing por canal y el canal de adquisición de cada cliente de Lumen, el CAC de 2025:
+
+| Canal            | Inversión 2025 | Clientes nuevos |     CAC |
+| ---------------- | -------------: | --------------: | ------: |
+| Directo          |      150.911 € |           5.883 |  25,7 € |
+| Búsqueda de pago |      182.642 € |           3.751 |  48,7 € |
+| Orgánico         |      217.645 € |           3.942 |  55,2 € |
+| Email            |      204.209 € |           2.565 |  79,6 € |
+| Redes de pago    |      279.672 € |           2.937 |  95,2 € |
+| Afiliación       |      288.358 € |           1.763 | 163,6 € |
+
+Y el valor: el margen bruto (ingresos menos coste de producto, sin envíos ni devoluciones) de los primeros 12 meses de los clientes dados de alta en 2024 es casi igual en todos los canales (entre 470 y 501 € por cliente). La **diferencia entre canales está en el coste**, no en la calidad del cliente:
+
+| Canal (cohorte 2024) | CAC 2024 | Margen a 12 meses | Margen a 12 meses / CAC |
+| -------------------- | -------: | ----------------: | ----------------------: |
+| Directo              |   32,4 € |           489,9 € |                    15,1 |
+| Búsqueda de pago     |   61,2 € |           482,0 € |                     7,9 |
+| Orgánico             |   65,6 € |           469,6 € |                     7,2 |
+| Redes de pago        |   97,3 € |           492,8 € |                     5,1 |
+| Email                |  131,9 € |           487,3 € |                     3,7 |
+| Afiliación           |  196,6 € |           501,4 € |                     2,6 |
+
+Una regla práctica muy citada exige una razón CLV/CAC superior a 3, pero es una **heurística**, no una ley: depende del margen, del horizonte, del coste de capital y de la restricción de caja (el periodo de recuperación del CAC).
+
+### El CAC también debe ser incremental
+
+El CAC de la tabla es un **CAC atribuido**: reparte la inversión entre los clientes cuyo canal de adquisición registrado es ese. Si solo una fracción de los clientes que atribuimos a un canal llegaron gracias a él, el CAC verdadero es mayor. Con la incrementalidad de las redes del experimento de la lección anterior (≈ 26 %), un ajuste aproximado da
+
+$$
+\text{CAC incremental} \approx \frac{\text{CAC atribuido}}{\text{fracción incremental}} \approx \frac{95{,}2}{0{,}26} \approx 364\ \text{€},
+$$
+
+frente a un margen a 12 meses de unos 493 €: la razón cae de 5,2 a 1,35. Es una aproximación (supone que la fracción incremental medida sobre ingresos es válida para el número de clientes), pero ilustra que **una decisión de presupuesto cambia cuando se usan costes incrementales**.
+
+## En la práctica
+
+1. **Define el valor:** margen, horizonte (12-36 meses), descuento, costes de servir.
+2. **Escoge el enfoque** según el tipo de relación (contractual, no contractual) y los datos disponibles.
+3. **Resume cada cliente** con recencia, frecuencia, antigüedad y valor medio de compra.
+4. **Ajusta y valida fuera de muestra** frente a líneas base ingenuas y por segmentos.
+5. **Calcula el CAC** por canal con la inversión completa (medios, agencia, herramientas) y los clientes nuevos.
+6. **Compara valor y coste** con la razón y el periodo de recuperación; distingue lo atribuido de lo incremental.
+7. **Actualiza** con regularidad; el CLV de una base joven es muy incierto.
+
+```python
+# Compras esperadas y valor esperado (resumen por cliente: x, tx, T, n, m)
+bg = ajustar_bgnbd(res)           # r, alpha, a, b
+gg = ajustar_gamma_gamma(res)     # p, q, gamma
+valor_52_semanas = clv(res, bg, gg, 52)
+```
+
+En el lab ajustas ambos modelos con los pedidos de Lumen y los validas con el año siguiente.
+
+## Trade-offs y cuándo usarlo
+
+- **Modelo probabilístico frente a RFM o regresión:** el modelo da compras esperadas con pocos datos y supuestos explícitos; RFM y aprendizaje supervisado capturan más patrones, pero necesitan más datos y validación.
+- **CLV histórico frente a predictivo:** el histórico es exacto pero mira atrás; el predictivo orienta decisiones, con incertidumbre.
+- **Ingresos frente a margen:** los ingresos sobrevaloran a clientes que compran productos de bajo margen o devuelven mucho.
+- **CAC atribuido frente a incremental:** el primero es fácil y sesgado a la baja; el segundo exige experimentos.
+- **Horizonte corto frente a largo:** uno corto reduce la dependencia del modelo; uno largo captura el valor de los clientes fieles, con más extrapolación.
+
+## Errores comunes
+
+- **Calcular el CLV con ingresos** en lugar de margen.
+- **Validar solo el total** y asumir que el modelo ordena bien a los clientes.
+- **No comparar con una línea base ingenua.**
+- **Mezclar cohortes de distinta madurez** en una media de CLV.
+- **Dividir la inversión entre los clientes atribuidos** y tomarlo como el coste de captar uno más.
+- **Olvidar costes de servir** (envío, devoluciones, soporte).
+- **Usar la razón 3:1 como regla universal.**
+
+## Con IA
+
+Un asistente genera en minutos un CLV con una librería y un `predict`, pero casi nunca valida el ajuste ni compara con una línea base. Pídele que reporte el error del total **y por deciles**, que incluya un modelo ingenuo y que explicite horizonte, margen y descuento. Verifica que no usa datos posteriores al corte para ajustar (fuga) y que las cohortes son comparables.
+
+## En una entrevista
+
+- _"¿Cómo estimas el valor de un cliente en un comercio?"_ — Pista: no contractual; BG/NBD y Gamma-Gamma o RFM; margen, horizonte y descuento; validación fuera de muestra y por segmentos.
+- _"El LTV/CAC de un canal es 5. ¿Invertimos más?"_ — Pista: CAC atribuido o incremental; saturación; periodo de recuperación; experimento.
+- _"¿Qué diferencia hay entre la calibración y la discriminación de un modelo?"_ — Pista: acertar totales frente a ordenar clientes; deciles; línea base.
+
+<KeyTakeaways
+  items={[
+    'El CLV es el margen descontado esperado en un horizonte; en un comercio sin contrato hay que estimar también si el cliente «sigue vivo», y se define con margen, no con ingresos.',
+    'El BG/NBD con Gamma-Gamma acierta el total de Lumen (−4,8 % en compras y −2,0 % en ingresos del año siguiente), pero ordena a los clientes peor (Spearman 0,22) que la frecuencia histórica (0,43): valida siempre por segmentos y frente a una línea base.',
+    'El margen de los primeros 12 meses es casi igual en todos los canales (470-501 € por cliente); lo que cambia es el CAC, de 25,7 € en directo a 163,6 € en afiliación.',
+    'El CAC atribuido subestima el coste real si no todos los clientes son incrementales: con el ≈ 26 % de las redes, el CAC pasa de 95 € a unos 364 € y la razón margen/CAC cae de 5,2 a 1,35.',
+    'La razón 3:1 es una heurística; las decisiones de presupuesto deben apoyarse en costes incrementales, márgenes, horizonte y restricción de caja.',
+  ]}
+/>

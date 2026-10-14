@@ -1,0 +1,184 @@
+---
+title: 'Marketing mix modeling moderno: arrastre, saturación y calibración'
+description: 'Cómo funciona un modelo de marketing mix (MMM): efectos de arrastre y saturación, controles, enfoque bayesiano, calibración con experimentos, optimización de presupuesto y límites de identificabilidad, con las herramientas abiertas actuales (Meridian, Robyn y PyMC-Marketing).'
+module: marketing-clientes
+order: 3
+level: avanzado
+estimatedMinutes: 55
+objectives:
+  - 'Describir la estructura de un MMM: base, tendencia y estacionalidad, efectos de los medios con arrastre y saturación, y controles.'
+  - 'Implementar el adstock geométrico y una curva de saturación y ajustar un MMM sencillo por mínimos cuadrados.'
+  - 'Explicar por qué el arrastre se identifica mejor que la saturación y los coeficientes, y cómo ayudan los experimentos de calibración.'
+  - 'Interpretar ROAS medio y marginal y usarlos para un reparto de presupuesto con cautela.'
+prerequisites:
+  [
+    'marketing-clientes/02-incrementalidad-experimentos-y-geo-lift',
+    'regresion-modelos/01-regresion-lineal-y-logistica-para-negocio',
+  ]
+tools: ['python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Google — Meridian (documentación)'
+    url: 'https://developers.google.com/meridian'
+    type: docs
+    authors: 'Google'
+    year: 2026
+  - title: 'Meta — Robyn (repositorio)'
+    url: 'https://github.com/facebookexperimental/Robyn'
+    type: docs
+    authors: 'Meta Marketing Science'
+    year: 2026
+  - title: 'PyMC Labs — PyMC-Marketing (repositorio)'
+    url: 'https://github.com/pymc-labs/pymc-marketing'
+    type: docs
+    authors: 'PyMC Labs'
+    year: 2026
+  - title: 'Jin, Wang, Sun, Chan & Koehler — Bayesian Methods for Media Mix Modeling with Carryover and Shape Effects'
+    url: 'https://research.google/pubs/bayesian-methods-for-media-mix-modeling-with-carryover-and-shape-effects/'
+    type: paper
+    authors: 'Jin, Y., Wang, Y., Sun, Y., Chan, D., Koehler, J.'
+    year: 2017
+relatedLabs: ['py-mmm-adstock-saturacion']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Dirección quiere fijar el presupuesto de marketing del año que viene y pregunta cuánto aporta cada
+  canal a las ventas, incluidos los que no se pueden seguir a nivel de usuario (televisión,
+  exterior, prensa). La atribución no ve esos canales y el experimento solo mide uno cada vez. Para
+  una visión conjunta y continua se usa un modelo de marketing mix.
+</BusinessContext>
+
+Un **modelo de marketing mix (MMM)** explica las ventas agregadas (semanales, por zona) como la suma de una base, la estacionalidad, factores externos y el efecto de cada medio. Trabaja con datos agregados, sin identificadores personales, lo que lo hace robusto frente a la pérdida de señal.
+
+## Intuición
+
+Piensa en regar un huerto: el agua de ayer sigue en la tierra hoy (**arrastre**), y la décima regadera aporta menos que la primera (**saturación**). Si además llueve a la vez que riegas (**factores externos**), solo podrás saber cuánto aporta el riego si mides bien la lluvia, y con pocos días distintos de riego será difícil separar los efectos. Todo eso es un MMM.
+
+## Cómo funciona
+
+### La estructura
+
+$$
+\text{ventas}_t = \underbrace{\beta_0 + \text{tendencia}_t + \text{estacionalidad}_t}_{\text{base}} + \sum_{c} \beta_c \, S_c\!\big(A_c(x_{c,t})\big) + \gamma\, \text{controles}_t + \varepsilon_t
+$$
+
+- **Arrastre (_adstock_)** $A$: el efecto de la inversión de hoy se reparte en el tiempo. El modelo geométrico es $a_t = x_t + \lambda\, a_{t-1}$ con $\lambda \in [0,1)$; una $\lambda$ alta significa efecto persistente (televisión), una baja, efecto inmediato (búsqueda).
+- **Saturación** $S$: rendimientos decrecientes; la curva de Hill o $1 - e^{-x/k}$ crece y se aplana.
+- **Controles:** precios, promociones, distribución, competencia, eventos y festivos, condiciones macro y volumen de búsquedas de marca (para no atribuir a los medios la demanda orgánica).
+- **Jerarquía:** el modelo por zonas (_geo-level_) añade potencia, porque combina muchas series.
+
+### Un MMM sencillo, paso a paso
+
+El lab simula 156 semanas de ventas con dos canales (búsqueda con arrastre bajo, redes con arrastre alto) y ajusta el modelo por **rejilla** sobre $(\lambda, k)$ de cada canal con mínimos cuadrados. El resultado:
+
+| Qué se estima        | Verdad                  | Estimado               |
+| -------------------- | ----------------------- | ---------------------- |
+| Arrastre ($\lambda$) | 0,3 búsqueda; 0,6 redes | **0,3 y 0,6** (exacto) |
+| Saturación ($k$)     | 1 y 2                   | 2 y 4 (distinto)       |
+| ROAS medio, búsqueda | 1,97                    | 1,55                   |
+| ROAS medio, redes    | 1,79                    | 1,60                   |
+| $R^2$ del ajuste     | —                       | 0,975                  |
+
+El ajuste parece excelente ($R^2 = 0{,}975$) y **recupera el arrastre**, pero la saturación y los coeficientes se compensan entre sí (una curva que satura antes con un $\beta$ mayor da casi la misma predicción), de modo que el ROAS estimado se aleja del real y **ordena los dos canales al revés** (la búsqueda, que en realidad rinde más, queda ligeramente por debajo de las redes). Es el **problema de identificabilidad** del MMM: pocas semanas, inversiones correlacionadas entre canales y poca variación hacen que modelos distintos expliquen igual de bien los mismos datos.
+
+<Callout type="warning">
+  Un $R^2$ alto no valida un MMM: valida que reproduce el pasado. Lo que importa para decidir
+  presupuesto es el **efecto causal de cada canal**, y eso se comprueba con experimentos (la
+  fracción incremental del experimento de Lumen: 26 %), con la sensibilidad a la especificación y
+  con la predicción fuera de muestra.
+</Callout>
+
+### El enfoque bayesiano y la calibración con experimentos
+
+Los MMM modernos son **bayesianos** (Jin et al., 2017): incorporan información previa (_priors_) sobre los parámetros —el arrastre típico de un medio, que el efecto sea positivo, rangos plausibles de ROAS— y devuelven una **distribución** del retorno de cada canal en lugar de un único número.
+
+Lo más importante es la **calibración con experimentos**: el lift medido en un geo-experimento (lección anterior) se usa como _prior_ o restricción para el efecto del canal. Así el modelo hereda un ancla causal. En el caso de Lumen, el experimento indica que solo ≈ 26 % del lift atribuido a redes es real; un MMM calibrado con ese dato no puede asignar a redes un retorno que lo contradiga.
+
+### Optimización de presupuesto
+
+Con las curvas de respuesta estimadas se calcula el **ROAS marginal** (ingreso adicional por el último euro) y se reparte el presupuesto igualando los retornos marginales. Dos avisos:
+
+- El ROAS **medio** de un canal puede ser alto con un ROAS **marginal** bajo si está saturado. La decisión de «un euro más» depende del marginal.
+- Las curvas fuera del rango de inversión observado son **extrapolación**: no recomiendes duplicar el presupuesto de un canal que nunca superó cierto nivel.
+
+<Snapshot date="2026-10">
+  Las tres herramientas abiertas más usadas son **Meridian** (Google; modelo bayesiano por zonas,
+  calibración con experimentos de geo-lift, modelado de alcance y frecuencia y uso del volumen de
+  búsquedas para controlar la demanda orgánica), **Robyn** (Meta; regresión _ridge_ con optimización
+  evolutiva multiobjetivo mediante Nevergrad, en R y con una versión en Python que el proyecto
+  describe como beta traducida con ayuda de LLM) y **PyMC-Marketing** (PyMC Labs; MMM bayesiano con
+  arrastre, saturación, optimización de presupuesto y calibración con experimentos, además de
+  modelos de valor de cliente; licencia Apache 2.0). Las versiones y funciones evolucionan rápido:
+  consulta su documentación antes de elegir y no uses sus resultados sin revisar la especificación y
+  la calibración.
+</Snapshot>
+
+## En la práctica
+
+1. **Define la decisión** (reparto anual, escenarios de recorte) y el nivel de agregación (semana × zona).
+2. **Reúne los datos**: ventas, inversión por medio (y, si puedes, impresiones), precios, promociones, festivos y controles externos. Mínimo razonable: 2-3 años semanales.
+3. **Comprueba la variación**: si dos canales se mueven juntos, el modelo no podrá separarlos; planifica variación en el presupuesto (o un test).
+4. **Ajusta con _priors_ razonables** y revisa los residuos y la predicción fuera de muestra.
+5. **Calibra con experimentos** de incrementalidad siempre que existan.
+6. **Presenta distribuciones**, no un número: «el retorno de redes está entre 0,9 y 2,4 con un 90 % de probabilidad».
+7. **Úsalo para escenarios**, no para microgestión; repite el modelo con regularidad y compáralo con los experimentos nuevos.
+
+```python
+def adstock(x, decay):
+    out, previo = [], 0.0
+    for v in x:
+        previo = v + decay * previo
+        out.append(previo)
+    return out
+
+def saturacion(x, k):
+    return 1 - np.exp(-np.asarray(x) / k)
+```
+
+En el lab implementas el adstock, la saturación, el ajuste por rejilla y el ROAS medio, y comparas el resultado con la verdad de la simulación.
+
+## Trade-offs y cuándo usarlo
+
+- **MMM frente a atribución:** el MMM ve medios sin seguimiento y no necesita identificadores, pero es agregado, lento y menos granular; la atribución es granular pero ciega a parte del tráfico.
+- **MMM frente a experimentos:** los experimentos son causales pero puntuales; el MMM es continuo pero depende de supuestos. Calibrar el segundo con el primero es la práctica recomendada.
+- **Bayesiano frente a frecuentista:** el primero incorpora conocimiento previo y cuantifica la incertidumbre; exige más cuidado con los _priors_ y más cómputo.
+- **Agregación geográfica:** más zonas dan más potencia, pero exigen datos de inversión por zona.
+- **Frecuencia de actualización:** mensual o trimestral; un modelo congelado envejece.
+
+## Errores comunes
+
+- **Fiarse del $R^2$** como prueba de que el modelo es causal.
+- **Interpretar los coeficientes de canales correlacionados** como efectos independientes.
+- **Omitir controles clave** (promociones, estacionalidad, precio) y atribuir su efecto a los medios.
+- **Extrapolar las curvas de respuesta** fuera del rango de inversión observado.
+- **Presentar una cifra de ROAS sin intervalo ni sensibilidad.**
+- **No calibrar con experimentos** existentes.
+- **Reconstruir el modelo cada trimestre con otras especificaciones** y comparar los retornos como si fueran el mismo dato.
+
+## Con IA
+
+Un asistente genera con facilidad un MMM (ridge, PyMC) que «funciona» y devuelve ROAS por canal. Pídele que enumere los supuestos (forma del arrastre y de la saturación, _priors_, controles), que reporte la incertidumbre y que contraste los resultados con un experimento. Desconfía de un código que no incluye una validación fuera de muestra ni un análisis de la multicolinealidad entre canales.
+
+## En una entrevista
+
+- _"¿Qué es el adstock y la saturación?"_ — Pista: arrastre del efecto en el tiempo y rendimientos decrecientes; ejemplos por canal.
+- _"El MMM dice que televisión rinde el doble que búsqueda. ¿Te fías?"_ — Pista: identificabilidad, correlación entre canales, incertidumbre, calibración con experimentos.
+- _"¿Cuándo usar MMM frente a atribución?"_ — Pista: canales sin seguimiento, privacidad, visión conjunta; granularidad frente a robustez; triangulación.
+
+<KeyTakeaways
+  items={[
+    'Un MMM explica las ventas agregadas como base más el efecto de cada medio con arrastre (adstock) y saturación, más controles; no necesita identificadores personales.',
+    'En el lab, la rejilla recupera exactamente el arrastre (0,3 y 0,6) con R² = 0,975, pero el ROAS estimado (1,55 y 1,60) se aleja del real (1,97 y 1,79) y ordena mal los canales: la saturación y los coeficientes se identifican peor.',
+    'Un R² alto solo prueba que el modelo reproduce el pasado; la fiabilidad causal se gana con experimentos de calibración, priors razonables y validación fuera de muestra.',
+    'Para repartir presupuesto importa el ROAS marginal, no el medio, y no se deben extrapolar las curvas fuera del rango de inversión observado.',
+    'Meridian, Robyn y PyMC-Marketing son las herramientas abiertas habituales; verifica su estado vigente y presenta siempre distribuciones y sensibilidad, no un único número.',
+  ]}
+/>

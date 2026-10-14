@@ -1,0 +1,31 @@
+---
+title: 'Valor del cliente: BG/NBD y Gamma-Gamma'
+description: 'Ajusta un modelo BG/NBD de compras repetidas y un Gamma-Gamma de valor por compra con los pedidos de Lumen hasta 2024, predice el año siguiente y compara las previsiones con lo que realmente ocurrió.'
+language: python
+part: 'Parte IV · Analítica por dominio'
+module: marketing-clientes
+difficulty: 3
+estimatedMinutes: 55
+concepts: ['CLV', 'BG/NBD', 'Gamma-Gamma', 'máxima verosimilitud', 'validación fuera de muestra']
+datasets: ['orders', 'order_items']
+packages: ['scipy']
+output: console
+hints:
+  - 'BG/NBD, por cliente con (x, tx, T): `A1 = lnΓ(r+x) − lnΓ(r) + r·ln α`, `A2 = lnΓ(a+b) + lnΓ(b+x) − lnΓ(b) − lnΓ(a+b+x)`, `A3 = −(r+x)·ln(α+T)`, `A4 = ln a − ln(b+x−1) − (r+x)·ln(α+tx)` (solo si x > 0). Log-verosimilitud = `A1 + A2 + ln(e^A3 + e^A4)`; usa `np.logaddexp`.'
+  - 'Para optimizar, parametriza con logaritmos (`np.exp(p)` mantiene los parámetros positivos) y minimiza la verosimilitud negativa con `scipy.optimize.minimize(..., method="Nelder-Mead")`.'
+  - 'Compras esperadas en `t` semanas: `(a+b+x−1)/(a−1) · [1 − ((α+T)/(α+T+t))^(r+x) · 2F1(r+x, b+x; a+b+x−1; t/(α+T+t))] / [1 + 1{x>0} · a/(b+x−1) · ((α+T)/(α+tx))^(r+x)]`. Usa `scipy.special.hyp2f1`.'
+  - 'Gamma-Gamma: log-verosimilitud por cliente `lnΓ(pn+q) − lnΓ(pn) − lnΓ(q) + q·ln γ + (pn−1)·ln m + pn·ln n − (pn+q)·ln(γ + mn)`; valor esperado `p(γ + mn)/(pn + q − 1)`.'
+relatedLessons: ['marketing-clientes/04-clv-cac-y-unit-economics-de-clientes']
+businessQuestion: '¿Cuántas compras y cuántos ingresos esperamos de los clientes actuales durante el próximo año?'
+---
+
+`resumen_clientes` (ya escrita) resume el historial de los 23.278 clientes que habían comprado hasta el 31 de diciembre de 2024: compras repetidas `x`, semanas entre la primera y la última compra `tx`, semanas de antigüedad `T`, número de compras `n` y valor medio por compra `m`.
+
+Implementa:
+
+1. **`loglik_bgnbd(params, res)`** y **`ajustar_bgnbd(res)`** → parámetros `r`, `alpha`, `a`, `b` por máxima verosimilitud.
+2. **`compras_esperadas(res, params, semanas)`** → compras repetidas esperadas de cada cliente.
+3. **`ajustar_gamma_gamma(res)`** y **`valor_esperado(res, gg)`** → valor medio esperado por compra.
+4. **`clv(res, bg, gg, semanas)`** → ingresos esperados de cada cliente.
+
+Resultado esperado: el modelo prevé unas 47.100 compras en 2025 frente a 49.495 reales (−4,8 %) y unos 14,85 M€ de ingresos frente a 15,16 M€ reales (−2,0 %): **calibra bien el total**, aunque (se verá en la lección) ordena a los clientes peor que su frecuencia histórica.

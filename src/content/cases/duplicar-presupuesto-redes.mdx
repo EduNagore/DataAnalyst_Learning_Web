@@ -1,0 +1,164 @@
+---
+title: 'Marketing quiere duplicar el presupuesto de redes sociales'
+description: 'Un caso de atribución frente a incrementalidad: calcula el CAC de las redes de pago, contrasta el lift que atribuye el último clic con el de un experimento de exclusión geográfica, ajusta el coste por la incrementalidad y recomienda si duplicar la inversión.'
+difficulty: 3
+estimatedMinutes: 45
+role: marketing
+datasets:
+  ['marketing_spend', 'customers', 'experiment_metrics', 'orders', 'order_items', 'products']
+brief: |
+  De: Paula Roldán (Directora de Marketing)
+  Asunto: Duplicar redes sociales en 2026
+
+  Hola, el informe de atribución por último clic muestra que los anuncios en redes sociales aumentan los ingresos un 22 % y el CAC de este canal parece razonable. Quiero proponer en el comité que dupliquemos la inversión del año que viene.
+
+  Hicimos un test de exclusión geográfica hace un tiempo. ¿Puedes revisar que los números aguantan antes de que lo lleve?
+
+  Gracias, Paula
+steps:
+  - id: s1-gasto-2025
+    tool: sql
+    answerType: numeric
+    answer: 279672
+    tolerance: 1
+    prompt: |
+      Empieza por la inversión. ¿Cuántos **euros** se invirtieron en el canal `paid_social` durante 2025 (`marketing_spend`, columna `spend_eur`)? (Redondea a euros enteros.)
+    hints:
+      - "Filtra `channel = 'paid_social'` y las fechas del 1 de enero de 2025 al 31 de diciembre de 2025."
+    explanation: |
+      En 2025 se invirtieron **279.672 €** en redes de pago. Duplicarlo supondría unos 560.000 €.
+
+  - id: s2-cac
+    tool: sql
+    answerType: numeric
+    answer: 95.2
+    tolerance: 0.1
+    prompt: |
+      Calcula el **CAC atribuido** de 2025: la inversión del canal dividida entre los **clientes nuevos** cuyo `acquisition_channel` es `paid_social` y que se dieron de alta (`signup_date`) en 2025. ¿Cuántos euros cuesta cada cliente? (Un decimal.)
+    hints:
+      - 'Cuenta filas de `customers` con ese canal y `signup_date` en 2025; la inversión viene del paso anterior.'
+    explanation: |
+      Con 2.937 clientes nuevos, el CAC atribuido es de **95,2 €**.
+
+  - id: s3-lift-atribuido
+    tool: sql
+    answerType: numeric
+    answer: 22.6
+    tolerance: 0.1
+    prompt: |
+      El experimento `exp-social-ads-geo-holdout` guarda, para cada día y brazo (`control` sin anuncios y `tratamiento` con anuncios), los **ingresos por usuario atribuidos por último clic** (`metric_name = 'last_click_attributed_revenue_per_user'`).
+
+      ¿Cuál es el **lift relativo** (media del tratamiento / media del control − 1) en esa métrica, en %? (Un decimal.)
+    hints:
+      - 'Usa `AVG(value) FILTER (WHERE variant = ...)` para cada brazo.'
+    explanation: |
+      Los ingresos atribuidos son un **+22,6 %** mayores en las zonas con anuncios: lo que ve Paula en el informe.
+
+  - id: s4-lift-real
+    tool: sql
+    answerType: numeric
+    answer: 5.9
+    tolerance: 0.1
+    prompt: |
+      Ahora la métrica que importa: los **ingresos totales por usuario** (`metric_name = 'revenue_per_user'`), sin importar a qué canal se atribuyan. ¿Cuál es el lift relativo, en %? (Un decimal.)
+    hints:
+      - 'Misma consulta que en el paso anterior, cambiando la métrica.'
+    explanation: |
+      Los ingresos totales por usuario suben un **+5,9 %** (intervalo de confianza del 95 % de ≈ 3,3 % a 8,5 %): ese es el efecto causal de los anuncios.
+
+  - id: s5-fraccion
+    tool: sql
+    answerType: numeric
+    answer: 26
+    tolerance: 1
+    prompt: |
+      ¿Qué **porcentaje** del lift atribuido es realmente incremental (lift real / lift atribuido)? (Entero.)
+    hints:
+      - 'Divide el resultado del paso 4 entre el del paso 3.'
+    explanation: |
+      Solo **el 26 %** del lift que atribuye el último clic es causal. El resto es crédito a ventas que habrían ocurrido igualmente (o que se han quitado a otros canales).
+
+  - id: s6-por-que
+    tool: reasoning
+    answerType: single
+    answer: [1]
+    options:
+      - 'El experimento está mal hecho: la atribución es la medida correcta.'
+      - 'La atribución asigna a los anuncios ventas de clientes que habrían comprado igualmente; el experimento, al comparar con un control sin anuncios, mide solo la parte causal.'
+      - 'Los anuncios en redes no tienen efecto alguno.'
+      - 'Las diferencias se deben a que el experimento dura 29 días.'
+    prompt: |
+      ¿Cómo se explica la diferencia entre el +22,6 % atribuido y el +5,9 % del experimento?
+    hints:
+      - 'Piensa en qué compara cada medida: ¿con qué se compara el grupo que ve los anuncios?'
+    explanation: |
+      La atribución no tiene contrafactual: reparte crédito entre los toques de quienes compran. El experimento compara zonas comparables con y sin anuncios. El efecto de los anuncios existe (+5,9 %, claramente distinto de cero), pero es una cuarta parte de lo que dice el informe.
+
+  - id: s7-margen-12m
+    tool: sql
+    answerType: numeric
+    answer: 493
+    tolerance: 2
+    prompt: |
+      Para valorar si compensa, calcula el **margen bruto de los primeros 12 meses** de los clientes de `paid_social` dados de alta en **2024**: suma de `quantity * (unit_price - cost)` de sus pedidos no cancelados en los 365 días posteriores al alta, dividida entre el número de esos clientes (incluidos los que no compraron). ¿Cuántos euros por cliente? (Redondea a euros.)
+    hints:
+      - 'Une `orders`, `order_items` y `products`; limita los pedidos a `order_date >= signup_date` y `< signup_date + INTERVAL 365 DAY`, y usa un `LEFT JOIN` desde los clientes.'
+    explanation: |
+      Cada cliente captado por redes dejó de media **≈ 493 €** de margen bruto en su primer año (sin descontar envíos ni devoluciones). Frente a un CAC atribuido de 95 €, el canal parece muy rentable (razón 5,2).
+
+  - id: s8-cac-incremental
+    tool: sql
+    answerType: numeric
+    answer: 364
+    tolerance: 2
+    prompt: |
+      Ajusta el CAC por la incrementalidad con una aproximación: **CAC atribuido / fracción incremental** (la del paso 5, sin redondear). ¿Cuántos euros cuesta un cliente realmente incremental? (Redondea a euros.)
+    hints:
+      - 'Divide 95,2 entre 0,2613 (lift real / lift atribuido sin redondear).'
+    explanation: |
+      Con la fracción incremental del 26 %, el coste de un cliente que no habría llegado sin los anuncios es de **≈ 364 €**. Frente a un margen de 493 € la razón baja de 5,2 a **1,35**: sigue siendo positiva, pero mucho más justa. Es una aproximación (supone que la fracción medida sobre ingresos vale también para clientes nuevos) y se debe presentar como tal.
+
+  - id: s9-recomendacion
+    tool: reasoning
+    answerType: multiple
+    answer: [0, 1, 2]
+    options:
+      - 'No aprobar el doble de inversión solo con el informe de atribución: la razón valor/coste ajustada es mucho menor y el efecto medido es modesto.'
+      - 'Proponer un aumento escalonado con otro test de incrementalidad en el nuevo nivel de inversión, porque el lift medido solo vale para lo que se probó y la saturación reduce el rendimiento marginal.'
+      - 'Calibrar la atribución y el modelo de marketing mix con el resultado del experimento y presentar intervalos, no una cifra única.'
+      - 'Duplicar la inversión: un +5,9 % de ingresos es siempre suficiente.'
+    prompt: |
+      ¿Qué debería incluir tu respuesta a Paula? (Marca todo lo que aplique.)
+    hints:
+      - 'Piensa en qué decisión tiene sentido con los datos que hay: cuánto aporta el último euro, qué se sabe del nivel que se probó y cómo se reduce la incertidumbre.'
+    explanation: |
+      Los datos no apoyan duplicar de golpe, pero tampoco cerrar el canal: el efecto es real y rentable en el nivel probado. Lo razonable es subir por tramos midiendo la incrementalidad y calibrar los modelos de medición con el experimento.
+
+  - id: s10-mensaje
+    tool: reasoning
+    answerType: text-self-assessed
+    prompt: |
+      Escribe la respuesta a Paula en 4-5 líneas: **si los números aguantan, qué parte del lift es real, cómo cambia el coste de un cliente y qué propones para el comité**.
+    hints:
+      - 'Empieza por la conclusión («aguantan a medias»), da las tres cifras (22,6 %, 5,9 %, 26 %) y termina con la propuesta concreta.'
+    explanation: |
+      Un buen mensaje no desmonta la propuesta, sino que la convierte en una decisión mejor informada: un aumento por tramos, con medición causal, y los supuestos y la incertidumbre a la vista.
+rubric:
+  - 'Empiezo por la conclusión: los números aguantan solo en parte; el efecto de las redes es real pero mucho menor que el que muestra la atribución.'
+  - 'Cito las tres cifras: +22,6 % atribuido, +5,9 % causal (IC ≈ 3,3 %-8,5 %) y 26 % de fracción incremental.'
+  - 'Explico por qué difieren: la atribución no tiene contrafactual y reparte crédito a ventas que habrían ocurrido igual.'
+  - 'Traduzco a coste: CAC atribuido de 95 € frente a ≈ 364 € incremental y razón margen/CAC de 5,2 a 1,35, con el supuesto declarado.'
+  - 'Propongo un aumento escalonado con un nuevo test de incrementalidad y calibración de la medición, y no un doble inmediato.'
+modelReport: |
+  **Conclusión.** Los números aguantan solo en parte. Los anuncios en redes tienen un efecto real, pero mucho menor que el que muestra el informe de último clic. No recomendaría duplicar la inversión de golpe, sino subirla por tramos midiendo el efecto.
+
+  **Qué parte es real.** El informe atribuye a los anuncios un +22,6 % de ingresos por usuario; el test de exclusión geográfica (29 días) mide un +5,9 % en los ingresos totales (IC del 95 % ≈ 3,3 %-8,5 %). Solo el 26 % del lift atribuido es incremental: el resto son ventas que habrían ocurrido igualmente o que se han restado a otros canales.
+
+  **Qué cambia en el coste.** El CAC atribuido de 2025 es de 95 € (279.672 € para 2.937 clientes nuevos) y el margen bruto del primer año de un cliente captado por redes ronda los 493 €, una razón de 5,2. Ajustando por la fracción incremental, el coste de un cliente realmente incremental sería de unos 364 € y la razón baja a 1,35 (aproximación: supone que la fracción incremental de los ingresos vale para los clientes nuevos).
+
+  **Propuesta.** Aumentar la inversión por tramos (por ejemplo, +30 % el primer semestre) con un nuevo geo-test al nuevo nivel, porque el efecto medido solo vale para lo que se probó y los rendimientos marginales decrecen. Calibrar la atribución y el modelo de marketing mix con este resultado y presentar los intervalos al comité.
+---
+
+Este caso usa las tablas `marketing_spend`, `customers`, `experiment_metrics`, `orders`, `order_items` y `products` del dataset Lumen.
+La teoría está en las lecciones «Atribución: reglas, modelos data-driven y sus límites», «Incrementalidad: holdouts,
+geo-experimentos y geo-lift» y «Valor del cliente (CLV), CAC y unit economics».

@@ -1,0 +1,58 @@
+lesson: marketing-clientes/01-atribucion-reglas-data-driven-y-limites
+questions:
+  - id: mk-01-q1
+    type: single
+    difficulty: 1
+    prompt: 'Una conversión tiene el camino «redes → email → búsqueda». Con la regla del último clic, ¿a quién se atribuye?'
+    options:
+      - 'A las redes'
+      - 'Al email'
+      - 'A la búsqueda'
+      - 'A los tres por igual'
+    answer: [2]
+    explanation: 'El último clic asigna el 100 % del crédito al último toque. El primer clic lo daría a las redes; la regla lineal, un tercio a cada canal.'
+    ref: '#reglas-de-atribución'
+
+  - id: mk-01-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'Un camino de tres canales (A → B → C) acumula 10 conversiones. Con el modelo en U (40 % al primero, 40 % al último y el resto al intermedio), ¿cuántas conversiones se atribuyen al canal B?'
+    answer: [2]
+    tolerance: 0.001
+    explanation: 'Los pesos son 0,4, 0,2 y 0,4; B recibe 0,2 × 10 = 2 conversiones.'
+    ref: '#reglas-de-atribución'
+
+  - id: mk-01-q3
+    type: single
+    difficulty: 2
+    prompt: 'En el ejemplo de Lumen, las redes de pago reciben 8 conversiones con el último clic y 66 con el primer clic. ¿Qué lectura es correcta?'
+    options:
+      - 'Una de las dos reglas está mal calculada'
+      - 'Las redes son un canal de descubrimiento: la regla elegida decide si parecen irrelevantes o muy importantes'
+      - 'El primer clic es siempre la regla correcta'
+      - 'Las redes no aportan nada'
+    answer: [1]
+    explanation: 'La regla es una convención. Un canal de descubrimiento queda infravalorado por el último clic y sobrevalorado por el primero; comparar varias reglas muestra la incertidumbre del informe.'
+    ref: '#reglas-de-atribución'
+
+  - id: mk-01-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las razones por las que la atribución no es un efecto causal.'
+    options:
+      - 'Solo se observa a quien se puede seguir (consentimiento, dispositivos)'
+      - 'Reparte crédito entre clientes que ya iban a comprar'
+      - 'Los anuncios se dirigen a quienes tienen más probabilidad de comprar (sesgo de selección)'
+      - 'Utiliza siempre más de un canal'
+    answer: [0, 1, 2]
+    explanation: 'Usar varios canales no es un problema causal. Las tres primeras sí: sin contrafactual, no se sabe qué habría pasado sin el anuncio.'
+    ref: '#por-qué-no-es-causal'
+
+  - id: mk-01-q5
+    type: truefalse
+    difficulty: 2
+    prompt: 'Un modelo de atribución basado en datos (como el efecto de eliminación de una cadena de Markov) mide la incrementalidad de cada canal.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Estima la contribución de un canal a los caminos observados, pero sigue siendo asociativo: no compara con un grupo que no vio el anuncio. La incrementalidad se mide con un experimento.'
+    ref: '#modelos-basados-en-datos'

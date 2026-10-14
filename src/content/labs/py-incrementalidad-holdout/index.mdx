@@ -1,0 +1,29 @@
+---
+title: 'Incrementalidad: el holdout geográfico frente a la atribución'
+description: 'Con un experimento de holdout geográfico de anuncios en redes sociales, calcula el lift causal en ingresos por usuario con su intervalo, compáralo con el lift que atribuye el último clic y estima qué parte es realmente incremental.'
+language: python
+part: 'Parte IV · Analítica por dominio'
+module: marketing-clientes
+difficulty: 3
+estimatedMinutes: 35
+concepts: ['incrementalidad', 'holdout', 'lift', 'Welch', 'iROAS', 'atribución']
+datasets: ['experiment_metrics']
+packages: ['scipy']
+output: console
+hints:
+  - 'Filtra `experiment_metrics` por experimento, métrica y variante, y ordena por fecha; cada brazo tiene 29 valores diarios.'
+  - 'Lift relativo = (media del tratamiento − media del control) / media del control. Para el IC de Welch usa `se = sqrt(v_t/n_t + v_c/n_c)`, grados de libertad de Welch–Satterthwaite y `stats.t.ppf(0.975, gl)`; divide los extremos por la media del control.'
+  - 'Fracción incremental = lift real / lift atribuido. iROAS = ingreso incremental / gasto.'
+relatedLessons: ['marketing-clientes/02-incrementalidad-experimentos-y-geo-lift']
+businessQuestion: '¿Qué parte de lo que la atribución dice que aportan los anuncios en redes sociales es realmente incremental?'
+---
+
+El experimento `exp-social-ads-geo-holdout` apaga los anuncios en redes sociales en unas zonas (**control**) y los mantiene en otras (**tratamiento**) durante 29 días. La tabla `experiment_metrics` guarda, por día y brazo, los **ingresos por usuario** (`revenue_per_user`) y los **ingresos por usuario que la atribución por último clic asigna a los anuncios** (`last_click_attributed_revenue_per_user`).
+
+Implementa:
+
+1. **`serie(metricas, experimento, metrica, variante)`** → valores diarios ordenados por fecha.
+2. **`lift_holdout(tratamiento, control)`** → diccionario con `lift`, `ic_bajo`, `ic_alto` (IC 95 % de Welch, relativos a la media del control) y `p` bilateral.
+3. **`fraccion_incremental(lift_real, lift_atribuido)`** y **`iroas(ingreso_incremental, gasto)`**.
+
+Resultado esperado: lift real ≈ **+5,9 %** (IC 3,3 % a 8,5 %) frente a **+22,6 %** atribuido: solo ≈ 26 % del lift atribuido es incremental.

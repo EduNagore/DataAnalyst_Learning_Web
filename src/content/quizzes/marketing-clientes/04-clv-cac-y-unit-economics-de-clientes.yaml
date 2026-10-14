@@ -1,0 +1,58 @@
+lesson: marketing-clientes/04-clv-cac-y-unit-economics-de-clientes
+questions:
+  - id: mk-04-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué diferencia a un cliente «no contractual» (como el de un comercio) de uno contractual (como una suscripción)?'
+    options:
+      - 'El no contractual siempre gasta menos'
+      - 'No se observa cuándo se va: solo se ve que deja de comprar, así que hay que estimar si sigue «vivo»'
+      - 'El no contractual no tiene CLV'
+      - 'Ninguna diferencia'
+    answer: [1]
+    explanation: 'En los contractuales la baja es un evento observable; en los no contractuales, no. Modelos como el BG/NBD estiman la probabilidad de seguir activo además de las compras esperadas.'
+    ref: '#contractual-y-no-contractual'
+
+  - id: mk-04-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'Las redes de pago invirtieron 279.672 € en 2025 y captaron 2.937 clientes nuevos. ¿Cuál es el CAC atribuido, en euros? (Un decimal.)'
+    answer: [95.2]
+    tolerance: 0.1
+    explanation: '279.672 / 2.937 ≈ 95,2 €.'
+    ref: '#cac-y-unit-economics'
+
+  - id: mk-04-q3
+    type: numeric
+    difficulty: 3
+    prompt: 'Si solo el 26 % del lift atribuido a las redes es incremental, ¿cuál es, aproximadamente, el CAC incremental si el atribuido es de 95,2 €? (Entero, en euros.)'
+    answer: [366]
+    tolerance: 4
+    explanation: '95,2 / 0,26 ≈ 366 € (≈ 364 € con la fracción sin redondear, 0,2613). Es una aproximación que supone que la fracción incremental de los ingresos vale para los clientes nuevos.'
+    ref: '#el-cac-también-debe-ser-incremental'
+
+  - id: mk-04-q4
+    type: single
+    difficulty: 2
+    prompt: 'El BG/NBD acierta el total de compras y de ingresos del año siguiente (−4,8 % y −2,0 %), pero su correlación de rangos con los ingresos reales por cliente (0,22) es menor que la de las compras repetidas históricas (0,43). ¿Qué conclusión es adecuada?'
+    options:
+      - 'El modelo es inútil'
+      - 'Sirve para prever totales y escenarios, pero no debe usarse para ordenar clientes uno a uno sin comprobar que supera a una línea base'
+      - 'La correlación de rangos no importa'
+      - 'Hay que descartar la línea base'
+    answer: [1]
+    explanation: 'Calibrar el total no es discriminar entre clientes. Hay que validar por segmentos (deciles de CLV) y compararse siempre con una línea base ingenua.'
+    ref: '#bgnbd-y-gamma-gamma'
+
+  - id: mk-04-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los errores al calcular y usar el CLV y el CAC.'
+    options:
+      - 'Calcular el CLV con ingresos en lugar de margen'
+      - 'Validar solo el total y suponer que el modelo ordena bien a los clientes'
+      - 'Usar la razón CLV/CAC de 3 como ley universal'
+      - 'Definir el horizonte y la tasa de descuento antes de calcular'
+    answer: [0, 1, 2]
+    explanation: 'Definir horizonte, descuento y costes de servir es la buena práctica. Los otros tres son errores habituales: los ingresos sobrevaloran, el total no demuestra discriminación y la razón 3:1 es una heurística.'
+    ref: '#cac-y-unit-economics'

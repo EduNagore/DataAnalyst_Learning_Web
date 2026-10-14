@@ -1,0 +1,175 @@
+---
+title: 'Incrementalidad: holdouts, geo-experimentos y geo-lift'
+description: 'Cómo medir el efecto causal de la publicidad: qué es el contrafactual, diseños con grupo de exclusión (holdout) y geo-experimentos, cómo leer el lift y su intervalo, qué es el iROAS y por qué el experimento de Lumen muestra +22,6 % atribuido frente a +5,9 % real.'
+module: marketing-clientes
+order: 2
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Definir incrementalidad y explicar por qué requiere un contrafactual y no un recuento de conversiones.'
+  - 'Comparar diseños de medición: usuarios aleatorizados, holdout, geo-experimento y diferencias en diferencias o control sintético.'
+  - 'Calcular e interpretar el lift con su intervalo de confianza y el iROAS.'
+  - 'Comparar un lift atribuido con uno causal y calcular qué fracción es incremental.'
+prerequisites:
+  [
+    'marketing-clientes/01-atribucion-reglas-data-driven-y-limites',
+    'experimentacion/01-diseno-de-un-experimento-metricas-potencia-y-duracion',
+  ]
+tools: ['python']
+volatility: medium
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Vaver & Koehler — Measuring Ad Effectiveness Using Geo Experiments'
+    url: 'https://research.google/pubs/measuring-ad-effectiveness-using-geo-experiments/'
+    type: paper
+    authors: 'Vaver, J., Koehler, J.'
+    year: 2011
+  - title: 'Gordon, Zettelmeyer, Bhargava & Chapsky — A Comparison of Approaches to Advertising Measurement'
+    url: 'https://www.kellogg.northwestern.edu/faculty/gordon_b/files/kellogg_fb_whitepaper.pdf'
+    type: paper
+    authors: 'Gordon, B., Zettelmeyer, F., Bhargava, N., Chapsky, D.'
+    year: 2019
+  - title: 'Google — GeoexperimentsResearch (repositorio)'
+    url: 'https://github.com/google/GeoexperimentsResearch'
+    type: docs
+    authors: 'Google'
+    year: 2026
+  - title: 'Google — CausalImpact (repositorio)'
+    url: 'https://github.com/google/CausalImpact'
+    type: docs
+    authors: 'Google'
+    year: 2026
+relatedLabs: ['py-incrementalidad-holdout']
+relatedCases: ['duplicar-presupuesto-redes']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Marketing quiere duplicar la inversión en anuncios de redes sociales porque la atribución muestra
+  un salto del 22,6 % en los ingresos atribuidos. Antes de aprobarlo, la dirección pide una medida
+  que no dependa de la atribución: «¿cuántas ventas adicionales generan realmente esos anuncios?».
+  Tienes el resultado de un experimento de exclusión geográfica de 29 días.
+</BusinessContext>
+
+La **incrementalidad** es la parte de un resultado (ventas, altas) que **se debe** a la publicidad: lo que ocurre con ella menos lo que habría ocurrido sin ella. Se mide con un **contrafactual**: un grupo comparable que no ve los anuncios.
+
+## Intuición
+
+Una tienda reparte cupones a quienes entran. Muchos de quienes los canjean ya iban a comprar. Contar los cupones canjeados (atribución) sobreestima su efecto; lo que importa es cuántos clientes más compraron **gracias** al cupón respecto a un grupo igual al que no se le dio. Esa diferencia es la incrementalidad.
+
+## Cómo funciona
+
+### El contrafactual y el lift
+
+$$
+\text{lift} = \frac{\bar{Y}_{\text{tratamiento}} - \bar{Y}_{\text{control}}}{\bar{Y}_{\text{control}}}, \qquad
+\text{iROAS} = \frac{\text{ingreso incremental}}{\text{gasto en publicidad}}.
+$$
+
+El **ingreso incremental** es la diferencia de ingresos entre tratamiento y control (escalada al tamaño del grupo expuesto); el **iROAS** es lo que aporta cada euro de publicidad **por encima de lo que habría ocurrido de todos modos**. Un ROAS atribuido de 5 con una incrementalidad del 25 % equivale, grosso modo, a un iROAS cercano a 1,25.
+
+### Diseños para medir la incrementalidad
+
+| Diseño                                         | Cómo funciona                                                                                           | Cuándo                                                       | Límites                                                       |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------- |
+| **Aleatorización de usuarios** (_holdout_)     | Se excluye al azar a una fracción de los usuarios elegibles para no mostrarles anuncios                 | Plataformas que permiten asignación aleatoria                | Requiere la plataforma; fuga de exposición entre dispositivos |
+| **Anuncios fantasma / PSA**                    | Al grupo control se le asigna la puja, pero se le muestra otro anuncio neutro                           | Plataformas con subastas                                     | Complejo; depende del proveedor                               |
+| **Geo-experimento**                            | Se aleatorizan zonas geográficas (provincias, áreas de mercado) a tratamiento o control                 | Medios sin identificador de usuario (TV, exterior, búsqueda) | Pocas unidades; potencia baja; derrames entre zonas           |
+| **Series temporales (_pre/post_)** con control | Se compara la evolución de las zonas tratadas con un control sintético o por diferencias en diferencias | Cuando no se puede aleatorizar                               | Depende de las tendencias paralelas o del ajuste del control  |
+| **Cambio alterno (_switchback_)**              | Se activa y desactiva la publicidad en periodos alternados                                              | Un solo mercado                                              | Efectos de arrastre entre periodos                            |
+
+Los **geo-experimentos** son el estándar cuando no hay identificadores de usuario (Vaver y Koehler, 2011): se asignan zonas y se mide el efecto sobre una métrica agregada (ventas). Se analizan con **regresión sobre el periodo previo** o con **diferencias en diferencias / control sintético** (módulo de causalidad); la inferencia con pocas zonas es frágil y se complementa con permutaciones o con inferencia conformal (CausalImpact usa un modelo bayesiano de series temporales estructurales para el contrafactual).
+
+### El experimento de Lumen
+
+El experimento `exp-social-ads-geo-holdout` apaga los anuncios en redes sociales en unas zonas (control) y los mantiene en otras (tratamiento) del 25 de febrero al 24 de marzo de 2024 (29 días). Con los valores diarios por brazo:
+
+| Métrica (por usuario y día)                          | Control | Tratamiento |        Lift | IC 95 %           |
+| ---------------------------------------------------- | ------: | ----------: | ----------: | ----------------- |
+| **Ingresos totales** (efecto causal)                 | 39,78 € |     42,12 € |  **+5,9 %** | +3,3 % a +8,5 %   |
+| **Ingresos atribuidos a los anuncios** (último clic) | 35,27 € |     43,23 € | **+22,6 %** | +20,0 % a +25,1 % |
+
+<Callout type="note">
+  El IC del lift real (3,3 % a 8,5 %) **no incluye** el 22,6 % que ve la atribución: la diferencia
+  no es ruido. Solo **el 26 % del lift atribuido** (5,9 / 22,6) es incremental. El resto es crédito
+  que el último clic asigna a anuncios cuyos clientes habrían comprado igualmente (o que han
+  «canibalizado» otros canales).
+</Callout>
+
+El intervalo se calcula con el método de Welch sobre los 29 valores diarios de cada brazo (la unidad de análisis es el día, no el usuario). Es una aproximación: ignora la incertidumbre de la media del control en el denominador y la autocorrelación entre días.
+
+### Del lift al presupuesto
+
+El lift no basta para decidir. Para un presupuesto necesitas el **iROAS** (ingreso incremental por euro) frente al **margen** de ese ingreso, y el **rendimiento marginal**: un euro adicional rinde menos que el medio por la saturación (siguiente lección). Un experimento mide el efecto del **nivel de inversión que se probó**; extrapolarlo al doble es una suposición.
+
+### Diseño y potencia
+
+- **Unidad de aleatorización:** si es la zona, la potencia depende del número de zonas, no del de usuarios. Se hace una simulación previa con datos históricos (A/A) para estimar el MDE.
+- **Duración:** suficiente para captar el arrastre (adstock) del anuncio; se mide también después de apagarlo.
+- **Contaminación:** zonas vecinas que comparten medios (derrames) sesgan el efecto hacia cero.
+- **Métrica:** ingresos totales o altas, no clics ni conversiones atribuidas (que ya reflejan la atribución).
+- **Guardarraíles:** margen, devoluciones, ventas en otros canales.
+
+## En la práctica
+
+1. **Define la decisión** (¿duplicar, mantener o reducir?) y el efecto mínimo que la cambiaría.
+2. **Escoge el diseño** según lo que permite la plataforma: aleatorización de usuarios, anuncios fantasma o geo-experimento.
+3. **Calcula la potencia** con datos históricos y fija la duración antes de empezar.
+4. **Ejecuta sin cambios** de presupuesto ni creatividades durante el test.
+5. **Analiza** el lift con su intervalo y la fracción incremental frente a la atribución.
+6. **Convierte** el lift en iROAS con el margen y comprueba la sensibilidad.
+7. **Calibra** la atribución y el modelo de marketing mix con el resultado (siguiente lección).
+
+```python
+def lift_holdout(trat, ctrl):
+    d = trat.mean() - ctrl.mean()
+    vt, vc = trat.var(ddof=1) / len(trat), ctrl.var(ddof=1) / len(ctrl)
+    gl = (vt + vc) ** 2 / (vt**2 / (len(trat) - 1) + vc**2 / (len(ctrl) - 1))
+    t = stats.t.ppf(0.975, gl)
+    return d / ctrl.mean(), (d - t * (vt + vc) ** 0.5) / ctrl.mean(), (d + t * (vt + vc) ** 0.5) / ctrl.mean()
+```
+
+En el lab calculas el lift real y el atribuido del experimento de Lumen y la fracción incremental.
+
+## Trade-offs y cuándo usarlo
+
+- **Experimento frente a observacional:** el experimento aísla el efecto causal; el observacional es continuo pero sesgado (Gordon et al., 2019).
+- **Aleatorización de usuarios frente a geográfica:** la primera tiene más potencia; la segunda funciona sin identificadores y capta efectos de mercado.
+- **Test largo frente a corto:** uno largo capta el arrastre y la estacionalidad, pero cuesta ventas si el control no se anuncia.
+- **Coste del control:** apagar la publicidad en una zona tiene un coste de oportunidad; se compara con el coste de decidir mal el presupuesto.
+- **Un test puntual frente a medición continua:** los tests calibran; un modelo de marketing mix los extiende en el tiempo.
+
+## Errores comunes
+
+- **Medir el éxito de un test con las conversiones atribuidas** en lugar de ventas totales.
+- **Asignar zonas sin aleatorizar** («probamos en las que mejor funcionan»).
+- **Pocas zonas y conclusión categórica** sin permutaciones ni intervalos.
+- **Cambiar presupuesto o creatividades durante el test.**
+- **Extrapolar el lift a niveles de inversión muy distintos.**
+- **No esperar el efecto posterior** (arrastre) de la campaña.
+- **Ignorar los derrames** entre zonas vecinas.
+
+## Con IA
+
+Un asistente propone con rapidez «un test A/B de campaña» sin plantear la unidad de aleatorización ni la potencia. Pídele que explique la unidad (usuario o zona), el MDE y la duración, y que aplique el análisis sobre el total de ventas (no sobre conversiones atribuidas). Revisa que calcule los intervalos con la unidad de análisis correcta (día, no usuario, si la serie es diaria).
+
+## En una entrevista
+
+- _"¿Cómo sabes si un canal de pago es incremental?"_ — Pista: contrafactual; holdout o geo-experimento; lift e iROAS; comparación con la atribución.
+- _"La atribución dice +22 % y el test, +6 %. ¿Qué haces?"_ — Pista: confiar en el diseño causal; calcular la fracción incremental; revisar canibalización y la métrica.
+- _"No puedes aleatorizar. ¿Qué alternativas hay?"_ — Pista: pre/post con control sintético o diferencias en diferencias; series temporales estructurales; MMM calibrado.
+
+<KeyTakeaways
+  items={[
+    'La incrementalidad es lo que se debe a la publicidad frente a lo que habría ocurrido sin ella; exige un contrafactual (grupo de exclusión o zonas de control), no un recuento de conversiones.',
+    'Los diseños van de la aleatorización de usuarios a los geo-experimentos, y de ahí a pre/post con control sintético o diferencias en diferencias cuando no se puede aleatorizar.',
+    'En el experimento de Lumen los ingresos atribuidos suben un 22,6 % pero los ingresos totales solo un 5,9 % (IC 3,3 % a 8,5 %): solo ≈ 26 % del lift atribuido es incremental.',
+    'El iROAS (ingreso incremental entre gasto) y el margen, y no el ROAS atribuido, deciden el presupuesto; el lift medido solo vale para el nivel de inversión probado.',
+    'La potencia de un geo-experimento depende del número de zonas: simula con datos históricos y fija la duración antes de empezar.',
+  ]}
+/>

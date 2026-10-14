@@ -1,0 +1,58 @@
+lesson: marketing-clientes/03-marketing-mix-modeling-moderno
+questions:
+  - id: mk-03-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué representa el adstock en un modelo de marketing mix?'
+    options:
+      - 'La saturación del canal'
+      - 'El arrastre: el efecto de la inversión de hoy se reparte en periodos posteriores'
+      - 'El precio medio de los anuncios'
+      - 'El coste por clic'
+    answer: [1]
+    explanation: 'En el adstock geométrico, a[t] = x[t] + λ·a[t−1]: una λ alta indica efecto persistente. La saturación es otra transformación (rendimientos decrecientes).'
+    ref: '#la-estructura'
+
+  - id: mk-03-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'Con adstock geométrico de decay 0,5, la inversión semanal es [1, 0, 0, 2]. ¿Cuál es el valor del adstock en la cuarta semana?'
+    answer: [2.125]
+    tolerance: 0.001
+    explanation: 'a1 = 1; a2 = 0 + 0,5·1 = 0,5; a3 = 0,25; a4 = 2 + 0,5·0,25 = 2,125.'
+    ref: '#la-estructura'
+
+  - id: mk-03-q3
+    type: single
+    difficulty: 2
+    prompt: 'En el lab, el modelo ajustado tiene R² = 0,975 y recupera el arrastre real, pero estima un ROAS de 1,55 y 1,60 frente a 1,97 y 1,79 reales. ¿Qué lección es correcta?'
+    options:
+      - 'Un R² alto garantiza que el ROAS estimado sea correcto'
+      - 'La saturación y los coeficientes se identifican peor que el arrastre; hay que calibrar con experimentos y reportar incertidumbre'
+      - 'El modelo está mal programado'
+      - 'El ROAS no se puede calcular en un MMM'
+    answer: [1]
+    explanation: 'Distintas combinaciones de saturación y coeficiente dan casi el mismo ajuste. Un R² alto prueba que el modelo reproduce el pasado, no que el efecto de cada canal sea causal.'
+    ref: '#un-mmm-sencillo-paso-a-paso'
+
+  - id: mk-03-q4
+    type: single
+    difficulty: 2
+    prompt: '¿Cómo se usa un experimento de geo-lift para mejorar un MMM?'
+    options:
+      - 'Para sustituir el modelo por el experimento'
+      - 'Como información previa (prior) o restricción sobre el efecto del canal, que ancla el modelo a una medida causal'
+      - 'Para eliminar los controles'
+      - 'No se puede usar'
+    answer: [1]
+    explanation: 'La calibración con experimentos es la práctica recomendada: el modelo hereda un ancla causal y no puede asignar a un canal un retorno que contradiga el test.'
+    ref: '#el-enfoque-bayesiano-y-la-calibración-con-experimentos'
+
+  - id: mk-03-q5
+    type: truefalse
+    difficulty: 3
+    prompt: 'Para repartir un presupuesto adicional importa el ROAS medio de cada canal, no el marginal.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Un canal saturado puede tener un ROAS medio alto y un ROAS marginal bajo. La decisión de «un euro más» depende del marginal, y las curvas no deben extrapolarse fuera del rango de inversión observado.'
+    ref: '#optimización-de-presupuesto'

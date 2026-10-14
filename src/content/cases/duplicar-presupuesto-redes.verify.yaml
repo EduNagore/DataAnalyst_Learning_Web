@@ -1,0 +1,55 @@
+# Consultas que RECALCULAN las respuestas numéricas del caso a partir de los datos
+# (las ejecuta tests/labs/test_cases.py; no se publican en la web).
+s1-gasto-2025: |
+  SELECT ROUND(SUM(spend_eur), 0)
+  FROM marketing_spend
+  WHERE channel = 'paid_social' AND date >= DATE '2025-01-01' AND date < DATE '2026-01-01'
+s2-cac: |
+  SELECT ROUND(
+    (SELECT SUM(spend_eur) FROM marketing_spend
+      WHERE channel = 'paid_social' AND date >= DATE '2025-01-01' AND date < DATE '2026-01-01')
+    / (SELECT COUNT(*) FROM customers
+        WHERE acquisition_channel = 'paid_social' AND signup_date >= DATE '2025-01-01' AND signup_date < DATE '2026-01-01'), 1)
+s3-lift-atribuido: |
+  SELECT ROUND(100 * (AVG(value) FILTER (WHERE variant = 'tratamiento') / AVG(value) FILTER (WHERE variant = 'control') - 1), 1)
+  FROM experiment_metrics
+  WHERE experiment_id = 'exp-social-ads-geo-holdout' AND metric_name = 'last_click_attributed_revenue_per_user'
+s4-lift-real: |
+  SELECT ROUND(100 * (AVG(value) FILTER (WHERE variant = 'tratamiento') / AVG(value) FILTER (WHERE variant = 'control') - 1), 1)
+  FROM experiment_metrics
+  WHERE experiment_id = 'exp-social-ads-geo-holdout' AND metric_name = 'revenue_per_user'
+s5-fraccion: |
+  WITH l AS (
+    SELECT metric_name,
+           AVG(value) FILTER (WHERE variant = 'tratamiento') / AVG(value) FILTER (WHERE variant = 'control') - 1 AS lift
+    FROM experiment_metrics WHERE experiment_id = 'exp-social-ads-geo-holdout' GROUP BY 1
+  )
+  SELECT ROUND(100 * (SELECT lift FROM l WHERE metric_name = 'revenue_per_user')
+               / (SELECT lift FROM l WHERE metric_name = 'last_click_attributed_revenue_per_user'), 0)
+s7-margen-12m: |
+  WITH c AS (
+    SELECT customer_id, signup_date FROM customers
+    WHERE acquisition_channel = 'paid_social' AND signup_date >= DATE '2024-01-01' AND signup_date < DATE '2025-01-01'
+  ), l AS (
+    SELECT c.customer_id, SUM(oi.quantity * (oi.unit_price - p.cost)) AS mg
+    FROM c JOIN orders o ON o.customer_id = c.customer_id AND o.status <> 'cancelado'
+         AND o.order_date >= c.signup_date AND o.order_date < c.signup_date + INTERVAL 365 DAY
+    JOIN order_items oi ON oi.order_id = o.order_id JOIN products p ON p.product_id = oi.product_id
+    GROUP BY 1
+  )
+  SELECT ROUND(SUM(COALESCE(mg, 0)) / COUNT(*), 0) FROM c LEFT JOIN l USING (customer_id)
+s8-cac-incremental: |
+  WITH l AS (
+    SELECT metric_name,
+           AVG(value) FILTER (WHERE variant = 'tratamiento') / AVG(value) FILTER (WHERE variant = 'control') - 1 AS lift
+    FROM experiment_metrics WHERE experiment_id = 'exp-social-ads-geo-holdout' GROUP BY 1
+  ), f AS (
+    SELECT (SELECT lift FROM l WHERE metric_name = 'revenue_per_user')
+         / (SELECT lift FROM l WHERE metric_name = 'last_click_attributed_revenue_per_user') AS frac
+  )
+  SELECT ROUND(
+    (SELECT SUM(spend_eur) FROM marketing_spend
+      WHERE channel = 'paid_social' AND date >= DATE '2025-01-01' AND date < DATE '2026-01-01')
+    / (SELECT COUNT(*) FROM customers
+        WHERE acquisition_channel = 'paid_social' AND signup_date >= DATE '2025-01-01' AND signup_date < DATE '2026-01-01')
+    / (SELECT frac FROM f), 0)

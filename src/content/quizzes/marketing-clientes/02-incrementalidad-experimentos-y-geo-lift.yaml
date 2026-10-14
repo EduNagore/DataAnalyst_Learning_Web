@@ -1,0 +1,58 @@
+lesson: marketing-clientes/02-incrementalidad-experimentos-y-geo-lift
+questions:
+  - id: mk-02-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué necesita una medida de incrementalidad que no necesita un informe de atribución?'
+    options:
+      - 'Más canales'
+      - 'Un contrafactual: un grupo comparable que no ve los anuncios'
+      - 'Una ventana de atribución más larga'
+      - 'Un modelo de aprendizaje automático'
+    answer: [1]
+    explanation: 'La incrementalidad es lo que ocurre con la publicidad menos lo que habría ocurrido sin ella; sin un grupo de control comparable no se puede estimar.'
+    ref: '#el-contrafactual-y-el-lift'
+
+  - id: mk-02-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'En el experimento de Lumen, los ingresos totales por usuario son 39,78 € en control y 42,12 € en tratamiento. ¿Cuál es el lift, en %? (Un decimal.)'
+    answer: [5.9]
+    tolerance: 0.1
+    explanation: '(42,12 − 39,78) / 39,78 ≈ 5,9 %. Es el efecto causal de los anuncios en ingresos totales.'
+    ref: '#el-experimento-de-lumen'
+
+  - id: mk-02-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'El lift de los ingresos atribuidos por último clic es del 22,6 % y el de los ingresos totales, del 5,9 %. ¿Qué porcentaje del lift atribuido es incremental? (Entero.)'
+    answer: [26]
+    tolerance: 1
+    explanation: '5,9 / 22,6 ≈ 0,26: solo una cuarta parte del lift atribuido es causal.'
+    ref: '#el-experimento-de-lumen'
+
+  - id: mk-02-q4
+    type: single
+    difficulty: 2
+    prompt: '¿Cuándo es preferible un geo-experimento a aleatorizar usuarios?'
+    options:
+      - 'Cuando se dispone de identificadores de usuario fiables'
+      - 'Cuando el medio no permite identificar al usuario (televisión, exterior) o se quiere captar efectos de mercado'
+      - 'Cuando hay muchas zonas y pocos usuarios'
+      - 'Nunca: siempre es mejor aleatorizar usuarios'
+    answer: [1]
+    explanation: 'El geo-experimento aleatoriza zonas y mide una métrica agregada; es el estándar cuando no hay identificadores. Su límite es la potencia: depende del número de zonas.'
+    ref: '#diseños-para-medir-la-incrementalidad'
+
+  - id: mk-02-q5
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODOS los errores al diseñar o analizar un test de incrementalidad.'
+    options:
+      - 'Evaluar el éxito con las conversiones atribuidas en lugar de las ventas totales'
+      - 'Escoger para el tratamiento las zonas donde mejor funciona la publicidad'
+      - 'Extrapolar el lift medido a un presupuesto el doble de grande sin más'
+      - 'Calcular la potencia con datos históricos antes de empezar'
+    answer: [0, 1, 2]
+    explanation: 'La última es lo correcto. En las otras: la métrica ya refleja la atribución, la asignación no es aleatoria y el efecto medido solo vale para el nivel de inversión probado.'
+    ref: '#diseño-y-potencia'

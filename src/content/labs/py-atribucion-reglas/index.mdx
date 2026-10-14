@@ -1,0 +1,38 @@
+---
+title: 'Atribución: reglas frente a cadenas de Markov'
+description: 'Reparte el crédito de las conversiones entre canales con reglas (último clic, primer clic, lineal, en U) y con el efecto de eliminación de una cadena de Markov, y comprueba cómo cambia la lectura de cada canal.'
+language: python
+part: 'Parte IV · Analítica por dominio'
+module: marketing-clientes
+difficulty: 3
+estimatedMinutes: 35
+concepts:
+  [
+    'atribución',
+    'último clic',
+    'primer clic',
+    'modelo en U',
+    'cadena de Markov',
+    'efecto de eliminación',
+  ]
+datasets: []
+packages: []
+output: console
+hints:
+  - 'Todas las reglas comparten esqueleto: para cada camino, una lista de pesos que suma 1 (último clic: `[0, …, 0, 1]`; primer clic: `[1, 0, …, 0]`; lineal: `[1/n] * n`) multiplicada por las conversiones del camino y acumulada por canal.'
+  - 'En U: con 1 toque, todo; con 2, mitad y mitad; con 3 o más, `extremos` al primero y al último y `(1 − 2·extremos)/(n − 2)` a cada intermedio.'
+  - 'Efecto de eliminación de un canal = `1 − prob_conversion(rec, canal) / prob_conversion(rec)`. Normaliza los efectos para que sumen las conversiones totales.'
+relatedLessons: ['marketing-clientes/01-atribucion-reglas-data-driven-y-limites']
+businessQuestion: '¿Cuánto crédito merece cada canal según el modelo de atribución que elijamos?'
+---
+
+La tabla `recorridos` resume 2.550 recorridos de clientes: el camino de canales que tocaron, cuántas personas lo recorrieron y cuántas convirtieron (193 en total).
+
+Implementa cinco funciones que devuelven una `Series` indexada por canal con el **crédito en conversiones**:
+
+1. **`credito_ultimo_clic(rec)`** y **`credito_primer_clic(rec)`**.
+2. **`credito_lineal(rec)`**: a partes iguales entre los toques del camino.
+3. **`credito_posicion(rec, extremos=0.4)`**: modelo en U (40 % al primero, 40 % al último, 20 % repartido entre los intermedios).
+4. **`credito_markov(rec)`**: usa la función ya escrita `prob_conversion(rec, quitar=None)` para calcular el efecto de eliminación de cada canal y normalízalo.
+
+Resultado esperado: con último clic, la búsqueda de pago se lleva 122 conversiones y las redes de pago solo 8; con primer clic, 40 y 66; con la cadena de Markov, ≈ 82 y ≈ 35.
