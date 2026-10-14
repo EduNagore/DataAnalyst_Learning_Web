@@ -1,0 +1,36 @@
+---
+title: 'Una herramienta SQL segura para agentes: solo lectura, límites y auditoría'
+description: 'Construye la capa de seguridad de una herramienta de datos que un agente de IA puede invocar: valida que la consulta sea de solo lectura sobre tablas permitidas, rechaza sentencias apiladas, escritura y lectura de ficheros, limita las filas devueltas y deja un registro de auditoría con un hash de la consulta.'
+language: python
+part: 'Parte VI · IA para analistas'
+module: analitica-agentica-mcp
+difficulty: 3
+estimatedMinutes: 45
+concepts: ['agentes', 'MCP', 'solo lectura', 'lista de permitidos', 'límites de filas', 'auditoría']
+datasets: ['customers', 'orders']
+packages: ['duckdb']
+output: console
+hints:
+  - 'Limpia primero: quita los comentarios (`/* … */` y `-- …`, sustituyéndolos por un espacio) y un «;» final. Sobre una copia en la que has vaciado los literales de texto entre comillas simples (una expresión regular con alternancia entre «cualquier carácter que no sea una comilla» y «dos comillas seguidas»), comprueba el «;» restante, la primera palabra y las palabras prohibidas.'
+  - 'Palabras completas con `re.findall(r"[a-z_][a-z0-9_]*", sql.lower())`; así `delete` dentro de un literal como «delete me» no cuenta (los literales ya se han vaciado) y `read_csv` se detecta como palabra.'
+  - 'Tablas: busca `from` y `join` seguidos de un identificador (`[a-z_][a-z0-9_.]*`) y exige que esté en la lista de permitidas o sea una CTE (`nombre AS (`) de la propia consulta.'
+  - 'Ejecuta con `SELECT * FROM (<consulta>) AS q LIMIT n+1` y recorta a n; si llegan n+1 filas, `truncado = True`.'
+relatedLessons:
+  [
+    'analitica-agentica-mcp/03-diseno-seguro-roles-de-solo-lectura-limites-e-inyeccion-de-instrucciones',
+  ]
+businessQuestion: '¿Qué controles necesita una herramienta SQL antes de que un agente de IA pueda usarla sobre los datos de la empresa?'
+---
+
+Cuando un agente de IA recibe una herramienta para consultar datos (por ejemplo, un servidor MCP), el agente es **un usuario más… que puede equivocarse o ser engañado**. La herramienta no puede fiarse de lo que le llega: debe validar, acotar y registrar.
+
+La política (`POLITICA`: tablas permitidas, filas máximas y palabras prohibidas) y una conexión DuckDB con las tablas `customers` y `orders` de 2025 ya están definidas. Implementa:
+
+1. **`limpiar_sql(sql)`** y **`sin_literales(sql)`**.
+2. **`validar(sql, politica)`** → `(True, "ok")` o `(False, motivo)`.
+3. **`ejecutar_seguro(sql, politica)`** → resultado con `estado`, `motivo`, `filas` y `truncado`.
+4. **`registrar(auditoria, usuario, sql, resultado)`** → entrada de auditoría con el hash de la consulta.
+
+Resultado esperado: pasan las consultas de solo lectura (con CTE, JOIN, comentarios o literales como `'delete me'`); se rechazan `SELECT 1; DROP TABLE customers`, `DELETE`, `COPY`, `ATTACH`, `read_csv('/etc/passwd')` o una tabla fuera de la lista; y `SELECT * FROM customers` devuelve 1.000 de las 60.000 filas, marcado como truncado.
+
+**Límite importante**: esta validación por texto es una primera barrera, no la única. En producción la defensa real es **un rol de base de datos de solo lectura con permisos mínimos**; el filtro lo complementa.

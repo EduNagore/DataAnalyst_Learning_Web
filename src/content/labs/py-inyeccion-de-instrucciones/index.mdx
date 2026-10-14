@@ -1,0 +1,41 @@
+---
+title: 'Inyección de instrucciones: cuando los datos dan órdenes al agente'
+description: 'Simula un agente que resume tickets de soporte de Lumen y recibe uno con instrucciones ocultas: mide la «tríada letal» (datos privados, contenido no confiable, comunicación externa), implementa señales de detección y delimitadores, y comprueba por qué ni los delimitadores ni la detección bastan.'
+language: python
+part: 'Parte VI · IA para analistas'
+module: analitica-agentica-mcp
+difficulty: 3
+estimatedMinutes: 40
+concepts:
+  [
+    'inyección de instrucciones',
+    'tríada letal',
+    'datos no confiables',
+    'delimitadores',
+    'defensa en profundidad',
+  ]
+datasets: ['support_tickets']
+packages: []
+output: console
+hints:
+  - 'La tríada: datos privados + contenido no confiable + comunicación externa. Para salir del nivel crítico basta con quitar UNA de las tres; la más barata suele ser la comunicación externa.'
+  - 'Señales: expresiones regulares con `re.search(patron, texto, flags=re.I | re.S)` sobre cada entrada del diccionario `SENALES`, devolviendo los nombres de las que coinciden en el orden del diccionario.'
+  - 'Envolver: sustituye primero las marcas que ya traiga el texto (`str.replace`) y luego rodea con `MARCA_INICIO` y `MARCA_FIN`, cada una en su línea.'
+  - 'En «filtrado» no se pega el ticket marcado (se cuenta en `descartados`); en «delimitado» se envuelven todos. `exfiltra` es `respuesta.startswith("ENVIANDO")`.'
+relatedLessons:
+  [
+    'analitica-agentica-mcp/03-diseno-seguro-roles-de-solo-lectura-limites-e-inyeccion-de-instrucciones',
+  ]
+businessQuestion: '¿Puede un texto escrito por un cliente hacer que nuestro agente de IA filtre datos?'
+---
+
+Un agente que lee **texto escrito por terceros** (tickets, reseñas, correos, páginas web) está leyendo posibles instrucciones. Si además tiene acceso a datos privados y puede comunicarse con el exterior, un atacante solo necesita escribir un ticket convincente.
+
+Los cinco primeros tickets reales de `support_tickets` (`TICKETS`), dos ataques (`ATAQUE_ES` y `ATAQUE_EN`) y un asistente simulado que obedece cualquier orden que vea (`asistente_ingenuo()`) ya están definidos. Implementa:
+
+1. **`trifecta(capacidades)`** y **`capacidad_a_quitar(capacidades)`**.
+2. **`detectar_inyeccion(texto)`** → señales de inyección.
+3. **`envolver_no_confiable(texto)`** → bloque delimitado como datos.
+4. **`resumir(llm, tickets, modo)`** con los modos `ingenuo`, `delimitado` y `filtrado`.
+
+Resultado esperado: el modo ingenuo **y el delimitado** acaban en exfiltración; el filtrado detiene el ataque en español descartando un ticket; pero el mismo ataque **en inglés** se cuela porque la heurística no lo reconoce. La defensa real es de arquitectura: **quitar una de las tres patas** (por ejemplo, la comunicación externa) y exigir aprobación humana para cualquier acción.

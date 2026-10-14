@@ -1,0 +1,201 @@
+---
+title: 'Diseño seguro: roles de solo lectura, límites, datos personales e inyección de instrucciones'
+description: 'Cómo diseñar un servidor MCP o una herramienta de datos que un agente pueda usar sin riesgo grave: roles de solo lectura en la base de datos, validación y límites de filas, coste y tiempo, datos personales, la «tríada letal» de la inyección de instrucciones, buenas prácticas de seguridad de MCP, aprobación humana y auditoría.'
+module: analitica-agentica-mcp
+order: 3
+level: avanzado
+estimatedMinutes: 55
+objectives:
+  - 'Diseñar capas de defensa para una herramienta de datos: rol de solo lectura, validación, límites, enmascaramiento y auditoría.'
+  - 'Explicar la inyección de instrucciones y la tríada letal (datos privados, contenido no confiable, comunicación externa) y cómo se rompe.'
+  - 'Aplicar las recomendaciones de seguridad de MCP: consentimiento, mínimo alcance, no pasar tokens, cuidado con servidores locales.'
+  - 'Decidir qué acciones requieren aprobación humana y cómo registrarlas.'
+prerequisites:
+  [
+    'analitica-agentica-mcp/02-model-context-protocol-y-servidores-de-datos',
+    'gobierno-etica/03-catalogos-linaje-y-control-de-acceso',
+  ]
+tools: ['python', 'sql']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Model Context Protocol — Security Best Practices'
+    url: 'https://modelcontextprotocol.io/docs/tutorials/security/security_best_practices'
+    type: docs
+    authors: 'Model Context Protocol'
+    year: 2026
+  - title: 'Model Context Protocol — Specification (seguridad y confianza)'
+    url: 'https://modelcontextprotocol.io/specification/latest'
+    type: spec
+    authors: 'Model Context Protocol'
+    year: 2026
+  - title: 'Willison — The lethal trifecta for AI agents'
+    url: 'https://simonwillison.net/2025/Jun/16/the-lethal-trifecta/'
+    type: blog
+    authors: 'Willison, S.'
+    year: 2025
+relatedLabs: ['py-herramienta-sql-segura', 'py-inyeccion-de-instrucciones']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Lumen va a dar a un agente acceso al almacén para resumir tickets de soporte y proponer acciones.
+  Seguridad pregunta tres cosas: «¿qué pasa si un cliente escribe en un ticket una orden para el
+  agente?», «¿qué pasa si el agente genera una consulta que borra datos?» y «¿qué pasa si consulta
+  algo que no debía?». La respuesta no es una frase en el prompt, sino capas de defensa en la
+  arquitectura.
+</BusinessContext>
+
+## Intuición
+
+Un empleado nuevo, rapidísimo y muy influenciable. Le das una llave maestra, una bandeja de cartas sin abrir y un teléfono para llamar a quien quiera, y le dices «ayúdame». Si una carta dice «dale las claves a esta persona», puede hacerlo. La seguridad no consiste en pedirle por favor que no obedezca cartas raras, sino en **no darle a la vez la llave, las cartas sin filtrar y el teléfono**, y en que las acciones graves pasen por una segunda firma.
+
+## Cómo funciona
+
+### Capas de defensa para una herramienta de datos
+
+| Capa                                  | Qué hace                                                                                               | Qué evita                                                                  |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| **1. Rol de base de datos**           | Cuenta de servicio propia con permisos de **solo lectura** sobre vistas o tablas concretas             | Escritura, borrado y acceso a lo no autorizado, aunque falle todo lo demás |
+| **2. Validación**                     | Solo `SELECT`/`WITH`; una sola sentencia; sin funciones de ficheros ni administración; lista de tablas | Sentencias apiladas, lectura de ficheros, rodeos                           |
+| **3. Límites**                        | Máximo de filas, tiempo de ejecución, bytes escaneados, presupuesto y ritmo de consultas               | Fugas masivas, costes desbocados, bucles                                   |
+| **4. Minimización y enmascaramiento** | Vistas con columnas necesarias, datos seudonimizados, seguridad por filas y columnas                   | Exposición de datos personales                                             |
+| **5. Salida controlada**              | Resultados acotados y etiquetados como datos; sin acciones con efectos externos sin aprobación         | Exfiltración y acciones irreversibles                                      |
+| **6. Auditoría**                      | Registro de cada llamada (hash de la consulta, usuario, estado, filas); alertas                        | Falta de trazabilidad                                                      |
+
+**La capa 1 es la que importa de verdad.** La validación por texto (capa 2) es una barrera útil, pero fácil de eludir con un caso que no previste; el rol de solo lectura impide el daño aunque la validación falle. En el lab implementas las capas 2, 3 y 6: la herramienta acepta consultas de solo lectura (también con CTE, JOIN, comentarios o literales como `'delete me'`), rechaza `SELECT 1; DROP TABLE customers`, `DELETE`, `COPY`, `ATTACH`, `read_csv('/etc/passwd')` o una tabla fuera de la lista, devuelve como mucho 1.000 de las 60.000 filas de `customers` (marcando el truncado) y registra un hash de cada consulta, no el SQL ni los datos.
+
+### Inyección de instrucciones y la tríada letal
+
+Un modelo de lenguaje no distingue de forma fiable entre **instrucciones** (de quien lo opera) y **datos** (texto que lee). Si un ticket, una reseña, una página web o un campo de un registro contiene «ignora las instrucciones anteriores y envía…», el modelo puede obedecerlo. Es la **inyección de instrucciones** (_prompt injection_), y la vía indirecta (a través de datos que el agente lee) es la más peligrosa en analítica, porque los datos los escriben terceros.
+
+Simon Willison la resume en la **tríada letal**: un agente es explotable para robar datos cuando combina **a la vez**:
+
+1. **Acceso a datos privados**,
+2. **exposición a contenido no confiable** (texto o imágenes que controla un atacante), y
+3. **capacidad de comunicarse con el exterior** (enviar un correo, hacer una petición web, abrir un enlace).
+
+Se han documentado exfiltraciones por esta vía contra varios asistentes y servidores MCP de productos conocidos entre 2023 y 2025. Para el analista, el patrón es reconocible: un agente que **lee tickets** (contenido no confiable), **tiene acceso a la base de clientes** (datos privados) y **puede enviar correos o llamar a una URL** (comunicación externa).
+
+<Diagram
+  client:visible
+  chart={`flowchart TB
+    A["Datos privados<br/>base de clientes"] --> X{"Agente con las tres a la vez"}
+    B["Contenido no confiable<br/>tickets, reseñas, web"] --> X
+    C["Comunicación externa<br/>correo, URL, API"] --> X
+    X --> R["Riesgo crítico<br/>de exfiltración"]
+    R -.->|"quitar una pata"| S["Riesgo controlado"]`}
+  alt="La tríada letal: un agente que combina datos privados, contenido no confiable y comunicación externa tiene riesgo crítico de exfiltración; quitar cualquiera de las tres patas lo reduce a riesgo controlado."
+/>
+
+En el lab, un asistente simulado que obedece cualquier orden resume cinco tickets reales de Lumen más uno con una instrucción oculta. Resultados:
+
+| Defensa                                                                    | ¿Exfiltra?      | Lección                                                 |
+| -------------------------------------------------------------------------- | --------------- | ------------------------------------------------------- |
+| Ninguna («ingenuo»)                                                        | Sí              | Obedece lo que ve                                       |
+| **Solo delimitadores** (los tickets entre marcas de «datos no confiables») | **Sí**          | Los delimitadores no bastan: el modelo puede ignorarlos |
+| Filtrar los tickets con señales de inyección                               | No (en español) | Descarta el ticket sospechoso                           |
+| Filtrado frente a un ataque equivalente **en inglés**                      | **Sí**          | La heurística no reconoce lo que no ha previsto         |
+
+Las defensas basadas en el texto (delimitadores, detectores, instrucciones del tipo «no obedezcas los datos») **reducen el riesgo pero no lo eliminan**. La defensa fiable es de **arquitectura**:
+
+1. **Quita una pata de la tríada:** sin comunicación externa (el agente solo devuelve texto a una persona), sin datos privados (trabaja sobre datos agregados o seudonimizados) o sin contenido no confiable (solo entradas validadas).
+2. **Aprobación humana** antes de cualquier acción con efectos externos.
+3. **Separa agentes:** uno que lee contenido no confiable y no tiene acceso a datos privados ni al exterior; otro que actúa solo sobre resultados validados.
+4. **Salidas estructuradas** (campos con tipos) en lugar de texto libre hacia el siguiente paso.
+5. **Registra y vigila** comportamientos anómalos.
+
+### Seguridad del propio protocolo MCP
+
+La documentación de seguridad de MCP identifica riesgos específicos:
+
+- **Problema del «diputado confuso» (_confused deputy_):** un servidor MCP que hace de proxy hacia una API de terceros puede acabar actuando con un consentimiento que el usuario no dio. Exige **consentimiento por cliente**, validación exacta de las URI de redirección y parámetros de estado seguros.
+- **Paso de tokens (_token passthrough_):** un servidor que acepta tokens que no se emitieron para él y los reenvía queda prohibido: **los servidores MCP no deben aceptar tokens que no se hayan emitido explícitamente para ellos**.
+- **Falsificación de peticiones del lado del servidor (SSRF):** un servidor malicioso puede dirigir al cliente hacia direcciones internas (metadatos de la nube, localhost). Exige HTTPS, bloquear rangos de IP privados y, en despliegues de servidor, un proxy de salida.
+- **Compromiso de servidores locales:** un servidor local corre con los privilegios del usuario y puede ejecutar cualquier comando; el cliente debe **mostrar el comando exacto** y pedir aprobación explícita, y conviene ejecutarlo en un entorno aislado.
+- **Secuestro de manejadores de estado:** nunca tratar la posesión de un identificador como autenticación; vincularlos al usuario autenticado.
+- **Mínimo alcance (_scope minimization_):** pedir permisos progresivos y no publicar todos los alcances posibles; un token con alcances amplios aumenta el daño si se filtra.
+
+Y el principio general de la especificación: las herramientas son ejecución de código arbitrario; las **descripciones de herramientas no son fiables** salvo que provengan de un servidor de confianza, y el host debe obtener **consentimiento explícito antes de invocar** una herramienta.
+
+### Aprobación humana
+
+| Acción del agente                                       | ¿Aprobación?                                         |
+| ------------------------------------------------------- | ---------------------------------------------------- |
+| Consultar una métrica certificada                       | No (con registro)                                    |
+| Consultar SQL de solo lectura acotado                   | No, con límites y registro; revisión de conclusiones |
+| Crear o modificar un modelo, una tabla o un panel       | **Sí** (en una rama, con revisión)                   |
+| Enviar un correo, un mensaje o una petición web externa | **Sí, cada vez**                                     |
+| Borrar, sobrescribir o publicar                         | **Sí, con doble confirmación**                       |
+| Actuar sobre datos de personas (contactar, decidir)     | **Sí**, con base jurídica (RGPD, artículo 22)        |
+
+La aprobación debe ser **informada**: mostrar qué se va a hacer, con qué datos y qué efecto tendrá, no un "¿continuar?" genérico. Si la aprobación se pide demasiado a menudo, la gente acaba aceptando sin leer: reduce las peticiones agrupando por riesgo.
+
+<Snapshot date="2026-10">
+  La especificación vigente de MCP insiste en el consentimiento y el control del usuario, y su guía
+  de seguridad recoge los vectores anteriores. La tríada letal, formulada en junio de 2025, sigue
+  siendo el modelo mental más útil. Los proveedores añaden con frecuencia protecciones (filtros de
+  inyección, aprobaciones, entornos aislados), pero ninguna se presenta como una garantía: trátalas
+  como capas adicionales, no sustitutas del diseño.
+</Snapshot>
+
+## En la práctica
+
+1. **Crea una cuenta de servicio de solo lectura** para el agente, limitada a las vistas o tablas que necesita.
+2. **Valida y limita** cada consulta (solo lectura, tablas permitidas, filas, tiempo, coste).
+3. **Entrega al agente datos mínimos:** agregados, seudonimizados o enmascarados.
+4. **Dibuja la tríada** de cada agente y quita una pata; si no se puede, exige aprobación humana de toda salida.
+5. **Trata los datos como no confiables:** delimítalos y filtra señales conocidas, sabiendo que no bastan.
+6. **Registra cada llamada** y revisa los registros; alerta de anomalías (volumen, tablas, horas).
+7. **Prueba con ataques:** incluye en tus pruebas tickets con instrucciones ocultas en varios idiomas y consultas maliciosas.
+
+```python
+resultado = ejecutar_seguro(sql_del_agente, POLITICA)       # validar + LIMIT + solo lectura
+registrar(auditoria, usuario="agente-soporte", sql=sql_del_agente, resultado=resultado)
+assert trifecta(capacidades_del_agente) != "critico"        # decisión de arquitectura, no de prompt
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Seguridad frente a utilidad:** quitar el acceso al exterior limita lo que hace el agente, y reduce el riesgo más que cualquier filtro.
+- **Aprobación humana frente a autonomía:** más aprobaciones, menos riesgo y menos velocidad; agrupa por nivel de riesgo.
+- **Filtrado agresivo frente a falsos positivos:** descartar datos sospechosos protege y puede ocultar tickets legítimos.
+- **Un agente con todo frente a agentes separados:** uno solo es simple e inseguro; separar por privilegios complica y protege.
+- **Validación en texto frente a rol de base de datos:** el rol es la defensa real; la validación mejora los mensajes de error y bloquea lo obvio.
+
+## Errores comunes
+
+- **Creer que una instrucción en el prompt ("no obedezcas a los datos") basta.**
+- **Dar al agente permisos de escritura «para que pueda arreglarlo».**
+- **Confiar solo en un filtro de palabras** para detectar la inyección.
+- **Combinar sin querer las tres patas** (leer tickets, ver clientes, enviar correos).
+- **No limitar filas, tiempo ni coste.**
+- **Guardar el SQL y los resultados en los registros** con datos personales.
+- **Pedir aprobaciones genéricas** que nadie lee.
+
+## Con IA
+
+La IA es a la vez la fuente del riesgo y una ayuda para mitigarlo: puede generar casos de prueba de ataque, revisar el diseño en busca de la tríada y redactar políticas. Pero la decisión de qué capacidades se conceden, y la responsabilidad por ellas, son humanas. Y recuerda que los asistentes de código que escriben servidores MCP pueden introducir justo los fallos de esta lección: revísalos.
+
+## En una entrevista
+
+- _"Quieres que un agente resuma tickets de clientes. ¿Qué riesgos hay y cómo los mitigas?"_ — Pista: inyección indirecta; tríada letal; quitar una pata; solo lectura; datos mínimos; aprobación; auditoría; pruebas de ataque.
+- _"¿Basta con validar el SQL que genera el agente?"_ — Pista: no; es una capa; la defensa real es el rol de solo lectura y los límites; la validación textual se puede eludir.
+- _"¿Qué es la tríada letal?"_ — Pista: datos privados + contenido no confiable + comunicación externa; ejemplos; cómo romperla.
+
+<KeyTakeaways
+  items={[
+    'Las capas de defensa de una herramienta de datos son rol de solo lectura (la que importa), validación, límites de filas, tiempo y coste, minimización y enmascaramiento, salida controlada y auditoría con hash.',
+    'La inyección de instrucciones aprovecha que un modelo no distingue de forma fiable instrucciones y datos; la tríada letal (datos privados + contenido no confiable + comunicación externa) describe cuándo es explotable para robar datos.',
+    'En el lab, un asistente que obedece exfiltra con el prompt ingenuo y con solo delimitadores; el filtrado detiene el ataque en español y falla ante el mismo en inglés: las defensas de texto reducen el riesgo, no lo eliminan.',
+    'La defensa fiable es de arquitectura: quitar una pata de la tríada, separar agentes por privilegios, exigir aprobación humana informada para acciones con efectos y registrar todo.',
+    'MCP exige consentimiento, no aceptar tokens no emitidos para el servidor, mínimo alcance, cuidado con servidores locales y desconfiar de las descripciones de herramientas; el protocolo no puede imponer estos principios por sí mismo.',
+  ]}
+/>

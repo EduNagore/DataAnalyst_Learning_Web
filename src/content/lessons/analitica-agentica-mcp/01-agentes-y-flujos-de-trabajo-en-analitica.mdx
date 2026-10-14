@@ -1,0 +1,205 @@
+---
+title: 'Agentes y flujos de trabajo en analítica'
+description: 'Qué es un agente frente a un flujo de trabajo con LLM, los patrones básicos (encadenar, enrutar, paralelizar, orquestador-trabajadores, evaluador-optimizador), cuándo conviene cada uno en analítica de datos, cómo fallan los agentes y por qué la sencillez es una virtud.'
+module: analitica-agentica-mcp
+order: 1
+level: avanzado
+estimatedMinutes: 45
+objectives:
+  - 'Distinguir un flujo de trabajo con LLM de un agente y reconocer el bucle planificar-actuar-observar.'
+  - 'Elegir el patrón adecuado para una tarea analítica y justificar cuándo no hace falta un agente.'
+  - 'Identificar los modos de fallo de los agentes: errores acumulados, bucles, coste y acciones no deseadas.'
+  - 'Definir niveles de autonomía y puntos de aprobación humana para un agente de datos.'
+prerequisites:
+  [
+    'llm-copiloto/04-protocolo-de-verificacion-reproducibilidad-y-datos-que-no-se-pegan',
+    'text-to-sql/02-la-capa-semantica-como-solucion-y-cuando-no-basta',
+  ]
+tools: ['python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Anthropic — Building effective agents'
+    url: 'https://www.anthropic.com/engineering/building-effective-agents'
+    type: blog
+    authors: 'Schluntz, E., Zhang, B.'
+    year: 2024
+  - title: 'Gartner — Over 40% of agentic AI projects will be canceled by end of 2027'
+    url: 'https://www.gartner.com/en/newsroom/press-releases/2025-06-25-gartner-predicts-over-40-percent-of-agentic-ai-projects-will-be-canceled-by-end-of-2027'
+    type: blog
+    authors: 'Gartner'
+    year: 2025
+  - title: 'Claude Code — Overview'
+    url: 'https://code.claude.com/docs/en/overview'
+    type: docs
+    authors: 'Anthropic'
+    year: 2026
+relatedLabs: ['py-herramienta-sql-segura']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Dirección de Lumen ha visto una demo: un «agente de datos» al que se le dice «averigua por qué
+  cayeron las ventas de marzo» y que, solo, consulta tablas, formula hipótesis, comprueba y escribe
+  un informe. Quieren uno ya. Datos pregunta: ¿para qué tareas tiene sentido un agente?, ¿cuáles se
+  resuelven mejor con un flujo fijo?, ¿qué puede salir mal y cómo se limita?
+</BusinessContext>
+
+## Intuición
+
+La diferencia entre una receta y un cocinero. Una receta (flujo de trabajo) dice qué hacer en cada paso: siempre los mismos pasos, resultados previsibles. Un cocinero (agente) mira lo que hay en la nevera, decide qué cocinar, prueba, ajusta y vuelve a probar. El cocinero puede improvisar un plato brillante… o dejar la cocina hecha un desastre. Para el menú del día, la receta; para «qué hago con lo que queda», el cocinero, con alguien vigilando los fuegos.
+
+## Cómo funciona
+
+### Flujos de trabajo y agentes
+
+Anthropic, en su guía sobre agentes, hace una distinción útil:
+
+- **Flujos de trabajo (_workflows_):** sistemas donde los LLM y las herramientas se orquestan mediante **rutas de código predefinidas**.
+- **Agentes:** sistemas donde el LLM **dirige dinámicamente su propio proceso** y el uso de herramientas, manteniendo el control sobre cómo cumple la tarea.
+
+Un agente funciona en bucle: **planifica** el siguiente paso, **actúa** con una herramienta (ejecutar una consulta, leer un fichero), **observa** el resultado y decide si continúa, corrige o termina.
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+    T["Tarea<br/>«¿por qué cayeron las ventas?»"] --> P["Planificar<br/>siguiente paso"]
+    P --> A["Actuar<br/>herramienta: consulta SQL"]
+    A --> O["Observar<br/>resultado"]
+    O --> D{"¿Suficiente?"}
+    D -->|"no"| P
+    D -->|"sí"| R["Respuesta<br/>con evidencia"]
+    D -.->|"límites: pasos, coste, tiempo"| S["Parada"]`}
+  alt="Bucle de un agente: a partir de una tarea planifica el siguiente paso, actúa con una herramienta como una consulta SQL, observa el resultado y decide si es suficiente; si no, vuelve a planificar; si sí, responde con evidencia; límites de pasos, coste y tiempo detienen el bucle."
+/>
+
+### Cinco patrones de flujo de trabajo
+
+| Patrón                       | Cómo funciona                                                    | Ejemplo en analítica                                                      |
+| ---------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **Encadenar**                | Pasos secuenciales; la salida de uno es la entrada del siguiente | Extraer métricas → redactar resumen → traducir al inglés                  |
+| **Enrutar**                  | Clasificar la entrada y enviarla a un proceso especializado      | Pregunta de métrica oficial → capa semántica; exploratoria → SQL acotado  |
+| **Paralelizar**              | Varias llamadas a la vez (reparto de trabajo o votación)         | Analizar cada región por separado; varias consultas candidatas y comparar |
+| **Orquestador-trabajadores** | Un LLM central divide la tarea y delega en trabajadores          | Un informe con secciones independientes (ventas, devoluciones, envíos)    |
+| **Evaluador-optimizador**    | Un LLM genera, otro evalúa y se itera                            | Generar SQL y comprobarlo contra el resultado esperado hasta que coincida |
+
+El último es el esqueleto de los sistemas de texto a SQL con autocorrección del módulo anterior.
+
+### Cuándo usar un agente (y cuándo no)
+
+La recomendación de Anthropic es la **sencillez primero**: empezar con un prompt sencillo y añadir complejidad solo cuando haga falta; los agentes son para problemas **abiertos**, donde no se puede fijar de antemano el camino ni predecir los pasos.
+
+| Tarea analítica                                           | Mejor enfoque                           | Por qué                                                          |
+| --------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------- |
+| Informe semanal de ventas con formato fijo                | Flujo de trabajo (encadenar)            | Pasos conocidos; se quiere previsibilidad y bajo coste           |
+| Clasificar 10.000 tickets por tema                        | Flujo (paralelizar) con evaluación      | Tarea repetitiva y acotada                                       |
+| Responder preguntas de métricas oficiales                 | Enrutar + capa semántica                | Alcance definido; exactitud ante todo                            |
+| «¿Por qué cayó la métrica X?» con datos de varias fuentes | Agente, con límites y supervisión       | Camino desconocido; exploración guiada por lo que va apareciendo |
+| Refactorizar un proyecto de transformación                | Agente de código con pruebas y revisión | Muchos pasos; las pruebas dan retroalimentación objetiva         |
+| Decidir un precio o una campaña                           | Persona, con apoyo analítico            | Responsabilidad y criterio                                       |
+
+### Cómo fallan los agentes
+
+1. **Errores acumulados:** cada paso tiene una probabilidad de equivocarse y los errores se encadenan; una cadena de diez pasos al 95 % de acierto por paso acierta de punta a punta casi el 60 % de las veces ($0{,}95^{10}$).
+2. **Bucles y deriva:** el agente reintenta lo mismo, se pierde o se desvía del objetivo.
+3. **Coste imprevisto:** cada vuelta del bucle consume tokens y consultas (lección 1 del módulo de copiloto); sin límites, el coste se dispara.
+4. **Acciones con efectos:** borrar, escribir, enviar correos o modificar modelos si la herramienta lo permite.
+5. **Conclusiones sin base:** un informe fluido apoyado en datos mal leídos, incompletos o inventados (lección 4).
+6. **Instrucciones ocultas en los datos** (inyección; lección 3).
+7. **Falta de trazabilidad:** si no se registra cada paso, no hay forma de auditar ni de depurar.
+
+<Callout type="warning">
+  Gartner pronosticó en junio de 2025 que **más del 40 % de los proyectos de IA agéntica se
+  cancelarán antes de finales de 2027** por costes crecientes, valor poco claro o controles de
+  riesgo insuficientes, y señaló el «agent washing» (rebautizar chatbots y RPA como «agentes»). No
+  es una predicción sobre la tecnología, sino sobre los proyectos sin un problema bien elegido, sin
+  evaluación y sin controles. Empieza pequeño, mide y expande.
+</Callout>
+
+### Autonomía y aprobación humana
+
+Un agente de datos no tiene por qué ser todo o nada. Niveles útiles:
+
+| Nivel | Qué puede hacer el agente                                   | Control humano                                 |
+| ----- | ----------------------------------------------------------- | ---------------------------------------------- |
+| 0     | Sugiere (el humano ejecuta)                                 | Total                                          |
+| 1     | Ejecuta consultas de **solo lectura** y presenta resultados | Revisa conclusiones                            |
+| 2     | Prepara cambios (código, modelos) en una rama               | Revisa y aprueba el cambio                     |
+| 3     | Ejecuta acciones reversibles de bajo riesgo con registro    | Auditoría posterior                            |
+| 4     | Acciones con efectos externos (enviar, publicar, borrar)    | **Aprobación explícita previa** de cada acción |
+
+La regla práctica: **sube de nivel solo cuando el nivel anterior haya demostrado, con evaluación, que es fiable**, y mantén la aprobación humana para lo que no se puede deshacer.
+
+<Snapshot date="2026-10">
+  Los agentes de código (como Claude Code, descrito como una herramienta que lee el código base,
+  edita ficheros, ejecuta comandos y se integra con herramientas externas) son hoy el caso de uso
+  agéntico más maduro, porque tienen una retroalimentación objetiva (pruebas, compilación, linters).
+  Los agentes de análisis de datos están menos asentados: la retroalimentación sobre si una
+  conclusión es correcta es más débil, y de ahí la importancia de las capas semánticas y de la
+  verificación (lecciones siguientes). El panorama de productos y la terminología cambian cada
+  trimestre: usa la distinción conceptual (flujo frente a agente) como ancla.
+</Snapshot>
+
+## En la práctica
+
+1. **Describe la tarea y su camino:** si puedes escribir los pasos, usa un flujo de trabajo.
+2. **Empieza con un prompt y herramientas mínimas;** añade complejidad solo si la evaluación lo justifica.
+3. **Pon límites desde el principio:** número máximo de pasos, tiempo, coste y filas.
+4. **Registra cada paso** (herramienta, argumentos, resultado, tokens) para depurar y auditar.
+5. **Define el nivel de autonomía** y qué acciones requieren aprobación.
+6. **Evalúa con tareas reales y respuestas conocidas** antes de ampliar el alcance (lección 4).
+7. **Diseña la parada:** qué hace el agente cuando no sabe, no puede o se queda sin presupuesto (informar, no inventar).
+
+```python
+for paso in range(MAX_PASOS):
+    accion = agente.planificar(estado)
+    if accion.tipo == "terminar":
+        break
+    resultado = herramienta_segura(accion)          # solo lectura, con límites y registro
+    estado = estado.con(resultado)
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Flujo fijo frente a agente:** previsibilidad, coste y facilidad de prueba frente a flexibilidad para lo imprevisto.
+- **Más autonomía frente a más control:** rapidez frente a riesgo; se ajusta al coste de equivocarse.
+- **Un agente grande frente a varios pequeños:** uno grande es simple y difícil de depurar; varios especializados se prueban mejor y añaden coordinación.
+- **Modelo potente frente a modelo pequeño:** el potente planifica mejor y cuesta más; para pasos sencillos del flujo, uno pequeño basta.
+- **Agente frente a automatización clásica:** si una regla determinista resuelve el 95 % del caso, no necesitas un LLM para eso.
+
+## Errores comunes
+
+- **Usar un agente para una tarea de pasos conocidos.**
+- **Dar al agente escritura y comunicación externa «por si acaso».**
+- **No poner límites** de pasos, tiempo o coste.
+- **Evaluar con una demo** y no con tareas reales y repeticiones.
+- **No registrar los pasos** del agente.
+- **Aceptar un informe fluido** sin comprobar los datos que lo sustentan.
+- **Confundir un chatbot con un agente** (y pagar por ello).
+
+## Con IA
+
+Es posible usar un agente para construir otro: pedir a un asistente de código que escriba el flujo de trabajo o la herramienta. Hazlo con la misma disciplina: prototipo mínimo, pruebas, límites y revisión de lo que ha escrito. Y recuerda que el diseño de las herramientas (qué puede hacer cada una, con qué permisos) es lo que acota el riesgo del agente, más que el prompt.
+
+## En una entrevista
+
+- _"¿Cuál es la diferencia entre un workflow y un agente?"_ — Pista: ruta predefinida en código frente a LLM que dirige su proceso; ejemplos; cuándo cada uno.
+- _"Te piden un agente que investigue caídas de métricas. ¿Cómo lo diseñas?"_ — Pista: herramientas de solo lectura, capa semántica, límites, registro, evaluación con casos conocidos, aprobación humana de conclusiones.
+- _"¿Qué puede salir mal con un agente de datos?"_ — Pista: errores acumulados, bucles, coste, acciones con efectos, conclusiones sin base, inyección.
+
+<KeyTakeaways
+  items={[
+    'Un flujo de trabajo sigue rutas de código predefinidas; un agente dirige dinámicamente su proceso en un bucle de planificar, actuar y observar. Los cinco patrones de flujo (encadenar, enrutar, paralelizar, orquestador-trabajadores, evaluador-optimizador) cubren la mayoría de los casos analíticos.',
+    'La sencillez va primero: los agentes se reservan para problemas abiertos, con límites de pasos, coste y tiempo, registro de cada paso y aprobación humana de lo irreversible.',
+    'Los agentes fallan por errores acumulados (diez pasos al 95 % acaban en ≈ 60 %), bucles, coste imprevisto, acciones con efectos, conclusiones sin base e instrucciones ocultas en los datos.',
+    'Gartner pronosticó en 2025 que más del 40 % de los proyectos agénticos se cancelarán antes de 2027 por costes, valor poco claro o controles insuficientes: elige bien el problema y evalúa.',
+    'Define niveles de autonomía y sube de nivel solo cuando el anterior haya demostrado fiabilidad con evaluación.',
+  ]}
+/>

@@ -1,0 +1,195 @@
+---
+title: 'Model Context Protocol (MCP) y servidores MCP de datos'
+description: 'Qué es el Model Context Protocol, su arquitectura (hosts, clientes y servidores; herramientas, recursos y prompts), su versión de especificación y gobierno actuales, y los servidores MCP de datos de dbt, Snowflake, BigQuery y MotherDuck, con las diferencias entre exponer métricas, SQL y operaciones.'
+module: analitica-agentica-mcp
+order: 2
+level: avanzado
+estimatedMinutes: 45
+objectives:
+  - 'Describir la arquitectura de MCP: hosts, clientes y servidores, y qué ofrece un servidor (herramientas, recursos y prompts).'
+  - 'Explicar por qué un protocolo común reduce la integración «uno a uno» entre aplicaciones de IA y fuentes de datos.'
+  - 'Situar los servidores MCP de datos más habituales y qué capacidad exponen cada uno.'
+  - 'Distinguir un servidor que expone métricas gobernadas de uno que expone SQL libre o capacidad de escritura.'
+prerequisites:
+  [
+    'analitica-agentica-mcp/01-agentes-y-flujos-de-trabajo-en-analitica',
+    'capa-semantica/04-capa-semantica-ia-y-gobierno-de-metricas',
+  ]
+tools: ['python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Model Context Protocol — Specification'
+    url: 'https://modelcontextprotocol.io/specification/latest'
+    type: spec
+    authors: 'Model Context Protocol'
+    year: 2026
+  - title: 'dbt MCP server (repositorio)'
+    url: 'https://github.com/dbt-labs/dbt-mcp'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'Snowflake — Snowflake-managed MCP server'
+    url: 'https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-mcp'
+    type: docs
+    authors: 'Snowflake'
+    year: 2026
+  - title: 'Google Cloud — Use the BigQuery remote MCP server'
+    url: 'https://docs.cloud.google.com/bigquery/docs/use-bigquery-mcp'
+    type: docs
+    authors: 'Google Cloud'
+    year: 2026
+  - title: 'MotherDuck — MCP server'
+    url: 'https://motherduck.com/docs/sql-reference/mcp'
+    type: docs
+    authors: 'MotherDuck'
+    year: 2026
+relatedLabs: ['py-herramienta-sql-segura']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Lumen quiere que su asistente de IA consulte el almacén, las métricas de dbt y la documentación
+  interna. Hoy, cada conexión es un desarrollo a medida: un conector para el asistente A, otro para
+  el B. Cuando cambia el proveedor del asistente, se rehace todo. Alguien propone usar MCP, «el
+  USB-C de las aplicaciones de IA». ¿Qué es en realidad, qué servidores hay para datos y qué
+  garantiza (y qué no) sobre la seguridad?
+</BusinessContext>
+
+## Intuición
+
+Antes de los enchufes estándar, cada aparato traía su propio cargador. Un protocolo común hace que cualquier aplicación de IA pueda conectarse a cualquier fuente de datos o herramienta que «hable» ese protocolo, sin integrarlos uno a uno. Pero un enchufe estándar no dice nada de qué corriente pasa por él: MCP resuelve la conexión, no los permisos ni la seguridad de lo que se conecta.
+
+## Cómo funciona
+
+### La arquitectura
+
+El Model Context Protocol es un protocolo abierto que estandariza cómo las aplicaciones de IA obtienen contexto y herramientas de sistemas externos. Usa mensajes JSON-RPC 2.0 entre tres roles:
+
+- **Hosts:** la aplicación de IA que inicia las conexiones (un asistente de chat, un IDE, un agente).
+- **Clientes:** conectores dentro del host; cada uno mantiene la conexión con un servidor.
+- **Servidores:** servicios que proporcionan contexto y capacidades.
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+    H["Host<br/>asistente de IA / IDE / agente"] --> C1["Cliente MCP 1"]
+    H --> C2["Cliente MCP 2"]
+    C1 --> S1["Servidor MCP<br/>métricas (dbt)"]
+    C2 --> S2["Servidor MCP<br/>SQL de solo lectura (almacén)"]
+    S1 --> D1[("Capa semántica")]
+    S2 --> D2[("Almacén")]`}
+  alt="Arquitectura de MCP: un host (asistente, IDE o agente) contiene varios clientes MCP; cada cliente se conecta a un servidor MCP, por ejemplo uno de métricas de dbt que accede a la capa semántica y otro de SQL de solo lectura que accede al almacén."
+/>
+
+Un servidor puede ofrecer tres tipos de capacidad:
+
+| Capacidad                  | Qué es                                                     | Ejemplo en analítica                                                        |
+| -------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **Herramientas** (_tools_) | Funciones que el modelo puede ejecutar                     | `consultar_metrica(nombre, dimensiones, filtros)`, `ejecutar_sql(consulta)` |
+| **Recursos** (_resources_) | Contexto y datos que el usuario o el modelo pueden leer    | Un diccionario de datos, el esquema de una tabla, un informe                |
+| **Prompts**                | Mensajes o flujos de trabajo con plantilla para el usuario | «Investigar una caída de métrica» con los pasos recomendados                |
+
+Un cliente también puede ofrecer capacidades al servidor, como la **elicitación** (el servidor pide información adicional al usuario). Y existen **extensiones** opcionales, entre las que la especificación menciona las **tareas** (ejecución asíncrona de operaciones largas), las **aplicaciones MCP** (interfaz interactiva dentro de la conversación) y las **habilidades sobre MCP**.
+
+### Estado de la especificación y gobierno
+
+La documentación de la especificación vigente (versión de esquema **2026-07-28**) indica que el protocolo es **sin estado** (_stateless_: solicitudes autocontenidas con negociación de capacidades en cada petición). Sobre seguridad dice lo importante: que MCP habilita capacidades potentes mediante acceso arbitrario a datos y rutas de ejecución de código, y que por eso exige **consentimiento y control del usuario**, protección de la privacidad de los datos y **tratar las herramientas como código arbitrario**: las descripciones del comportamiento de una herramienta deben considerarse no fiables salvo que provengan de un servidor de confianza, y el host debe obtener consentimiento explícito antes de invocar una herramienta. Pero advierte también de que **el protocolo no puede imponer estos principios por sí mismo**: lo hacen quienes implementan hosts y servidores.
+
+Sobre el gobierno: el 9 de diciembre de 2025, Anthropic donó MCP a la Linux Foundation como proyecto fundacional de la nueva Agentic AI Foundation, cofundada por Anthropic, Block y OpenAI, con apoyo de Google, Microsoft, Amazon Web Services, Cloudflare y Bloomberg. Es un indicio de que se está convirtiendo en un estándar abierto del sector, no de un solo proveedor.
+
+### Servidores MCP de datos
+
+| Servidor                   | Qué expone                                                                                                                                                                                                                                         | Notas relevantes                                                                                                                                                                      |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **dbt MCP**                | Herramientas de la **capa semántica** (consultar métricas con filtros, valores de dimensiones), **SQL** (ejecutar consultas en la plataforma dbt), **descubrimiento** (modelos, fuentes, linaje) y **CLI** (construir modelos, pruebas, snapshots) | Licencia Apache 2.0. La propia documentación advierte de que permitir los comandos de dbt «podría modificar tus modelos, fuentes y objetos del almacén»: tiene capacidad de escritura |
+| **Snowflake (gestionado)** | Un servidor creado con `CREATE MCP SERVER` que expone como herramientas Cortex Analyst, Cortex Search y Cortex Agents, además de herramientas personalizadas y ejecución de SQL                                                                    | No requiere desplegar infraestructura propia; disponible con carácter general desde noviembre de 2025                                                                                 |
+| **BigQuery (remoto)**      | Ejecutar consultas, obtener metadatos y listar recursos desde aplicaciones como Gemini CLI, Gemini Code Assist o Claude Code                                                                                                                       | Endpoint `https://bigquery.googleapis.com/mcp`, transporte HTTP, credenciales de Google Cloud u OAuth                                                                                 |
+| **MotherDuck / DuckDB**    | Consultas SQL de **solo lectura**, exploración de esquemas, adjuntar y separar bases compartidas, preguntas sobre la documentación                                                                                                                 | Soporta ficheros DuckDB locales, en memoria, en S3 y MotherDuck                                                                                                                       |
+
+La diferencia más importante no es el producto, sino **lo que permite hacer**:
+
+| Tipo de servidor                              | Riesgo                                       | Cuándo                                                     |
+| --------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------- |
+| **Métricas gobernadas** (consultar métrica)   | Bajo: salida acotada y determinista          | Preguntas de negocio sobre métricas oficiales              |
+| **SQL de solo lectura con límites**           | Medio: lectura amplia, posible fuga de datos | Exploración por analistas con permisos                     |
+| **SQL con escritura / CLI de transformación** | Alto: modifica datos y modelos               | Agentes de desarrollo en entornos de pruebas, con revisión |
+
+<Callout type="warning">
+  Un servidor MCP **hereda los permisos** de las credenciales con las que se conecta. Si lo conectas
+  con una cuenta de administrador, el agente es administrador. El protocolo estandariza la conexión,
+  no la autorización: la seguridad depende de las credenciales mínimas, la validación en el servidor
+  y la aprobación humana (lección siguiente).
+</Callout>
+
+<Snapshot date="2026-10">
+  La especificación de MCP referencia el esquema de la versión **2026-07-28** (stateless, con
+  extensiones opcionales para tareas, aplicaciones y habilidades). El servidor MCP gestionado de
+  Snowflake pasó de vista previa (octubre de 2025) a disponibilidad general (noviembre de 2025).
+  MotherDuck describe un servidor remoto de solo lectura, y Google Cloud, un servidor remoto de
+  BigQuery. El ecosistema crece con rapidez y las versiones de la especificación cambian: consulta
+  siempre la versión vigente y la documentación de cada servidor.
+</Snapshot>
+
+## En la práctica
+
+1. **Empieza por un servidor de métricas gobernadas** si tienes capa semántica: salida acotada y fiable.
+2. **Para SQL libre, usa solo lectura:** rol de base de datos de solo lectura, tablas permitidas, límites de filas y coste (lab anterior).
+3. **No conectes servidores con capacidad de escritura** a un agente que no esté en un entorno de pruebas, con revisión.
+4. **Instala solo servidores de confianza** y revisa lo que hacen sus herramientas; trátalas como código arbitrario.
+5. **Aplica el mínimo de alcance** (_scopes_) a las credenciales y rótalas.
+6. **Registra cada llamada** a una herramienta: quién, qué, con qué argumentos, resultado y coste.
+7. **Documenta** qué servidores MCP tiene aprobados la organización y para qué.
+
+```python
+# Idea de una herramienta MCP de métricas (pseudocódigo)
+@herramienta
+def consultar_metrica(metrica: str, dimensiones: list[str], filtros: dict) -> list[dict]:
+    assert metrica in METRICAS_CERTIFICADAS
+    return capa_semantica.consultar(metrica, dimensiones, filtros)   # SQL generado, determinista
+```
+
+## Trade-offs y cuándo usarlo
+
+- **MCP frente a una integración a medida:** MCP reduce el trabajo y el acoplamiento; una integración propia da control total y más mantenimiento.
+- **Servidor local frente a remoto:** el local es simple y corre con los privilegios del usuario (riesgos de ejecución de código); el remoto centraliza el control y exige autorización.
+- **Servidor genérico frente a específico:** el genérico (SQL) es flexible y arriesgado; el específico (métricas) es seguro y limitado.
+- **Muchas herramientas frente a pocas:** más herramientas dan más capacidad y consumen contexto y confunden al modelo; selecciona.
+- **Adoptar pronto frente a esperar:** el estándar se mueve rápido; empieza con casos de bajo riesgo.
+
+## Errores comunes
+
+- **Conectar un servidor con credenciales de administrador.**
+- **Instalar servidores de terceros sin revisar** qué ejecutan.
+- **Exponer SQL libre** cuando una herramienta de métricas bastaba.
+- **Dar a un agente la CLI de transformación en producción.**
+- **Confiar en las descripciones de las herramientas** como si fueran fiables.
+- **No registrar las llamadas** ni limitar el coste.
+- **Creer que «es un estándar» equivale a «es seguro».**
+
+## Con IA
+
+Los asistentes de código pueden generar un servidor MCP en minutos. Revisa especialmente: qué credenciales usa, si valida los argumentos, si limita filas y coste, si registra y si expone más de lo necesario. Un servidor generado «para probar» que acaba conectado a producción es una fuente típica de incidentes.
+
+## En una entrevista
+
+- _"¿Qué es MCP y qué problema resuelve?"_ — Pista: protocolo abierto para conectar aplicaciones de IA con herramientas y datos; evita integraciones uno a uno; hosts, clientes, servidores; herramientas, recursos, prompts.
+- _"¿Qué diferencia hay entre un servidor MCP de métricas y uno de SQL libre?"_ — Pista: salida acotada y determinista frente a flexibilidad y riesgo; permisos; validación.
+- _"¿Garantiza MCP la seguridad?"_ — Pista: no; estandariza la conexión; la seguridad depende de credenciales mínimas, validación, consentimiento y auditoría.
+
+<KeyTakeaways
+  items={[
+    'MCP es un protocolo abierto (JSON-RPC) con tres roles —hosts, clientes y servidores— en el que un servidor ofrece herramientas, recursos y prompts; la especificación vigente referencia la versión de esquema 2026-07-28 y es sin estado.',
+    'Anthropic donó MCP a la Linux Foundation el 9 de diciembre de 2025 como proyecto fundacional de la Agentic AI Foundation, con Block y OpenAI como cofundadores.',
+    'Hay servidores de datos de dbt (métricas, SQL, descubrimiento y CLI con capacidad de escritura), Snowflake (gestionado, con Cortex Analyst y Search), BigQuery (remoto) y MotherDuck (SQL de solo lectura).',
+    'El riesgo depende de lo que permite el servidor: métricas gobernadas (bajo), SQL de solo lectura con límites (medio) y SQL o CLI con escritura (alto).',
+    'MCP estandariza la conexión, no los permisos: el servidor hereda las credenciales con las que se conecta, y las descripciones de herramientas no se deben tomar como fiables.',
+  ]}
+/>

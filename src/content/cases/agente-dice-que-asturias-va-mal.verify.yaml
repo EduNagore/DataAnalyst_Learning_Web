@@ -1,0 +1,36 @@
+# Consultas que RECALCULAN las respuestas numéricas del caso a partir de los datos
+# (las ejecuta tests/labs/test_cases.py; no se publican en la web).
+s1-febrero: |
+  SELECT ROUND(SUM(oi.quantity * oi.unit_price), 0)
+  FROM orders o JOIN order_items oi USING (order_id) JOIN customers c USING (customer_id)
+  WHERE o.status <> 'cancelado' AND c.region = 'Asturias' AND strftime(o.order_date, '%Y-%m') = '2026-02'
+s2-marzo: |
+  SELECT ROUND(SUM(oi.quantity * oi.unit_price), 0)
+  FROM orders o JOIN order_items oi USING (order_id) JOIN customers c USING (customer_id)
+  WHERE o.status <> 'cancelado' AND c.region = 'Asturias' AND strftime(o.order_date, '%Y-%m') = '2026-03'
+s3-variacion-asturias: |
+  SELECT ROUND(100.0 * (SUM(oi.quantity * oi.unit_price) FILTER (WHERE strftime(o.order_date, '%Y-%m') = '2026-03')
+         / SUM(oi.quantity * oi.unit_price) FILTER (WHERE strftime(o.order_date, '%Y-%m') = '2026-02') - 1), 1)
+  FROM orders o JOIN order_items oi USING (order_id) JOIN customers c USING (customer_id)
+  WHERE o.status <> 'cancelado' AND c.region = 'Asturias'
+s4-variacion-total: |
+  SELECT ROUND(100.0 * (SUM(oi.quantity * oi.unit_price) FILTER (WHERE strftime(o.order_date, '%Y-%m') = '2026-03')
+         / SUM(oi.quantity * oi.unit_price) FILTER (WHERE strftime(o.order_date, '%Y-%m') = '2026-02') - 1), 1)
+  FROM orders o JOIN order_items oi USING (order_id) JOIN customers c USING (customer_id)
+  WHERE o.status <> 'cancelado'
+s5-sin-electronica: |
+  SELECT ROUND(100.0 * (SUM(oi.quantity * oi.unit_price) FILTER (WHERE strftime(o.order_date, '%Y-%m') = '2026-03')
+         / SUM(oi.quantity * oi.unit_price) FILTER (WHERE strftime(o.order_date, '%Y-%m') = '2026-02') - 1), 1)
+  FROM orders o JOIN order_items oi USING (order_id) JOIN customers c USING (customer_id)
+       JOIN products p USING (product_id)
+  WHERE o.status <> 'cancelado' AND c.region = 'Asturias' AND left(p.category_id, 6) <> 'cat-00'
+s6-febrero-frente-a-enero: |
+  SELECT ROUND(100.0 * (SUM(oi.quantity * oi.unit_price) FILTER (WHERE strftime(o.order_date, '%Y-%m') = '2026-02')
+         / SUM(oi.quantity * oi.unit_price) FILTER (WHERE strftime(o.order_date, '%Y-%m') = '2026-01') - 1), 1)
+  FROM orders o JOIN order_items oi USING (order_id) JOIN customers c USING (customer_id)
+  WHERE o.status <> 'cancelado' AND c.region = 'Asturias'
+s7-junio-frente-a-marzo: |
+  SELECT ROUND(100.0 * (SUM(oi.quantity * oi.unit_price) FILTER (WHERE strftime(o.order_date, '%Y-%m') = '2026-06')
+         / SUM(oi.quantity * oi.unit_price) FILTER (WHERE strftime(o.order_date, '%Y-%m') = '2026-03') - 1), 1)
+  FROM orders o JOIN order_items oi USING (order_id) JOIN customers c USING (customer_id)
+  WHERE o.status <> 'cancelado' AND c.region = 'Asturias'

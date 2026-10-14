@@ -1,0 +1,66 @@
+lesson: analitica-agentica-mcp/03-diseno-seguro-roles-de-solo-lectura-limites-e-inyeccion-de-instrucciones
+questions:
+  - id: am-03-q1
+    type: single
+    difficulty: 2
+    prompt: 'De las capas de defensa de una herramienta de datos, ¿cuál es la que realmente impide el daño aunque falle todo lo demás?'
+    options:
+      - 'La instrucción en el prompt «no borres nada»'
+      - 'Un rol de base de datos de solo lectura con permisos mínimos'
+      - 'La validación del texto del SQL'
+      - 'El registro de auditoría'
+    answer: [1]
+    explanation: 'La validación por texto es útil pero eludible; el rol de solo lectura limita el daño posible aunque la validación falle.'
+    ref: '#capas-de-defensa-para-una-herramienta-de-datos'
+
+  - id: am-03-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las consultas que la herramienta segura del lab debe rechazar.'
+    options:
+      - 'SELECT 1; DROP TABLE customers'
+      - "SELECT * FROM read_csv('/etc/passwd')"
+      - 'SELECT * FROM secretos (tabla fuera de la lista)'
+      - "SELECT 'delete me' AS t"
+    answer: [0, 1, 2]
+    explanation: 'La última es un SELECT inofensivo: «delete me» es un literal de texto, no una sentencia.'
+    ref: '#capas-de-defensa-para-una-herramienta-de-datos'
+
+  - id: am-03-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las capacidades que forman la tríada letal de un agente.'
+    options:
+      - 'Acceso a datos privados'
+      - 'Exposición a contenido no confiable'
+      - 'Capacidad de comunicarse con el exterior'
+      - 'Un modelo de lenguaje de gran tamaño'
+    answer: [0, 1, 2]
+    explanation: 'Con las tres a la vez, un atacante puede inducir al agente a acceder a datos privados y enviarlos fuera. Quitar una pata reduce el riesgo.'
+    ref: '#inyección-de-instrucciones-y-la-tríada-letal'
+
+  - id: am-03-q4
+    type: single
+    difficulty: 3
+    prompt: 'En el lab, el modo «delimitado» (los tickets entre marcas de datos no confiables) acaba exfiltrando igual. ¿Qué conclusión es correcta?'
+    options:
+      - 'Los delimitadores son una defensa suficiente'
+      - 'Las defensas basadas en texto reducen el riesgo pero no lo eliminan; la defensa fiable es de arquitectura (quitar una pata de la tríada y aprobar las acciones)'
+      - 'Hay que usar más delimitadores'
+      - 'El modelo simulado está mal'
+    answer: [1]
+    explanation: 'El filtrado detuvo el ataque en español pero no el mismo ataque en inglés: la heurística solo reconoce lo que ha previsto.'
+    ref: '#inyección-de-instrucciones-y-la-tríada-letal'
+
+  - id: am-03-q5
+    type: single
+    difficulty: 3
+    prompt: 'Según la guía de seguridad de MCP, ¿qué no debe hacer un servidor MCP con los tokens de acceso?'
+    options:
+      - 'Validarlos'
+      - 'Aceptar tokens que no se hayan emitido explícitamente para él y reenviarlos (token passthrough)'
+      - 'Caducarlos'
+      - 'Registrarlos con un identificador'
+    answer: [1]
+    explanation: 'El paso de tokens rompe controles de seguridad, la trazabilidad y los límites de confianza, y está explícitamente prohibido por la especificación de autorización.'
+    ref: '#seguridad-del-propio-protocolo-mcp'

@@ -1,0 +1,62 @@
+lesson: analitica-agentica-mcp/04-evaluar-las-conclusiones-de-un-agente-y-por-que-fallan-sin-capa-semantica
+questions:
+  - id: am-04-q1
+    type: single
+    difficulty: 2
+    prompt: 'Un agente dice que una región cayó un 27,8 % y la cifra se recalcula bien. ¿Qué debe comprobarse a continuación?'
+    options:
+      - 'Nada: si la cifra es correcta, la conclusión también'
+      - 'La línea base, el contexto (total y otras regiones), la mezcla, la persistencia y si la recomendación se sigue de los datos'
+      - 'Solo el formato del informe'
+      - 'El nombre del modelo'
+    answer: [1]
+    explanation: 'Un informe de agente suele estar bien calculado y ser engañoso por la pregunta que no se hizo.'
+    ref: '#qué-comprobar-en-el-informe-de-un-agente'
+
+  - id: am-04-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'Los ingresos de Asturias suben de 100.864 € en enero de 2026 a 133.270 € en febrero. ¿En qué porcentaje? (Un decimal.)'
+    answer: [32.1]
+    tolerance: 0.2
+    explanation: '133.270 / 100.864 − 1 ≈ +32,1 %. Febrero fue un pico, y comparar marzo con él exagera la caída.'
+    ref: '#el-caso-del-informe-sobre-asturias'
+
+  - id: am-04-q3
+    type: single
+    difficulty: 3
+    prompt: 'En el caso de Asturias, ¿qué explica mejor la caída del 27,8 % frente al −11,5 % del total?'
+    options:
+      - 'Un fallo del equipo comercial regional'
+      - 'Que Electrónica pesa algo más en Asturias (51,4 % frente a 47,2 %) y esa categoría tuvo una rotura de stock transitoria: sin ella, Asturias crece un 17,2 %'
+      - 'Datos incompletos en Asturias'
+      - 'Un error de cálculo del agente'
+    answer: [1]
+    explanation: 'Es un efecto de mezcla sobre un problema operativo; la región se recupera en abril-junio (junio, +51 % sobre marzo).'
+    ref: '#el-caso-del-informe-sobre-asturias'
+
+  - id: am-04-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las métricas para evaluar un agente de análisis de datos.'
+    options:
+      - 'Éxito de la tarea en un conjunto con solución conocida'
+      - 'Fundamentación: cada cifra respaldada por una salida de herramienta'
+      - 'Seguridad: violaciones de la política e instrucciones inyectadas ejecutadas'
+      - 'La longitud del informe'
+    answer: [0, 1, 2]
+    explanation: 'También eficiencia, coste, consistencia y abstención. Se evalúan las trayectorias, no solo el resultado final.'
+    ref: '#evaluar-al-agente-no-solo-sus-informes'
+
+  - id: am-04-q5
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODAS las causas habituales de fracaso de los proyectos agénticos de analítica.'
+    options:
+      - 'Falta de definiciones únicas y de capa semántica'
+      - 'Falta de evaluación y de controles de seguridad'
+      - 'Un problema mal elegido que no necesitaba un agente'
+      - 'Tener un propietario claro del proyecto'
+    answer: [0, 1, 2]
+    explanation: 'Gartner pronostica que más del 40 % de los proyectos agénticos se cancelarán antes de 2027 por costes, valor poco claro o controles insuficientes. Un propietario claro ayuda, no fracasa.'
+    ref: '#por-qué-fallan-los-proyectos-agénticos-sin-capa-semántica'

@@ -1,0 +1,66 @@
+lesson: analitica-agentica-mcp/02-model-context-protocol-y-servidores-de-datos
+questions:
+  - id: am-02-q1
+    type: single
+    difficulty: 1
+    prompt: 'En la arquitectura de MCP, ¿qué es un host?'
+    options:
+      - 'El servidor que ofrece las herramientas'
+      - 'La aplicación de IA (asistente, IDE, agente) que inicia las conexiones y contiene los clientes'
+      - 'La base de datos'
+      - 'El protocolo de red'
+    answer: [1]
+    explanation: 'Los clientes son conectores dentro del host y cada uno se conecta a un servidor. Los servidores ofrecen herramientas, recursos y prompts.'
+    ref: '#la-arquitectura'
+
+  - id: am-02-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODO lo que puede ofrecer un servidor MCP.'
+    options:
+      - 'Herramientas: funciones que el modelo puede ejecutar'
+      - 'Recursos: contexto y datos que se pueden leer'
+      - 'Prompts: mensajes o flujos con plantilla'
+      - 'Permisos automáticos que sustituyen a la autorización del usuario'
+    answer: [0, 1, 2]
+    explanation: 'MCP estandariza la conexión, no la autorización: los permisos los define quien configura el servidor y las credenciales.'
+    ref: '#la-arquitectura'
+
+  - id: am-02-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Qué ocurrió con el gobierno de MCP el 9 de diciembre de 2025?'
+    options:
+      - 'Se declaró obsoleto'
+      - 'Anthropic lo donó a la Linux Foundation como proyecto fundacional de la Agentic AI Foundation'
+      - 'Se integró en un único proveedor'
+      - 'Se convirtió en un estándar ISO'
+    answer: [1]
+    explanation: 'La fundación fue cofundada por Anthropic, Block y OpenAI, con apoyo de Google, Microsoft, AWS, Cloudflare y Bloomberg.'
+    ref: '#estado-de-la-especificación-y-gobierno'
+
+  - id: am-02-q4
+    type: single
+    difficulty: 3
+    prompt: 'La documentación del servidor MCP de dbt advierte de que permitir sus comandos CLI «podría modificar tus modelos, fuentes y objetos del almacén». ¿Qué implica?'
+    options:
+      - 'Que es de solo lectura'
+      - 'Que tiene capacidad de escritura: debe conectarse solo a agentes de confianza en entornos de pruebas y con revisión'
+      - 'Que no debe usarse nunca'
+      - 'Que solo funciona en local'
+    answer: [1]
+    explanation: 'El riesgo depende de lo que permite el servidor: métricas gobernadas (bajo), SQL de solo lectura (medio), escritura o CLI de transformación (alto).'
+    ref: '#servidores-mcp-de-datos'
+
+  - id: am-02-q5
+    type: single
+    difficulty: 2
+    prompt: 'Conectas un servidor MCP de SQL al almacén con la cuenta de un administrador. ¿Qué ocurre?'
+    options:
+      - 'Nada: MCP limita los permisos automáticamente'
+      - 'El agente actúa con los permisos del administrador: el servidor hereda las credenciales con las que se conecta'
+      - 'El servidor se bloquea'
+      - 'El agente solo puede leer'
+    answer: [1]
+    explanation: 'Por eso se usan cuentas de servicio de solo lectura con permisos mínimos, límites y registro.'
+    ref: '#servidores-mcp-de-datos'

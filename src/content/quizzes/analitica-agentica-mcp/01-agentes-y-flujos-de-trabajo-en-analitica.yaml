@@ -1,0 +1,62 @@
+lesson: analitica-agentica-mcp/01-agentes-y-flujos-de-trabajo-en-analitica
+questions:
+  - id: am-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué distingue a un agente de un flujo de trabajo (workflow) con LLM?'
+    options:
+      - 'El agente usa un modelo más grande'
+      - 'En el flujo, las rutas están predefinidas en código; en el agente, el LLM dirige dinámicamente su proceso y el uso de herramientas'
+      - 'El flujo no usa herramientas'
+      - 'No hay diferencia'
+    answer: [1]
+    explanation: 'Un agente funciona en bucle (planificar, actuar, observar). Un flujo sigue pasos fijos: es más previsible y barato.'
+    ref: '#flujos-de-trabajo-y-agentes'
+
+  - id: am-01-q2
+    type: single
+    difficulty: 2
+    prompt: 'Un informe semanal de ventas con formato fijo, ¿mejor como flujo o como agente?'
+    options:
+      - 'Agente: así es más moderno'
+      - 'Flujo de trabajo: los pasos son conocidos y se quiere previsibilidad y bajo coste'
+      - 'Ninguno'
+      - 'Una persona, siempre'
+    answer: [1]
+    explanation: 'Los agentes se reservan para problemas abiertos donde no se puede fijar el camino de antemano. La sencillez va primero.'
+    ref: '#cuándo-usar-un-agente-y-cuándo-no'
+
+  - id: am-01-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'Un agente ejecuta una cadena de 10 pasos y cada paso acierta el 95 % de las veces, de forma independiente. ¿Qué porcentaje de las ejecuciones acierta de punta a punta? (Entero.)'
+    answer: [60]
+    tolerance: 1
+    explanation: '0,95¹⁰ ≈ 0,599. Los errores se acumulan: por eso hacen falta pruebas, límites y puntos de verificación.'
+    ref: '#cómo-fallan-los-agentes'
+
+  - id: am-01-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los modos de fallo habituales de los agentes.'
+    options:
+      - 'Errores acumulados a lo largo de los pasos'
+      - 'Bucles y coste imprevisto'
+      - 'Acciones con efectos no deseados si la herramienta lo permite'
+      - 'Que siempre se detengan antes de terminar'
+    answer: [0, 1, 2]
+    explanation: 'Otros: conclusiones sin base, instrucciones ocultas en los datos y falta de trazabilidad.'
+    ref: '#cómo-fallan-los-agentes'
+
+  - id: am-01-q5
+    type: single
+    difficulty: 3
+    prompt: '¿Qué acciones de un agente de datos deben exigir aprobación humana explícita?'
+    options:
+      - 'Consultar una métrica certificada'
+      - 'Las que tienen efectos externos o irreversibles: enviar correos, publicar, borrar o sobrescribir'
+      - 'Ninguna: la aprobación frena al agente'
+      - 'Solo las que cuestan dinero'
+    answer: [1]
+    explanation: 'Se sube de nivel de autonomía solo cuando el anterior ha demostrado fiabilidad con evaluación; lo irreversible siempre se aprueba.'
+    ref: '#autonomía-y-aprobación-humana'

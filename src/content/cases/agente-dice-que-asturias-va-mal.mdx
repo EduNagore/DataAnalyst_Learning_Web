@@ -1,0 +1,163 @@
+---
+title: 'El agente de IA dice que Asturias va fatal'
+description: 'Un caso de verificación de conclusiones de IA: un agente de reporting asegura que Asturias cae un 27,8 % y recomienda revisar al equipo comercial. Recalculas la cifra, miras la línea base, el contexto nacional, la mezcla por categoría y la recuperación, y redactas una respuesta a dirección.'
+difficulty: 3
+estimatedMinutes: 45
+role: bi
+datasets: ['orders', 'order_items', 'customers', 'products']
+brief: |
+  De: Rodrigo Santos (Director de Operaciones Regionales)
+  Asunto: Informe del agente de ventas — Asturias
+
+  Hola, el agente de reporting de los lunes ha publicado esto:
+
+  «Asturias: los ingresos cayeron un 27,8 % en marzo (96.256 € frente a 133.270 € en febrero). Es la región con peor evolución del norte. Recomendación: revisar el equipo comercial regional y reducir la inversión en la zona.»
+
+  Mañana tengo comité y no quiero mover a nadie si el dato no es sólido. ¿Puedes comprobarlo y decirme qué hay detrás?
+
+  Gracias, Rodrigo
+steps:
+  - id: s1-febrero
+    tool: sql
+    answerType: numeric
+    answer: 133270
+    tolerance: 5
+    prompt: |
+      Empieza por el **recálculo independiente**. Define ingresos como la suma de `quantity * unit_price` de las líneas de pedidos con `status <> 'cancelado'`, asignados a la región del **cliente** (`customers.region`) y al mes de `order_date`.
+
+      ¿Cuántos **euros** ingresó Asturias en **febrero de 2026**? (Redondea a euros.)
+    hints:
+      - "Une `orders`, `order_items` y `customers`, filtra `region = 'Asturias'` y `strftime(order_date, '%Y-%m') = '2026-02'`."
+    explanation: |
+      Asturias ingresó **133.270 €** en febrero de 2026: la cifra del agente es correcta.
+
+  - id: s2-marzo
+    tool: sql
+    answerType: numeric
+    answer: 96256
+    tolerance: 5
+    prompt: |
+      ¿Y en **marzo de 2026**? (Euros, redondeados.)
+    hints:
+      - 'Misma consulta cambiando el mes.'
+    explanation: |
+      **96.256 €** en marzo. Las cifras del agente cuadran con los datos.
+
+  - id: s3-variacion-asturias
+    tool: sql
+    answerType: numeric
+    answer: -27.8
+    tolerance: 0.1
+    prompt: |
+      ¿Cuál es la **variación porcentual** de marzo frente a febrero en Asturias? (Un decimal.)
+    hints:
+      - '(marzo / febrero − 1) · 100.'
+    explanation: |
+      **−27,8 %**: el cálculo del agente es exacto. Hasta aquí no hay error; la pregunta es si es la comparación adecuada.
+
+  - id: s4-variacion-total
+    tool: sql
+    answerType: numeric
+    answer: -11.5
+    tolerance: 0.1
+    prompt: |
+      **Contexto.** ¿Cuál fue la variación de marzo frente a febrero para el **conjunto de todas las regiones**? (Un decimal.)
+    hints:
+      - 'Quita el filtro de región.'
+    explanation: |
+      **−11,5 %**: todo el país cayó en marzo. Asturias cae más, pero no está sola; el informe del agente no lo menciona.
+
+  - id: s5-sin-electronica
+    tool: sql
+    answerType: numeric
+    answer: 17.2
+    tolerance: 0.1
+    prompt: |
+      **Mezcla.** En marzo hubo una rotura de stock en la categoría Electrónica (`category_id` que empieza por `cat-00`). Calcula la variación de marzo frente a febrero en Asturias **sin Electrónica**. (Un decimal.)
+    hints:
+      - "Une `products` y filtra `left(p.category_id, 6) <> 'cat-00'`."
+    explanation: |
+      Sin Electrónica, Asturias **crece un 17,2 %**. La caída de la región viene entera de una categoría con un problema de abastecimiento, no de las ventas del resto.
+
+  - id: s6-febrero-frente-a-enero
+    tool: sql
+    answerType: numeric
+    answer: 32.1
+    tolerance: 0.1
+    prompt: |
+      **Línea base.** ¿Fue febrero un mes normal para Asturias? Calcula la variación de febrero frente a **enero** de 2026. (Un decimal.)
+    hints:
+      - 'Compara los meses 2026-02 y 2026-01.'
+    explanation: |
+      **+32,1 %**: febrero fue un pico. Comparar marzo con un mes atípicamente alto exagera la caída; marzo (96.256 €) está en el nivel de octubre a diciembre de 2025 (≈ 94.000-96.600 €).
+
+  - id: s7-junio-frente-a-marzo
+    tool: sql
+    answerType: numeric
+    answer: 51.4
+    tolerance: 0.1
+    prompt: |
+      **Persistencia.** ¿Cuánto crecieron los ingresos de Asturias en **junio de 2026** respecto a marzo? (Un decimal.)
+    hints:
+      - 'Compara 2026-06 con 2026-03.'
+    explanation: |
+      **+51,4 %**: la región se recupera por completo (abril +21 %, mayo y junio todavía más). La caída fue transitoria.
+
+  - id: s8-diagnostico
+    tool: reasoning
+    answerType: single
+    answer: [1]
+    options:
+      - 'Asturias tiene un problema comercial propio y hay que revisar al equipo.'
+      - 'La caída es cierta pero engañosa: se compara con un febrero atípicamente alto, afecta a todo el país, se concentra en Electrónica (que pesa algo más en Asturias) por una rotura de stock transitoria, y la región se recupera.'
+      - 'El agente ha inventado la cifra.'
+      - 'Los datos de Asturias están incompletos.'
+    prompt: |
+      ¿Cuál es el diagnóstico más razonable?
+    hints:
+      - 'Reúne lo que has visto: recálculo, línea base, contexto nacional, mezcla y persistencia.'
+    explanation: |
+      El agente calculó bien y concluyó mal. No hay evidencia de un problema comercial regional; hay una rotura de stock de una categoría (operaciones) que afectó a todos y algo más a una región con más peso de Electrónica.
+
+  - id: s9-fallos-del-agente
+    tool: reasoning
+    answerType: multiple
+    answer: [0, 1, 2, 3]
+    options:
+      - 'Eligió una comparación mes a mes con un febrero atípico sin mirar la serie larga.'
+      - 'No comparó con el total nacional ni con otras regiones.'
+      - 'Ignoró la mezcla de categorías y la rotura de stock de Electrónica.'
+      - 'Hizo una recomendación causal (revisar al equipo comercial) sin evidencia causal.'
+      - 'Calculó mal la cifra de ingresos.'
+    prompt: |
+      ¿Qué hizo mal el informe del agente? (Marca todo lo que aplique.)
+    hints:
+      - 'Las cuentas estaban bien: fíjate en la pregunta que se hizo y en la que no.'
+    explanation: |
+      Las cuentas eran correctas. Los fallos son de planteamiento: línea base, contexto, mezcla y causalidad. Son los que se repiten en los informes de agentes.
+
+  - id: s10-mensaje
+    tool: reasoning
+    answerType: text-self-assessed
+    prompt: |
+      Escribe la respuesta a Rodrigo en 4-5 líneas: **si debe actuar sobre el equipo de Asturias, qué hay detrás de la cifra, qué evidencia lo respalda y qué cambiarías en el informe del agente**.
+    hints:
+      - 'Empieza por la recomendación («no muevas a nadie»), da tres cifras (−27,8 %, −11,5 %, +17,2 sin Electrónica) y cierra con la mejora del informe.'
+    explanation: |
+      Un buen mensaje evita una decisión injusta con datos, explica sin jerga y deja una mejora concreta del proceso (contexto y advertencias obligatorios en los informes del agente).
+rubric:
+  - 'Empiezo por la recomendación: no hay evidencia de un problema comercial en Asturias; no actuar sobre el equipo.'
+  - 'Confirmo que la cifra del agente es correcta (−27,8 %) pero explico que la comparación es engañosa (febrero fue un pico de +32 % sobre enero).'
+  - 'Aporto el contexto: todo el país cae un 11,5 % y sin Electrónica Asturias crece un 17,2 %; la causa es la rotura de stock de Electrónica.'
+  - 'Menciono la recuperación (junio +51 % sobre marzo) para mostrar que la caída fue transitoria.'
+  - 'Propongo mejorar el informe del agente: contexto, serie larga, mezcla, incertidumbre y separación entre descripción y recomendación.'
+modelReport: |
+  **Recomendación.** No tomaría ninguna decisión sobre el equipo comercial de Asturias con este informe: no hay evidencia de un problema propio de la región.
+
+  **Qué hay detrás.** La cifra del agente es correcta (96.256 € en marzo frente a 133.270 € en febrero, −27,8 %), pero la comparación es engañosa. Febrero fue un mes atípicamente alto (+32 % sobre enero) y marzo está en el nivel de octubre a diciembre. Además, todo el país cayó un 11,5 % en marzo por la rotura de stock de Electrónica, una categoría que pesa algo más en Asturias (51 % de sus ventas frente al 47 % del total). Sin Electrónica, Asturias crece un 17,2 %. Y la región se recupera: en junio ingresa un 51 % más que en marzo.
+
+  **Qué cambiaría en el informe del agente.** Que compare siempre con el total y con la serie de los últimos meses, que descomponga por categoría cuando haya una caída, que indique la incertidumbre y que separe la descripción de las recomendaciones, que deben revisar personas. La causa de marzo es de operaciones (abastecimiento de Electrónica), no del equipo comercial.
+---
+
+Este caso usa las tablas `orders`, `order_items`, `customers` y `products` del dataset Lumen.
+La teoría está en la lección «Evaluar las conclusiones de un agente y por qué fallan los proyectos sin capa semántica».

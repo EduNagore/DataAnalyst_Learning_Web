@@ -1,0 +1,191 @@
+---
+title: 'Evaluar las conclusiones de un agente y por qué fallan los proyectos sin capa semántica'
+description: 'Cómo auditar el informe que produce un agente de datos: trazabilidad de cada cifra, recálculo independiente, comprobación de definiciones, líneas base, mezcla y ruido, lenguaje causal; cómo evaluar trayectorias (éxito, coste, seguridad) y por qué los proyectos agénticos sin capa semántica ni evaluación tienden a fracasar.'
+module: analitica-agentica-mcp
+order: 4
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Auditar un informe generado por un agente: trazabilidad de las cifras, recálculo, definiciones, línea base y lenguaje causal.'
+  - 'Identificar las trampas habituales de las conclusiones automáticas: mes de referencia atípico, efecto mezcla, tamaños pequeños y comparaciones sin contexto.'
+  - 'Definir métricas de evaluación de agentes: éxito de la tarea, fundamentación, eficiencia, coste y violaciones de seguridad.'
+  - 'Explicar por qué los proyectos agénticos sin capa semántica, gobierno y evaluación suelen fracasar.'
+prerequisites:
+  [
+    'analitica-agentica-mcp/03-diseno-seguro-roles-de-solo-lectura-limites-e-inyeccion-de-instrucciones',
+    'pensamiento-negocio/01-preguntas-arboles-e-hipotesis',
+  ]
+tools: ['sql', 'python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'dbt Labs — Semantic Layer vs. text-to-SQL: 2026 benchmark'
+    url: 'https://docs.getdbt.com/blog/semantic-layer-vs-text-to-sql-2026'
+    type: blog
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'Gartner — Over 40% of agentic AI projects will be canceled by end of 2027'
+    url: 'https://www.gartner.com/en/newsroom/press-releases/2025-06-25-gartner-predicts-over-40-percent-of-agentic-ai-projects-will-be-canceled-by-end-of-2027'
+    type: blog
+    authors: 'Gartner'
+    year: 2025
+  - title: 'Anthropic — Building effective agents'
+    url: 'https://www.anthropic.com/engineering/building-effective-agents'
+    type: blog
+    authors: 'Schluntz, E., Zhang, B.'
+    year: 2024
+relatedCases: ['agente-dice-que-asturias-va-mal']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Cada lunes, un agente de IA de Lumen genera un informe de ventas por región. Esta semana dice:
+  «Asturias cae un 27,8 % en marzo (96.256 € frente a 133.270 € en febrero); es la peor región del
+  norte; se recomienda revisar el equipo comercial». El director regional quiere actuar. Antes de
+  que nadie pierda su puesto, hay que auditar el informe: ¿es cierto?, ¿es relevante?, ¿qué ha
+  omitido el agente?
+</BusinessContext>
+
+## Intuición
+
+El informe de un agente es como el de un becario brillante, rapidísimo y sin experiencia en el negocio: los números pueden ser exactos y la conclusión, absurda. Un `-27,8 %` es verdad si lo recalculas… y a la vez engañoso si febrero fue un mes anormalmente alto, si todo el país cayó por una rotura de stock o si la región se recuperó en abril. Auditar es hacer las preguntas que el agente no se hizo.
+
+## Cómo funciona
+
+### Qué comprobar en el informe de un agente
+
+| Comprobación                   | Pregunta                                                                        | Cómo                                                                                                               |
+| ------------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **1. Trazabilidad**            | ¿De qué consulta sale cada cifra? ¿Se ejecutó de verdad o la inventó el modelo? | Revisar el registro de llamadas a herramientas; cada número del informe debe aparecer en una salida de herramienta |
+| **2. Recálculo independiente** | ¿Obtengo la misma cifra con mi propia consulta?                                 | Recalcular con la capa semántica o con SQL propio                                                                  |
+| **3. Definiciones**            | ¿Qué cuenta como ingreso, región, periodo?                                      | Comparar con las definiciones oficiales (cancelados, devoluciones, región del cliente frente a la de la tienda)    |
+| **4. Línea base**              | ¿Con qué se compara? ¿Es un periodo normal?                                     | Mirar la serie larga: ¿febrero fue un pico?, ¿hay estacionalidad?, ¿mes completo?                                  |
+| **5. Contexto**                | ¿Qué le ocurrió al conjunto?                                                    | Comparar con el total nacional y con otras regiones                                                                |
+| **6. Mezcla (_mix_)**          | ¿Cambió la composición de lo vendido?                                           | Descomponer por categoría, canal o cliente                                                                         |
+| **7. Ruido**                   | ¿Cuántos datos hay detrás? ¿Es una variación normal?                            | Tamaño de muestra, variación histórica mes a mes                                                                   |
+| **8. Persistencia**            | ¿Se mantiene o fue transitorio?                                                 | Mirar los meses siguientes                                                                                         |
+| **9. Lenguaje causal**         | ¿Dice «por qué» sin evidencia causal? ¿La recomendación se sigue de los datos?  | Distinguir descripción de causa; pedir el contrafactual                                                            |
+| **10. Reproducibilidad**       | ¿Da lo mismo si se repite la pregunta o se reformula?                           | Ejecutar varias veces; comparar                                                                                    |
+
+### El caso del informe sobre Asturias
+
+Aplicando la lista a los datos reales de Lumen (ingresos netos de cancelados, por región del cliente):
+
+| Comprobación        | Resultado                                                                                                                                                                                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Recálculo**       | Cierto: 133.270 € en febrero y 96.256 € en marzo = **−27,8 %**                                                                                                                                                                                         |
+| **Línea base**      | Febrero de 2026 fue un **pico** (+32 % sobre enero: 100.864 € → 133.270 €); marzo (96.256 €) está en el nivel de octubre a diciembre de 2025 (94.000-96.600 €)                                                                                         |
+| **Contexto**        | Todo el país cayó: **−11,5 %** (de 5,45 M€ a 4,82 M€). Asturias cae más, pero no está sola                                                                                                                                                             |
+| **Mezcla**          | Electrónica pesa **51,4 %** de las ventas de Asturias en febrero (47,2 % en el conjunto): la rotura de stock de Electrónica (−62 % de unidades en marzo) afecta más a la región. **Sin Electrónica, Asturias sube un 17,2 %** (de 64.748 € a 75.893 €) |
+| **Persistencia**    | Se recupera: 116.904 € en abril (+21 % sobre marzo), 138.712 € en mayo y 145.718 € en junio (+51 % sobre marzo)                                                                                                                                        |
+| **Lenguaje causal** | «Revisar el equipo comercial» no se sigue de nada: la causa (rotura de stock en una categoría) es de operaciones y es transitoria                                                                                                                      |
+
+El informe del agente es **numéricamente correcto y analíticamente engañoso**. La conclusión adecuada: «Asturias cae más que la media en marzo porque depende algo más de Electrónica, categoría afectada por una rotura de stock que fue transitoria; fuera de Electrónica crece; no hay evidencia de un problema regional». Es el tipo de error que un agente comete sistemáticamente: **elige una comparación (mes a mes) sin preguntarse si es la adecuada**, no compara con el contexto, ignora la mezcla y atribuye causas que no ha verificado. En el caso guiado reproduces esta auditoría.
+
+<Callout type="warning">
+  Un informe de agente suele estar **bien redactado y bien calculado**, y eso baja la guardia. El
+  control no es «¿están bien las cuentas?» (casi siempre sí), sino «¿se ha hecho la pregunta
+  correcta, con la comparación correcta y las advertencias necesarias?». Pide a los agentes que
+  acompañen cada conclusión con su contexto (comparación con el total, serie larga) y sus
+  incertidumbres, y revisa las recomendaciones como revisarías las de una persona.
+</Callout>
+
+### Evaluar al agente, no solo sus informes
+
+Un agente se evalúa como un sistema: con tareas conocidas y métricas.
+
+| Métrica                             | Qué mide                                                                                                                  |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Éxito de la tarea**               | ¿Llegó a la respuesta correcta? (con conjunto de tareas con solución conocida)                                            |
+| **Fundamentación (_groundedness_)** | ¿Cada cifra y afirmación está respaldada por una salida de herramienta?                                                   |
+| **Calidad analítica**               | ¿Compara con el contexto, advierte de límites, evita atribuir causas sin evidencia?                                       |
+| **Eficiencia**                      | Pasos, tokens y tiempo; ¿hay bucles o rodeos innecesarios?                                                                |
+| **Coste**                           | Euros por tarea y su variabilidad                                                                                         |
+| **Seguridad**                       | Violaciones de la política: consultas rechazadas, intentos de acceso no autorizado, ejecución de instrucciones inyectadas |
+| **Consistencia**                    | Misma tarea, resultados comparables entre repeticiones                                                                    |
+| **Abstención**                      | Dice «no puedo» cuando debe                                                                                               |
+
+Se evalúan las **trayectorias** (la secuencia de pasos), no solo el resultado final: un agente que acierta por casualidad tras tres consultas peligrosas no es fiable. Y como en el texto a SQL, se necesitan suficientes tareas y repeticiones, y un intervalo de confianza.
+
+### Por qué fallan los proyectos agénticos sin capa semántica
+
+Los pronósticos de Gartner (junio de 2025) apuntan a que más del 40 % de los proyectos agénticos se cancelarán antes de finales de 2027 por costes, valor poco claro o controles de riesgo insuficientes. En analítica, los mismos fallos tienen una forma reconocible:
+
+1. **Sin definiciones únicas,** el agente elige una por pregunta y las cifras no cuadran con los paneles (módulo de capa semántica).
+2. **Sin una capa semántica,** el SQL libre falla en silencio (uniones, grano, estados); el benchmark de dbt Labs muestra una mejora de exactitud (90,0 → 98,2 % y 84,1 → 100 %) al usarla, con las cautelas ya vistas.
+3. **Sin evaluación,** nadie sabe cuánto acierta ni cuándo empeora tras un cambio de modelo.
+4. **Sin controles de seguridad** (solo lectura, límites, aprobación), el primer incidente acaba con el proyecto.
+5. **Sin un problema bien elegido,** se automatiza algo que no necesitaba un agente (lección 1).
+6. **Sin propietario,** nadie responde de las conclusiones.
+
+Los proyectos que funcionan empiezan por **tareas acotadas con retroalimentación objetiva** (generar un informe estándar desde métricas certificadas, clasificar tickets con etiquetas verificables, ayudar a escribir modelos con pruebas), miden desde el primer día y amplían el alcance con evidencia.
+
+<Snapshot date="2026-10">
+  La evidencia pública sobre agentes de análisis de datos procede sobre todo de proveedores y de
+  benchmarks de texto a SQL; hay pocas evaluaciones independientes de agentes en entornos
+  empresariales reales. Los marcos de evaluación de agentes (trayectorias, fundamentación,
+  seguridad) están madurando y las herramientas de observabilidad para registrar y puntuar
+  ejecuciones se multiplican. Trata las cifras de terceros como orientativas y evalúa con tus
+  propias tareas.
+</Snapshot>
+
+## En la práctica
+
+1. **Exige trazabilidad:** cada cifra del informe enlaza con la consulta que la produjo.
+2. **Haz la auditoría de diez puntos** a una muestra de informes cada semana, al principio a todos.
+3. **Obliga al agente a incluir el contexto:** total, serie larga, mezcla y la incertidumbre.
+4. **Separa descripción de recomendación:** el agente describe y propone hipótesis; las decisiones las toman personas.
+5. **Mantén un conjunto de tareas de evaluación** con solución conocida y rejuega cada cambio de modelo o de herramientas.
+6. **Mide fundamentación y seguridad** además de exactitud.
+7. **Amplía el alcance solo con evidencia** de que el nivel anterior es fiable.
+
+```python
+# Fundamentación: cada cifra del informe debe aparecer en alguna salida de herramienta
+cifras = extraer_numeros(informe)
+no_respaldadas = [c for c in cifras if not any(c in salida for salida in salidas_de_herramientas)]
+assert not no_respaldadas, f"Cifras sin respaldo: {no_respaldadas}"
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Revisión humana completa frente a por muestreo:** al principio, todo; después, por muestreo y por riesgo.
+- **Informes de agente frente a paneles:** los paneles son estables y auditables; los informes de agente añaden narrativa y riesgo; úsalos como borrador.
+- **Un LLM como juez frente a comprobaciones deterministas:** el juez cubre lo cualitativo y hay que validarlo contra etiquetas humanas; las comprobaciones deterministas (recálculo, trazabilidad) son más fiables.
+- **Alcance amplio frente a estrecho:** amplio da más valor y más superficie de fallo; estrecho se evalúa mejor.
+- **Autonomía frente a supervisión:** cada paso de autonomía debe ganarse con evaluación.
+
+## Errores comunes
+
+- **Revisar solo si las cuentas están bien.**
+- **Aceptar la comparación mes a mes** sin mirar la serie larga ni el contexto.
+- **Atribuir causas** («equipo comercial») sin evidencia causal.
+- **No registrar las llamadas de herramienta** y no poder comprobar la fundamentación.
+- **Evaluar con una demo** o con una única ejecución.
+- **Actuar sobre una recomendación del agente** sin revisión humana.
+- **Escalar el proyecto antes de medir.**
+
+## Con IA
+
+Es tentador pedir a otro modelo que revise el informe del primero. Puede encontrar errores formales y estilo, y compartirá sus sesgos (también aceptará la comparación mes a mes). Úsalo como una comprobación más, no como la definitiva, y combínalo con recálculo determinista y una revisión humana por quien conozca el negocio.
+
+## En una entrevista
+
+- _"Un agente de IA te dice que una región 'va fatal'. ¿Qué haces?"_ — Pista: recálculo, línea base, comparación con el total, mezcla, persistencia, ruido, causalidad; no actuar sin auditoría.
+- _"¿Cómo evalúas un agente de análisis de datos?"_ — Pista: tareas con solución conocida, trayectorias, fundamentación, seguridad, coste, consistencia, abstención; intervalos.
+- _"¿Por qué fracasan muchos proyectos agénticos?"_ — Pista: sin definiciones únicas ni capa semántica, sin evaluación, sin controles, problema mal elegido, sin propietario.
+
+<KeyTakeaways
+  items={[
+    'Un informe de agente puede estar bien calculado y ser engañoso: la auditoría comprueba trazabilidad, recálculo, definiciones, línea base, contexto, mezcla, ruido, persistencia y lenguaje causal.',
+    'En el caso de Asturias, el −27,8 % de marzo es cierto pero sale de comparar con un febrero atípicamente alto, en un mes en el que todo el país cayó un 11,5 % por la rotura de stock de Electrónica; sin Electrónica la región crece un 17,2 % y se recupera en abril-junio.',
+    'Se evalúa al agente como un sistema: éxito de la tarea, fundamentación de cada cifra, calidad analítica, eficiencia, coste, seguridad, consistencia y abstención, mirando las trayectorias y con intervalos de confianza.',
+    'Los proyectos agénticos fracasan sin definiciones únicas ni capa semántica, sin evaluación, sin controles de seguridad, con un problema mal elegido y sin propietario; Gartner pronostica más del 40 % de cancelaciones hasta 2027.',
+    'Empieza por tareas acotadas con retroalimentación objetiva, mide desde el primer día y amplía el alcance solo con evidencia; las recomendaciones las decide una persona.',
+  ]}
+/>
