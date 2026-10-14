@@ -1,0 +1,62 @@
+lesson: text-to-sql/01-como-funciona-el-texto-a-sql-y-por-que-falla
+questions:
+  - id: ts-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué es el enlace de esquema (schema linking)?'
+    options:
+      - 'Unir dos tablas con JOIN'
+      - 'Decidir qué tablas y columnas son relevantes para la pregunta antes de generar el SQL'
+      - 'Guardar el esquema en un fichero'
+      - 'Traducir la pregunta al inglés'
+    answer: [1]
+    explanation: 'Con cientos de tablas no cabe todo en el contexto del modelo: hay que seleccionar. Si falta una columna necesaria, la consulta será incorrecta aunque el modelo sea excelente.'
+    ref: '#las-fases-de-un-sistema-de-texto-a-sql'
+
+  - id: ts-01-q2
+    type: single
+    difficulty: 2
+    prompt: 'En el lab de Lumen, el recall@6 del enlace de esquema es 0,27 con solo nombres y 0,86 con descripciones de negocio. ¿Qué lección es correcta?'
+    options:
+      - 'Las descripciones no importan'
+      - 'Con preguntas en español y columnas en inglés, los nombres solos casi no sirven; las descripciones de negocio multiplican el recall por unas tres veces'
+      - 'El modelo de lenguaje es el que mejora el recall'
+      - 'El recall siempre es 1'
+    answer: [1]
+    explanation: 'Lo que falta suele ser conocimiento del negocio (sinónimos, términos, definiciones), no capacidad del modelo.'
+    ref: '#el-enlace-de-esquema-medido'
+
+  - id: ts-01-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los tipos de fallo que producen una cifra plausible pero equivocada (sin error de ejecución).'
+    options:
+      - 'Definición de negocio ausente (ingresos sin excluir cancelados)'
+      - 'Fan-out por una unión que multiplica filas'
+      - 'Ambigüedad resuelta con una interpretación distinta de la esperada'
+      - 'Usar el nombre de una columna que no existe'
+    answer: [0, 1, 2]
+    explanation: 'Una columna inexistente produce un error de ejecución evidente. Los otros tres se ejecutan y devuelven una tabla con aspecto de respuesta.'
+    ref: '#por-qué-falla-taxonomía-de-errores'
+
+  - id: ts-01-q4
+    type: single
+    difficulty: 2
+    prompt: 'La pregunta «margen bruto por marca» no enlaza con quantity ni unit_price. ¿Por qué?'
+    options:
+      - 'El modelo es demasiado pequeño'
+      - 'El margen es un concepto de negocio que no aparece en ningún nombre de columna; falta una definición o un sinónimo'
+      - 'Esas columnas no existen'
+      - 'Es un error de ortografía'
+    answer: [1]
+    explanation: 'Una capa semántica con la métrica «margen bruto» definida resolvería el enlace y la fórmula.'
+    ref: '#el-enlace-de-esquema-medido'
+
+  - id: ts-01-q5
+    type: truefalse
+    difficulty: 2
+    prompt: 'Que el SQL generado se ejecute sin errores demuestra que responde correctamente a la pregunta.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Los fallos más peligrosos son los que se ejecutan y responden otra pregunta. Hay que comparar el resultado con una referencia.'
+    ref: '#por-qué-falla-taxonomía-de-errores'

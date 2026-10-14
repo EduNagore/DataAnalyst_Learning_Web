@@ -1,0 +1,167 @@
+---
+title: 'La capa semántica como solución, y cuándo no basta'
+description: 'Cómo una capa semántica convierte el texto a SQL en elegir métricas y dimensiones (determinista, con alcance explícito), qué evidencia hay y cuáles son sus límites, cómo gestionar la ambigüedad y la abstención, y qué hacer con las preguntas fuera de alcance.'
+module: text-to-sql
+order: 2
+level: avanzado
+estimatedMinutes: 45
+objectives:
+  - 'Explicar por qué consultar una capa semántica reduce los errores silenciosos frente a generar SQL libre.'
+  - 'Diseñar una estrategia híbrida: capa semántica para métricas oficiales y SQL libre acotado para exploración.'
+  - 'Gestionar la ambigüedad con preguntas aclaratorias, supuestos visibles y abstención.'
+  - 'Definir qué se registra en cada respuesta para poder auditarla y mejorar el sistema.'
+prerequisites:
+  [
+    'text-to-sql/01-como-funciona-el-texto-a-sql-y-por-que-falla',
+    'capa-semantica/04-capa-semantica-ia-y-gobierno-de-metricas',
+  ]
+tools: ['sql', 'python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'dbt Labs — Semantic Layer vs. text-to-SQL: 2026 benchmark'
+    url: 'https://docs.getdbt.com/blog/semantic-layer-vs-text-to-sql-2026'
+    type: blog
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'Snowflake — Cortex Analyst'
+    url: 'https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-analyst'
+    type: docs
+    authors: 'Snowflake'
+    year: 2026
+  - title: 'Microsoft — Copilot for Power BI overview'
+    url: 'https://learn.microsoft.com/en-us/power-bi/create-reports/copilot-introduction'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+relatedLabs: ['py-mini-capa-semantica', 'py-golden-set-text-to-sql']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  El piloto de Lumen con SQL libre responde bien a casi todo… y mal a lo que importa: las cifras del
+  consejo. Una semana dio dos ingresos distintos para el mismo mes. Datos propone una arquitectura:
+  las preguntas sobre métricas oficiales (ingresos netos, pedidos, ticket medio) pasan por la capa
+  semántica; las demás, por un SQL libre con límites y marcado como «exploración». ¿Es una buena
+  idea? ¿Qué se pierde? ¿Qué pasa con lo que la capa no cubre?
+</BusinessContext>
+
+## Intuición
+
+La diferencia entre dejar que alguien improvise una receta y pedirle que elija un plato del menú: en el menú, el resultado es el mismo cada vez, aunque no haya platos para todo. La capa semántica es el menú. Si lo que quieres no está, el camarero te lo dice (en vez de inventarte un plato). Para los antojos, hay una cocina abierta donde se improvisa, con un cartel que avisa: «hecho a medida, no es plato oficial».
+
+## Cómo funciona
+
+### Qué cambia con una capa semántica
+
+Con SQL libre, el modelo decide qué tablas unir, qué estados cuentan y cómo agregar. Con una capa semántica, el modelo solo decide **qué métrica**, **por qué dimensiones** y **con qué filtros**; la capa genera el SQL de forma determinista (módulo anterior). Los errores de definición, de grano y de uniones desaparecen para las métricas cubiertas, y si la pregunta cae fuera, **la capa lo dice** en lugar de inventar.
+
+La evidencia, con sus cautelas, apunta en esa dirección. En el benchmark de dbt Labs de abril de 2026 (conjunto de seguros de 15 tablas y 11 preguntas, cada una ejecutada 20 veces), la exactitud pasó de 90,0 % a 98,2 % con un modelo y de 84,1 % a 100 % con otro al usar la capa semántica; para las preguntas dentro de su alcance, los dos acertaron siempre; las que exigían demasiados saltos entre entidades quedaron sin respuesta hasta que se añadió modelado. Es un estudio de un proveedor, pequeño y de un solo dominio: sirve de motivación, no de promesa.
+
+Los productos de analítica conversacional lo confirman en su diseño (lección 3). Snowflake indica que las soluciones genéricas sufren con solo el esquema y recomienda vistas semánticas; Microsoft advierte que, sin preparar el modelo semántico, Copilot puede malinterpretar los datos y devolver resultados genéricos o inexactos.
+
+### Arquitectura híbrida
+
+| Tipo de pregunta                                                        | Ruta                                                                        | Garantía                                                   |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| **Métrica oficial** (ingresos netos por canal y mes)                    | Capa semántica: el modelo elige métrica, dimensiones y filtros              | Definición única, SQL determinista, coherencia con paneles |
+| **Exploración** (¿qué tablas hay?, ¿cómo se distribuye `discount_pct`?) | SQL libre acotado: solo lectura, límites de filas y coste, esquema limitado | Orientativa; marcada como «no oficial»                     |
+| **Fuera de alcance** (pregunta que ninguna ruta cubre)                  | Abstención con explicación y propuesta                                      | «No puedo responder con las métricas definidas; falta X»   |
+| **Ambigua**                                                             | Pregunta aclaratoria o supuesto explícito                                   | El usuario ve y confirma lo que se asume                   |
+
+La combinación aprovecha lo mejor de cada ruta: fiabilidad donde importa, flexibilidad donde no, y honestidad en los bordes. En el lab de la capa semántica ya construiste el núcleo de la primera ruta; en el del golden set evaluarás el conjunto.
+
+### Gestionar la ambigüedad
+
+Ejemplos de preguntas ambiguas en Lumen: «ventas del mes pasado» (¿mes natural?, ¿ingresos netos o brutos?, ¿con o sin devoluciones?), «clientes activos» (¿con compra en 30 días?, ¿12 meses?), «mejor canal» (¿por ingresos, margen o conversión?). Estrategias:
+
+1. **Definición por defecto documentada** en la capa («ventas» = ingresos netos) y mostrada en la respuesta: «Entiendo por ventas los ingresos netos (sin cancelados ni devoluciones) de junio de 2026».
+2. **Pregunta aclaratoria** cuando las opciones difieren mucho («¿ingresos brutos o netos?») y el coste de equivocarse es alto.
+3. **Respuesta con varias interpretaciones** cuando son pocas y baratas de calcular.
+4. **Abstención** si no hay ninguna interpretación cubierta.
+
+Una regla de diseño: **una respuesta debe poder auditarse sin ver el SQL**: qué métrica, qué periodo, qué filtros, qué definición.
+
+### Qué registrar en cada respuesta
+
+| Dato                                                     | Para qué                                 |
+| -------------------------------------------------------- | ---------------------------------------- |
+| Pregunta original y reformulaciones                      | Reproducir y mejorar el sistema          |
+| Ruta (capa semántica / SQL libre / abstención)           | Medir cuánto cubre cada una              |
+| Métrica, dimensiones, filtros y versión de la definición | Auditoría y comparación entre respuestas |
+| SQL generado y tiempo de ejecución                       | Depuración y control de coste            |
+| Resultado resumido                                       | Detectar anomalías                       |
+| Valoración del usuario (útil / no)                       | Alimentar el conjunto de evaluación      |
+
+Las preguntas que el sistema no pudo responder son una **lista de prioridades** para ampliar la capa: qué métricas faltan, qué sinónimos, qué dimensiones.
+
+<Callout type="note">
+  La capa semántica no arregla la mala calidad del dato ni el mal modelado de las tablas de debajo,
+  y su cobertura crece con el trabajo del equipo. Un sistema con capa semántica sin cobertura
+  responde «no puedo» a casi todo; uno con SQL libre responde a todo, a veces mal. La estrategia
+  madura es ampliar la cobertura de la primera guiándose por lo que preguntan los usuarios.
+</Callout>
+
+<Snapshot date="2026-10">
+  Los productos que combinan lenguaje natural con capas semánticas gobernadas incluyen opciones
+  nativas del almacén (vistas semánticas con Cortex Analyst en Snowflake, vistas de métricas con
+  Genie en Databricks), de BI (Copilot sobre modelos semánticos de Power BI, con «respuestas
+  verificadas» que pueden preparar los autores de una aplicación) y de plataformas especializadas.
+  Todos piden preparar el modelo semántico (descripciones, sinónimos, ejemplos) para obtener buenos
+  resultados. Los nombres, las funciones y la disponibilidad cambian cada trimestre: consulta la
+  documentación de tu plataforma.
+</Snapshot>
+
+## En la práctica
+
+1. **Clasifica las preguntas reales** de tus usuarios en oficiales, exploratorias y fuera de alcance.
+2. **Cubre primero las métricas más preguntadas** en la capa semántica, con sinónimos y descripciones.
+3. **Define el comportamiento ante la ambigüedad:** definición por defecto visible, aclaración o varias interpretaciones.
+4. **Acota el SQL libre:** solo lectura, límites de filas, tiempo y coste, y tablas permitidas.
+5. **Etiqueta las respuestas** como «oficial» o «exploratoria».
+6. **Implementa la abstención** con una explicación útil y una vía de petición («solicitar nueva métrica»).
+7. **Revisa cada semana** las preguntas sin respuesta y las valoraciones negativas.
+
+## Trade-offs y cuándo usarlo
+
+- **Capa semántica frente a SQL libre:** fiabilidad y alcance limitado frente a flexibilidad y riesgo; la solución es híbrida.
+- **Aclarar frente a asumir:** aclarar evita errores pero molesta; asumir con transparencia es más fluido si el supuesto es evidente.
+- **Cobertura amplia frente a profunda:** muchas métricas poco cuidadas frente a pocas muy bien definidas; empieza por las importantes.
+- **Respuesta rápida frente a verificación:** una verificación adicional (comparar con el panel) añade latencia y confianza.
+- **Autoservicio para todos frente a usuarios formados:** el primero democratiza y exige más salvaguardas; el segundo es más seguro y limita el uso.
+
+## Errores comunes
+
+- **Ofrecer solo SQL libre** a usuarios de negocio sin etiquetar el grado de fiabilidad.
+- **Construir la capa semántica sin mirar qué preguntan los usuarios.**
+- **Asumir una definición sin decirlo.**
+- **No registrar ni revisar** las preguntas sin respuesta.
+- **Responder siempre algo:** forzar una respuesta es peor que abstenerse.
+- **Mezclar métricas certificadas y no certificadas** en la misma respuesta sin distinguirlas.
+- **Creer que la capa semántica sustituye a las pruebas** del sistema.
+
+## Con IA
+
+Hay una tentación inversa: pedir al propio modelo que escriba la capa semántica a partir del esquema. Puede ayudar a redactar descripciones y sinónimos, pero las **definiciones** (qué es un ingreso, un cliente activo) son decisiones del negocio y deben aprobarlas sus responsables. El modelo propone, las personas deciden, el sistema registra.
+
+## En una entrevista
+
+- _"¿Cómo diseñarías un asistente de datos para toda la empresa?"_ — Pista: ruta híbrida (capa semántica + SQL acotado), abstención, aclaraciones, registro, evaluación continua, gobierno de métricas.
+- _"Un usuario pregunta por 'ventas del mes pasado'. ¿Qué hace el sistema?"_ — Pista: definición por defecto visible, mes natural, periodo mostrado, opción de aclarar; trazabilidad.
+- _"¿Qué ventajas e inconvenientes tiene limitar el asistente a las métricas definidas?"_ — Pista: fiabilidad y determinismo frente a cobertura; usar lo no respondido para ampliar.
+
+<KeyTakeaways
+  items={[
+    'Con una capa semántica el modelo elige métrica, dimensiones y filtros y el SQL lo genera la capa de forma determinista: desaparecen los errores de definición, grano y uniones para lo cubierto, y lo no cubierto se reconoce.',
+    'El benchmark de dbt Labs (abril de 2026) mostró 90,0 → 98,2 % y 84,1 → 100 % de exactitud con la capa semántica, pero es un estudio pequeño de un proveedor; los productos de Snowflake, Databricks y Microsoft piden todos preparar el modelo semántico.',
+    'La arquitectura razonable es híbrida: métricas oficiales por la capa semántica, exploración con SQL libre acotado y etiquetado, y abstención explicada para lo que queda fuera.',
+    'La ambigüedad se gestiona con una definición por defecto visible, preguntas aclaratorias, varias interpretaciones o abstención; una respuesta debe poder auditarse sin leer el SQL.',
+    'Registra pregunta, ruta, métrica, filtros, SQL y valoración; las preguntas sin respuesta son la lista de prioridades para ampliar la cobertura.',
+  ]}
+/>

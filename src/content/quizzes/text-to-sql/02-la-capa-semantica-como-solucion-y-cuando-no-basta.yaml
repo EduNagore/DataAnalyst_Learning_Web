@@ -1,0 +1,66 @@
+lesson: text-to-sql/02-la-capa-semantica-como-solucion-y-cuando-no-basta
+questions:
+  - id: ts-02-q1
+    type: single
+    difficulty: 2
+    prompt: 'En una arquitectura híbrida, ¿por qué ruta debe ir una pregunta sobre ingresos netos por canal para el consejo?'
+    options:
+      - 'SQL libre sin límites'
+      - 'La capa semántica: el modelo elige métrica, dimensiones y filtros y el SQL se genera de forma determinista'
+      - 'Una hoja de cálculo manual'
+      - 'No se responde'
+    answer: [1]
+    explanation: 'Las métricas oficiales necesitan definición única y coherencia con los paneles. El SQL libre queda para exploración, acotado y etiquetado.'
+    ref: '#arquitectura-híbrida'
+
+  - id: ts-02-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las formas razonables de tratar una pregunta ambigua como «ventas del mes pasado».'
+    options:
+      - 'Aplicar una definición por defecto documentada y mostrarla en la respuesta'
+      - 'Hacer una pregunta aclaratoria si las opciones difieren mucho'
+      - 'Dar varias interpretaciones si son pocas y baratas de calcular'
+      - 'Elegir una interpretación en silencio'
+    answer: [0, 1, 2]
+    explanation: 'Elegir en silencio impide que el usuario sepa qué se ha calculado. Una respuesta debe poder auditarse sin leer el SQL.'
+    ref: '#gestionar-la-ambigüedad'
+
+  - id: ts-02-q3
+    type: single
+    difficulty: 3
+    prompt: 'En el benchmark de dbt Labs (abril de 2026), un modelo pasó del 90,0 % con SQL libre al 98,2 % con capa semántica. ¿Cómo se debe interpretar?'
+    options:
+      - 'Como la mejora que obtendrás seguro en tu empresa'
+      - 'Como una motivación razonable, con cautela: lo publica un proveedor, usa 11 preguntas de un dominio y solo cubre lo que está dentro del alcance de la capa'
+      - 'Como una prueba de que el SQL libre no sirve'
+      - 'Como un error'
+    answer: [1]
+    explanation: 'El propio estudio concluye que conviene combinar ambos enfoques. Hay que medir el caso propio con preguntas verificadas.'
+    ref: '#qué-cambia-con-una-capa-semántica'
+
+  - id: ts-02-q4
+    type: single
+    difficulty: 2
+    prompt: 'El sistema no puede responder una pregunta con las métricas definidas. ¿Qué debe hacer?'
+    options:
+      - 'Inventar una consulta que se parezca'
+      - 'Abstenerse con una explicación útil (qué falta) y una vía para solicitar la métrica'
+      - 'Responder con la última respuesta que dio'
+      - 'Apagarse'
+    answer: [1]
+    explanation: 'Forzar una respuesta es peor que abstenerse. Las preguntas sin respuesta son además la lista de prioridades para ampliar la capa.'
+    ref: '#arquitectura-híbrida'
+
+  - id: ts-02-q5
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODO lo que conviene registrar en cada respuesta de un asistente de datos.'
+    options:
+      - 'La pregunta original y la ruta usada (capa semántica, SQL libre o abstención)'
+      - 'La métrica, dimensiones, filtros y versión de la definición'
+      - 'El SQL generado y el tiempo de ejecución'
+      - 'Nada: es información interna del modelo'
+    answer: [0, 1, 2]
+    explanation: 'Sin registro no se puede auditar, reproducir, medir ni mejorar el sistema.'
+    ref: '#qué-registrar-en-cada-respuesta'

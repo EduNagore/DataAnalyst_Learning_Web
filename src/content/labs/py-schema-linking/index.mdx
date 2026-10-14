@@ -1,0 +1,38 @@
+---
+title: 'Schema linking: qué columnas necesita una pregunta'
+description: 'Implementa la fase de enlace de esquema de un sistema de texto a SQL: normaliza la pregunta, puntúa las columnas por coincidencia con su nombre y su descripción de negocio, devuelve las k más relevantes y mide el recall frente a un conjunto de preguntas con las columnas necesarias conocidas.'
+language: python
+part: 'Parte VI · IA para analistas'
+module: text-to-sql
+difficulty: 3
+estimatedMinutes: 40
+concepts:
+  [
+    'schema linking',
+    'recuperación de contexto',
+    'recall@k',
+    'descripciones de columnas',
+    'normalización de texto',
+  ]
+datasets: []
+packages: []
+output: console
+hints:
+  - 'Normaliza con `unicodedata.normalize("NFD", texto)` para quitar tildes, `re.findall(r"[a-z0-9]+", ...)` para los tokens, descarta las palabras de `PARADAS` y aplica la raíz sencilla: más de 4 letras y acaba en «es» → quita «es»; si no, más de 3 letras y acaba en «s» → quita «s».'
+  - 'El documento de una columna son los tokens de «tabla + nombre con guiones bajos como espacios + descripción». La puntuación es el tamaño de la intersección con los tokens de la pregunta.'
+  - 'Ordena por puntuación descendente y, en empate, por posición en el esquema (tablas y columnas en el orden del diccionario). Descarta las de puntuación 0.'
+  - 'Recall de una pregunta = |necesarias ∩ enlazadas| / |necesarias|; el recall@k del conjunto es la media sobre todas las preguntas.'
+relatedLessons: ['text-to-sql/01-como-funciona-el-texto-a-sql-y-por-que-falla']
+businessQuestion: '¿Qué parte del esquema debe ver el modelo para responder una pregunta, y qué ocurre si no se la enseñamos?'
+---
+
+Antes de escribir una consulta, un sistema de texto a SQL tiene que decidir **qué tablas y columnas importan** para la pregunta (_schema linking_). Con 9 tablas y 51 columnas es fácil; con cientos de tablas es el cuello de botella: si falta una columna necesaria, la consulta será incorrecta aunque el modelo sea excelente.
+
+El esquema de Lumen (`ESQUEMA`), unas descripciones en lenguaje de negocio (`DESCRIPCIONES`) y ocho preguntas con sus columnas necesarias (`PREGUNTAS_ORO`) ya están definidos. Implementa:
+
+1. **`normalizar(texto)`** → conjunto de tokens normalizados.
+2. **`documento(tabla, columna, descripciones)`** → tokens que describen una columna.
+3. **`enlazar(pregunta, esquema, descripciones, k)`** → las k columnas más relacionadas.
+4. **`recall_en_k(oro, esquema, descripciones, k)`** → recall medio.
+
+Resultado esperado: solo con los nombres (en inglés) el recall@6 es **0,27**; con las descripciones en lenguaje de negocio sube a **0,86** (0,91 con k = 8). Y los fallos que quedan son instructivos: «margen bruto» no encuentra `quantity` ni `unit_price`, y «último mes» no encuentra `created_at`: faltan sinónimos y definiciones, que es justo lo que aporta una capa semántica.

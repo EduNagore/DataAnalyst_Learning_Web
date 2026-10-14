@@ -1,0 +1,185 @@
+---
+title: 'Cómo funciona el texto a SQL y por qué falla'
+description: 'Las piezas de un sistema de texto a SQL (enlace de esquema, contexto, generación, ejecución y autocorrección), con el enlace de esquema medido sobre Lumen, y la taxonomía de fallos: ambigüedad, definiciones de negocio, grano y uniones, conocimiento del dominio y dialecto.'
+module: text-to-sql
+order: 1
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Describir las fases de un sistema de texto a SQL y qué aporta cada una.'
+  - 'Medir el enlace de esquema con recall@k y explicar por qué las descripciones de negocio lo mejoran.'
+  - 'Clasificar los fallos típicos del SQL generado: esquema, ambigüedad, definiciones, grano y conocimiento del dominio.'
+  - 'Explicar por qué un esquema solo no basta y qué información falta.'
+prerequisites:
+  [
+    'llm-copiloto/04-protocolo-de-verificacion-reproducibilidad-y-datos-que-no-se-pegan',
+    'sql-i/03-joins-y-fan-out',
+  ]
+tools: ['python', 'sql']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Hong et al. — Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL'
+    url: 'https://arxiv.org/abs/2406.08426'
+    type: paper
+    authors: 'Hong, Z. et al.'
+    year: 2024
+  - title: 'Lei et al. — Spider 2.0: Evaluating Language Models on Real-World Enterprise Text-to-SQL Workflows'
+    url: 'https://arxiv.org/abs/2411.07763'
+    type: paper
+    authors: 'Lei, F. et al.'
+    year: 2024
+  - title: 'Jin, Choi, Zhu & Kang — Pervasive Annotation Errors Break Text-to-SQL Benchmarks and Leaderboards'
+    url: 'https://arxiv.org/abs/2601.08778'
+    type: paper
+    authors: 'Jin, T., Choi, Y., Zhu, Y., Kang, D.'
+    year: 2026
+  - title: 'Snowflake — Cortex Analyst'
+    url: 'https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-analyst'
+    type: docs
+    authors: 'Snowflake'
+    year: 2026
+relatedLabs: ['py-schema-linking', 'py-validar-sql-de-ia']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  El director comercial de Lumen ve una demo: escribe «¿cuántos pedidos tuvimos el mes pasado por
+  canal?» y un asistente responde con una tabla y un gráfico. Quiere ofrecerlo a toda la empresa.
+  Antes de hacerlo, Datos debe responder: ¿cómo funciona por dentro?, ¿dónde se equivoca?, ¿cuántas
+  veces se equivoca y cómo se enteran de que se ha equivocado?
+</BusinessContext>
+
+## Intuición
+
+Pedirle una consulta a un asistente es como pedirle un viaje a un taxista que llega a una ciudad por primera vez. Si tiene un mapa (el esquema), puede llegar a casi cualquier sitio; pero si le dices «llévame al centro» sin decirle qué centro, o «a la oficina de Marta» sin decirle dónde está, elegirá algo razonable y probablemente equivocado. Un buen sistema de texto a SQL es un taxista con mapa, callejero (descripciones), ejemplos de trayectos anteriores y permiso para preguntar «¿a qué centro te refieres?».
+
+## Cómo funciona
+
+### Las fases de un sistema de texto a SQL
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+    Q["Pregunta<br/>en lenguaje natural"] --> L["1. Enlace de esquema<br/>qué tablas y columnas"]
+    L --> C["2. Contexto<br/>descripciones, definiciones,<br/>ejemplos, reglas"]
+    C --> G["3. Generación<br/>del SQL (LLM)"]
+    G --> E["4. Ejecución<br/>y comprobaciones"]
+    E -->|"error o resultado raro"| G
+    E --> R["5. Respuesta<br/>tabla, gráfico, explicación"]`}
+  alt="Fases de un sistema de texto a SQL: la pregunta pasa por el enlace de esquema, la construcción del contexto, la generación del SQL con un modelo de lenguaje, la ejecución y comprobación (con un bucle de vuelta a la generación si hay error) y la respuesta con tabla, gráfico y explicación."
+/>
+
+1. **Enlace de esquema (_schema linking_):** decidir qué tablas y columnas son relevantes. Con cientos de tablas, no cabe todo en el contexto del modelo (lección 1 del módulo anterior): hay que seleccionar.
+2. **Contexto:** añadir descripciones de columnas, definiciones de negocio, relaciones entre tablas, ejemplos de preguntas con su SQL y reglas (lo que viste en el módulo anterior).
+3. **Generación:** el modelo escribe el SQL. Algunos sistemas generan varios candidatos y eligen el mejor.
+4. **Ejecución y comprobación:** se ejecuta; si hay error, se devuelve al modelo para que lo corrija (**autocorrección**); se pueden aplicar reglas (límites, solo lectura) y verificar que el resultado es razonable.
+5. **Respuesta:** tabla, gráfico y, idealmente, una explicación de **qué se ha calculado** (definiciones usadas, filtros aplicados) para que quien pregunta pueda juzgarlo.
+
+La revisión académica de estos sistemas (Hong et al., 2024) describe esas mismas piezas: representación del esquema, selección de ejemplos, descomposición de la pregunta, ejecución con retroalimentación y selección entre candidatos.
+
+### El enlace de esquema, medido
+
+En el lab implementas un enlace de esquema básico sobre 9 tablas y 51 columnas de Lumen y lo evalúas con ocho preguntas cuyas columnas necesarias son conocidas:
+
+| Información disponible para enlazar            | Recall@6 de las columnas necesarias |
+| ---------------------------------------------- | ----------------------------------: |
+| Solo nombres de tablas y columnas (en inglés)  |                                0,27 |
+| Nombres + descripciones en lenguaje de negocio |                            **0,86** |
+| Lo mismo, mirando las 8 mejores columnas       |                                0,91 |
+
+Con preguntas en español y columnas en inglés, los nombres solos casi no sirven. Las descripciones ("importe venta ingresos facturación", "motivo de la devolución") multiplican por tres el recall. Y los fallos que quedan son los más instructivos: «margen bruto» no enlaza con `quantity` ni `unit_price` (el margen es un concepto de negocio, no un nombre de columna) y «último mes» no enlaza con `created_at`. **Lo que falta no es inteligencia del modelo, sino conocimiento del negocio** que nadie le ha dado.
+
+### Por qué falla: taxonomía de errores
+
+Los análisis de errores de los sistemas de texto a SQL y los benchmarks empresariales coinciden en unas pocas familias:
+
+| Familia de fallo                     | Ejemplo en Lumen                                                                 | Cómo se ve                              |
+| ------------------------------------ | -------------------------------------------------------------------------------- | --------------------------------------- |
+| **Esquema inventado o mal enlazado** | `o.canal` en lugar de `o.channel`; una tabla equivocada                          | Error de ejecución (el menos peligroso) |
+| **Definición de negocio ausente**    | «Ingresos» sin excluir cancelados ni devoluciones (+4 % a +8 % de error)         | Cifra plausible y equivocada            |
+| **Grano y uniones**                  | Sumar el coste de envío tras unir con las líneas (×2,6)                          | Cifra inflada; filas duplicadas         |
+| **Ambigüedad de la pregunta**        | «el mes pasado» (¿natural o últimos 30 días?), «clientes activos» (¿definición?) | Dos respuestas razonables; elige una    |
+| **Conocimiento del dominio**         | Qué es un «cliente VIP», que los datos acaban el 30 de junio de 2026             | Filtro de fecha equivocado              |
+| **Dialecto y funciones**             | `DATE_TRUNC` frente a `TRUNC`, intervalos, zonas horarias                        | Error o resultado desplazado            |
+| **Lógica compleja**                  | Cohortes, ventanas, retención, comparativas interanuales                         | Cierta lógica casi correcta             |
+
+Los benchmarks reflejan el salto de dificultad: en Spider 1.0, GPT-4o llegaba al 86,6 %; en **Spider 2.0**, con bases de datos empresariales de más de mil columnas y tareas que requieren varias consultas de más de cien líneas, el mismo modelo conseguía un 10,1 % en la primera evaluación publicada (los sistemas posteriores han mejorado mucho; lección 4). La distancia entre el ejemplo de laboratorio y la base de datos real de una empresa es enorme.
+
+<Callout type="warning">
+  Lo más peligroso no es el SQL que falla, sino el SQL que **funciona y responde otra pregunta**:
+  una definición razonable pero distinta, un filtro olvidado, una unión que multiplica filas. Un
+  sistema para toda la empresa tiene que mostrar qué definiciones y filtros ha usado, detectar la
+  ambigüedad y negarse a responder cuando no sabe (lección 2).
+</Callout>
+
+<Snapshot date="2026-10">
+  Los sistemas actuales combinan enlace de esquema, recuperación de ejemplos y descripciones, varios
+  candidatos y bucles de autocorrección, y los proveedores los empaquetan como productos sobre una
+  capa semántica (lección 3). Snowflake lo resume en su documentación: las soluciones de IA
+  genéricas «tienen dificultades con la conversión de texto a SQL cuando solo reciben el esquema de
+  la base de datos», y por eso recomienda vistas semánticas con tablas lógicas, dimensiones, hechos,
+  métricas y relaciones. La capacidad de los modelos mejora cada trimestre y los benchmarks se
+  saturan o se revisan (lección 4): usa las cifras como orientación, no como garantía para tus
+  datos.
+</Snapshot>
+
+## En la práctica
+
+1. **Empieza por el enlace de esquema:** mide si las columnas necesarias llegan al modelo (recall@k) con tus preguntas reales.
+2. **Escribe descripciones de negocio** de tablas y columnas, con sinónimos y los términos que usan los equipos (en su idioma).
+3. **Documenta las definiciones** de las métricas y dónde están los datos "de entonces" (fechas, estados).
+4. **Recopila preguntas reales** de los usuarios para diseñar ejemplos y para evaluar.
+5. **Registra cada respuesta** con la pregunta, el SQL, las definiciones usadas y el resultado.
+6. **Diseña la abstención:** ¿qué hace el sistema si no encuentra columnas o si la pregunta es ambigua?
+7. **Clasifica los fallos** que veas con la taxonomía anterior; indican dónde invertir (descripciones, capa semántica, ejemplos).
+
+```python
+columnas = enlazar(pregunta, esquema, descripciones, k=6)   # las candidatas que verá el modelo
+recall = recall_en_k(preguntas_oro, esquema, descripciones, k=6)
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Enlazar pocas columnas frente a muchas:** pocas reducen ruido y coste, pero arriesgan perder la necesaria; muchas lo contrario. Mide el recall.
+- **Esquema completo en el prompt frente a recuperación:** con pocas tablas, mándalo todo; con cientos, recupera.
+- **Un modelo que genera varias respuestas frente a una:** mejora la exactitud y multiplica el coste y la latencia.
+- **Libertad frente a restricción:** dejar al modelo escribir cualquier SQL es flexible; limitarlo a métricas y dimensiones definidas es más fiable (lección 2).
+- **Autocorrección frente a abstención:** corregir errores de ejecución es útil; corregir «hasta que dé algo» puede forzar una respuesta equivocada.
+
+## Errores comunes
+
+- **Probar con tres preguntas fáciles** y declarar que funciona.
+- **Dar solo los nombres de columnas** a un modelo que debe entender un negocio en otro idioma.
+- **No registrar qué definiciones usó la respuesta.**
+- **Medir solo si el SQL se ejecuta**, no si el resultado es el correcto.
+- **Resolver cada fallo con un parche en el prompt** en lugar de en las definiciones.
+- **Permitir escritura o consultas ilimitadas** al sistema (módulo de agentes).
+- **Ignorar la ambigüedad** y devolver siempre una respuesta.
+
+## Con IA
+
+Este tema es sobre IA: la tentación es pedir a un modelo más potente que arregle los fallos. Casi siempre es mejor mejorar el contexto (descripciones, definiciones, ejemplos) y el control (verificación, abstención) que cambiar de modelo. Cuando compares modelos, hazlo con tu propio conjunto de preguntas, no con titulares de benchmark.
+
+## En una entrevista
+
+- _"¿Por qué falla un asistente de texto a SQL en una base de datos real?"_ — Pista: esquema grande, definiciones de negocio ausentes, grano y uniones, ambigüedad, dominio; falla "en silencio".
+- _"¿Qué es el enlace de esquema y cómo lo evaluarías?"_ — Pista: seleccionar tablas y columnas relevantes; recall@k contra columnas necesarias conocidas.
+- _"El asistente da respuestas distintas a dos personas. ¿Qué haces?"_ — Pista: comparar definiciones y SQL; fijar la métrica en una capa semántica; mostrar supuestos.
+
+<KeyTakeaways
+  items={[
+    'Un sistema de texto a SQL encadena enlace de esquema, contexto, generación, ejecución con autocorrección y respuesta con explicación; cada fase se puede medir y mejorar.',
+    'En Lumen, el enlace de esquema con solo nombres da un recall@6 de 0,27; con descripciones de negocio, 0,86: lo que falta suele ser conocimiento del negocio, no capacidad del modelo.',
+    'Los fallos se agrupan en esquema inventado, definición ausente, grano y uniones, ambigüedad, dominio, dialecto y lógica compleja; los más peligrosos son los que se ejecutan y responden otra pregunta.',
+    'La dificultad real es muy superior a la de los ejemplos de laboratorio: en Spider 2.0 un modelo que rozaba el 87 % en Spider 1.0 resolvió el 10,1 % de las tareas empresariales en la evaluación inicial.',
+    'Diseña la abstención y la explicación (qué definiciones y filtros se usaron) desde el principio: son la defensa contra el error silencioso.',
+  ]}
+/>

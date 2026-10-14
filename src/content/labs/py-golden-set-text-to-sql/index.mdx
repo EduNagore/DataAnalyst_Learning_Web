@@ -1,0 +1,39 @@
+---
+title: 'Golden set: evaluar un sistema de texto a SQL con preguntas y respuestas verificadas'
+description: 'Evalúa un sistema de texto a SQL simulado con diez preguntas de oro sobre Lumen: compara resultados (no texto), detecta errores de ejecución, abstenciones y aciertos por casualidad con una segunda versión de los datos, y calcula la exactitud con su intervalo de confianza de Wilson.'
+language: python
+part: 'Parte VI · IA para analistas'
+module: text-to-sql
+difficulty: 3
+estimatedMinutes: 50
+concepts:
+  [
+    'golden set',
+    'exactitud de ejecución',
+    'falsos positivos',
+    'abstención',
+    'intervalo de Wilson',
+    'pruebas metamórficas',
+  ]
+datasets: ['orders', 'customers', 'subscriptions', 'shipments']
+packages: ['duckdb']
+output: console
+hints:
+  - 'Comparar resultados: normaliza cada valor a texto (los números, `round(float(v), 2)`), convierte cada fila en la tupla ORDENADA de sus valores y compara las listas de filas ordenadas; exige también el mismo `shape`.'
+  - 'Categorías en este orden: empieza por «NO_PUEDO_RESPONDER» (sin importar mayúsculas) → abstención; si la consulta falla en cualquier versión → error; si coincide con la de oro en base y alternativa → correcta; solo en base → correcta por casualidad; si no → resultado distinto.'
+  - 'Una consulta con un valor fijo (`SELECT 161706`) puede acertar en los datos base y fallar en una versión ligeramente distinta: por eso se evalúa en las dos.'
+  - 'Wilson: `centro = (p + z²/2n) / (1 + z²/n)` y `margen = z·√(p(1−p)/n + z²/4n²) / (1 + z²/n)`; el intervalo es `centro ± margen`.'
+relatedLessons: ['text-to-sql/04-evaluar-un-sistema-de-texto-a-sql-benchmarks-y-golden-sets']
+businessQuestion: '¿Con qué frecuencia acierta de verdad el asistente de datos, y cuánta confianza da una prueba de diez preguntas?'
+---
+
+La única forma de saber si un sistema de texto a SQL funciona **con tus datos** es preguntarle cosas cuya respuesta ya conoces. Un _golden set_ es una lista de preguntas con su consulta de oro; se compara el **resultado** de la respuesta con el de la consulta de oro, no el texto del SQL.
+
+El conjunto de oro `ORO` (diez preguntas sobre pedidos de 2025, clientes, suscripciones y envíos), las `RESPUESTAS` que da el sistema simulado y la función `ejecutar(sql, version)` (sobre los datos `base` y una versión `alternativa` con el 10 % de las filas eliminado) ya están definidos. Implementa:
+
+1. **`mismo_resultado(a, b)`** → ¿coinciden dos resultados?
+2. **`evaluar_pregunta(sql_oro, respuesta)`** → `correcta`, `correcta_por_casualidad`, `resultado_distinto`, `error_ejecucion` o `abstencion`.
+3. **`evaluar_sistema(llm, oro)`** y **`exactitud(resultados, estricta)`**.
+4. **`intervalo_wilson(aciertos, n)`** → intervalo de confianza de la exactitud.
+
+Resultado esperado: 4 respuestas correctas de 10 (exactitud 0,40), más una que solo acierta por casualidad (un valor fijo que coincide con los datos base): una evaluación ingenua diría 0,50. Con solo diez preguntas, el intervalo de confianza de Wilson va de **0,17 a 0,69**: una prueba pequeña no permite concluir casi nada.

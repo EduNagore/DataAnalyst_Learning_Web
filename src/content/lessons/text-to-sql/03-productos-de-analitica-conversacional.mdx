@@ -1,0 +1,169 @@
+---
+title: 'Productos de analítica conversacional: qué ofrecen y cómo compararlos'
+description: 'Panorama de los asistentes de datos en lenguaje natural de los principales proveedores (Snowflake Cortex Analyst, Databricks Genie, Copilot de Power BI, Tableau Next y ThoughtSpot Spotter), qué requisitos tienen en común y un método para compararlos con tus propios datos y preguntas.'
+module: text-to-sql
+order: 3
+level: avanzado
+estimatedMinutes: 40
+objectives:
+  - 'Describir qué ofrece cada producto principal de analítica conversacional y qué preparación de datos exige.'
+  - 'Identificar los requisitos comunes: modelo semántico, descripciones, ejemplos o respuestas verificadas, gobierno y permisos.'
+  - 'Comparar productos con un procedimiento reproducible: conjunto de preguntas propio, criterios de aceptación y pruebas de seguridad.'
+  - 'Reconocer las limitaciones declaradas (conversaciones largas, alcance, disponibilidad regional, vista previa).'
+prerequisites: ['text-to-sql/02-la-capa-semantica-como-solucion-y-cuando-no-basta']
+tools: []
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Snowflake — Cortex Analyst'
+    url: 'https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-analyst'
+    type: docs
+    authors: 'Snowflake'
+    year: 2026
+  - title: 'Databricks — AI/BI Genie'
+    url: 'https://docs.databricks.com/aws/en/genie/'
+    type: docs
+    authors: 'Databricks'
+    year: 2026
+  - title: 'Microsoft — Copilot for Power BI overview'
+    url: 'https://learn.microsoft.com/en-us/power-bi/create-reports/copilot-introduction'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'ThoughtSpot — Spotter'
+    url: 'https://docs.thoughtspot.com/cloud/latest/spotter'
+    type: docs
+    authors: 'ThoughtSpot'
+    year: 2026
+  - title: 'Salesforce — Tableau Next'
+    url: 'https://www.salesforce.com/analytics/tableau-next/'
+    type: docs
+    authors: 'Salesforce'
+    year: 2026
+relatedLabs: ['py-golden-set-text-to-sql']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Lumen tiene licencias de Power BI, un almacén en Snowflake y un equipo de Marketing que usa
+  Tableau; cada proveedor ofrece su asistente «para preguntar en lenguaje natural». Compras pide a
+  Datos una recomendación: ¿cuál contratamos, cuál aprovechamos y qué hay que preparar? La respuesta
+  no es «el que mejor se vea en la demo», sino «el que mejor responda a nuestras preguntas con
+  nuestros datos y nuestro gobierno».
+</BusinessContext>
+
+## Intuición
+
+Comprar un traductor automático: todos funcionan de maravilla en la demo con frases típicas. Lo que importa es cómo traducen **tus** documentos con **tu** jerga. Con los asistentes de datos es igual, con un agravante: si fallan, no hacen una traducción rara, dan un número equivocado con aspecto serio.
+
+## Cómo funciona
+
+### Panorama por proveedor
+
+La tabla resume lo que declara la documentación oficial de cada producto a octubre de 2026; los nombres y funciones evolucionan con rapidez.
+
+| Producto                                         | Qué es                                                                                                                                                        | Qué pide a tus datos                                                                                                                                                        | Limitaciones o notas declaradas                                                                                                                                                                                        |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Snowflake Cortex Analyst**                     | Servicio gestionado de LLM para preguntar en lenguaje natural a datos estructurados                                                                           | Metadatos semánticos; las **vistas semánticas** son el enfoque recomendado (tablas lógicas, dimensiones, hechos, métricas y relaciones)                                     | No accede a resultados de consultas anteriores en conversaciones de varios turnos; puede fallar con conversaciones largas o cambios de intención; solo preguntas respondibles con SQL                                  |
+| **Databricks Genie** (espacios o agentes)        | Entornos por dominio donde el equipo de datos configura datos de confianza, métricas y reglas de negocio                                                      | Conjuntos de datos, consultas de ejemplo, instrucciones, métricas y **respuestas verificadas**                                                                              | La calidad depende de la configuración y de los datos anotados                                                                                                                                                         |
+| **Copilot para Power BI**                        | Chat con tus datos (panel del informe, experiencia independiente y en aplicaciones), resúmenes, creación de informes y ayuda con DAX                          | **Preparar el modelo semántico para la IA**; capacidad Fabric de pago (F2 o superior) o Premium (P1 o superior); en aplicaciones, **respuestas verificadas** de los autores | Parte de las experiencias están en vista previa; no se admiten nubes soberanas; el multilingüismo no está oficialmente soportado; si la pregunta no se refiere al modelo, responde con el conocimiento general del LLM |
+| **Tableau Next** (Concierge y Tableau Semantics) | Plataforma de analítica agéntica de Salesforce con capa semántica integrada (Tableau Semantics, sobre Data Cloud) y un agente de lenguaje natural (Concierge) | Datos modelados en la capa semántica de Salesforce                                                                                                                          | Ligado al ecosistema de Salesforce y su licencia (Tableau+)                                                                                                                                                            |
+| **ThoughtSpot Spotter**                          | Analista de IA con búsqueda relacional en lenguaje natural; versiones Spotter 3, Spotter Agent y Spotter Classic                                              | Preparación del modelo de datos y **coaching** (enseñarle terminología y reglas del negocio)                                                                                | Disponibilidad según el plan                                                                                                                                                                                           |
+
+### Lo que todos comparten
+
+Más allá de las diferencias, el patrón es el mismo:
+
+1. **Un modelo semántico gobernado** (vista semántica, modelo de Power BI, Tableau Semantics, modelo de datos de ThoughtSpot, espacio de Genie): descripciones, relaciones, métricas.
+2. **Conocimiento del negocio explícito:** instrucciones, sinónimos, ejemplos de preguntas con su respuesta, **respuestas verificadas** que se devuelven tal cual cuando coincide la pregunta.
+3. **Gobierno y permisos:** la respuesta respeta lo que el usuario puede ver; el cómputo se factura a una capacidad.
+4. **Límites declarados:** conversaciones largas, preguntas fuera del modelo, disponibilidad regional, funciones en vista previa.
+5. **Mejora continua:** revisar preguntas sin respuesta, corregir descripciones, añadir ejemplos.
+
+Dos hechos prácticos de la documentación de Power BI que ilustran detalles reales a vigilar: si la misma pregunta se repite sobre un modelo sin cambios en un periodo de 24 horas, la respuesta puede servirse de caché (lo que afecta a las pruebas repetidas), y el consumo se mide en capacidad. Cada producto tiene lo suyo: léelo antes de hacer una prueba.
+
+<Callout type="warning">
+  Las demostraciones de los proveedores son los mejores casos. Los datos propios tienen nombres de
+  columnas extraños, definiciones que solo conoce un equipo y preguntas ambiguas. **Haz tu propia
+  prueba**: con tus datos, tus preguntas y tus criterios de aceptación. Y desconfía de cualquier
+  cifra de exactitud (del proveedor o de terceros) que no indique el conjunto de preguntas, el
+  modelo y la fecha.
+</Callout>
+
+### Cómo comparar con un procedimiento reproducible
+
+1. **Reúne 30-50 preguntas reales** (de usuarios, de reuniones, de tickets) repartidas en oficiales, exploratorias y deliberadamente ambiguas o fuera de alcance.
+2. **Escribe la respuesta correcta** de cada una (consulta de oro y resultado) con ayuda de los responsables de las métricas.
+3. **Prepara el modelo semántico** como lo harías en producción (la misma preparación para todos los productos candidatos), no más.
+4. **Ejecuta cada pregunta varias veces** (la respuesta puede variar) y registra la respuesta, el SQL o la definición usada y el tiempo.
+5. **Puntúa:** correctas, incorrectas, abstenciones útiles, errores de ejecución y aciertos por casualidad (lección 4); calcula la exactitud con su intervalo de confianza.
+6. **Prueba la seguridad:** ¿respeta permisos por filas?, ¿hay inyección de instrucciones a través de datos?, ¿se pueden extraer columnas ocultas con preguntas indirectas?
+7. **Mide el coste:** consumo de capacidad o créditos por pregunta, y la carga de preparación y mantenimiento.
+8. **Decide con criterios** (exactitud en lo oficial, seguridad, esfuerzo de preparación, encaje con tu ecosistema), no con la demo.
+
+<Snapshot date="2026-10">
+  Estado según las páginas oficiales consultadas en octubre de 2026: Snowflake recomienda las vistas
+  semánticas como base de Cortex Analyst y lo ofrece de forma nativa en nueve regiones (con
+  inferencia entre regiones para otras); Databricks agrupa la configuración en espacios o agentes de
+  Genie con datos de confianza, métricas, reglas y respuestas verificadas; Microsoft ofrece como
+  disponible general el panel de Copilot en los informes y mantiene en vista previa la experiencia
+  independiente y la de aplicaciones; Salesforce describe Tableau Next como una plataforma de
+  analítica agéntica con Tableau Semantics y Concierge; ThoughtSpot ofrece Spotter 3, Spotter Agent
+  y Spotter Classic según el plan. Los productos cambian de nombre y estado con frecuencia (varios
+  pasan de vista previa a disponibilidad general en meses): comprueba el estado actual antes de
+  comparar.
+</Snapshot>
+
+## En la práctica
+
+1. **Empieza por lo que ya tienes:** el asistente nativo de tu almacén o de tu herramienta de BI, sobre su modelo semántico.
+2. **Invierte primero en el modelo semántico:** descripciones, sinónimos, métricas y ejemplos valen para todos los productos.
+3. **Define el conjunto de preguntas y los criterios de aceptación** antes de ver ninguna demo.
+4. **Haz la prueba con datos reales y permisos reales,** no con un entorno de juguete.
+5. **Piloto con usuarios formados** y un canal de comentarios; amplía cuando la exactitud lo permita.
+6. **Revisa los costes de uso:** las preguntas consumen capacidad.
+7. **Mantén una vía de salida:** las definiciones en un formato portable (módulo de capa semántica) reducen el riesgo de depender de un solo proveedor.
+
+## Trade-offs y cuándo usarlo
+
+- **Asistente nativo del almacén frente a de la herramienta de BI:** el del almacén ve todos los datos y su gobierno; el de BI se integra con los informes y su audiencia.
+- **Un solo proveedor frente a varios:** uno simplifica el gobierno y concentra el riesgo; varios exigen definiciones portables.
+- **Comprar frente a construir:** construir da control sobre el comportamiento y exige un equipo; comprar acelera y depende del roadmap ajeno.
+- **Autoservicio amplio frente a piloto controlado:** el primero genera adopción y riesgo de respuestas erróneas; el segundo aprende antes de escalar.
+- **Respuestas verificadas frente a generación libre:** las verificadas son fiables y cubren poco; la generación cubre todo y requiere evaluación.
+
+## Errores comunes
+
+- **Decidir por la demo del proveedor.**
+- **Comparar productos con preparaciones distintas** (uno con modelo cuidado y otro con tablas crudas).
+- **Probar con unas pocas preguntas fáciles** y sin repetirlas.
+- **No probar permisos y seguridad.**
+- **Olvidar el coste de uso** y el esfuerzo de mantenimiento del modelo semántico.
+- **Lanzar a toda la empresa** sin piloto ni medición.
+- **Tomar una cifra de exactitud de un informe comercial** como si fuera la tuya.
+
+## Con IA
+
+Es habitual pedir a un asistente que compare estos productos. Su conocimiento tiene fecha de corte y esta es una de las áreas que más cambia: nombres que ya no existen, funciones que han pasado de vista previa a disponibles y precios distintos. Úsalo para generar la lista de criterios y verifica cada afirmación sobre un producto en su documentación oficial vigente.
+
+## En una entrevista
+
+- _"¿Cómo elegirías un asistente de datos en lenguaje natural para tu empresa?"_ — Pista: conjunto de preguntas propio, preparación idéntica del modelo semántico, métricas de exactitud con intervalo, seguridad, coste, encaje.
+- _"¿Qué tienen en común Cortex Analyst, Genie y Copilot para Power BI?"_ — Pista: modelo semántico, instrucciones y ejemplos, respuestas verificadas, gobierno, límites declarados.
+- _"El proveedor asegura un 90 % de exactitud. ¿Qué preguntas haces?"_ — Pista: ¿qué datos y preguntas?, ¿qué modelo y fecha?, ¿qué preparación?, ¿cómo se midió?, ¿con qué intervalo?
+
+<KeyTakeaways
+  items={[
+    'Cortex Analyst, Genie, Copilot para Power BI, Tableau Next y Spotter comparten un patrón: un modelo semántico gobernado, conocimiento del negocio explícito (instrucciones, ejemplos, respuestas verificadas), permisos y límites declarados.',
+    'Todos piden preparar los datos: vistas semánticas en Snowflake, espacios configurados en Databricks, modelo semántico «preparado para la IA» en Power BI, Tableau Semantics y coaching en ThoughtSpot.',
+    'Parte de las experiencias están en vista previa y las limitaciones documentadas incluyen conversaciones largas, alcance al modelo, disponibilidad regional y requisitos de capacidad de pago.',
+    'Se compara con un procedimiento reproducible: 30-50 preguntas propias con respuesta de oro, la misma preparación para todos, repeticiones, métrica de exactitud con intervalo, pruebas de seguridad y coste.',
+    'Las demos y las cifras de exactitud de los proveedores son los mejores casos; solo cuenta lo que se mide con tus datos, tus permisos y tus preguntas.',
+  ]}
+/>

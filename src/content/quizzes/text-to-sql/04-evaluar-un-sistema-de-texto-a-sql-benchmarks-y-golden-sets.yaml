@@ -1,0 +1,62 @@
+lesson: text-to-sql/04-evaluar-un-sistema-de-texto-a-sql-benchmarks-y-golden-sets
+questions:
+  - id: ts-04-q1
+    type: single
+    difficulty: 2
+    prompt: 'Un estudio de 2026 encontró errores de anotación en el 52,8 % de las preguntas de BIRD Mini-Dev. ¿Qué implicación tiene para las tablas de clasificación?'
+    options:
+      - 'Ninguna: los errores se compensan'
+      - 'Que pueden distorsionar la exactitud y el orden de los sistemas: al corregirlas, la exactitud de 16 agentes cambió entre −7 % y +31 % y los puestos hasta ±9'
+      - 'Que los benchmarks no sirven para nada'
+      - 'Que hay que usar solo benchmarks nuevos'
+    answer: [1]
+    explanation: 'Los benchmarks son útiles para comparar métodos, pero una cifra de clasificación no es la exactitud en tus datos, y un oro mal anotado produce conclusiones erróneas.'
+    ref: '#cuando-el-examen-tiene-errores'
+
+  - id: ts-04-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las buenas prácticas al construir un golden set.'
+    options:
+      - 'Comparar el resultado de la respuesta con el de la consulta de oro, no el texto del SQL'
+      - 'Revisar cada consulta de oro con quien conoce la métrica'
+      - 'Incluir preguntas ambiguas y fuera de alcance para medir la abstención'
+      - 'Generar el oro con el mismo sistema que se va a evaluar y no revisarlo'
+    answer: [0, 1, 2]
+    explanation: 'Un oro generado y sin revisar hereda los sesgos del sistema evaluado y no sirve como referencia.'
+    ref: '#tu-golden-set'
+
+  - id: ts-04-q3
+    type: single
+    difficulty: 3
+    prompt: 'Una respuesta es «SELECT 161706» y coincide con el resultado de oro en los datos de prueba. ¿Cómo se desenmascara?'
+    options:
+      - 'No se puede'
+      - 'Evaluando también con una segunda versión ligeramente distinta de los datos: una consulta correcta acierta en las dos, un valor fijo solo en una'
+      - 'Comparando el texto del SQL'
+      - 'Aumentando el número de decimales'
+    answer: [1]
+    explanation: 'Es una prueba metamórfica: se clasifica como «correcta por casualidad» y no cuenta en la exactitud estricta.'
+    ref: '#tu-golden-set'
+
+  - id: ts-04-q4
+    type: numeric
+    difficulty: 2
+    prompt: 'En el lab, un sistema acierta 4 de 10 preguntas. ¿Cuál es su exactitud estricta?'
+    answer: [0.4]
+    tolerance: 0.001
+    explanation: '4 / 10 = 0,40. Con solo diez preguntas, el intervalo de Wilson del 95 % va de 0,17 a 0,69.'
+    ref: '#tu-golden-set'
+
+  - id: ts-04-q5
+    type: single
+    difficulty: 3
+    prompt: 'Con una exactitud observada de 0,40, ¿cómo cambia el intervalo de confianza de Wilson al pasar de 10 a 100 preguntas?'
+    options:
+      - 'No cambia'
+      - 'Se estrecha mucho: de 0,17-0,69 a 0,31-0,50'
+      - 'Se ensancha'
+      - 'Desaparece'
+    answer: [1]
+    explanation: 'El intervalo se estrecha con la raíz del número de preguntas. Para distinguir sistemas parecidos hacen falta cientos de preguntas o un diseño emparejado sobre las mismas preguntas.'
+    ref: '#cuántas-preguntas-hacen-falta'

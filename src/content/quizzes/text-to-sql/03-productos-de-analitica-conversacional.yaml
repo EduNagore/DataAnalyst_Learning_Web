@@ -1,0 +1,66 @@
+lesson: text-to-sql/03-productos-de-analitica-conversacional
+questions:
+  - id: ts-03-q1
+    type: single
+    difficulty: 2
+    prompt: '¿Qué enfoque recomienda Snowflake para que Cortex Analyst responda bien?'
+    options:
+      - 'Dar solo el esquema de la base de datos'
+      - 'Definir vistas semánticas con tablas lógicas, dimensiones, hechos, métricas y relaciones'
+      - 'Subir los datos a una hoja de cálculo'
+      - 'No hace falta ninguna preparación'
+    answer: [1]
+    explanation: 'La documentación indica que las soluciones de IA genéricas tienen dificultades con solo el esquema y recomienda las vistas semánticas como base.'
+    ref: '#panorama-por-proveedor'
+
+  - id: ts-03-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los elementos que los productos de analítica conversacional comparten.'
+    options:
+      - 'Un modelo semántico gobernado (descripciones, relaciones, métricas)'
+      - 'Conocimiento del negocio explícito: instrucciones, ejemplos y respuestas verificadas'
+      - 'Permisos: la respuesta respeta lo que el usuario puede ver'
+      - 'Exactitud del 100 % garantizada sin preparación'
+    answer: [0, 1, 2]
+    explanation: 'Todos declaran límites y piden preparar los datos; ninguno garantiza una exactitud perfecta.'
+    ref: '#lo-que-todos-comparten'
+
+  - id: ts-03-q3
+    type: single
+    difficulty: 2
+    prompt: 'Según la documentación de Copilot para Power BI, ¿qué ocurre si el modelo semántico no se prepara para la IA?'
+    options:
+      - 'Funciona igual de bien'
+      - 'Copilot puede malinterpretar los datos y devolver resultados genéricos o inexactos'
+      - 'No se puede activar'
+      - 'Se borra el modelo'
+    answer: [1]
+    explanation: 'Preparar el modelo (descripciones, relaciones, metadatos) es la condición para obtener respuestas coherentes y fiables.'
+    ref: '#panorama-por-proveedor'
+
+  - id: ts-03-q4
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODOS los pasos de un procedimiento reproducible para comparar dos asistentes de datos.'
+    options:
+      - 'Reunir 30-50 preguntas reales con su respuesta de oro verificada'
+      - 'Preparar el modelo semántico de la misma forma para todos los candidatos'
+      - 'Ejecutar cada pregunta varias veces y registrar categorías de resultado'
+      - 'Elegir el que tenga la mejor demo del proveedor'
+    answer: [0, 1, 2]
+    explanation: 'Las demos son los mejores casos. Además hay que probar seguridad y coste.'
+    ref: '#cómo-comparar-con-un-procedimiento-reproducible'
+
+  - id: ts-03-q5
+    type: single
+    difficulty: 2
+    prompt: 'Un proveedor afirma un 90 % de exactitud. ¿Qué es lo primero que debes preguntar?'
+    options:
+      - '¿Cuánto cuesta?'
+      - '¿Con qué datos, preguntas, modelo y fecha se midió y con qué preparación?'
+      - '¿Quién más lo usa?'
+      - 'Nada: es una cifra oficial'
+    answer: [1]
+    explanation: 'Una cifra de exactitud sin conjunto de preguntas, preparación, modelo y fecha no es comparable con tu caso.'
+    ref: '#cómo-comparar-con-un-procedimiento-reproducible'

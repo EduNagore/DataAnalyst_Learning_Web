@@ -1,0 +1,199 @@
+---
+title: 'Evaluar un sistema de texto a SQL: benchmarks, errores de anotación y golden sets'
+description: 'Cómo medir si un asistente de datos funciona: los benchmarks Spider 2.0 y BIRD y por qué sus tablas de clasificación se interpretan con cautela (errores de anotación), y cómo construir un golden set propio con comparación de resultados, versiones alternativas de los datos, abstención e intervalos de confianza.'
+module: text-to-sql
+order: 4
+level: avanzado
+estimatedMinutes: 55
+objectives:
+  - 'Describir Spider 2.0 y BIRD, sus métricas y por qué una clasificación pública no predice la exactitud en tus datos.'
+  - 'Explicar el impacto de los errores de anotación en los benchmarks de texto a SQL.'
+  - 'Construir un golden set y evaluarlo comparando resultados, con categorías de fallo, abstención y aciertos por casualidad.'
+  - 'Calcular y leer un intervalo de confianza de la exactitud y dimensionar el número de preguntas necesario.'
+prerequisites:
+  [
+    'text-to-sql/03-productos-de-analitica-conversacional',
+    'inferencia/01-muestreo-error-estandar-e-intervalos-de-confianza',
+  ]
+tools: ['python', 'sql']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Spider 2.0 — Evaluación y tabla de clasificación'
+    url: 'https://spider2-sql.github.io/'
+    type: docs
+    authors: 'Spider 2.0'
+    year: 2026
+  - title: 'BIRD — Big Bench for Large-scale Database Grounded Text-to-SQL Evaluation'
+    url: 'https://bird-bench.github.io/'
+    type: docs
+    authors: 'BIRD'
+    year: 2026
+  - title: 'Jin, Choi, Zhu & Kang — Pervasive Annotation Errors Break Text-to-SQL Benchmarks and Leaderboards'
+    url: 'https://arxiv.org/abs/2601.08778'
+    type: paper
+    authors: 'Jin, T., Choi, Y., Zhu, Y., Kang, D.'
+    year: 2026
+  - title: 'Lei et al. — Spider 2.0: Evaluating Language Models on Real-World Enterprise Text-to-SQL Workflows'
+    url: 'https://arxiv.org/abs/2411.07763'
+    type: paper
+    authors: 'Lei, F. et al.'
+    year: 2024
+relatedLabs: ['py-golden-set-text-to-sql']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Un proveedor presenta a Lumen su sistema de texto a SQL con una diapositiva: «83 % en BIRD, 97 %
+  en Spider 2.0-Snow». Dirección pregunta: ¿entonces acertará el 83 % de lo que pregunten nuestros
+  comerciales? La respuesta honesta es «no lo sabemos, y esas cifras no lo dicen». Para saberlo hay
+  que medir con preguntas propias, comparar resultados bien y entender cuánta incertidumbre tiene
+  una prueba pequeña.
+</BusinessContext>
+
+## Intuición
+
+Un examen de conducir en circuito cerrado no dice cómo conducirás en el centro de Madrid en hora punta. Los benchmarks públicos son el circuito: útiles para comparar métodos en igualdad de condiciones, poco útiles para predecir tu caso. Además, si el examinador se equivoca en las respuestas correctas de algunas preguntas, los aprobados dejan de ser fiables. Eso, literalmente, ocurre.
+
+## Cómo funciona
+
+### Los benchmarks más citados
+
+| Benchmark      | Qué es                                                                                                                    | Métrica principal                                | Estado (octubre de 2026)                                                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **BIRD**       | 12.751 pares pregunta-SQL sobre 95 bases de datos grandes (33,4 GB) de más de 37 dominios                                 | Exactitud de ejecución (EX) y eficiencia (R-VES) | Humanos 92,96 %; mejor sistema 82,95 % (septiembre de 2026)                                                                             |
+| **Spider 2.0** | 632 problemas de flujos de trabajo empresariales con bases de datos de más de mil columnas en BigQuery, Snowflake y otros | Tasa de éxito en la tarea                        | Spider 2.0-Snow (547 ejemplos): hasta 96,70 %; Spider 2.0-Lite (547): 76,23 %; Spider 2.0-DBT (68 tareas de proyecto en DuckDB): 65,6 % |
+
+Para ponerlo en perspectiva: cuando se publicó, el mejor modelo evaluado resolvía el 17,1 % de Spider 2.0 (el 86,6 % en el Spider 1.0 original). En pocos meses, los sistemas especializados con agentes han subido muchísimo en algunas variantes. Pero **una cifra de una tabla de clasificación no es la exactitud que tendrás tú**: otro esquema, otras definiciones, otras preguntas, otras ambigüedades.
+
+### Cuando el examen tiene errores
+
+Un estudio de 2026 (Jin, Choi, Zhu y Kang) analizó las anotaciones de los benchmarks y encontró que **el 52,8 % de las preguntas de BIRD Mini-Dev y el 62,8 % de Spider 2.0-Snow tenían errores en la anotación** (la consulta de oro, la pregunta o el conocimiento externo): desde consultas que no hacen lo que dice la pregunta hasta ambigüedades sin resolver. Al reevaluar 16 agentes de código abierto de la clasificación de BIRD con los datos corregidos, la exactitud cambió entre un −7 % y un +31 % en términos relativos y las posiciones cambiaron entre −9 y +9 puestos. Las clasificaciones sin corregir correlacionaban fuertemente con las del conjunto de desarrollo completo (Spearman de 0,85), mientras que las corregidas apenas lo hacían (0,32).
+
+La lección: **las clasificaciones públicas pueden distorsionar, y un conjunto de oro mal anotado produce conclusiones erróneas**. Esto también se aplica al tuyo: cada consulta de oro debe revisarla alguien que conozca el negocio.
+
+### Tu golden set
+
+Un _golden set_ propio es la herramienta de evaluación que importa. Principios:
+
+1. **Preguntas reales**, de los usuarios, repartidas por tipo: oficiales, exploratorias, ambiguas y fuera de alcance (para medir la abstención).
+2. **Consulta de oro y resultado verificados** por los responsables de las métricas; la comprobación del oro es la parte cara.
+3. **Compara resultados, no texto**: dos SQL distintos pueden ser equivalentes y uno casi idéntico puede responder otra cosa. Ignora el orden de filas y columnas y los alias; redondea los decimales.
+4. **Categorías de resultado**, no solo acierto/fallo: correcta, resultado distinto, error de ejecución, abstención y acierto por casualidad.
+5. **Comprueba con una segunda versión de los datos** (una pequeña perturbación): un SQL con un valor fijo o un filtro casual puede acertar con los datos de prueba y fallar en cuanto cambian (prueba metamórfica).
+6. **Repite** cada pregunta varias veces: la respuesta varía.
+7. **Calcula la exactitud con su intervalo de confianza** y desglosa por tipo de pregunta.
+
+En el lab evalúas un sistema simulado con diez preguntas sobre Lumen. Resultado:
+
+| Categoría                                                 |              Preguntas |
+| --------------------------------------------------------- | ---------------------: |
+| Correcta (en las dos versiones de datos)                  | 4 (q03, q06, q08, q10) |
+| Correcta solo por casualidad (valor fijo `SELECT 161706`) |                1 (q01) |
+| Resultado distinto (olvidó un filtro)                     |      3 (q02, q05, q09) |
+| Error de ejecución (columna inventada)                    |                1 (q04) |
+| Abstención                                                |                1 (q07) |
+
+La **exactitud estricta es 0,40**; una evaluación que solo mirase los datos base daría 0,50. Y con solo diez preguntas, el intervalo de confianza de Wilson al 95 % va de **0,17 a 0,69**: no se puede distinguir un sistema del 20 % de uno del 65 %.
+
+### Cuántas preguntas hacen falta
+
+El intervalo de la proporción se estrecha con la raíz del número de preguntas. Con una exactitud observada de 0,40:
+
+| Preguntas | IC 95 % de Wilson |
+| --------: | ----------------- |
+|        10 | 0,17 a 0,69       |
+|       100 | 0,31 a 0,50       |
+
+Para distinguir dos sistemas cuya exactitud difiere en 10 puntos hacen falta cientos de preguntas por sistema, o evaluar los dos sobre **las mismas preguntas** (diseño emparejado) y contar en cuántas difieren. Esto conecta con lo aprendido en inferencia: la evaluación de un sistema es un experimento y tiene error de muestreo.
+
+<Callout type="warning">
+  Cuidado con medir solo "¿se ejecuta?" o "¿se parece al SQL de oro?". La primera deja pasar las
+  respuestas equivocadas que se ejecutan; la segunda penaliza las equivalentes. Mide la **exactitud
+  del resultado**, separa los aciertos por casualidad y trata la **abstención correcta** como un
+  acierto en las preguntas fuera de alcance (y como un fallo en las que sí eran respondibles).
+</Callout>
+
+### Más allá de la exactitud
+
+| Dimensión            | Qué medir                                                                         |
+| -------------------- | --------------------------------------------------------------------------------- |
+| **Exactitud**        | Resultado correcto en preguntas respondibles (con intervalo)                      |
+| **Abstención**       | Se abstiene cuando debe y no cuando no debe (precisión y recall de la abstención) |
+| **Seguridad**        | Respeta permisos por filas y columnas; resiste la inyección de instrucciones      |
+| **Consistencia**     | Misma pregunta, misma respuesta en repeticiones y en reformulaciones              |
+| **Explicabilidad**   | Muestra definiciones, filtros y periodo usados                                    |
+| **Latencia y coste** | Segundos y euros por pregunta; carga sobre el almacén                             |
+| **Cobertura**        | Porcentaje de preguntas reales que el sistema puede responder                     |
+
+### En producción
+
+La evaluación no termina en el lanzamiento: registra las preguntas, valora una muestra cada semana, añade los fallos al golden set y repite la evaluación cada vez que cambie el modelo, las descripciones o los datos.
+
+<Snapshot date="2026-10">
+  Cifras de las páginas oficiales de los benchmarks en octubre de 2026: BIRD (95 bases de datos,
+  12.751 pares, humanos 92,96 % y mejor sistema 82,95 % en septiembre de 2026); Spider 2.0 (632
+  problemas; 96,70 % en Spider 2.0-Snow, 76,23 % en Spider 2.0-Lite, 65,6 % en Spider 2.0-DBT). El
+  estudio de errores de anotación de enero de 2026 (publicado como preimpresión) propone conjuntos
+  corregidos. Las tablas de clasificación cambian cada semana y pueden revisarse; consúltalas
+  directamente.
+</Snapshot>
+
+## En la práctica
+
+1. **Construye el golden set** con 50-100 preguntas reales de partida (más si puedes) y revisa cada oro con el responsable de la métrica.
+2. **Fija una versión alternativa de los datos** para detectar aciertos por casualidad.
+3. **Evalúa con repeticiones** y registra categorías de fallo.
+4. **Informa de la exactitud con su intervalo** y por tipo de pregunta; no una cifra única.
+5. **Mide la abstención** con preguntas fuera de alcance y ambiguas.
+6. **Haz las pruebas de seguridad** (permisos, inyección) además de las de exactitud.
+7. **Reevalúa en cada cambio** y alimenta el conjunto con los fallos reales.
+
+```python
+resultados = evaluar_sistema(llm, ORO)
+exactitud(resultados), intervalo_wilson(aciertos, n)   # (0.40, (0.17, 0.69)) con 10 preguntas
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Benchmark público frente a golden set propio:** el público permite comparar métodos; el propio predice tu caso.
+- **Más preguntas frente a oro más cuidado:** cien preguntas mal anotadas valen menos que treinta bien revisadas.
+- **Evaluación automática frente a humana:** la automática repite barato; la humana capta lo que no habías previsto (explicación, tono, utilidad).
+- **Comparar resultados con tolerancia estricta o laxa:** estricta detecta errores pequeños y falla por redondeos; define la tolerancia con las personas responsables de la métrica.
+- **Evaluar un sistema a la vez o dos con las mismas preguntas:** emparejar reduce el ruido y permite detectar diferencias menores.
+
+## Errores comunes
+
+- **Citar la cifra de una clasificación pública** como la exactitud esperada.
+- **Evaluar con un oro sin revisar.**
+- **Comparar el texto del SQL** en lugar del resultado.
+- **Medir con diez preguntas y declarar un ganador.**
+- **No contar los aciertos por casualidad** ni usar una segunda versión de los datos.
+- **No evaluar la abstención** (el sistema que nunca dice «no sé»).
+- **Congelar el golden set:** no se actualiza con los fallos reales.
+
+## Con IA
+
+Un modelo puede ayudarte a **generar preguntas candidatas** y a redactar consultas de oro, pero no a validarlas: un oro generado por el mismo tipo de sistema que evalúas hereda sus sesgos. Cada oro lo valida una persona que conozca la métrica. Y si usas un modelo como juez para comparar respuestas en lenguaje natural, valida primero al juez contra etiquetas humanas (módulo de datos no estructurados).
+
+## En una entrevista
+
+- _"¿Cómo evaluarías un asistente de texto a SQL antes de lanzarlo?"_ — Pista: golden set propio, comparación de resultados, categorías de fallo, abstención, segunda versión de datos, intervalo de confianza, seguridad.
+- _"El proveedor dice que acierta el 83 % en BIRD. ¿Qué piensas?"_ — Pista: otro esquema y definiciones; errores de anotación; qué preguntas; no predice tu exactitud.
+- _"¿Cuántas preguntas necesitas para decidir entre dos sistemas?"_ — Pista: error de muestreo; intervalo de Wilson; diseño emparejado; tamaño según la diferencia a detectar.
+
+<KeyTakeaways
+  items={[
+    'BIRD (12.751 pares, 95 bases de datos) y Spider 2.0 (632 problemas empresariales) son los benchmarks de referencia, con mejores resultados de 82,95 % y de hasta 96,70 % (Spider 2.0-Snow); no predicen la exactitud en tus datos.',
+    'Un estudio de 2026 halló errores de anotación en el 52,8 % de las preguntas de BIRD Mini-Dev y en el 62,8 % de Spider 2.0-Snow; al corregirlos, la exactitud de 16 agentes cambió entre −7 % y +31 % y los puestos hasta ±9.',
+    'Un golden set propio compara resultados (no texto), distingue correcta, resultado distinto, error, abstención y acierto por casualidad, y usa una segunda versión de los datos para desenmascarar valores fijos.',
+    'En el lab, un sistema con 4 de 10 respuestas correctas parece tener 0,50 si solo se miran los datos base; el intervalo de Wilson con diez preguntas (0,17-0,69) muestra que una prueba pequeña casi no informa.',
+    'Evalúa también la abstención, la seguridad, la consistencia, la explicabilidad y el coste, y reevalúa en cada cambio alimentando el conjunto con los fallos reales.',
+  ]}
+/>
