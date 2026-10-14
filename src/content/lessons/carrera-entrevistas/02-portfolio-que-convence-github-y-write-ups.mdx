@@ -1,0 +1,197 @@
+---
+title: 'Un portfolio que convence: casos, GitHub y write-ups'
+description: 'Qué debe tener un portfolio de analista (tres casos con pregunta de negocio, método, resultado y recomendación), cómo estructurar un repositorio reproducible, cómo escribir un write-up que lea un responsable de contratación en tres minutos y qué errores lo desacreditan.'
+module: carrera-entrevistas
+order: 2
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Elegir tres proyectos de portfolio que demuestren técnica, criterio y comunicación.'
+  - 'Estructurar un repositorio reproducible (datos, entorno, código, README) y publicarlo en GitHub.'
+  - 'Escribir un write-up con pregunta, método, resultado, límites y recomendación para una audiencia no técnica.'
+  - 'Autoevaluar un proyecto con una rúbrica y corregir los fallos que desacreditan un portfolio.'
+prerequisites: ['carrera-entrevistas/01-que-buscan-las-empresas-por-nivel-y-como-leer-una-oferta']
+tools: ['python', 'sql']
+volatility: medium
+lastReviewed: 2026-10-14
+sources:
+  - title: 'GitHub Docs — GitHub Pages'
+    url: 'https://docs.github.com/en/pages'
+    type: docs
+    authors: 'GitHub'
+    year: 2026
+  - title: 'Storytelling with Data'
+    url: 'https://www.storytellingwithdata.com/books'
+    type: book
+    authors: 'Knaflic, C. N.'
+    year: 2015
+  - title: 'Evidence — documentación (BI como código)'
+    url: 'https://docs.evidence.dev/'
+    type: docs
+    authors: 'Evidence'
+    year: 2026
+  - title: 'uv — documentación (proyectos, lockfile y scripts)'
+    url: 'https://docs.astral.sh/uv/'
+    type: docs
+    authors: 'Astral'
+    year: 2026
+relatedLabs: []
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Una persona que ha terminado el curso quiere presentarse a su primer puesto de analista. Tiene los
+  ejercicios hechos, pero un repositorio con 14 notebooks sin título («Untitled3.ipynb»), un CSV de
+  200 MB subido a Git y ningún README. Quien revise su candidatura dedicará, como mucho, unos
+  minutos. ¿Qué debe ver en ese tiempo para decidir que merece una entrevista?
+</BusinessContext>
+
+## Intuición
+
+Un portfolio no es un álbum de ejercicios: es **la prueba de que sabes hacer el trabajo**. Quien contrata no quiere ver que has usado `groupby`; quiere ver que sabes **elegir la pregunta, desconfiar de los datos, tomar una decisión de método, contar el resultado y reconocer sus límites**. Cada proyecto debe poder leerse como una pequeña historia de negocio con final: «esto es lo que haría la empresa».
+
+## Cómo funciona
+
+### Tres proyectos, tres señales
+
+Mejor tres proyectos bien contados que quince a medias. Elige proyectos que cubran señales distintas:
+
+| Señal                             | Proyecto ejemplo (con los datos de Lumen o abiertos)                                            | Qué demuestra                                                  |
+| --------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| **Análisis y comunicación**       | «¿Por qué cayeron las ventas en marzo?» o un informe de retención con recomendación             | Preguntas, desconfianza de los datos, narración, recomendación |
+| **Rigor estadístico / causal**    | Un análisis de experimento con SRM, potencia, CUPED y decisión; o un diferencias en diferencias | Método, límites, honestidad sobre la incertidumbre             |
+| **Ingeniería y reproducibilidad** | Un pipeline con dbt/DuckDB y pruebas, o un dashboard como proyecto versionado                   | Datos limpios, definiciones, pruebas, trabajo en equipo        |
+
+Un cuarto proyecto opcional marca diferencia hoy: un uso **responsable de IA** (por ejemplo, clasificar tickets con un LLM y evaluarlo contra etiquetas humanas, con coste y errores) o un asistente analítico con capa semántica y un conjunto de preguntas de oro.
+
+Usa **datos que puedas compartir** (datos abiertos, el dataset sintético de este curso, datos simulados) y **nunca** datos confidenciales de un empleador ni personales de terceros.
+
+### Anatomía de un proyecto
+
+Cada proyecto responde a seis preguntas, en este orden:
+
+1. **Pregunta de negocio** (una frase) y **quién decide qué** con la respuesta.
+2. **Datos**: de dónde vienen, qué limitaciones tienen y qué comprobaciones de calidad hiciste.
+3. **Método**: qué hiciste y **por qué** esa opción y no otra.
+4. **Resultado**: la cifra o gráfico clave, con su incertidumbre.
+5. **Recomendación**: qué haría la empresa, qué riesgos y qué no sabes todavía.
+6. **Cómo reproducirlo**: comandos exactos.
+
+### El repositorio
+
+```text
+proyecto-retencion/
+├── README.md              # las seis preguntas, resumen en 10 líneas y un gráfico
+├── pyproject.toml         # dependencias (uv / pip) con versiones
+├── uv.lock                # lockfile (reproducibilidad)
+├── data/
+│   ├── README.md          # origen, licencia, cómo descargar (no subas ficheros grandes)
+│   └── raw/               # .gitignore: los datos pesados no van a Git
+├── notebooks/
+│   └── 01-exploracion.ipynb    # o .py con marimo: limpio, con título y orden
+├── src/                   # funciones reutilizables, con pruebas
+├── tests/
+├── reports/
+│   └── informe.md         # el write-up
+└── .gitignore
+```
+
+Reglas que separan lo profesional de lo amateur:
+
+- **El README es la portada**: título, resumen en tres líneas, un gráfico, y «cómo reproducirlo» con un comando.
+- **Reproducible desde cero:** `git clone`, instalar con el lockfile, ejecutar. Prueba tú mismo en una carpeta limpia.
+- **Notebooks limpios:** reiniciar y ejecutar todo antes de subir; sin rutas absolutas; sin claves ni datos personales.
+- **Commits con mensajes claros**, no «update» ni «final_v2».
+- **Datos pesados fuera de Git:** script de descarga o enlace; nunca subas CSV de cientos de MB.
+- **Pruebas mínimas** para las funciones que calculan métricas (una consulta que cuenta mal es un riesgo).
+
+<Callout type="warning">
+  Revisa el repositorio antes de publicarlo: claves de API en el historial, rutas con tu nombre de
+  usuario, datos de una empresa anterior, correos o identificadores personales en un notebook. Una
+  vez en Git, borrar el fichero no borra el historial. Si has subido una clave por error,
+  **revócala** y crea otra.
+</Callout>
+
+### El write-up
+
+El write-up es lo que leerán de verdad. Estructura de una página:
+
+1. **Titular con la conclusión** («La retención a 90 días cayó 4 puntos tras el cambio de envío; recomiendo revertirlo en Galicia»).
+2. **Contexto en dos frases** y la pregunta.
+3. **Qué hiciste**, en 3-4 viñetas, con la decisión de método justificada.
+4. **El hallazgo**, con un gráfico claro, título que dice la conclusión y la incertidumbre (intervalo o rango).
+5. **Qué no sabes / límites** y cómo lo comprobarías.
+6. **Recomendación y siguiente paso**.
+
+Tono: claro, sin jerga innecesaria, números con unidades. Un gráfico por idea. Si el lector solo lee el titular y el primer gráfico, que entienda lo esencial (la regla de la «pirámide» del curso de narración con datos).
+
+### Dónde publicarlo
+
+- **GitHub** para el código (perfil con un README que presenta los tres proyectos).
+- **GitHub Pages** para publicar un informe estático, un sitio sencillo de portfolio o un informe en HTML (marimo exporta a HTML; herramientas de BI como código como Evidence generan un sitio estático).
+- **Un enlace por proyecto** en el CV y en LinkedIn, con una frase del resultado, no solo el título.
+
+<Snapshot date="2026-10">
+  GitHub Pages sigue siendo la forma gratuita y sencilla de publicar un sitio estático desde un
+  repositorio. Herramientas como marimo (cuadernos reactivos exportables a HTML) y Evidence
+  (informes con Markdown y SQL, de código abierto con licencia MIT) facilitan publicar análisis
+  reproducibles. El gestor de entornos `uv` se ha convertido en la opción más extendida para
+  proyectos nuevos, pero lo importante es que existan un fichero de dependencias y un lockfile.
+</Snapshot>
+
+## En la práctica
+
+1. **Escoge tres preguntas** que te interesen y que se puedan responder con datos que puedas publicar.
+2. **Escribe el titular del write-up primero** (aunque sea provisional): te obliga a tener una conclusión.
+3. **Haz el análisis** con el flujo del curso: pregunta, definiciones, calidad de datos, método, resultado, límites.
+4. **Estructura el repositorio** como arriba, con un README que se entienda sin abrir nada más.
+5. **Prueba la reproducción** en una máquina o carpeta limpia.
+6. **Pide una revisión** a una persona del oficio (o a un asistente de IA, sin compartir datos sensibles) y corrige.
+7. **Publica y enlaza** en CV, LinkedIn y GitHub; prepara una historia oral de dos minutos de cada proyecto.
+
+Rúbrica de autoevaluación (0-2 puntos cada una): pregunta clara; decisión de negocio identificada; calidad de datos comprobada; método justificado; incertidumbre mostrada; recomendación accionable; reproducible; legible en tres minutos.
+
+## Trade-offs y cuándo usarlo
+
+- **Datos propios frente a datos abiertos o sintéticos:** los propios dan relevancia; los abiertos y sintéticos son compartibles y reproducibles. Combina.
+- **Profundidad frente a variedad:** una pieza muy buena en estadística pesa más que seis superficiales, pero necesitas al menos una pieza de comunicación y otra de ingeniería.
+- **Notebook frente a script y informe:** el notebook es ideal para exploración; para la historia final, un informe escrito.
+- **Mucho código frente a mucha explicación:** quien contrata lee antes la explicación; el código lo revisan en la entrevista técnica.
+- **Públicos frente a privados:** los repositorios públicos se pueden compartir; si no puedes publicar, prepara una demostración y un resumen.
+
+## Errores comunes
+
+- **Titanic, Iris y otros datasets de tutorial** sin ninguna pregunta de negocio propia.
+- **Nada de conclusiones:** gráficos y código sin recomendación.
+- **Sin límites ni incertidumbre,** como si los datos fueran perfectos.
+- **Repositorio no reproducible:** rutas locales, dependencias sin versión.
+- **Subir datos personales o claves.**
+- **Afirmar causalidad** a partir de correlaciones sin decirlo.
+- **Un README vacío** o con la plantilla por defecto.
+- **Proyecto copiado** de un tutorial: en la entrevista, las preguntas detalladas lo destapan.
+
+## Con IA
+
+Un asistente puede revisar el README y preguntar «¿entendería esto alguien que no conoce el proyecto?», proponer titulares alternativos, detectar frases ambiguas y generar preguntas que haría un entrevistador sobre tu proyecto. No le pidas que escriba el análisis por ti: en la entrevista tendrás que defender cada decisión. Declara, si lo piden, qué parte hiciste con ayuda de IA y cómo la verificaste (lección de verificación del curso).
+
+## En una entrevista
+
+- _"Cuéntame un proyecto del que estés orgulloso."_ — Pista: pregunta, decisión de método, resultado con incertidumbre, recomendación y qué cambiarías.
+- _"¿Qué harías distinto si lo repitieras?"_ — Pista: un límite real de tus datos o de tu método y cómo lo abordarías.
+- _"¿Cómo sabes que tu resultado es correcto?"_ — Pista: comprobaciones de calidad, pruebas, contraste con otra fuente, análisis de sensibilidad.
+
+<KeyTakeaways
+  items={[
+    'Un portfolio es la prueba de que sabes hacer el trabajo: tres proyectos que cubran análisis y comunicación, rigor estadístico o causal e ingeniería reproducible, mejor que quince a medias.',
+    'Cada proyecto responde a seis preguntas: pregunta de negocio, datos, método (con el porqué), resultado con incertidumbre, recomendación y cómo reproducirlo.',
+    'Un repositorio profesional tiene README como portada, entorno con lockfile, notebooks limpios, datos pesados fuera de Git, pruebas mínimas y ninguna clave ni dato personal.',
+    'El write-up empieza por la conclusión, enseña un gráfico claro con su incertidumbre, reconoce los límites y termina con una recomendación.',
+    'Publica en GitHub y GitHub Pages, enlaza con una frase del resultado y prepara una historia oral de dos minutos por proyecto.',
+  ]}
+/>

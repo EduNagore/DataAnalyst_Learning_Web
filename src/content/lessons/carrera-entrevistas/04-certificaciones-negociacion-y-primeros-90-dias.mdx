@@ -1,0 +1,195 @@
+---
+title: 'Certificaciones, negociación y primeros 90 días'
+description: 'Qué certificaciones de analista existen hoy (PL-300, DP-600, dbt, Tableau, Google), qué valor real tienen frente al portfolio, cómo preparar una negociación sin inventar cifras y cómo planificar los primeros 30, 60 y 90 días en un equipo de datos.'
+module: carrera-entrevistas
+order: 4
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Valorar cuándo compensa una certificación y elegir la que encaja con el ecosistema de la empresa.'
+  - 'Preparar una negociación con información contrastada, alternativas y criterios distintos del salario.'
+  - 'Planificar los primeros 30, 60 y 90 días en un equipo de datos con objetivos verificables.'
+  - 'Identificar cómo evolucionar tras el primer año: especialización, mentoría y aprendizaje continuo.'
+prerequisites:
+  ['carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales']
+tools: []
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Microsoft Learn — Power BI Data Analyst Associate (PL-300)'
+    url: 'https://learn.microsoft.com/en-us/credentials/certifications/data-analyst-associate/'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'Microsoft Learn — Fabric Analytics Engineer Associate (DP-600)'
+    url: 'https://learn.microsoft.com/en-us/credentials/certifications/fabric-analytics-engineer-associate/'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'dbt Labs — Analytics Engineering Certification Exam'
+    url: 'https://www.getdbt.com/analytics-engineer-certification-exam'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'Google — Data Analytics Professional Certificate (Coursera)'
+    url: 'https://www.coursera.org/professional-certificates/google-data-analytics'
+    type: course
+    authors: 'Google'
+    year: 2026
+  - title: 'Salesforce Trailhead — Salesforce Certified Tableau Data Analyst'
+    url: 'https://trailhead.salesforce.com/credentials/tableaudataanalyst'
+    type: docs
+    authors: 'Salesforce'
+    year: 2026
+relatedLabs: []
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Una persona recibe la oferta de Lumen para una plaza de analista. Duda de tres cosas: si le
+  conviene sacarse antes una certificación de Power BI (la empresa lo usa), cómo negociar
+  condiciones sin conocer el mercado, y qué hacer en el primer trimestre para que el periodo de
+  prueba salga bien.
+</BusinessContext>
+
+## Intuición
+
+Una certificación es un **sello de que conoces una herramienta**; el portfolio y la entrevista son la prueba de que sabes **resolver problemas**. Sirven para cosas distintas: la primera abre la puerta en procesos que filtran por palabras clave y demuestra constancia; los segundos te hacen ganar la entrevista. Y los primeros noventa días en un puesto son sobre todo **aprender el negocio y los datos, ganar confianza con entregas pequeñas y fiables**, no demostrar genialidad.
+
+## Cómo funciona
+
+### Certificaciones: qué hay y para qué
+
+| Certificación                                      | Ecosistema          | Qué evalúa                                                                            | Útil si…                                        |
+| -------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| **PL-300** Power BI Data Analyst Associate         | Microsoft           | Preparar, modelar, visualizar y analizar, administrar y proteger; Power Query y DAX   | La empresa usa Power BI o Fabric                |
+| **DP-600** Fabric Analytics Engineer Associate     | Microsoft Fabric    | Mantener soluciones de analítica, preparar datos, modelos semánticos; SQL, KQL y DAX  | El puesto es de ingeniería analítica en Fabric  |
+| **dbt Analytics Engineering Certification**        | dbt                 | Desarrollo de modelos, gobernanza, depuración, pruebas, dependencias externas, estado | Vas a trabajar con dbt                          |
+| **Salesforce Certified Tableau Data Analyst**      | Tableau             | Conocimientos de Tableau Desktop, Prep y Server o Cloud                               | La empresa usa Tableau                          |
+| **Google Data Analytics Professional Certificate** | Genérico (Coursera) | Programa de iniciación: hojas de cálculo, SQL, R/Python, Tableau y, desde 2026, IA    | Estás empezando y quieres una estructura guiada |
+
+Los exámenes de Microsoft caducan: las certificaciones de rol se renuevan cada 12 meses con una evaluación gratuita en línea. Las guías de aptitudes se actualizan con regularidad (PL-300, abril de 2026; DP-600, con una actualización de la versión en inglés prevista para el 19 de octubre de 2026).
+
+### Qué valor tienen de verdad
+
+- **Alto, a veces:** cuando la oferta las pide, cuando la empresa es partner del fabricante o cuando quieres un camino ordenado para aprender una herramienta.
+- **Bajo, casi siempre:** como sustituto de proyectos y de SQL y estadística sólidos. Quien entrevista suele preguntar por razonamiento, no por menús de la herramienta.
+- **Coste-beneficio:** tiempo y precio del examen; a veces la empresa lo paga. Pregunta antes de pagarlo tú.
+- **El título no sustituye al criterio:** un certificado de Power BI no demuestra que sepas definir una métrica sin ambigüedad.
+
+La Google Data Analytics Professional Certificate se describe en su página como un programa de nivel inicial, de unas 180 horas, sin requisitos previos, con hojas de cálculo, SQL, Python y R, Tableau e IA; la propia página cita cifras de resultados laborales: son **cifras del proveedor**, no de un estudio independiente, y deben leerse con cautela.
+
+<Callout type="warning">
+  Desconfía de los «bootcamps» y listados que prometen empleo garantizado o publican salarios sin
+  fuente identificable. Contrasta con ofertas reales de tu zona, con personas del oficio y con
+  fuentes oficiales de empleo antes de invertir dinero y meses.
+</Callout>
+
+<Snapshot date="2026-10">
+  PL-300: examen de 100 minutos, renovación gratuita cada 12 meses, guía de aptitudes actualizada el
+  20 de abril de 2026. DP-600: 100 minutos; la versión en inglés se actualiza el 19 de octubre de
+  2026. dbt: el examen declara como versión soportada dbt 1.11. Tableau: «Salesforce Certified
+  Tableau Data Analyst» (consulta el temario en Trailhead). Google: 9 cursos y unas 180 horas.
+  Precios, formatos y temarios cambian: confirma en las páginas oficiales antes de inscribirte.
+</Snapshot>
+
+### Negociar con información
+
+La negociación empieza antes de la oferta:
+
+1. **Averigua el rango de mercado** con fuentes contrastables: ofertas publicadas con rango, informes sectoriales identificables, conversaciones con personas del oficio. No inventes cifras ni te fíes de listas sin fuente.
+2. **Conoce tu alternativa:** otras ofertas o tu situación actual. Es lo que determina tu margen.
+3. **Más allá del salario:** variable, formación y certificaciones pagadas, teletrabajo y horario, días de vacaciones, plan de carrera, presupuesto de conferencias, equipo y mentor, herramientas.
+4. **Fundamenta con impacto, no con necesidad:** qué aportas, qué has demostrado (portfolio, resultados).
+5. **Pide por escrito** los términos acordados y las condiciones del periodo de prueba, los criterios de evaluación y la fecha de revisión.
+6. **Mantén el tono colaborativo:** el objetivo es un acuerdo que funcione para ambas partes.
+
+En España, repasa los elementos legales básicos (convenio colectivo aplicable, periodo de prueba, tipo de contrato) en fuentes oficiales como el Boletín Oficial del Estado o el Ministerio de Trabajo antes de firmar; esta lección no es asesoramiento legal.
+
+### Los primeros 90 días
+
+**Días 1-30 — Aprender**
+
+- Conoce al equipo y a los stakeholders clave; pregunta qué decisiones toman con datos.
+- Entiende el negocio: ingresos, clientes, costes, ciclo de producto.
+- Explora los datos: modelos, definiciones, calidad; lee la documentación y el código existente.
+- Consigue una entrega pequeña y fiable (un informe, una corrección, una consulta).
+- Anota lo que te sorprende; es información valiosa que pierdes tras unas semanas.
+
+**Días 31-60 — Aportar**
+
+- Asume un proyecto acotado de principio a fin con un stakeholder claro.
+- Documenta lo que aprendes (definiciones, supuestos) en la wiki del equipo.
+- Propón una mejora pequeña y verificable (una prueba de calidad, una definición compartida).
+- Pide feedback explícito a tu responsable y a un par.
+
+**Días 61-90 — Consolidar**
+
+- Entrega un análisis o producto con impacto medible y comunícalo bien.
+- Establece una rutina (informe recurrente, calendario de revisión de métricas).
+- Acuerda con tu responsable objetivos para los siguientes seis meses.
+- Revisa qué has aprendido y qué vacíos técnicos quieres cerrar.
+
+**Reglas transversales:** cumple lo que prometes, avisa pronto de los riesgos, comprueba tus cifras antes de enviarlas, no cambies definiciones sin avisar y pregunta sin miedo en el primer mes.
+
+### Después del primer año
+
+- **Especializarte** (experimentación, producto, marketing, finanzas, ingeniería analítica) o **ampliar** (más contexto de negocio).
+- **Mentoría:** busca una persona más senior y ofrécela a quien llegue después.
+- **Escribir y compartir:** documentación, charlas internas, entradas de blog.
+- **Aprendizaje continuo con criterio:** el mercado cambia (herramientas, IA); invierte en fundamentos y en lo que tu equipo necesita.
+
+## En la práctica
+
+1. **Decide si necesitas una certificación:** mira tus ofertas objetivo y pregunta si la empresa la financia.
+2. **Si la haces, prepárala con proyectos** (no solo con exámenes de práctica) y úsala como excusa para construir algo.
+3. **Reúne tres referencias de mercado** antes de negociar y define tu mínimo y tu objetivo.
+4. **Haz una lista de condiciones no salariales** que te importan.
+5. **Escribe tu plan 30-60-90** antes de empezar y compártelo con tu responsable en la primera semana.
+6. **Agenda conversaciones** con cinco stakeholders en el primer mes.
+7. **Lleva un diario de aprendizajes** y de decisiones.
+
+## Trade-offs y cuándo usarlo
+
+- **Certificación frente a proyecto:** la certificación es rápida de señalar; el proyecto es mejor prueba. Si solo puedes una, elige según lo que pida tu zona objetivo.
+- **Ecosistema único frente a conceptos generales:** una certificación de herramienta caduca con la herramienta; SQL, modelado y estadística duran décadas.
+- **Negociar más frente a aceptar rápido:** un buen acuerdo vale la conversación, pero no cierres puertas por pocos euros si el puesto es bueno.
+- **Rapidez frente a fiabilidad en los primeros 90 días:** gana confianza con entregas correctas, no con velocidad temeraria.
+- **Especializarse pronto frente a esperar:** los primeros 1-2 años suelen merecer amplitud; después, profundidad.
+
+## Errores comunes
+
+- **Coleccionar certificaciones** sin proyectos.
+- **Pagar un curso caro** que promete empleo garantizado.
+- **Negociar sin información** o inventándose cifras.
+- **Centrarte solo en el salario** y olvidar equipo, aprendizaje y crecimiento.
+- **Prometer demasiado** en las primeras semanas.
+- **Cambiar definiciones o tablas** sin avisar a los usuarios.
+- **No preguntar** por miedo a parecer novato.
+- **No documentar** lo aprendido.
+
+## Con IA
+
+Un asistente puede ayudarte a preparar una conversación de negociación (simular a la otra parte), a estructurar tu plan 30-60-90 y a resumir documentación del equipo en tus primeras semanas. Cuida los datos: no pegues información confidencial del empleador en servicios sin contrato. Para cifras de mercado, no te fíes de lo que «sabe» un modelo: usa fuentes identificables y fechadas.
+
+## En una entrevista
+
+- _"¿Por qué has hecho esa certificación y qué aprendiste que uses?"_ — Pista: un ejemplo concreto de aplicación, no el temario.
+- _"¿Qué harás tus primeros 90 días?"_ — Pista: aprender negocio y datos, entrega pequeña y fiable, proyecto acotado, objetivos acordados.
+- _"¿Qué expectativas tienes de la compensación?"_ — Pista: rango fundamentado en mercado y en tu aportación; flexible en el paquete.
+
+<KeyTakeaways
+  items={[
+    'Una certificación demuestra conocimiento de una herramienta; el portfolio y la entrevista demuestran que sabes resolver problemas. Elige la certificación según el ecosistema de la empresa (PL-300 y DP-600 para Microsoft, dbt para dbt, la de Tableau para Tableau) y pregunta si la financian.',
+    'Las certificaciones de Microsoft caducan a los 12 meses y se renuevan gratis en línea; las guías cambian: confirma en las páginas oficiales. Desconfía de promesas de empleo y de cifras de salarios o resultados sin fuente independiente.',
+    'Negocia con información contrastada, una alternativa clara y un paquete que incluya más que el salario; pide los acuerdos por escrito y verifica lo legal en fuentes oficiales.',
+    'En los primeros 90 días: aprender (30), aportar un proyecto acotado (60) y consolidar con un impacto medible y objetivos acordados (90), cumpliendo lo que prometes y comprobando tus cifras.',
+    'Tras el primer año, combina especialización, mentoría, documentación y aprendizaje continuo centrado en fundamentos y en lo que tu equipo necesita.',
+  ]}
+/>

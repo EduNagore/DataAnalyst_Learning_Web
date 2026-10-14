@@ -1,0 +1,66 @@
+lesson: carrera-entrevistas/01-que-buscan-las-empresas-por-nivel-y-como-leer-una-oferta
+questions:
+  - id: ce-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué distingue principalmente a un analista sénior de uno intermedio?'
+    options:
+      - 'Conocer más herramientas'
+      - 'El alcance del problema, la autonomía, el criterio y la capacidad de conseguir una decisión'
+      - 'Trabajar más horas'
+      - 'Un título más largo'
+    answer: [1]
+    explanation: 'Las herramientas son la base común; el nivel lo marcan alcance, autonomía, criterio y comunicación.'
+    ref: '#qué-cambia-entre-niveles'
+
+  - id: ce-01-q2
+    type: single
+    difficulty: 2
+    prompt: 'Una oferta dice «gestionar dashboards». ¿Qué conviene preguntar?'
+    options:
+      - 'Nada: está claro'
+      - 'Si construyes o solo mantienes los dashboards, quién define las métricas y si hay capa semántica'
+      - 'Cuántos días de vacaciones hay'
+      - 'Qué color tiene el logo'
+    answer: [1]
+    explanation: 'Traducir cada línea a una pregunta comprobable evita sorpresas sobre qué harás de verdad.'
+    ref: '#cómo-leer-una-oferta'
+
+  - id: ce-01-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las señales de alerta en una oferta.'
+    options:
+      - 'No se menciona al equipo ni a quién reportas'
+      - 'Una lista de 15 herramientas sin prioridad'
+      - 'Expectativas de nivel sénior con condiciones de junior'
+      - 'Preguntas de negocio concretas y un proceso para priorizar peticiones'
+    answer: [0, 1, 2]
+    explanation: 'La última es una señal buena: indica un equipo con estructura y trabajo definido.'
+    ref: '#cómo-leer-una-oferta'
+
+  - id: ce-01-q4
+    type: single
+    difficulty: 2
+    prompt: 'No cumples el 100 % de los requisitos de una oferta. ¿Qué haces?'
+    options:
+      - 'Descartarla siempre'
+      - 'Aplicar si cubres lo imprescindible, porque la lista suele ser un deseo y no un requisito'
+      - 'Mentir en el CV'
+      - 'Esperar un año'
+    answer: [1]
+    explanation: 'Clasifica las competencias en imprescindibles y diferenciales; no te descartes por no cubrir todas.'
+    ref: '#matriz-de-autoevaluación'
+
+  - id: ce-01-q5
+    type: single
+    difficulty: 3
+    prompt: 'Para cerrar vacíos de competencia, ¿cuál es el enfoque más eficaz?'
+    options:
+      - 'Hacer diez cursos introductorios'
+      - 'Elegir los tres vacíos más repetidos en las ofertas y cerrarlos con un proyecto visible en 6-8 semanas'
+      - 'Aprender una herramienta nueva cada semana'
+      - 'No cerrar ninguno'
+    answer: [1]
+    explanation: 'Un proyecto concreto convierte el aprendizaje en una prueba comprobable.'
+    ref: '#matriz-de-autoevaluación'

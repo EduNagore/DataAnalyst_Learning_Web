@@ -1,0 +1,66 @@
+lesson: carrera-entrevistas/02-portfolio-que-convence-github-y-write-ups
+questions:
+  - id: ce-02-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué es preferible en un portfolio?'
+    options:
+      - 'Quince notebooks sin título ni conclusiones'
+      - 'Tres proyectos bien contados que demuestren técnica, criterio y comunicación'
+      - 'Solo capturas de dashboards'
+      - 'Ejercicios de tutorial (Titanic, Iris) sin pregunta propia'
+    answer: [1]
+    explanation: 'Un portfolio es la prueba de que sabes hacer el trabajo, no un álbum de ejercicios.'
+    ref: '#tres-proyectos-tres-señales'
+
+  - id: ce-02-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las preguntas que debe responder cada proyecto.'
+    options:
+      - 'Cuál es la pregunta de negocio y quién decide con la respuesta'
+      - 'Qué método usaste y por qué ese y no otro'
+      - 'Cuál es el resultado con su incertidumbre y la recomendación'
+      - 'Cuántas líneas de código tiene'
+    answer: [0, 1, 2]
+    explanation: 'También: de dónde vienen los datos y cómo reproducirlo. El número de líneas no importa.'
+    ref: '#anatomía-de-un-proyecto'
+
+  - id: ce-02-q3
+    type: single
+    difficulty: 2
+    prompt: 'Has subido por error una clave de API a un repositorio público. ¿Qué haces?'
+    options:
+      - 'Borrar el fichero y seguir'
+      - 'Revocar la clave y crear otra, porque el historial de Git conserva el contenido'
+      - 'Cambiar el nombre del repositorio'
+      - 'Nada: nadie lo verá'
+    answer: [1]
+    explanation: 'Borrar el fichero no borra el historial. La clave debe darse por comprometida.'
+    ref: '#el-repositorio'
+
+  - id: ce-02-q4
+    type: single
+    difficulty: 2
+    prompt: '¿Cómo debe empezar un write-up?'
+    options:
+      - 'Con el código completo'
+      - 'Con un titular que diga la conclusión y la recomendación'
+      - 'Con la historia de las herramientas usadas'
+      - 'Con una lista de librerías'
+    answer: [1]
+    explanation: 'Quien contrata puede leer solo el titular y el primer gráfico: debe entender lo esencial.'
+    ref: '#el-write-up'
+
+  - id: ce-02-q5
+    type: single
+    difficulty: 3
+    prompt: '¿Por qué conviene probar la reproducción en una carpeta limpia?'
+    options:
+      - 'Por costumbre'
+      - 'Porque un proyecto con rutas locales o dependencias sin versión no se puede reproducir y desacredita al candidato'
+      - 'Para ahorrar espacio'
+      - 'Para que el repositorio sea más pequeño'
+    answer: [1]
+    explanation: 'El fichero de dependencias, el lockfile y los comandos exactos son parte del trabajo.'
+    ref: '#el-repositorio'

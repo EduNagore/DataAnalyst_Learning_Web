@@ -1,0 +1,169 @@
+---
+title: 'Qué buscan las empresas por nivel y cómo leer una oferta'
+description: 'Qué se espera de un analista junior, intermedio y sénior más allá de las herramientas (autonomía, criterio, impacto), cómo traducir una oferta a competencias reales, cómo autoevaluarte con una matriz de nivel y qué vacíos cerrar primero.'
+module: carrera-entrevistas
+order: 1
+level: intermedio
+estimatedMinutes: 35
+objectives:
+  - 'Describir qué cambia entre un analista junior, intermedio y sénior: alcance, autonomía, criterio y comunicación.'
+  - 'Traducir una oferta de trabajo a competencias comprobables y detectar señales de alerta.'
+  - 'Autoevaluarte con una matriz de competencias y elegir los tres vacíos más rentables para cerrar.'
+prerequisites: ['analista-2026/01-perfiles-de-datos-y-tipos-de-analista']
+tools: []
+volatility: medium
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Microsoft Learn — Power BI Data Analyst Associate (descripción del rol y habilidades evaluadas)'
+    url: 'https://learn.microsoft.com/en-us/credentials/certifications/data-analyst-associate/'
+    type: docs
+    authors: 'Microsoft'
+    year: 2026
+  - title: 'dbt Labs — Analytics Engineering Certification Exam (dominios evaluados)'
+    url: 'https://www.getdbt.com/analytics-engineer-certification-exam'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'Google — Data Analytics Professional Certificate (nivel de entrada)'
+    url: 'https://www.coursera.org/professional-certificates/google-data-analytics'
+    type: course
+    authors: 'Google'
+    year: 2026
+relatedLabs: []
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Lumen abre tres vacantes: «Analista de datos junior», «Analista de datos» y «Analista sénior de
+  producto». Las tres piden SQL, Python y «visualización». Una persona que ha terminado este curso
+  se pregunta: ¿a cuáles puedo optar?, ¿qué hace distinto a un sénior si todos usan las mismas
+  herramientas?, ¿qué me falta para el siguiente nivel?
+</BusinessContext>
+
+## Intuición
+
+Las herramientas son el billete de entrada; lo que sube de nivel es **el tamaño del problema que te confían y cuánta supervisión necesitas**. Un junior recibe una pregunta bien definida y la responde con cuidado. Un intermedio recibe una necesidad difusa y la convierte en una pregunta bien definida. Un sénior detecta qué pregunta merece la pena hacerse, decide qué no analizar y consigue que la organización actúe sobre la respuesta.
+
+## Cómo funciona
+
+### Qué cambia entre niveles
+
+| Dimensión        | Junior                                      | Intermedio                                           | Sénior                                                                        |
+| ---------------- | ------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------- |
+| **Alcance**      | Una pregunta o un informe definido          | Un área de negocio, varias preguntas encadenadas     | Una función o producto; prioriza qué se analiza                               |
+| **Autonomía**    | Pide revisión de lo que hace                | Entrega con revisión puntual                         | Define el método y revisa el de otros                                         |
+| **Técnica**      | SQL sólido, análisis exploratorio, gráficos | Modelado, experimentos, estadística aplicada, Python | Elige el método adecuado (o decide no modelar); sabe cuándo algo no es fiable |
+| **Criterio**     | Detecta anomalías evidentes                 | Cuestiona definiciones y fuentes                     | Anticipa sesgos, costes de error y efectos de segunda orden                   |
+| **Comunicación** | Explica lo que hizo                         | Explica lo que significa                             | Consigue una decisión y gestiona desacuerdos                                  |
+| **Impacto**      | Entrega fiable                              | Cambia decisiones de su área                         | Cambia lo que la organización mide y hace                                     |
+
+Los títulos no son uniformes (lo viste en la primera lección del curso): una pequeña empresa llama «analista sénior» a la única persona de datos, y una grande reparte en cuatro niveles lo que otra llama «analista». **Juzga el puesto por lo que se espera, no por su nombre.**
+
+### La base común: lo que casi todas las ofertas piden
+
+Revisa cualquier oferta de analista y verás un núcleo estable:
+
+1. **SQL** de verdad (joins sin duplicar filas, agregaciones, funciones de ventana, CTE), no solo `SELECT *`.
+2. **Una herramienta de BI** (Power BI, Tableau, Looker u otra) y hojas de cálculo.
+3. **Estadística aplicada**: distribuciones, intervalos, pruebas de hipótesis, error común en A/B.
+4. **Comunicación**: contar un resultado a alguien que no sabe SQL.
+5. **Conocimiento del negocio** y trato con stakeholders.
+6. **Python o R** para análisis y automatización (según el puesto).
+
+Y un halo cambiante: dbt y analytics engineering, MLOps, herramientas de IA, orquestadores. Las certificaciones de los fabricantes son un buen espejo de lo que cada ecosistema entiende por el rol: por ejemplo, el examen de Power BI Data Analyst evalúa preparar datos, modelar, visualizar y analizar, y administrar y proteger activos, y exige dominar Power Query y DAX; el de analytics engineering de dbt, el desarrollo de modelos, la gobernanza, las pruebas y la gestión de estado.
+
+### Cómo leer una oferta
+
+Traduce cada línea a una pregunta que puedas comprobar:
+
+| La oferta dice…                           | Pregúntate / pregunta en la entrevista                                                 |
+| ----------------------------------------- | -------------------------------------------------------------------------------------- |
+| «Gestionar dashboards»                    | ¿Los construyo o los mantengo? ¿Quién define las métricas? ¿Hay capa semántica?        |
+| «Trabajar con grandes volúmenes de datos» | ¿Cuántos datos de verdad? ¿En qué almacén? ¿Quién mantiene los pipelines?              |
+| «Machine learning y modelos predictivos»  | ¿Hay datos limpios y un caso de uso o es aspiracional? ¿Quién despliega?               |
+| «Autonomía y proactividad»                | ¿Con quién trabajo? ¿Hay alguien más senior que revise y enseñe?                       |
+| «Dinámico y multitarea»                   | ¿Cuántos stakeholders? ¿Hay un proceso para priorizar peticiones?                      |
+| «Conocimientos de IA / LLM»               | ¿Para qué se usa hoy en la empresa y qué controles hay (datos personales, evaluación)? |
+| Lista de 15 herramientas sin prioridad    | ¿Cuáles uso a diario? Probable puesto «todoterreno» con poca estructura.               |
+
+Señales de alerta: no se menciona al equipo ni a quién reportas, ninguna pregunta de negocio concreta, «análisis» que es en realidad cargar datos a mano, expectativas de nivel sénior con sueldo y titulación de junior, y ningún dato sobre cómo se mide el trabajo. Señales buenas: preguntas de negocio concretas, un equipo con revisión de código, definiciones de métricas compartidas y un proceso para priorizar.
+
+### Matriz de autoevaluación
+
+Puntúa de 0 (no lo he hecho) a 3 (podría enseñarlo) cada una de estas competencias, con una **prueba** (un ejemplo concreto) para cada puntuación:
+
+- SQL: ventanas, CTE, cohortes, embudos, diseño dimensional.
+- Estadística: intervalos, contrastes, potencia, errores de experimento.
+- Experimentación y causalidad: A/B, SRM, CUPED, DiD.
+- Python / pandas / Polars; reproducibilidad.
+- BI y visualización: modelo en estrella, DAX o equivalente, diseño de dashboards.
+- Pensamiento de negocio: árboles de métricas, definición de métricas, priorización.
+- Comunicación: informe ejecutivo, narración con datos.
+- Datos y gobierno: calidad, privacidad, definiciones.
+- IA aplicada: uso responsable, verificación, texto a SQL y agentes con capa semántica.
+
+La regla práctica: **dos o tres competencias en 2-3 y el resto en 1** es un perfil sano de intermedio. Un perfil sin ningún 0 en SQL, estadística y comunicación es lo que la mayoría de los procesos de selección están buscando para junior.
+
+<Snapshot date="2026-10">
+  Las certificaciones y los temarios de los fabricantes ayudan a orientarse: la guía de aptitudes de
+  la certificación Power BI Data Analyst (PL-300) se actualizó el 20 de abril de 2026 y mantiene
+  cuatro áreas (preparar, modelar, visualizar y analizar, administrar y proteger); la de Fabric
+  Analytics Engineer (DP-600) anuncia una actualización de su versión en inglés para el 19 de
+  octubre de 2026; el examen de analytics engineering de dbt declara como versión soportada dbt
+  1.11. El mercado de empleo y las ofertas cambian: contrasta siempre con ofertas actuales de tu
+  zona y sector antes de decidir qué aprender.
+</Snapshot>
+
+## En la práctica
+
+1. **Reúne 10 ofertas** del tipo de puesto que quieres y subraya las competencias repetidas.
+2. **Clasifícalas** en imprescindibles (en ≥ 7 de 10) y diferenciales.
+3. **Rellena la matriz** con pruebas concretas, no sensaciones.
+4. **Elige tres vacíos** que aparezcan en las ofertas y que puedas cerrar en 6-8 semanas con un proyecto visible.
+5. **Prepara tus «historias»**: tres proyectos que demuestren técnica, criterio y comunicación (lección 2).
+6. **Repasa por tipo de entrevista** (lección 3) y practica las SQL cronometradas de la zona de entrevistas.
+7. **Pregunta por el equipo**: quién revisa tu trabajo, cómo se priorizan las peticiones y cómo se mide el impacto.
+
+## Trade-offs y cuándo usarlo
+
+- **Especialista frente a generalista:** el generalista entra más fácil en empresas pequeñas; el especialista (experimentación, BI, finanzas) cobra más profundidad y suele encajar en equipos grandes.
+- **Más herramientas frente a más profundidad:** diez herramientas superficiales pesan menos que SQL y estadística sólidos y un proyecto bien contado.
+- **Empresa pequeña frente a grande:** en la pequeña aprendes de todo con poca supervisión; en la grande, mentoría y estándares con menos alcance.
+- **Producto frente a consultoría:** el producto da profundidad en un negocio; la consultora, variedad y velocidad.
+- **Título frente a contenido:** acepta un título modesto si el trabajo y el equipo son buenos, pero negocia el camino hacia el siguiente nivel.
+
+## Errores comunes
+
+- **Aplicar a todo sin leer** y sin adaptar la candidatura.
+- **Listar 25 herramientas** en el CV en vez de tres proyectos con resultados.
+- **Descartarse por no cumplir el 100 %** de una lista que es un deseo, no un requisito.
+- **No preguntar por el equipo**, la revisión y la medición del impacto.
+- **Aceptar un «analista» que es solo producción de informes** sin camino de crecimiento.
+- **Confundir años de experiencia con nivel:** el nivel lo marcan alcance, autonomía y criterio.
+- **Olvidar la comunicación,** que casi siempre desempata.
+
+## Con IA
+
+Puedes pegar una oferta (sin datos personales ni información confidencial) y pedir a un asistente que la traduzca a competencias, que genere preguntas de entrevista probables y que critique tu CV frente a ella. Verifica sus afirmaciones sobre el mercado: un asistente no conoce el mercado de empleo de tu ciudad hoy. Y no uses IA para inventar experiencia: en la entrevista te preguntarán por los detalles.
+
+## En una entrevista
+
+- _"¿Dónde te ves en dos años?"_ — Pista: conecta el siguiente nivel con alcance y autonomía, no con un título.
+- _"¿Qué diferencia a un analista sénior de uno intermedio?"_ — Pista: elegir la pregunta, el método y gestionar el desacuerdo, no «saber más herramientas».
+- _"¿Cuál es tu mayor vacío técnico y qué estás haciendo con él?"_ — Pista: una carencia real, un plan con fecha y un ejemplo de avance.
+
+<KeyTakeaways
+  items={[
+    'El nivel lo marcan el alcance del problema, la autonomía, el criterio y la comunicación; las herramientas son la base común: SQL, BI, estadística aplicada, comunicación, negocio y Python o R.',
+    'Los títulos no son uniformes: lee la oferta por lo que se espera que hagas, y pregunta por el equipo, la revisión y cómo se mide el impacto.',
+    'Las certificaciones y sus temarios son un buen espejo de las competencias de cada ecosistema, pero no sustituyen a proyectos y criterio.',
+    'Haz una matriz de autoevaluación con pruebas concretas y cierra los tres vacíos más repetidos en las ofertas con un proyecto visible.',
+    'No te descartes por no cumplir el 100 % de una lista; sí desconfía de ofertas sin equipo, sin preguntas de negocio y con expectativas de sénior.',
+  ]}
+/>

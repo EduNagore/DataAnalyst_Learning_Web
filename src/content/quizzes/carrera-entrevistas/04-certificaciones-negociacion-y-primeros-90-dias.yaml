@@ -1,0 +1,66 @@
+lesson: carrera-entrevistas/04-certificaciones-negociacion-y-primeros-90-dias
+questions:
+  - id: ce-04-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué demuestra principalmente una certificación de herramienta (por ejemplo, PL-300)?'
+    options:
+      - 'Que sabes definir métricas sin ambigüedad'
+      - 'Que conoces la herramienta y su temario; el portfolio y la entrevista demuestran que sabes resolver problemas'
+      - 'Que has trabajado en una gran empresa'
+      - 'Nada'
+    answer: [1]
+    explanation: 'Sirve para abrir puertas en filtros por palabras clave y como camino ordenado de estudio, no como sustituto del criterio.'
+    ref: '#qué-valor-tienen-de-verdad'
+
+  - id: ce-04-q2
+    type: single
+    difficulty: 2
+    prompt: 'Las certificaciones de rol de Microsoft como PL-300 o DP-600, ¿caducan?'
+    options:
+      - 'No, son de por vida'
+      - 'Sí: se renuevan cada 12 meses con una evaluación gratuita en línea'
+      - 'Caducan a los 5 años y hay que repetir el examen'
+      - 'Solo caducan en España'
+    answer: [1]
+    explanation: 'Según Microsoft Learn, la renovación es gratuita aprobando una evaluación en línea.'
+    ref: '#certificaciones-qué-hay-y-para-qué'
+
+  - id: ce-04-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODO lo que conviene hacer al preparar una negociación.'
+    options:
+      - 'Contrastar el rango de mercado con fuentes identificables'
+      - 'Conocer tu alternativa (otras ofertas o tu situación actual)'
+      - 'Considerar el paquete completo, no solo el salario'
+      - 'Inventar una cifra de otra oferta inexistente'
+    answer: [0, 1, 2]
+    explanation: 'Inventar datos destruye la credibilidad y puede ser desmentido fácilmente.'
+    ref: '#negociar-con-información'
+
+  - id: ce-04-q4
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál es el objetivo principal de los primeros 30 días en un equipo de datos?'
+    options:
+      - 'Deslumbrar con un modelo complejo'
+      - 'Aprender el negocio, los datos y los stakeholders, y conseguir una entrega pequeña y fiable'
+      - 'Rehacer todos los dashboards'
+      - 'Cambiar las definiciones de las métricas'
+    answer: [1]
+    explanation: 'La confianza se gana con entregas correctas; las definiciones no se cambian sin avisar.'
+    ref: '#los-primeros-90-días'
+
+  - id: ce-04-q5
+    type: single
+    difficulty: 3
+    prompt: 'Una web de formación afirma que «el 75 % de sus graduados consigue un resultado laboral positivo». ¿Cómo se debe leer?'
+    options:
+      - 'Como un hecho demostrado'
+      - 'Como una cifra del proveedor, no de un estudio independiente, que se debe contrastar'
+      - 'Como un dato oficial de empleo'
+      - 'Como una garantía de empleo'
+    answer: [1]
+    explanation: 'Las cifras que publica quien vende el producto son marketing hasta que alguien independiente las contraste.'
+    ref: '#qué-valor-tienen-de-verdad'

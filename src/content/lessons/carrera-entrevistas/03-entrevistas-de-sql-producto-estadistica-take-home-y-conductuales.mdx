@@ -1,0 +1,192 @@
+---
+title: 'Entrevistas de SQL, producto, estadística, take-home y conductuales'
+description: 'Cómo es un proceso de selección de analista y cómo prepararlo: SQL con tiempo, preguntas de métricas y producto (caída de una métrica, diseño de un experimento), estadística, ejercicios para casa con rúbrica y preguntas conductuales con el método STAR.'
+module: carrera-entrevistas
+order: 3
+level: intermedio
+estimatedMinutes: 55
+objectives:
+  - 'Resolver un ejercicio de SQL cronometrado con un método ordenado y comunicando mientras lo haces.'
+  - 'Responder a preguntas de métricas y producto con un marco: aclarar, estructurar, calcular, recomendar.'
+  - 'Contestar con rigor preguntas básicas de estadística y de experimentos, y reconocer sus trampas.'
+  - 'Planificar un ejercicio para casa y estructurar respuestas conductuales con el método STAR.'
+prerequisites:
+  [
+    'carrera-entrevistas/02-portfolio-que-convence-github-y-write-ups',
+    'experimentacion/01-diseno-de-un-experimento-metricas-potencia-y-duracion',
+  ]
+tools: ['sql']
+volatility: medium
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Trustworthy Online Controlled Experiments'
+    url: 'https://experimentguide.com/'
+    type: book
+    authors: 'Kohavi, R., Tang, D., Xu, Y.'
+    year: 2020
+  - title: 'How Not To Run an A/B Test'
+    url: 'https://www.evanmiller.org/how-not-to-run-an-ab-test.html'
+    type: blog
+    authors: 'Miller, E.'
+    year: 2010
+  - title: 'DuckDB — Window functions'
+    url: 'https://duckdb.org/docs/stable/sql/functions/window_functions'
+    type: docs
+    authors: 'DuckDB Labs'
+    year: 2026
+relatedLabs: []
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Lumen convoca un proceso para una plaza de analista de producto: un filtro con RR. HH., una prueba
+  de SQL de 45 minutos, una entrevista de métricas con la responsable de producto, un ejercicio para
+  casa de tres horas y una conversación final con el equipo. Quien se presenta pregunta: ¿qué se
+  evalúa en cada fase y cómo me preparo sin memorizar respuestas?
+</BusinessContext>
+
+## Intuición
+
+Una entrevista no es un examen de conocimientos: es una **muestra de cómo trabajas**. Quien entrevista quiere ver cómo aclaras una petición ambigua, cómo estructuras un problema, si compruebas lo que haces y si sabes explicar el resultado. Los candidatos que destacan **piensan en voz alta, preguntan antes de calcular, comprueban los resultados y terminan con una recomendación**.
+
+## Cómo funciona
+
+### Un proceso típico
+
+| Fase                          | Qué se evalúa                                               | Preparación                                                             |
+| ----------------------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Filtro con RR. HH.            | Motivación, encaje, expectativas                            | Historia propia en dos minutos; por qué este puesto                     |
+| SQL (con tiempo o en directo) | Joins, agregación, ventanas, cuidado con duplicados y nulos | Practicar con tiempo (zona de entrevistas) y comentar mientras escribes |
+| Métricas y producto           | Estructura, definiciones, hipótesis, diseño de experimentos | Marco de respuesta; practicar con casos                                 |
+| Estadística                   | Conceptos y su aplicación a A/B, errores típicos            | Repasar intervalos, contrastes, potencia, SRM, comparaciones múltiples  |
+| Ejercicio para casa           | Autonomía, método, comunicación escrita                     | Plan de tiempo y estructura de informe                                  |
+| Conductual / equipo           | Colaboración, conflicto, aprendizaje, juicio                | Seis historias en formato STAR                                          |
+
+### SQL con tiempo
+
+Un método que funciona bajo presión (diez minutos por ejercicio medio):
+
+1. **Repite el enunciado con tus palabras** y aclara: ¿qué cuenta como cliente / pedido válido?, ¿qué hago con cancelados?, ¿qué ventana temporal?, ¿qué formato de salida?
+2. **Mira el esquema y el grano** de cada tabla: ¿una fila por qué? Anticipa el _fan-out_ (duplicar filas al unir).
+3. **Dibuja el plan** en voz alta: «CTE con gasto por cliente, luego ventana por región, luego filtro por 1».
+4. **Escribe por partes** y ejecuta cada CTE: comprueba el recuento de filas y un caso a mano.
+5. **Valida el final:** totales que cuadran con otra consulta, sin duplicados, sin NULL inesperados.
+6. **Cierra comentando** supuestos y alternativas («si cuentas cancelados, sube un 4 %»).
+
+Los temas que más se repiten: top-N por grupo con ventanas, cohortes y retención, embudos, medias móviles, duplicados y deduplicación, huecos de fechas, _anti-joins_ (clientes sin pedidos) y la diferencia entre `COUNT(*)`, `COUNT(col)` y `COUNT(DISTINCT col)`. La zona de entrevistas de este curso incluye ejercicios cronometrados sobre estos temas.
+
+<Callout type="tip">
+  Si te atascas, **di en voz alta lo que sabes** y propón una versión más simple (por ejemplo,
+  resolverlo para una región). Un entrevistador valora más un razonamiento claro con una consulta
+  casi correcta que el silencio con una consulta perfecta.
+</Callout>
+
+### Métricas y producto
+
+Las preguntas típicas son: «investiga por qué cayó la métrica X», «¿qué métricas usarías para esta funcionalidad?», «¿lanzarías esto?». Marco de respuesta:
+
+1. **Aclara:** objetivo del negocio, definición de la métrica, periodo, población, qué se sabe ya.
+2. **Estructura** (árbol de métricas o descomposición): ingresos = clientes × frecuencia × ticket; por canal, región, dispositivo, producto.
+3. **Primero lo aburrido:** ¿es un error de medición, un cambio de definición, un fallo de datos, un festivo o estacionalidad?
+4. **Hipótesis priorizadas** por probabilidad y coste de comprobarlas; qué dato las confirmaría o refutaría.
+5. **Cálculos o consultas** concretos (aunque sea en pseudocódigo).
+6. **Recomendación** con riesgo y siguiente paso.
+
+Para diseñar una métrica de éxito: métrica **principal** (una), **de contrapeso** (qué podría empeorar), **diagnósticas** y **de largo plazo**; define población, ventana y cálculo.
+
+Para diseñar un experimento: hipótesis, unidad de aleatorización, métrica principal y de contrapeso, tamaño de muestra y duración (potencia), comprobaciones previas (SRM, AA), análisis planificado, criterios de decisión y riesgos (interferencia, novedad, estacionalidad).
+
+### Estadística
+
+Conceptos que se preguntan casi siempre, con la «trampa» típica:
+
+| Pregunta                                    | Respuesta que se busca                                                                              | Trampa habitual                                 |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| ¿Qué es un p-valor?                         | Probabilidad de ver un resultado igual o más extremo si la hipótesis nula fuese cierta              | «Probabilidad de que la hipótesis sea cierta»   |
+| ¿Qué es un intervalo de confianza del 95 %? | Procedimiento que, repetido, contiene el valor verdadero el 95 % de las veces                       | «El 95 % de probabilidad de estar aquí»         |
+| ¿Qué es la potencia?                        | Probabilidad de detectar un efecto real de un tamaño dado                                           | Olvidar el tamaño de efecto mínimo detectable   |
+| ¿Qué pasa si miras el A/B cada día?         | Inflas los falsos positivos (peeking); usa duración fija o pruebas secuenciales                     | Parar al ver «significativo»                    |
+| ¿Qué es un SRM?                             | Desajuste del reparto observado respecto al diseñado: invalida el resultado hasta entender la causa | Ignorarlo porque «el efecto sale significativo» |
+| ¿Cuándo no es válida una comparación?       | Con confusores, sesgo de selección, interferencia o datos no independientes                         | Afirmar causalidad desde observacionales        |
+| ¿Cómo corriges comparaciones múltiples?     | Bonferroni, Holm o control de FDR (Benjamini-Hochberg), según el objetivo                           | No corregir al mirar 20 segmentos               |
+
+### Ejercicio para casa
+
+Pautas:
+
+1. **Lee todo el enunciado dos veces** y escribe tus supuestos. Si se permite preguntar, pregunta.
+2. **Planifica el tiempo**: 15 % entender, 40 % análisis, 25 % comunicación, 10 % revisar, 10 % margen.
+3. **Cuida los datos:** comprobaciones de calidad visibles (duplicados, nulos, rangos).
+4. **Responde a la pregunta del negocio** en la primera página; el detalle, en anexos.
+5. **Código ordenado** y reproducible; si piden un notebook, que ejecute de principio a fin.
+6. **Muestra juicio:** qué no has hecho por falta de tiempo y qué harías con más.
+7. **No te pases de tiempo** (es una señal de gestión); no entregues sin releer.
+
+La rúbrica que suelen aplicar: corrección, método, comunicación, estructura del código y juicio crítico.
+
+### Preguntas conductuales y el método STAR
+
+«Háblame de un conflicto con un stakeholder» o «de un error que cometiste». Estructura **STAR**: **S**ituación (contexto en una frase), **T**area (tu responsabilidad), **A**cción (qué hiciste tú, con detalle) y **R**esultado (con números y qué aprendiste). Prepara seis historias que sirvan para varias preguntas:
+
+1. Un análisis que cambió una decisión.
+2. Un error propio y cómo lo detectaste y corregiste.
+3. Un desacuerdo con un stakeholder o compañero.
+4. Una petición ambigua que aclaraste.
+5. Algo difícil que aprendiste rápido.
+6. Una vez que dijiste «no» o «todavía no» con argumentos.
+
+Sé honesto: si tu experiencia es de proyectos de portfolio, úsalos como situación, con el rol real que tuviste.
+
+## En la práctica
+
+1. **Calendario de 4 semanas:** SQL cronometrado 3 veces por semana, un caso de métricas por semana, repaso de estadística y dos historias STAR por semana.
+2. **Simula:** practica en voz alta con una persona o grabándote; revisa si estructuras.
+3. **Haz un banco de errores:** los fallos de tus prácticas son tu lista de repaso.
+4. **Prepara preguntas para ellos:** equipo, definiciones, cómo se mide el impacto, qué es un buen primer trimestre.
+5. **Aprende la empresa:** producto, modelo de negocio y métricas de ese sector.
+6. **El día de la entrevista:** llega con tiempo, pide aclaraciones, comprueba tus respuestas, y al terminar escribe qué preguntaron.
+7. **Pide feedback** tras cada proceso, aunque no te elijan.
+
+## Trade-offs y cuándo usarlo
+
+- **Memorizar frente a practicar:** memorizar respuestas suena hueco; practicar el marco te permite adaptarte.
+- **Ser exhaustivo frente a ser claro:** estructura y prioriza; no enumeres todo lo que se te ocurra.
+- **Hablar mucho frente a callar para pensar:** avisa de que vas a pensar «treinta segundos» y retoma comunicando.
+- **Perfección frente a un resultado funcional:** en tiempo limitado, una versión simple y correcta antes que una elegante a medias.
+- **Honestidad sobre lo que no sabes frente a farolear:** «no lo sé, pero lo abordaría así» pesa más que inventar.
+
+## Errores comunes
+
+- **Lanzarse a escribir SQL sin aclarar** definiciones ni mirar el grano de las tablas.
+- **No comprobar el resultado:** no mirar el recuento de filas, los duplicados ni un caso a mano.
+- **Responder una métrica sin preguntar el objetivo.**
+- **Empezar por las hipótesis complicadas** y olvidar la medición, los festivos o los cambios de definición.
+- **Presentar correlaciones como causas.**
+- **Un ejercicio para casa con todo el código y ninguna conclusión.**
+- **Historias STAR sin números ni resultado.**
+- **Culpar a otros** en las preguntas de conflicto.
+
+## Con IA
+
+Un asistente es un buen entrevistador de práctica: pídele que te haga preguntas de un nivel y que critique tu estructura, o que cronometre y te interrumpa con aclaraciones. Úsalo para generar variantes de ejercicios de SQL y comprobar tus soluciones ejecutándolas. En las entrevistas reales, **respeta las reglas de la empresa** sobre el uso de herramientas de IA durante las pruebas y declara cualquier uso en el ejercicio para casa si te lo piden. Prepárate también para la pregunta «¿cómo usarías IA en este análisis y cómo la validarías?»: herramientas con capa semántica, verificación de cifras, evaluación con ejemplos de oro y protección de datos personales.
+
+## En una entrevista
+
+- _"¿Cómo abordas una consulta SQL que no sabes resolver a la primera?"_ — Pista: simplificar, resolver por partes, validar cada paso con un caso pequeño.
+- _"Las ventas cayeron un 12 % esta semana. ¿Qué haces?"_ — Pista: aclarar, comprobar medición y calendario, descomponer, hipótesis priorizadas, recomendación.
+- _"Háblame de un error tuyo."_ — Pista: STAR con un error real, cómo lo detectaste, qué cambiaste en tu proceso.
+
+<KeyTakeaways
+  items={[
+    'Una entrevista es una muestra de cómo trabajas: aclara, estructura, calcula, comprueba y recomienda, pensando en voz alta.',
+    'En SQL con tiempo, aclara definiciones, mira el grano para evitar el fan-out, escribe por partes, valida y comenta supuestos.',
+    'Para métricas y producto, descompón (clientes × frecuencia × ticket), descarta primero medición, calendario y cambios de definición, prioriza hipótesis y termina con una recomendación; para experimentos, define métricas principal y de contrapeso, potencia, SRM y análisis planificado.',
+    'En estadística, domina las definiciones correctas de p-valor e intervalo de confianza, la potencia, el peeking, el SRM y las comparaciones múltiples, y sus trampas habituales.',
+    'Prepara un ejercicio para casa con plan de tiempo, conclusión en la primera página y límites explícitos, y seis historias STAR con números y aprendizaje.',
+  ]}
+/>

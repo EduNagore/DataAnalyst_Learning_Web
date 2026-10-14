@@ -1,0 +1,79 @@
+lesson: carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+questions:
+  - id: ce-03-q1
+    type: single
+    difficulty: 1
+    prompt: 'En una entrevista de SQL con tiempo, ¿qué haces antes de escribir la consulta?'
+    options:
+      - 'Escribir de inmediato'
+      - 'Aclarar definiciones (qué cuenta como pedido válido, ventana, formato) y mirar el grano de las tablas'
+      - 'Esperar en silencio'
+      - 'Pedir más tiempo'
+    answer: [1]
+    explanation: 'Aclarar y entender el grano evita errores de fan-out y definiciones distintas a las que esperan.'
+    ref: '#sql-con-tiempo'
+
+  - id: ce-03-q2
+    type: single
+    difficulty: 2
+    prompt: '«Las ventas cayeron un 12 % esta semana.» ¿Qué descartas primero?'
+    options:
+      - 'Una guerra de precios de la competencia'
+      - 'Errores de medición, cambios de definición, datos incompletos y calendario o estacionalidad'
+      - 'Una crisis económica'
+      - 'Un cambio en la plantilla comercial'
+    answer: [1]
+    explanation: 'Primero lo aburrido y barato de comprobar; después las hipótesis de negocio.'
+    ref: '#métricas-y-producto'
+
+  - id: ce-03-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las respuestas correctas sobre un p-valor y un intervalo de confianza.'
+    options:
+      - 'El p-valor es la probabilidad de ver un resultado igual o más extremo si la hipótesis nula fuese cierta'
+      - 'Un IC del 95 % es un procedimiento que, repetido, contiene el valor verdadero el 95 % de las veces'
+      - 'El p-valor es la probabilidad de que la hipótesis nula sea cierta'
+      - 'Mirar el A/B cada día y parar al ver «significativo» infla los falsos positivos'
+    answer: [0, 1, 3]
+    explanation: 'La tercera es la confusión clásica: el p-valor no es la probabilidad de la hipótesis.'
+    ref: '#estadística'
+
+  - id: ce-03-q4
+    type: single
+    difficulty: 2
+    prompt: 'En un ejercicio para casa, ¿dónde va la respuesta a la pregunta del negocio?'
+    options:
+      - 'Al final de un anexo de 20 páginas'
+      - 'En la primera página, con el detalle y el código como anexos'
+      - 'No hace falta'
+      - 'Solo en el correo'
+    answer: [1]
+    explanation: 'Quien lee quiere la conclusión primero; el método y los límites van justo después.'
+    ref: '#ejercicio-para-casa'
+
+  - id: ce-03-q5
+    type: single
+    difficulty: 2
+    prompt: '¿Qué significa STAR?'
+    options:
+      - 'Situación, Tarea, Acción, Resultado'
+      - 'Solución, Técnica, Análisis, Recomendación'
+      - 'Sistema, Test, Alcance, Riesgo'
+      - 'Señal, Tendencia, Atribución, Respuesta'
+    answer: [0]
+    explanation: 'En la acción cuenta lo que hiciste tú; el resultado, con números y aprendizaje.'
+    ref: '#preguntas-conductuales-y-el-método-star'
+
+  - id: ce-03-q6
+    type: single
+    difficulty: 3
+    prompt: 'Te atascas en un ejercicio de SQL. ¿Cuál es la mejor reacción?'
+    options:
+      - 'Callar hasta encontrarla'
+      - 'Decir en voz alta lo que sabes y proponer una versión más simple (por ejemplo, para una sola región)'
+      - 'Abandonar'
+      - 'Copiar una solución memorizada'
+    answer: [1]
+    explanation: 'El razonamiento visible vale más que el silencio con una consulta perfecta.'
+    ref: '#sql-con-tiempo'
