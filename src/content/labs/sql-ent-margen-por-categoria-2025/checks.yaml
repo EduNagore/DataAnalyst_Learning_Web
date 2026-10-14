@@ -1,0 +1,8 @@
+compare:
+  orderMatters: false
+  columns:
+    - categoria
+    - ingresos
+    - coste
+    - margen_pct
+hiddenOnVariant: true

@@ -1,0 +1,26 @@
+---
+title: Clientes que compran en tienda y en web
+description: 'Ejercicio de entrevista de nivel junior con SQL cronometrado sobre Lumen: ¿Cuántos clientes son realmente omnicanal?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 1
+estimatedMinutes: 10
+concepts:
+  - entrevista
+  - HAVING
+  - COUNT DISTINCT
+datasets:
+  - orders
+hints:
+  - Agrupa los pedidos no cancelados por `customer_id` y cuenta los canales distintos.
+  - '`HAVING COUNT(DISTINCT channel) = 2` filtra los clientes presentes en ambos.'
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Cuántos clientes son realmente omnicanal?
+---
+
+Cuenta los clientes que tienen al menos un pedido **no cancelado en cada uno de los dos canales** (`online` y `store`).
+
+**Formato del resultado:** una sola fila con `clientes_multicanal`.

@@ -1,0 +1,28 @@
+---
+title: Días hasta el segundo pedido por canal de adquisición
+description: 'Ejercicio de entrevista de nivel intermedio con SQL cronometrado sobre Lumen: ¿Qué canal de adquisición trae clientes que repiten antes?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 2
+estimatedMinutes: 15
+concepts:
+  - entrevista
+  - ROW_NUMBER
+  - auto-join
+  - date_diff
+datasets:
+  - orders
+  - customers
+hints:
+  - Numera los pedidos de cada cliente con `ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date, order_id)`.
+  - Une el pedido 1 con el 2 del mismo cliente y usa `date_diff('day', a.order_date, b.order_date)`.
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Qué canal de adquisición trae clientes que repiten antes?
+---
+
+Para cada cliente con **al menos dos pedidos no cancelados**, calcula los días entre el primero y el segundo (orden por `order_date` y `order_id`). Después, por `acquisition_channel` del cliente, devuelve cuántos clientes hay y la media de días (**1 decimal**).
+
+**Formato del resultado:** `acquisition_channel`, `clientes` y `dias_medios`.

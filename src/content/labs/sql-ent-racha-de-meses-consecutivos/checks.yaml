@@ -1,0 +1,10 @@
+compare:
+  orderMatters: false
+  columns:
+    - clientes_con_racha_3
+    - racha_maxima
+hiddenOnVariant: true
+assertions:
+  - name: Usa una función de ventana (OVER)
+    kind: query-text-contains
+    value: over

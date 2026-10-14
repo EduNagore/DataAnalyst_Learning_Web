@@ -1,0 +1,26 @@
+---
+title: Gasto de marketing por canal y año
+description: 'Ejercicio de entrevista de nivel junior con SQL cronometrado sobre Lumen: ¿Cuánto se ha invertido cada año en cada canal?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 1
+estimatedMinutes: 8
+concepts:
+  - entrevista
+  - GROUP BY múltiple
+  - fechas
+datasets:
+  - marketing_spend
+hints:
+  - '`year(date)` extrae el año de la columna `date`.'
+  - Agrupa por las dos columnas.
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Cuánto se ha invertido cada año en cada canal?
+---
+
+Suma `spend_eur` por **año** y `channel`, redondeado a **0 decimales**.
+
+**Formato del resultado:** `anio`, `channel` y `gasto`.

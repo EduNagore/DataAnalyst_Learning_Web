@@ -1,0 +1,8 @@
+compare:
+  orderMatters: false
+  columns:
+    - acquisition_channel
+    - clientes
+    - repiten
+    - pct
+hiddenOnVariant: true

@@ -1,0 +1,28 @@
+---
+title: Recompra a 90 días por canal de adquisición
+description: 'Ejercicio de entrevista de nivel intermedio con SQL cronometrado sobre Lumen: ¿Qué canal de adquisición consigue más segundas compras en los primeros 90 días?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 2
+estimatedMinutes: 20
+concepts:
+  - entrevista
+  - censura
+  - ROW_NUMBER
+  - LEFT JOIN
+datasets:
+  - orders
+  - customers
+hints:
+  - 'Numera los pedidos por cliente. El pedido 1 es el primero; el 2 (si existe) es el segundo: usa **LEFT JOIN** para no perder a quien no repite.'
+  - Filtra el primer pedido con `a.order_date < '2026-04-01'` para evitar la censura (clientes sin tiempo para repetir).
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Qué canal de adquisición consigue más segundas compras en los primeros 90 días?
+---
+
+Considera solo los clientes cuyo **primer pedido no cancelado** es anterior al **1 de abril de 2026** (así todos tienen 90 días de observación). Un cliente _repite_ si su segundo pedido no cancelado ocurre como máximo **90 días** después del primero. Por `acquisition_channel`, devuelve clientes, repetidores y el porcentaje (**1 decimal**).
+
+**Formato del resultado:** `acquisition_channel`, `clientes`, `repiten` y `pct`.

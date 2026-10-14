@@ -1,0 +1,11 @@
+compare:
+  orderMatters: false
+  columns:
+    - acquisition_channel
+    - clientes
+    - dias_medios
+hiddenOnVariant: true
+assertions:
+  - name: Usa una función de ventana (OVER)
+    kind: query-text-contains
+    value: over

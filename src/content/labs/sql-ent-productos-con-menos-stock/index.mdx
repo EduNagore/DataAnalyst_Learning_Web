@@ -1,0 +1,28 @@
+---
+title: Los diez productos con menos stock
+description: 'Ejercicio de entrevista de nivel intermedio con SQL cronometrado sobre Lumen: ¿Qué productos están más cerca de agotarse en toda la red?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 2
+estimatedMinutes: 15
+concepts:
+  - entrevista
+  - última instantánea
+  - subconsulta escalar
+  - SUM
+datasets:
+  - inventory_snapshots
+  - products
+hints:
+  - La última fecha es `(SELECT MAX(snapshot_date) FROM inventory_snapshots)`.
+  - Suma `stock_qty` por producto, une con `products` para el nombre y ordena por `stock_total, product_id`.
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Qué productos están más cerca de agotarse en toda la red?
+---
+
+Con la **última instantánea** de `inventory_snapshots` (la fecha máxima), suma el stock de cada producto en todas las ubicaciones y devuelve los **diez con menos stock total**. En caso de empate, ordena por `product_id`.
+
+**Formato del resultado:** `product_id`, `name` y `stock_total`, de menor a mayor.

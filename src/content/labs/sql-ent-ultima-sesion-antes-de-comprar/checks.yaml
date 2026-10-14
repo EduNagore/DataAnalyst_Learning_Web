@@ -1,0 +1,7 @@
+compare:
+  orderMatters: false
+  columns:
+    - canal
+    - pedidos
+    - ingresos
+hiddenOnVariant: true

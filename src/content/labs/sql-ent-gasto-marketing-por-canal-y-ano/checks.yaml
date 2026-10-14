@@ -1,0 +1,7 @@
+compare:
+  orderMatters: false
+  columns:
+    - anio
+    - channel
+    - gasto
+hiddenOnVariant: true

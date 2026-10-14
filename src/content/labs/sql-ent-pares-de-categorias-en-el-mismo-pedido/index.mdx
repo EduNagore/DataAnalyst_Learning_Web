@@ -1,0 +1,30 @@
+---
+title: Pares de categorías que se compran juntas
+description: 'Ejercicio de entrevista de nivel sénior con SQL cronometrado sobre Lumen: ¿Qué categorías principales se compran más a menudo en el mismo pedido?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 3
+estimatedMinutes: 25
+concepts:
+  - entrevista
+  - auto-join
+  - DISTINCT
+  - pares sin duplicar
+datasets:
+  - orders
+  - order_items
+  - products
+  - categories
+hints:
+  - 'Primero un conjunto `DISTINCT order_id, categoria_principal`: una fila por pedido y categoría.'
+  - Auto-join por `order_id` con `a.categoria < b.categoria` para no repetir pares ni emparejar una categoría consigo misma.
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Qué categorías principales se compran más a menudo en el mismo pedido?
+---
+
+En 2025 y con pedidos no cancelados, obtén los **cinco pares de categorías principales** que aparecen más veces juntas en un mismo pedido (cada pedido cuenta **una vez** por par). Cada par aparece una sola vez, con `categoria_a < categoria_b` (orden alfabético). Desempata por `categoria_a, categoria_b`.
+
+**Formato del resultado:** `categoria_a`, `categoria_b` y `pedidos`, de mayor a menor.

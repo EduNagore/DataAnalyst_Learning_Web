@@ -1,0 +1,28 @@
+---
+title: Ticket medio por canal
+description: 'Ejercicio de entrevista de nivel junior con SQL cronometrado sobre Lumen: ¿Se gasta más por pedido en tienda o en la web?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 1
+estimatedMinutes: 10
+concepts:
+  - entrevista
+  - JOIN
+  - COUNT DISTINCT
+  - grano
+datasets:
+  - orders
+  - order_items
+hints:
+  - 'Cuidado con el grano: un pedido tiene varias líneas. El número de pedidos es `COUNT(DISTINCT order_id)`, no `COUNT(*)`.'
+  - Excluye los pedidos con `status = 'cancelado'`.
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Se gasta más por pedido en tienda o en la web?
+---
+
+Calcula, para cada `channel`, el número de pedidos no cancelados y el **ticket medio** (ingresos totales entre número de pedidos), con **2 decimales**. Ingresos = suma de `quantity * unit_price`.
+
+**Formato del resultado:** `channel`, `pedidos` y `ticket_medio`.

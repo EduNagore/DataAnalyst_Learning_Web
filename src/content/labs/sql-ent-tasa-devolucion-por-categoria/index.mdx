@@ -1,0 +1,31 @@
+---
+title: Tasa de devolución por categoría principal
+description: 'Ejercicio de entrevista de nivel intermedio con SQL cronometrado sobre Lumen: ¿Qué categorías principales devuelven más?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 2
+estimatedMinutes: 15
+concepts:
+  - entrevista
+  - LEFT JOIN
+  - jerarquía de categorías
+  - COUNT de columnas
+datasets:
+  - order_items
+  - orders
+  - products
+  - categories
+  - returns
+hints:
+  - La categoría principal es el nombre del padre si existe, y el de la propia categoría si no (`COALESCE(padre.name, c.name)`).
+  - Une `returns` con **LEFT JOIN**; `COUNT(r.return_id)` cuenta solo las líneas devueltas.
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Qué categorías principales devuelven más?
+---
+
+Las categorías tienen jerarquía (`parent_category_id`): una subcategoría cuelga de una principal. Para cada **categoría principal**, cuenta las líneas de pedidos no cancelados, cuántas fueron devueltas (existe una fila en `returns` para esa línea) y la tasa de devolución en %, con **1 decimal**.
+
+**Formato del resultado:** `categoria`, `lineas`, `devueltas` y `tasa_pct`.

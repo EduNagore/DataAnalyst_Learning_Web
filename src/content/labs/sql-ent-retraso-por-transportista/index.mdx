@@ -1,0 +1,26 @@
+---
+title: Entregas tardías por transportista
+description: 'Ejercicio de entrevista de nivel junior con SQL cronometrado sobre Lumen: ¿Qué transportista incumple más la fecha prometida?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 1
+estimatedMinutes: 10
+concepts:
+  - entrevista
+  - comparación de fechas
+  - AVG de booleanos
+datasets:
+  - shipments
+hints:
+  - '`(actual_date > promised_date)::INT` da 1 si se entregó tarde; su promedio es la proporción.'
+  - Agrupa por `carrier`.
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Qué transportista incumple más la fecha prometida?
+---
+
+Para cada `carrier`, cuenta los envíos y calcula el porcentaje entregado **después** de la fecha prometida (`actual_date > promised_date`), con **1 decimal**.
+
+**Formato del resultado:** `carrier`, `envios` y `pct_tarde`.

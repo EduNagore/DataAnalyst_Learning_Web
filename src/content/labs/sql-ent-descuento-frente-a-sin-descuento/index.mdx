@@ -1,0 +1,28 @@
+---
+title: Pedidos con y sin descuento
+description: 'Ejercicio de entrevista de nivel intermedio con SQL cronometrado sobre Lumen: ¿Los pedidos con descuento son más grandes?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 2
+estimatedMinutes: 12
+concepts:
+  - entrevista
+  - CASE
+  - grano
+  - razones
+datasets:
+  - orders
+  - order_items
+hints:
+  - Ticket medio = suma de importes de línea / pedidos distintos. Unidades por pedido = suma de `quantity` / pedidos distintos.
+  - Define el grupo con un `CASE WHEN discount_pct > 0 THEN ... ELSE ... END`.
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Los pedidos con descuento son más grandes?
+---
+
+Clasifica los pedidos no cancelados en `con_descuento` (`discount_pct > 0`) y `sin_descuento`. Para cada grupo devuelve los pedidos, el **ticket medio** (ingresos / pedidos, **2 decimales**) y las **unidades por pedido** (**2 decimales**).
+
+**Formato del resultado:** `grupo`, `pedidos`, `ticket_medio` y `unidades_por_pedido`.

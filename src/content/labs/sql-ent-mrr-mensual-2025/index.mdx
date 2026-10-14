@@ -1,0 +1,28 @@
+---
+title: 'MRR mensual de 2025: nuevo, perdido y final'
+description: 'Ejercicio de entrevista de nivel sénior con SQL cronometrado sobre Lumen: ¿Cómo evoluciona mes a mes el MRR de Lumen+ en 2025?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 3
+estimatedMinutes: 25
+concepts:
+  - entrevista
+  - generate_series
+  - CROSS JOIN
+  - FILTER
+  - MRR
+datasets:
+  - subscriptions
+hints:
+  - Genera los doce meses con `generate_series(DATE '2025-01-01', DATE '2025-12-01', INTERVAL 1 MONTH)` y cruza con `subscriptions`.
+  - '`SUM(mrr_eur) FILTER (WHERE ...)` permite calcular tres agregados distintos en la misma pasada.'
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Cómo evoluciona mes a mes el MRR de Lumen+ en 2025?
+---
+
+Para cada mes de 2025, devuelve: `mrr_fin` (suma de `mrr_eur` de las suscripciones **activas al final del mes**: empezaron antes del primer día del mes siguiente y no se cancelaron antes de esa fecha), `nuevo` (MRR de las altas del mes) y `perdido` (MRR de las bajas del mes). Redondea a **0 decimales**. El mes se muestra como `AAAA-MM`.
+
+**Formato del resultado:** `mes`, `mrr_fin`, `nuevo` y `perdido`, una fila por mes.

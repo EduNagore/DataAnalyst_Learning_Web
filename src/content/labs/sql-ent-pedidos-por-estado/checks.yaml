@@ -1,0 +1,7 @@
+compare:
+  orderMatters: false
+  columns:
+    - status
+    - pedidos
+    - pct
+hiddenOnVariant: true

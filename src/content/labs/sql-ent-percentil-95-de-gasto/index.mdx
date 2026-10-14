@@ -1,0 +1,28 @@
+---
+title: Percentil 95 del gasto por segmento
+description: 'Ejercicio de entrevista de nivel intermedio con SQL cronometrado sobre Lumen: ¿Cuánto gasta el 5 % de clientes que más gasta en cada segmento?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 2
+estimatedMinutes: 15
+concepts:
+  - entrevista
+  - quantile_cont
+  - agregación en dos pasos
+datasets:
+  - customers
+  - orders
+  - order_items
+hints:
+  - Primero el gasto por cliente (`GROUP BY customer_id`), luego los percentiles por segmento.
+  - '`quantile_cont(gasto, 0.95)` y `quantile_cont(gasto, 0.5)`.'
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Cuánto gasta el 5 % de clientes que más gasta en cada segmento?
+---
+
+Calcula el **gasto total de cada cliente** (pedidos no cancelados) y, por `segment`, el **percentil 95** de ese gasto (interpolado) y la mediana, ambos redondeados a **0 decimales**. Considera solo clientes con al menos un pedido.
+
+**Formato del resultado:** `segment`, `clientes`, `mediana` y `p95`.

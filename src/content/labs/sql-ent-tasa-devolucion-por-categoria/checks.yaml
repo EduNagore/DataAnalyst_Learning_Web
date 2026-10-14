@@ -1,0 +1,8 @@
+compare:
+  orderMatters: false
+  columns:
+    - categoria
+    - lineas
+    - devueltas
+    - tasa_pct
+hiddenOnVariant: true

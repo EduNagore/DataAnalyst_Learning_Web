@@ -1,0 +1,7 @@
+compare:
+  orderMatters: true
+  columns:
+    - product_id
+    - name
+    - stock_total
+hiddenOnVariant: true

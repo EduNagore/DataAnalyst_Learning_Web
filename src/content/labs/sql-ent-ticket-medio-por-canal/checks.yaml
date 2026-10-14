@@ -1,0 +1,7 @@
+compare:
+  orderMatters: false
+  columns:
+    - channel
+    - pedidos
+    - ticket_medio
+hiddenOnVariant: true

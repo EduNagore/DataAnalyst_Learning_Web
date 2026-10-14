@@ -1,0 +1,30 @@
+---
+title: Los cinco productos más devueltos
+description: 'Ejercicio de entrevista de nivel junior con SQL cronometrado sobre Lumen: ¿Qué productos concentran las devoluciones?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 1
+estimatedMinutes: 10
+concepts:
+  - entrevista
+  - JOIN
+  - ORDER BY
+  - LIMIT
+  - desempate
+datasets:
+  - returns
+  - order_items
+  - products
+hints:
+  - '`returns` se une con `order_items` por `order_item_id`, y de ahí con `products` por `product_id`.'
+  - Para un resultado determinista, ordena por `devoluciones DESC, product_id`.
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Qué productos concentran las devoluciones?
+---
+
+Obtén los **cinco productos con más devoluciones** (una devolución = una fila de `returns`). En caso de empate, ordena por `product_id`.
+
+**Formato del resultado:** `product_id`, `name` y `devoluciones`, ordenadas de mayor a menor.

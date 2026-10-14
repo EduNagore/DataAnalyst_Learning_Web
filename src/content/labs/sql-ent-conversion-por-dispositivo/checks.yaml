@@ -1,0 +1,8 @@
+compare:
+  orderMatters: false
+  columns:
+    - device
+    - sesiones
+    - con_compra
+    - conversion_pct
+hiddenOnVariant: true

@@ -1,0 +1,29 @@
+---
+title: Retraso p90 de entrega por región del cliente
+description: 'Ejercicio de entrevista de nivel intermedio con SQL cronometrado sobre Lumen: ¿En qué regiones la cola de entregas tardías es peor?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 2
+estimatedMinutes: 15
+concepts:
+  - entrevista
+  - quantile_cont
+  - JOIN en cadena
+  - date_diff
+datasets:
+  - shipments
+  - orders
+  - customers
+hints:
+  - '`shipments` → `orders` por `order_id` → `customers` por `customer_id`.'
+  - 'Filtra los envíos tardíos antes de calcular el percentil: `quantile_cont(dias, 0.9)`.'
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿En qué regiones la cola de entregas tardías es peor?
+---
+
+Para cada `region` del cliente, calcula sobre los envíos **entregados tarde** (`actual_date > promised_date`) el número de envíos y el **percentil 90** de los días de retraso (`date_diff('day', promised_date, actual_date)`), con **1 decimal**.
+
+**Formato del resultado:** `region`, `envios_tarde` y `p90_dias`.

@@ -1,0 +1,7 @@
+compare:
+  orderMatters: false
+  columns:
+    - plan
+    - suscripciones
+    - mrr
+hiddenOnVariant: true

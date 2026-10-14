@@ -1,0 +1,28 @@
+---
+title: Conversión de sesiones a compra por dispositivo
+description: 'Ejercicio de entrevista de nivel intermedio con SQL cronometrado sobre Lumen: ¿En qué dispositivo convierten mejor las sesiones?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 2
+estimatedMinutes: 15
+concepts:
+  - entrevista
+  - semi-join
+  - LEFT JOIN
+  - tasa de conversión
+datasets:
+  - web_sessions
+  - events
+hints:
+  - 'Hay muchos eventos `purchase` por sesión en potencia: reduce primero a `SELECT DISTINCT session_id` de las compras.'
+  - Un **LEFT JOIN** a ese conjunto y `COUNT(c.session_id)` cuenta las sesiones con compra sin duplicar filas.
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿En qué dispositivo convierten mejor las sesiones?
+---
+
+Una sesión _convierte_ si tiene al menos un evento `purchase` en `events`. Por `device` de la sesión, cuenta sesiones, sesiones con compra y la conversión (%) con **2 decimales**.
+
+**Formato del resultado:** `device`, `sesiones`, `con_compra` y `conversion_pct`.

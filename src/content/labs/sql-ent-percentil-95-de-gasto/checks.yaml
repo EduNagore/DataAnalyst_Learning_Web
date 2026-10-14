@@ -1,0 +1,8 @@
+compare:
+  orderMatters: false
+  columns:
+    - segment
+    - clientes
+    - mediana
+    - p95
+hiddenOnVariant: true

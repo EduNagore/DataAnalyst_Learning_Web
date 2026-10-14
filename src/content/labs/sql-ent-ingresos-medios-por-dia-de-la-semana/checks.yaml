@@ -1,0 +1,7 @@
+compare:
+  orderMatters: false
+  columns:
+    - dia_semana
+    - dias
+    - ingresos_medios
+hiddenOnVariant: true

@@ -1,0 +1,7 @@
+compare:
+  orderMatters: false
+  columns:
+    - carrier
+    - envios
+    - pct_tarde
+hiddenOnVariant: true

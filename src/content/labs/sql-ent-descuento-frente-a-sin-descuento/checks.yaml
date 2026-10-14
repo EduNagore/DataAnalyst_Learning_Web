@@ -1,0 +1,8 @@
+compare:
+  orderMatters: false
+  columns:
+    - grupo
+    - pedidos
+    - ticket_medio
+    - unidades_por_pedido
+hiddenOnVariant: true

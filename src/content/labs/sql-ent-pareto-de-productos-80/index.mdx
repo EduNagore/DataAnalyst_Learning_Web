@@ -1,0 +1,28 @@
+---
+title: Cuántos productos hacen el 80 % de los ingresos
+description: 'Ejercicio de entrevista de nivel sénior con SQL cronometrado sobre Lumen: ¿Qué concentración tienen las ventas en pocos productos?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 3
+estimatedMinutes: 20
+concepts:
+  - entrevista
+  - Pareto
+  - suma acumulada
+  - ventanas
+datasets:
+  - orders
+  - order_items
+hints:
+  - La participación acumulada es `SUM(ingresos) OVER (ORDER BY ingresos DESC, product_id) / SUM(ingresos) OVER ()`.
+  - 'Un producto cuenta si el acumulado **anterior** a él aún no llega al 80 %: es decir, `acumulado - participación < 0.8`.'
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Qué concentración tienen las ventas en pocos productos?
+---
+
+Con los ingresos de **2025** por producto (pedidos no cancelados), ordena los productos de mayor a menor ingreso (desempate por `product_id`) y calcula cuántos hacen falta para **alcanzar o superar el 80 %** del total. Devuelve ese número, el total de productos con ventas y el porcentaje que suponen (**1 decimal**).
+
+**Formato del resultado:** una fila con `productos_para_80`, `productos_con_ventas` y `pct`.

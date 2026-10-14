@@ -1,0 +1,7 @@
+compare:
+  orderMatters: false
+  columns:
+    - anio
+    - clientes
+    - pct_consentimiento
+hiddenOnVariant: true

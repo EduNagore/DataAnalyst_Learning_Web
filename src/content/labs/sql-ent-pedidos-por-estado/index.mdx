@@ -1,0 +1,27 @@
+---
+title: Pedidos por estado y su peso
+description: 'Ejercicio de entrevista de nivel junior con SQL cronometrado sobre Lumen: ¿Qué parte de los pedidos está completada, cancelada o devuelta parcialmente?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 1
+estimatedMinutes: 8
+concepts:
+  - entrevista
+  - GROUP BY
+  - ventana sobre agregado
+  - porcentajes
+datasets:
+  - orders
+hints:
+  - '`COUNT(*)` con `GROUP BY status` da los pedidos de cada estado.'
+  - 'Para el total sin otra consulta, usa `SUM(COUNT(*)) OVER ()`: una ventana sobre el agregado.'
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Qué parte de los pedidos está completada, cancelada o devuelta parcialmente?
+---
+
+Cuenta los pedidos de `orders` por `status` y calcula qué porcentaje del total representa cada estado, con **1 decimal**.
+
+**Formato del resultado:** una fila por estado con `status`, `pedidos` y `pct`.

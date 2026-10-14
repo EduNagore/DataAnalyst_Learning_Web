@@ -1,0 +1,29 @@
+---
+title: Canal de la última sesión antes de cada compra
+description: 'Ejercicio de entrevista de nivel sénior con SQL cronometrado sobre Lumen: ¿A qué canal se atribuyen los ingresos de junio de 2026 con una regla de último contacto?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 3
+estimatedMinutes: 25
+concepts:
+  - entrevista
+  - ASOF JOIN
+  - atribución último contacto
+  - LEFT JOIN
+datasets:
+  - orders
+  - order_items
+  - web_sessions
+hints:
+  - Primero el importe por pedido (`quantity * unit_price` sumado) para los pedidos de junio, online y no cancelados.
+  - 'DuckDB tiene `ASOF LEFT JOIN`: `ASOF LEFT JOIN sesiones s ON p.customer_id = s.customer_id AND p.order_date >= s.started_at` toma la sesión inmediatamente anterior.'
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿A qué canal se atribuyen los ingresos de junio de 2026 con una regla de último contacto?
+---
+
+Para cada pedido **online no cancelado de junio de 2026**, busca la **sesión identificada más reciente** (`web_sessions.customer_id`) del mismo cliente que empezó **antes o en el momento** del pedido, mirando solo sesiones desde el **1 de mayo de 2026**. Atribuye los ingresos del pedido al `channel` de esa sesión (o a `sin_sesion` si no hay ninguna). Por canal, devuelve pedidos e ingresos (**0 decimales**).
+
+**Formato del resultado:** `canal`, `pedidos` e `ingresos`.

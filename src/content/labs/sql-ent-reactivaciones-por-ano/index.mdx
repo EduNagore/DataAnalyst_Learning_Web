@@ -1,0 +1,27 @@
+---
+title: 'Reactivaciones: clientes que vuelven tras 180 días'
+description: 'Ejercicio de entrevista de nivel sénior con SQL cronometrado sobre Lumen: ¿Cuántos clientes inactivos vuelven a comprar cada año?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 3
+estimatedMinutes: 20
+concepts:
+  - entrevista
+  - LAG
+  - date_diff
+  - eventos por año
+datasets:
+  - orders
+hints:
+  - '`LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date, order_id)` da la fecha del pedido anterior.'
+  - Filtra con `date_diff('day', anterior, order_date) >= 180` (los primeros pedidos no tienen anterior).
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Cuántos clientes inactivos vuelven a comprar cada año?
+---
+
+Una **reactivación** es un pedido no cancelado hecho al menos **180 días** después del pedido no cancelado anterior del mismo cliente. Por **año del pedido de vuelta**, cuenta las reactivaciones y los clientes distintos implicados.
+
+**Formato del resultado:** `anio`, `reactivaciones` y `clientes`.

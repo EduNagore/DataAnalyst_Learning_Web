@@ -1,0 +1,28 @@
+---
+title: Cuándo supera cada cliente los 1.000 € acumulados
+description: 'Ejercicio de entrevista de nivel sénior con SQL cronometrado sobre Lumen: ¿En qué año alcanzan los clientes sus primeros 1.000 € de gasto acumulado?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 3
+estimatedMinutes: 20
+concepts:
+  - entrevista
+  - suma acumulada
+  - QUALIFY
+  - ROW_NUMBER
+datasets:
+  - orders
+  - order_items
+hints:
+  - Primero el importe por pedido (`GROUP BY` cliente, fecha y pedido); después `SUM(importe) OVER (PARTITION BY customer_id ORDER BY order_date, order_id)`.
+  - Con `WHERE acumulado >= 1000` y `QUALIFY ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date, order_id) = 1` te quedas con el primer cruce.
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿En qué año alcanzan los clientes sus primeros 1.000 € de gasto acumulado?
+---
+
+Calcula el importe de cada pedido no cancelado y el **gasto acumulado** de cada cliente por orden cronológico (`order_date`, `order_id`). Para cada cliente que llega a **1.000 €**, toma el **primer pedido** en el que el acumulado alcanza o supera esa cifra. Devuelve cuántos clientes lo logran en cada año de ese pedido.
+
+**Formato del resultado:** `anio` y `clientes`.

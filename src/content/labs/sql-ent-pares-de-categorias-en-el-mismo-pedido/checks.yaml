@@ -1,0 +1,7 @@
+compare:
+  orderMatters: true
+  columns:
+    - categoria_a
+    - categoria_b
+    - pedidos
+hiddenOnVariant: true

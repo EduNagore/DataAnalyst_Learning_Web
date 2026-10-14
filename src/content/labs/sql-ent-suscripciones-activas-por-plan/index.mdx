@@ -1,0 +1,26 @@
+---
+title: Suscripciones activas a cierre de junio
+description: 'Ejercicio de entrevista de nivel junior con SQL cronometrado sobre Lumen: ¿Cuántas suscripciones Lumen+ siguen activas a 30 de junio de 2026 y cuánto MRR aportan?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 1
+estimatedMinutes: 10
+concepts:
+  - entrevista
+  - filtro por intervalo
+  - 'NULL'
+datasets:
+  - subscriptions
+hints:
+  - La condición completa es `started_at <= '2026-06-30' AND (cancelled_at IS NULL OR cancelled_at > '2026-06-30')`.
+  - 'Los `NULL` no se comparan con `=`: usa `IS NULL`.'
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Cuántas suscripciones Lumen+ siguen activas a 30 de junio de 2026 y cuánto MRR aportan?
+---
+
+Una suscripción está **activa** a 30-jun-2026 si empezó el 30 de junio o antes y no se ha cancelado (`cancelled_at` nulo) o se cancela después. Por `plan`, cuenta las suscripciones activas y suma su `mrr_eur` (**2 decimales**).
+
+**Formato del resultado:** `plan`, `suscripciones` y `mrr`.

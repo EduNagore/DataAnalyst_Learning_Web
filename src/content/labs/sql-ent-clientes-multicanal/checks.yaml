@@ -1,0 +1,5 @@
+compare:
+  orderMatters: false
+  columns:
+    - clientes_multicanal
+hiddenOnVariant: true

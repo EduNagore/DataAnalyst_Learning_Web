@@ -1,0 +1,7 @@
+compare:
+  orderMatters: true
+  columns:
+    - product_id
+    - name
+    - devoluciones
+hiddenOnVariant: true

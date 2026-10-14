@@ -1,0 +1,27 @@
+---
+title: Consentimiento de marketing por año de alta
+description: 'Ejercicio de entrevista de nivel junior con SQL cronometrado sobre Lumen: ¿Ha mejorado con los años el porcentaje de clientes que acepta recibir marketing?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 1
+estimatedMinutes: 8
+concepts:
+  - entrevista
+  - fechas
+  - booleanos
+  - AVG
+datasets:
+  - customers
+hints:
+  - '`year(signup_date)` extrae el año.'
+  - 'Un booleano convertido a entero (`marketing_consent::INT`) permite promediar: el promedio es la proporción de verdaderos.'
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Ha mejorado con los años el porcentaje de clientes que acepta recibir marketing?
+---
+
+Para cada **año de alta** (`signup_date`), cuenta los clientes y calcula el porcentaje que tiene `marketing_consent` verdadero, con **1 decimal**.
+
+**Formato del resultado:** `anio`, `clientes` y `pct_consentimiento`.

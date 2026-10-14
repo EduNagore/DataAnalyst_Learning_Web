@@ -1,0 +1,28 @@
+---
+title: Ingresos medios por día de la semana en 2025
+description: 'Ejercicio de entrevista de nivel intermedio con SQL cronometrado sobre Lumen: ¿Qué día de la semana se vende más en un día típico?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 2
+estimatedMinutes: 15
+concepts:
+  - entrevista
+  - agregación en dos pasos
+  - isodow
+  - CTE
+datasets:
+  - orders
+  - order_items
+hints:
+  - 'Agrega primero por día: `CAST(order_date AS DATE)`. Después agrupa ese resultado por `isodow(dia)`.'
+  - 'Una media de medias es otra cosa: aquí interesa la media de los **ingresos diarios**.'
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Qué día de la semana se vende más en un día típico?
+---
+
+Calcula los **ingresos de cada día natural de 2025** (pedidos no cancelados) y, después, la **media de esos ingresos diarios** por día de la semana (`isodow`: 1 = lunes … 7 = domingo), redondeada a **0 decimales**. Devuelve también cuántos días de cada tipo hay.
+
+**Formato del resultado:** `dia_semana`, `dias` e `ingresos_medios`.

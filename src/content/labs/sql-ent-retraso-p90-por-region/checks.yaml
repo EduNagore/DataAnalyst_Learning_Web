@@ -1,0 +1,7 @@
+compare:
+  orderMatters: false
+  columns:
+    - region
+    - envios_tarde
+    - p90_dias
+hiddenOnVariant: true

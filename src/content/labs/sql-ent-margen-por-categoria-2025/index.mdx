@@ -1,0 +1,30 @@
+---
+title: Margen bruto por categoría principal en 2025
+description: 'Ejercicio de entrevista de nivel intermedio con SQL cronometrado sobre Lumen: ¿Qué categorías principales dejan más margen y con qué porcentaje?'
+language: sql
+part: Parte VII · Carrera profesional
+module: carrera-entrevistas
+difficulty: 2
+estimatedMinutes: 15
+concepts:
+  - entrevista
+  - JOIN múltiple
+  - margen
+  - jerarquía
+datasets:
+  - orders
+  - order_items
+  - products
+  - categories
+hints:
+  - El coste unitario está en `products.cost`.
+  - La categoría principal es `COALESCE(padre.name, c.name)`.
+output: table
+relatedLessons:
+  - carrera-entrevistas/03-entrevistas-de-sql-producto-estadistica-take-home-y-conductuales
+businessQuestion: ¿Qué categorías principales dejan más margen y con qué porcentaje?
+---
+
+Para cada **categoría principal**, calcula en 2025 (pedidos no cancelados) los **ingresos** (`quantity * unit_price`), el **coste** (`quantity * products.cost`) y el **margen %** = (ingresos − coste) / ingresos × 100, con **1 decimal**. Ingresos y coste redondeados a 0 decimales.
+
+**Formato del resultado:** `categoria`, `ingresos`, `coste` y `margen_pct`.

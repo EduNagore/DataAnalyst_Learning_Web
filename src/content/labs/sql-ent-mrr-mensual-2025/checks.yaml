@@ -1,0 +1,8 @@
+compare:
+  orderMatters: true
+  columns:
+    - mes
+    - mrr_fin
+    - nuevo
+    - perdido
+hiddenOnVariant: true
