@@ -27,7 +27,16 @@ test('el toggle de tema cambia data-theme en <html>', async ({ page }) => {
 });
 
 test('las páginas de secciones en construcción no devuelven 404', async ({ page }) => {
-  for (const path of ['practica/', 'proyectos/', 'entrevistas/', 'radar/', 'glosario/']) {
+  for (const path of [
+    'practica/',
+    'proyectos/',
+    'entrevistas/',
+    'radar/',
+    'glosario/',
+    'ruta/',
+    'fuentes/',
+    'novedades/',
+  ]) {
     const response = await page.goto(path);
     expect(response?.status(), `${path} debería responder 200`).toBe(200);
   }

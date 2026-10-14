@@ -1,9 +1,228 @@
 ---
-import ComingSoon from '../../components/layout/ComingSoon.astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { url } from '../../lib/url';
+
+const modules = (await getCollection('modules')).sort((a, b) => a.data.order - b.data.order);
+const byId = new Map(modules.map((m) => [m.data.id, m]));
+const lessons = await getCollection('lessons');
+const lessonCount = new Map<string, number>();
+for (const l of lessons) lessonCount.set(l.data.module, (lessonCount.get(l.data.module) ?? 0) + 1);
+
+interface Route {
+  id: string;
+  title: string;
+  goal: string;
+  who: string;
+  modules: string[] | 'all';
+}
+
+const core = [
+  'analista-2026',
+  'pensamiento-negocio',
+  'estadistica-descriptiva',
+  'sql-i',
+  'sql-ii',
+  'python-analisis',
+  'limpieza-calidad',
+  'eda',
+  'storytelling',
+];
+
+const routes: Route[] = [
+  {
+    id: 'esencial',
+    title: 'Esencial',
+    goal: 'Lo imprescindible para trabajar como analista de datos: SQL, hojas de cálculo, Python, estadística básica y de inferencia, visualización, BI y comunicación, más la preparación de entrevistas.',
+    who: 'Si empiezas de cero o quieres un primer empleo de analista.',
+    modules: [
+      'analista-2026',
+      'pensamiento-negocio',
+      'estadistica-descriptiva',
+      'hojas-de-calculo',
+      'sql-i',
+      'sql-ii',
+      'python-analisis',
+      'limpieza-calidad',
+      'eda',
+      'visualizacion',
+      'dashboards-bi',
+      'storytelling',
+      'inferencia',
+      'carrera-entrevistas',
+    ],
+  },
+  {
+    id: 'producto',
+    title: 'Analista de producto',
+    goal: 'Experimentación, causalidad, retención y embudos, regresión y forecasting, con IA como copiloto verificado.',
+    who: 'Si quieres trabajar en producto digital, growth o experimentación.',
+    modules: [
+      ...core,
+      'inferencia',
+      'experimentacion',
+      'causalidad',
+      'regresion-modelos',
+      'analitica-producto',
+      'visualizacion',
+      'llm-copiloto',
+      'carrera-entrevistas',
+    ],
+  },
+  {
+    id: 'marketing',
+    title: 'Analista de marketing y clientes',
+    goal: 'Atribución, incrementalidad, mix de marketing, valor de vida del cliente y segmentación, con experimentos y series temporales.',
+    who: 'Si quieres trabajar en marketing, CRM o growth.',
+    modules: [
+      ...core,
+      'hojas-de-calculo',
+      'visualizacion',
+      'dashboards-bi',
+      'inferencia',
+      'experimentacion',
+      'causalidad',
+      'regresion-modelos',
+      'series-temporales',
+      'marketing-clientes',
+      'carrera-entrevistas',
+    ],
+  },
+  {
+    id: 'bi-finanzas',
+    title: 'BI, finanzas y operaciones',
+    goal: 'Modelado dimensional, Power BI y DAX, métricas de negocio, forecasting, capa semántica y gobierno de datos.',
+    who: 'Si quieres trabajar en inteligencia de negocio, control de gestión o finanzas.',
+    modules: [
+      ...core,
+      'hojas-de-calculo',
+      'sql-iii',
+      'visualizacion',
+      'dashboards-bi',
+      'inferencia',
+      'series-temporales',
+      'finanzas-operaciones',
+      'capa-semantica',
+      'gobierno-etica',
+      'carrera-entrevistas',
+    ],
+  },
+  {
+    id: 'ia',
+    title: 'IA para analistas',
+    goal: 'Stack de datos moderno, dbt, capa semántica, gobierno y todo el bloque de IA: copiloto, texto a SQL, agentes con MCP y análisis de texto.',
+    who: 'Si ya dominas SQL y Python y quieres especializarte en el cruce entre datos e IA.',
+    modules: [
+      'sql-i',
+      'sql-ii',
+      'python-analisis',
+      'stack-moderno',
+      'ingenieria-analitica',
+      'capa-semantica',
+      'gobierno-etica',
+      'llm-copiloto',
+      'text-to-sql',
+      'analitica-agentica-mcp',
+      'llm-texto',
+      'carrera-entrevistas',
+    ],
+  },
+  {
+    id: 'completa',
+    title: 'Completa',
+    goal: 'Los 30 módulos en el orden del curso, de los fundamentos al nivel sénior.',
+    who: 'Si quieres el recorrido entero (y tienes tiempo).',
+    modules: 'all',
+  },
+];
+
+const resolved = routes.map((r) => {
+  const ids = r.modules === 'all' ? modules.map((m) => m.data.id) : [...new Set(r.modules)];
+  const mods = ids
+    .map((id) => byId.get(id))
+    .filter((m): m is NonNullable<typeof m> => Boolean(m))
+    .sort((a, b) => a.data.order - b.data.order);
+  const hours = mods.reduce((s, m) => s + m.data.estimatedHours, 0);
+  const lessonsTotal = mods.reduce((s, m) => s + (lessonCount.get(m.data.id) ?? 0), 0);
+  return { ...r, mods, hours, lessonsTotal };
+});
 ---
 
-<ComingSoon
+<BaseLayout
   title="Rutas de aprendizaje"
-  description="Rutas recomendadas (Esencial ~120 h, Completa ~300 h, y por perfil: producto, marketing, BI/finanzas) para seguir el curso en el orden óptimo según tu objetivo."
-  phase="Fase 6-9 · Contenido"
-/>
+  description="Rutas recomendadas para seguir el curso según tu objetivo: esencial, producto, marketing, BI y finanzas, IA para analistas y completa."
+>
+  <section class="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Rutas de aprendizaje</h1>
+    <p class="mt-2 max-w-2xl text-[var(--color-text-muted)]">
+      El curso tiene {modules.length} módulos y unas {resolved[resolved.length - 1].hours} horas de
+      estudio y práctica. No hace falta hacerlo todo: elige la ruta que encaja con tu objetivo. Los
+      módulos de cada ruta se hacen en el orden del curso, porque cada uno se apoya en los
+      anteriores. Las horas son orientativas.
+    </p>
+
+    <nav aria-label="Rutas" class="mt-6 flex flex-wrap gap-2 text-sm">
+      {resolved.map((r) => (
+        <a
+          class="rounded-full border border-[var(--color-border)] px-3 py-1 hover:border-[var(--color-accent)]"
+          href={`#${r.id}`}
+        >
+          {r.title} · {r.hours} h
+        </a>
+      ))}
+    </nav>
+
+    <div class="mt-8 space-y-8">
+      {resolved.map((r) => (
+        <section
+          id={r.id}
+          class="scroll-mt-20 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-5"
+        >
+          <div class="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 class="text-xl font-semibold text-[var(--color-text)]">{r.title}</h2>
+            <p class="text-sm text-[var(--color-text-muted)]">
+              {r.mods.length} módulos · {r.lessonsTotal} lecciones · ~{r.hours} h
+            </p>
+          </div>
+          <p class="mt-2 text-sm text-[var(--color-text)]">{r.goal}</p>
+          <p class="mt-1 text-sm text-[var(--color-text-muted)]">{r.who}</p>
+          <ol class="mt-4 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+            {r.mods.map((m) => (
+              <li class="flex items-baseline justify-between gap-2 border-b border-[var(--color-border)] py-1">
+                <a
+                  class="text-[var(--color-accent)] hover:underline"
+                  href={url(`/teoria/${m.data.id}/`)}
+                >
+                  {m.data.title}
+                </a>
+                <span class="shrink-0 text-xs text-[var(--color-text-muted)]">
+                  {m.data.estimatedHours} h
+                </span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))}
+    </div>
+
+    <p class="mt-10 text-sm text-[var(--color-text-muted)]">
+      Sea cual sea la ruta, combina teoría y práctica: cada lección tiene su
+      <a class="text-[var(--color-accent)]" href={url('/practica/tests/')}>
+        test
+      </a>
+      , los
+      <a class="text-[var(--color-accent)]" href={url('/practica/labs/')}>
+        laboratorios
+      </a>{' '}
+      y los
+      <a class="text-[var(--color-accent)]" href={url('/practica/casos/')}>
+        casos guiados
+      </a>{' '}
+      son lo que fija el aprendizaje, y tu avance se guarda en tu navegador (
+      <a class="text-[var(--color-accent)]" href={url('/progreso/')}>
+        panel de progreso
+      </a>
+      ).
+    </p>
+  </section>
+</BaseLayout>

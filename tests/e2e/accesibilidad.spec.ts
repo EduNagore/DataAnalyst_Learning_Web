@@ -17,6 +17,11 @@ const PAGES = [
   'cheatsheets/sql/',
   'proyectos/',
   'datos/',
+  'ruta/',
+  'fuentes/',
+  'progreso/',
+  'practica/tests/',
+  'practica/sql/',
 ];
 
 for (const scheme of ['light', 'dark'] as const) {
