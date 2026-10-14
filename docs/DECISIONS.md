@@ -74,3 +74,29 @@ El motor corre en el navegador del propio alumno, así que el riesgo es romper s
 
 **2026-10-07 — Playwright con `workers: 3`.**
 Con 7+ workers, `astro preview` se atascaba y `page.goto` daba timeouts (no era un fallo de la web). Los e2e de labs descargan DuckDB/Pyodide de jsDelivr (el primer arranque de Pyodide tarda ~8 s); cada test lleva su propio timeout.
+
+## Fases 8-10 — Contenido final, extras y pulido
+
+**2026-10-14 — La zona de entrevistas reutiliza el motor de labs para el SQL cronometrado.**
+Los 25 ejercicios son laboratorios SQL normales (`sql-ent-*`, módulo `carrera-entrevistas`), con el mismo `checks.yaml`, `hiddenOnVariant` y pruebas en CPython y DuckDB-WASM. La página del lab añade un cronómetro (`InterviewTimer`) solo para ese módulo; el cronómetro informa, no bloquea. `/entrevistas/` los agrupa por dificultad (1 junior, 2 intermedio, 3 sénior).
+
+**2026-10-14 — Preguntas de entrevista en un único YAML y marcas en `localStorage`.**
+`interview/questions.yaml` (150 preguntas ES/EN) alimenta una isla React (`QuestionBrowser`) con filtros, búsqueda y flashcards. Las marcas «la sabía / repasar» se guardan solo en el navegador (`daa:interview:v1`, con `try/catch`); no se mezclan con el progreso de lecciones.
+
+**2026-10-14 — Proyectos de portfolio: el código inicial se prueba con soluciones de referencia, pero no se publican.**
+Cada proyecto con Python incluye pruebas que fallan hasta que el alumno implementa los `TODO`. Antes de publicarlas se comprobó que son alcanzables ejecutándolas contra soluciones de referencia en una copia temporal (no incluidas en el repositorio). `pyproject.toml` de cada proyecto declara `pythonpath = ["."]`. **No se pudo ejecutar el código de dlt, MCP, marimo ni statsforecast** (el `pip` de este entorno no tiene acceso TLS a PyPI para esos paquetes): los esqueletos siguen la documentación oficial consultada, pero el alumno debe verificar las versiones.
+
+**2026-10-14 — Cheat sheets como colección de contenido con estilos de impresión.**
+`src/content/cheatsheets/*.mdx` + `/cheatsheets/[id]/` con `@media print` que oculta cabecera, pie y navegación. Los datos específicos de dialectos y de funciones de Excel en español e inglés se limitan a lo verificado en lecciones anteriores o a lo conocido de la documentación oficial; las funciones con nombres localizados dudosos (`MAP`, `REDUCE`, `SCAN`) se marcan como tales.
+
+**2026-10-14 — Accesibilidad medida con axe en ambos temas y Lighthouse.**
+`tests/e2e/accesibilidad.spec.ts` ejecuta axe (WCAG 2 A/AA) en ~19 páginas en tema claro y oscuro y falla con infracciones graves o críticas. Cambios que salieron de ahí: acento claro `#1d4ed8` (4,5:1 sobre el fondo teñido), temas de Shiki de alto contraste, ajustes de contraste del tema oscuro de CodeMirror, `aria-label` y `tabindex` en el área editable, enlaces subrayados en texto corrido, objetivos táctiles de 24 px en el Radar y estructura válida de `<dl>` en el glosario. Lighthouse (móvil, 4× CPU) ≥ 96 en las cuatro categorías en las páginas principales.
+
+**2026-10-14 — Móvil: nada ensancha la página.**
+Los laboratorios desbordaban horizontalmente (la rejilla sin `grid-cols-1` crecía con el editor) y varias lecciones lo hacían por tablas, código y fórmulas. Se añadió `grid-cols-1`, tablas con desplazamiento propio dentro de `.prose` y `overflow-x` en fórmulas. Se comprobó en 95 páginas (390 px) sin desbordamiento horizontal. El editor reserva su alto desde el HTML estático para evitar saltos de maquetación.
+
+**2026-10-14 — El diagrama ER de `/datos/` se carga al abrirlo.**
+Mermaid con el motor de diseño ELK cuesta ~450 KB de JavaScript y bloqueaba el hilo principal (Lighthouse 56). Ahora vive dentro de un `<details>` cerrado: no se carga hasta que se abre (Lighthouse 100).
+
+**2026-10-14 — Finales de línea LF y Python 3.13 fijado.**
+Los scripts que escribían ficheros con Python en Windows dejaron 169 ficheros con CRLF (rompía `prettier --check` en CI). Se normalizó todo con `.gitattributes` (`* text=auto eol=lf`). Además, `uv sync` fallaba en CI desde hacía días porque elegía la última versión de Python y `pyarrow` 22 no tenía rueda para ella (compilaba desde fuente y fallaba): se fija `.python-version` a 3.13.

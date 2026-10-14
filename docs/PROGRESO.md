@@ -153,3 +153,15 @@ Hechos casos 9 y 12 y Radar (2026-10): cliente activo a 30-jun-2026 de 60.000 re
 - **/proyectos/**: 8 proyectos (`src/content/projects/*.mdx`) + carpeta `projects/<id>/` con README generado, scripts de descarga de datos, esqueletos con TODO y pruebas. Las pruebas de los 5 proyectos con Python se comprobaron contra soluciones de referencia (no incluidas) en una copia temporal. NO se pudo instalar dlt/mcp/marimo/statsforecast en un venv (error SSL de pip en este entorno): sus esqueletos siguen la documentación oficial (MCP SDK v2 `MCPServer`, dlt `pipeline.run`) pero no se han ejecutado; el alumno debe verificar versiones.
 - Pendiente opcional de F8: playground «LLM real» con clave propia del usuario (no hecho).
 - Tests: `tests/e2e/entrevistas.spec.ts` (7 tests).
+
+## F10 ✅ (Pulido)
+
+- **Lighthouse** (móvil, 4× CPU, build servido con `astro preview`): ≥ 96 en rendimiento, accesibilidad, buenas prácticas y SEO en inicio, teoría, labs (SQL y Python), casos, entrevistas, glosario, fuentes, radar, cheat sheets, proyectos y `/datos/` (este último pasó de 56 a 100 cargando el ER al abrirlo).
+- **Accesibilidad:** `tests/e2e/accesibilidad.spec.ts` (axe, WCAG 2 A/AA, tema claro y oscuro, 19 páginas). Arreglos: contraste del acento, temas de código, CodeMirror (nombre accesible, contraste oscuro), enlaces subrayados en texto, objetivos táctiles, `<dl>` del glosario.
+- **Móvil:** 95 páginas a 390 px sin desbordamiento horizontal (rejilla de labs, tablas, código y fórmulas); CLS del editor corregido.
+- **Enlaces:** 0 enlaces internos rotos en `dist/` (369 páginas); de las 345 fuentes externas, 333 responden 200 y las demás son bloqueos a bots (403) salvo una URL de scikit-learn que se corrigió.
+- **CI:** el job de Python fallaba desde M15 (`uv sync` compilaba `pyarrow` 22 al usar la última versión de Python): `.python-version` = 3.13. El job web fallaba por Prettier (CRLF generados en Windows): `.gitattributes` con LF. Ambos corregidos; el paso de `uv sync` ahora publica su error como anotación.
+- **Rutas** (`/ruta/`): 6 rutas (Esencial 125 h, producto, marketing, BI/finanzas, IA, completa 281 h) con horas calculadas desde los módulos.
+- **README** completo; `docs/DECISIONS.md` con las decisiones de F8-F10.
+- Checklist §11: Lighthouse ✔ · DuckDB-WASM/Pyodide solo en labs, casos, playground y widgets ✔ · accesibilidad ✔ · SEO (títulos, descripción, Open Graph, sitemap) ✔ · validación de contenido en CI ✔ · dataset determinista (checksums en `data-gen/`) ✔.
+- **Pendiente para el titular:** elegir licencia (README propone MIT + CC BY 4.0, sin `LICENSE`), aprobar y calibrar el usage-guard (`docs/USAGE_GUARD.md`), decidir si quiere el playground «LLM real» opcional (no hecho) y revisar los esqueletos de los proyectos con dlt/MCP/marimo/statsforecast, que no se pudieron ejecutar aquí.
