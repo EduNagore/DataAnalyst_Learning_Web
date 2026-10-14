@@ -1,0 +1,33 @@
+---
+title: 'k-anonimato: cuántos clientes de Lumen se reidentifican con cuatro datos'
+description: 'Mide cuántos clientes de Lumen son únicos según sus cuasi-identificadores, comprueba cómo la fecha de alta exacta los reidentifica y aplica generalización y supresión hasta alcanzar k-anonimato con la mínima pérdida de detalle.'
+language: python
+part: 'Parte V · Stack moderno e ingeniería analítica'
+module: gobierno-etica
+difficulty: 2
+estimatedMinutes: 35
+concepts:
+  ['k-anonimato', 'cuasi-identificadores', 'reidentificación', 'generalización', 'supresión']
+datasets: ['customers']
+packages: []
+output: console
+hints:
+  - 'El k es el tamaño del grupo más pequeño: `df.groupby(cuasi).size().min()`. Una fila «única» es la de un grupo de tamaño 1; las filas «en riesgo» son las de grupos con menos de k filas.'
+  - 'Generalizar una fecha es reducir su precisión: mes (`dt.to_period("M")`), trimestre (`año + "-T" + trimestre`) o año. A menos precisión, grupos más grandes.'
+  - 'Supresión: calcula el tamaño de grupo de cada fila con `groupby(...).transform("size")` y conserva las filas cuyo grupo tiene al menos k.'
+  - 'Nivel mínimo: prueba los niveles de más fino a más grueso y devuelve el primero cuya supresión no supere el máximo permitido.'
+relatedLessons:
+  ['gobierno-etica/02-anonimizacion-seudonimizacion-k-anonimato-y-privacidad-diferencial']
+businessQuestion: '¿Podemos compartir la tabla de clientes con un tercero sin que alguien se pueda reidentificar?'
+---
+
+Quitar el nombre y el correo no anonimiza una tabla: combinaciones de atributos «inofensivos» (**cuasi-identificadores**) pueden señalar a una sola persona. Un conjunto es **k-anónimo** si cada combinación de cuasi-identificadores la comparten al menos k filas.
+
+Con la tabla de 60.000 clientes de Lumen, implementa:
+
+1. **`k_anonimato(df, cuasi)`** y **`perfil_de_unicidad(df, cuasi, k)`** → el k, los grupos, los clientes únicos y el porcentaje en riesgo.
+2. **`generalizar_fecha(df, columna, nivel)`** → la fecha en `dia`, `mes`, `trimestre` o `anio`.
+3. **`suprimir_raros(df, cuasi, k)`** → elimina las filas de grupos con menos de k filas y devuelve el porcentaje suprimido.
+4. **`nivel_minimo(df, cuasi, columna_fecha, k, max_supresion)`** → el nivel de fecha más fino que permite k-anonimato con poca supresión.
+
+Resultado esperado: con región, segmento y canal, k = 6; añadiendo el día de alta, **45.882 clientes (76 %) son únicos** y el 99,8 % queda en grupos de menos de 5; con la fecha en año, solo el 0,6 % está en riesgo y suprimiendo esas filas se alcanza k = 5.

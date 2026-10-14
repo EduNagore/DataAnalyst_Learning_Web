@@ -1,0 +1,62 @@
+lesson: gobierno-etica/01-rgpd-y-lopdgdd-para-analistas
+questions:
+  - id: ge-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Es un customer_id (sin nombre ni correo) un dato personal según el RGPD?'
+    options:
+      - 'No, porque no contiene el nombre'
+      - 'Sí, si se puede vincular a una persona identificada o identificable'
+      - 'Solo si es numérico'
+      - 'Solo si el cliente es menor'
+    answer: [1]
+    explanation: 'Dato personal es cualquier información sobre una persona identificable, directa o indirectamente. Un identificador de cliente lo es porque se puede vincular a una persona.'
+    ref: '#qué-es-un-dato-personal'
+
+  - id: ge-01-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los principios del artículo 5 del RGPD.'
+    options:
+      - 'Limitación de la finalidad'
+      - 'Minimización de datos'
+      - 'Limitación del plazo de conservación'
+      - 'Máxima recogida: guardar todo por si sirve en el futuro'
+    answer: [0, 1, 2]
+    explanation: 'La recogida «por si acaso» contradice la minimización y la limitación de la finalidad y del plazo.'
+    ref: '#los-principios-del-rgpd-art-5'
+
+  - id: ge-01-q3
+    type: single
+    difficulty: 2
+    prompt: 'El 70,2 % de los clientes de Lumen tiene marketing_consent verdadero. Vas a construir una audiencia para una campaña por correo. ¿Qué haces?'
+    options:
+      - 'Usar a los 60.000 clientes: son datos internos'
+      - 'Filtrar por consentimiento (o por la base jurídica que corresponda a las comunicaciones comerciales) y documentarlo'
+      - 'Usar solo a los VIP'
+      - 'Comprar una lista externa'
+    answer: [1]
+    explanation: 'El consentimiento es una de las bases jurídicas. Para comunicaciones comerciales, la audiencia debe respetar el consentimiento o el régimen aplicable; que sean datos internos no es una excepción.'
+    ref: '#bases-jurídicas-del-tratamiento-art-6'
+
+  - id: ge-01-q4
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál es la edad a partir de la cual, según la LOPDGDD (art. 7), un menor puede consentir por sí mismo el tratamiento de sus datos?'
+    options:
+      - '12 años'
+      - '14 años'
+      - '16 años'
+      - '18 años'
+    answer: [1]
+    explanation: 'La LOPDGDD fija en 14 años la edad del consentimiento del menor en España (el RGPD permite a los Estados fijarla entre 13 y 16).'
+    ref: '#qué-añade-la-lopdgdd'
+
+  - id: ge-01-q5
+    type: truefalse
+    difficulty: 2
+    prompt: 'Pegar una tabla de clientes en un asistente de IA externo no tiene implicaciones de protección de datos si es solo para un análisis interno.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Es una cesión de datos a un tercero que necesita base jurídica, contrato con el proveedor y garantías (incluida la valoración de transferencias fuera del EEE).'
+    ref: '#qué-añade-la-lopdgdd'

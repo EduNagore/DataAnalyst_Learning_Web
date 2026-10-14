@@ -1,0 +1,31 @@
+---
+title: 'Seudonimizar de verdad: HMAC frente a un hash simple, y minimización'
+description: 'Comprueba que un hash SHA-256 sin clave de los identificadores de Lumen se revierte al 100 % con un ataque de diccionario, protege el identificador con un HMAC y una clave secreta, y aplica minimización de datos dejando solo las columnas necesarias.'
+language: python
+part: 'Parte V · Stack moderno e ingeniería analítica'
+module: gobierno-etica
+difficulty: 2
+estimatedMinutes: 30
+concepts: ['seudonimización', 'hash', 'HMAC', 'ataque de diccionario', 'minimización de datos']
+datasets: ['customers']
+packages: []
+output: console
+hints:
+  - 'SHA-256 sin clave: `hashlib.sha256(texto.encode("utf-8")).hexdigest()`. Con clave: `hmac.new(clave, texto.encode("utf-8"), hashlib.sha256).hexdigest()`.'
+  - 'Un ataque de diccionario calcula el hash de cada candidato posible y lo compara con el objetivo. Si el espacio de identificadores es pequeño y predecible (cust-000000 a cust-059999), son segundos.'
+  - 'Seudonimizar una tabla: añade la columna `seudonimo` con el HMAC del identificador y elimina la columna original; trabaja sobre una copia para no modificar el DataFrame de entrada.'
+  - 'Minimizar es quedarse solo con las columnas imprescindibles para el fin del análisis (`df[necesarias]`).'
+relatedLessons:
+  ['gobierno-etica/02-anonimizacion-seudonimizacion-k-anonimato-y-privacidad-diferencial']
+businessQuestion: '¿Basta con aplicar un hash a los identificadores de clientes antes de compartir la tabla con un proveedor?'
+---
+
+Un equipo quiere compartir una tabla de clientes con un proveedor de análisis y propone «aplicar un hash al identificador, así es anónimo». En el lab compruebas que **no lo es**.
+
+Implementa:
+
+1. **`hash_simple(valor)`** → SHA-256 sin clave, y **`seudonimo(valor, clave)`** → HMAC-SHA256 con clave secreta.
+2. **`ataque_de_diccionario(objetivo, candidatos)`** y **`tasa_de_reidentificacion(hashes, candidatos)`** → qué porcentaje de hashes recupera un atacante que conoce el formato de los identificadores.
+3. **`minimizar(df, necesarias)`** y **`seudonimizar_tabla(df, columna_id, clave)`**.
+
+Resultado esperado: el hash sin clave de los identificadores de Lumen se revierte en el **100 %** de los casos; el HMAC con clave, en el **0 %**. Aun así, un dato seudonimizado sigue siendo dato personal: quien tenga la clave (o pueda vincularlo con otros datos) puede reidentificar.

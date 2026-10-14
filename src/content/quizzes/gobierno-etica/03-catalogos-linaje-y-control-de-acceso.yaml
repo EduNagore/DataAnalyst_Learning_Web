@@ -1,0 +1,62 @@
+lesson: gobierno-etica/03-catalogos-linaje-y-control-de-acceso
+questions:
+  - id: ge-03-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué establece el principio de mínimo privilegio?'
+    options:
+      - 'Que todo el mundo tenga acceso de lectura a todo'
+      - 'Que cada persona o proceso acceda solo a lo que necesita para su trabajo'
+      - 'Que solo los directivos accedan a los datos'
+      - 'Que los permisos no caduquen'
+    answer: [1]
+    explanation: 'Se combina con roles, seguridad por filas y columnas, enmascaramiento, auditoría y revisión periódica de accesos.'
+    ref: '#control-de-acceso'
+
+  - id: ge-03-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los usos del linaje de datos.'
+    options:
+      - 'Análisis de impacto antes de cambiar o retirar una columna'
+      - 'Demostrar de dónde sale una cifra del consejo'
+      - 'Localizar todos los lugares donde hay datos de una persona para atender un derecho de supresión'
+      - 'Sustituir las pruebas de calidad'
+    answer: [0, 1, 2]
+    explanation: 'El linaje no sustituye a las pruebas: describe el recorrido del dato, no su calidad.'
+    ref: '#linaje-de-datos'
+
+  - id: ge-03-q3
+    type: single
+    difficulty: 2
+    prompt: 'En el lab, ¿qué ve el rol «analista» de un identificador directo (DNI) y de un identificador indirecto (customer_id)?'
+    options:
+      - 'Los dos en claro'
+      - 'El directo oculto y el indirecto enmascarado'
+      - 'El directo enmascarado y el indirecto oculto'
+      - 'Los dos ocultos'
+    answer: [1]
+    explanation: 'El analista no necesita identificadores directos; ve enmascarados los indirectos. Soporte ve los directos enmascarados y finanzas todo en claro.'
+    ref: '#control-de-acceso'
+
+  - id: ge-03-q4
+    type: truefalse
+    difficulty: 2
+    prompt: 'Un valor enmascarado («a***@correo.es») es un dato anónimo.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Enmascarar oculta parte del valor a quien mira, pero el dato sigue vinculado a la persona y es un dato personal.'
+    ref: '#control-de-acceso'
+
+  - id: ge-03-q5
+    type: single
+    difficulty: 3
+    prompt: 'Un agente de IA necesita consultar datos de ventas. ¿Qué configuración de acceso es la más prudente?'
+    options:
+      - 'Las credenciales de un administrador, para que no se bloquee'
+      - 'Una cuenta de servicio propia, solo lectura, limitada a la capa semántica o a tablas concretas, con límites de coste y registro de consultas'
+      - 'Las credenciales personales del analista que lo lanza'
+      - 'Sin credenciales: que consulte lo que encuentre'
+    answer: [1]
+    explanation: 'Un agente actúa a velocidad de máquina y puede ser engañado por instrucciones ocultas en los datos; necesita permisos mínimos y trazabilidad.'
+    ref: '#cuando-los-consumidores-son-agentes-de-ia'

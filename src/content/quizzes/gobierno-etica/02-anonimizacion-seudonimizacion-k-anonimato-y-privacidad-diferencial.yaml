@@ -1,0 +1,62 @@
+lesson: gobierno-etica/02-anonimizacion-seudonimizacion-k-anonimato-y-privacidad-diferencial
+questions:
+  - id: ge-02-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué diferencia legal esencial hay entre datos anónimos y datos seudonimizados?'
+    options:
+      - 'No hay diferencia'
+      - 'Los anónimos quedan fuera del RGPD; los seudonimizados siguen siendo datos personales'
+      - 'Los seudonimizados quedan fuera del RGPD'
+      - 'Los anónimos exigen consentimiento'
+    answer: [1]
+    explanation: 'La seudonimización es una medida de seguridad y minimización, no una exención. La anonimización real exige demostrar que no existe capacidad material de reidentificar.'
+    ref: '#anónimo-frente-a-seudonimizado'
+
+  - id: ge-02-q2
+    type: single
+    difficulty: 2
+    prompt: 'Aplicas SHA-256 sin clave a los identificadores cust-000000 a cust-059999 «para anonimizarlos». ¿Qué ocurre con un ataque de diccionario?'
+    options:
+      - 'No recupera ninguno'
+      - 'Recupera todos: el espacio de identificadores es pequeño y predecible'
+      - 'Recupera la mitad'
+      - 'Depende del número de columnas'
+    answer: [1]
+    explanation: 'El atacante calcula el hash de cada identificador posible y lo compara. Con HMAC y una clave secreta, el mismo ataque no recupera ninguno, aunque el dato sigue siendo seudonimizado.'
+    ref: '#un-hash-no-anonimiza'
+
+  - id: ge-02-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'Con región, segmento, canal y día de alta de los 60.000 clientes de Lumen, 45.882 son únicos. ¿Qué porcentaje de los clientes es? (Un decimal.)'
+    answer: [76.5]
+    tolerance: 0.2
+    explanation: '45.882 / 60.000 ≈ 76,5 %. Cada atributo es inofensivo por separado; juntos señalan a tres de cada cuatro clientes.'
+    ref: '#k-anonimato'
+
+  - id: ge-02-q4
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODAS las formas de reducir el riesgo de reidentificación de una tabla.'
+    options:
+      - 'Generalizar la fecha de alta de día a trimestre o año'
+      - 'Suprimir las filas de los grupos más pequeños'
+      - 'Eliminar columnas innecesarias (minimización)'
+      - 'Añadir más cuasi-identificadores para tener más detalle'
+    answer: [0, 1, 2]
+    explanation: 'Más cuasi-identificadores aumentan la unicidad y el riesgo. Las otras tres reducen el riesgo a cambio de algo de detalle.'
+    ref: '#k-anonimato'
+
+  - id: ge-02-q5
+    type: single
+    difficulty: 3
+    prompt: 'En privacidad diferencial con el mecanismo de Laplace, ¿qué ocurre al pasar de epsilon = 1 a epsilon = 0,1 en un recuento?'
+    options:
+      - 'El error se reduce 10 veces'
+      - 'El error absoluto medio pasa de ≈ 1 a ≈ 10: más privacidad, más ruido'
+      - 'No cambia'
+      - 'El recuento se vuelve exacto'
+    answer: [1]
+    explanation: 'El error absoluto medio es sensibilidad/epsilon. Menos epsilon = más privacidad y más ruido; el error relativo es mayor en las celdas pequeñas.'
+    ref: '#privacidad-diferencial'

@@ -1,0 +1,33 @@
+---
+title: 'Privacidad diferencial: el mecanismo de Laplace y el precio de la privacidad'
+description: 'Implementa el mecanismo de Laplace para publicar recuentos de clientes de Lumen con garantía de privacidad diferencial, mide el error frente a epsilon y comprueba por qué las celdas pequeñas sufren mucho más ruido relativo.'
+language: python
+part: 'Parte V · Stack moderno e ingeniería analítica'
+module: gobierno-etica
+difficulty: 3
+estimatedMinutes: 35
+concepts:
+  ['privacidad diferencial', 'mecanismo de Laplace', 'epsilon', 'sensibilidad', 'composición']
+datasets: ['customers']
+packages: []
+output: console
+hints:
+  - 'Mecanismo de Laplace: a cada conteo se le suma ruido `Laplace(0, sensibilidad / epsilon)`. Un cliente cambia como mucho un conteo en 1, así que la sensibilidad es 1. Usa `rng.laplace(0, escala, tamano)`.'
+  - 'El error absoluto medio de una Laplace de escala b es b: con ε = 1 el error esperado es 1 cliente; con ε = 0,1, 10 clientes. Despeja epsilon para un error objetivo.'
+  - 'Recortar a cero los negativos es post-procesado: no consume privacidad. Las consultas repetidas sobre los mismos datos suman sus epsilon (composición secuencial).'
+  - 'El error relativo es `|ruido| / conteo`: con el mismo ruido, una celda de 6 clientes sufre mucho más que una de 10.000.'
+relatedLessons:
+  ['gobierno-etica/02-anonimizacion-seudonimizacion-k-anonimato-y-privacidad-diferencial']
+businessQuestion: '¿Cuántos clientes hay por región y segmento, publicado de modo que nadie pueda saber si una persona concreta está en los datos?'
+---
+
+La **privacidad diferencial** garantiza que el resultado publicado casi no cambia si añades o quitas a cualquier persona del conjunto de datos. Se consigue añadiendo **ruido calibrado**. El parámetro **epsilon (ε)** mide cuánta privacidad se pierde: cuanto menor es ε, más ruido y más privacidad.
+
+Con los recuentos de clientes de Lumen (`por_region` y `por_celda`, 384 celdas de región × segmento × canal, ya calculados), implementa:
+
+1. **`ruido_laplace(epsilon, rng, tamano, sensibilidad)`** → ruido de Laplace de escala `sensibilidad / epsilon`.
+2. **`conteos_privados(conteos, epsilon, semilla)`** → histograma ruidoso, sin negativos, con el mismo índice.
+3. **`error_absoluto_medio(conteos, epsilon)`** y **`error_relativo_medio(conteos, epsilon)`**.
+4. **`epsilon_para_error(error_objetivo, sensibilidad)`** y **`presupuesto_total(epsilons)`**.
+
+Resultado esperado: el error absoluto medio es ≈ 1/ε (≈ 1 cliente con ε = 1 y ≈ 10 con ε = 0,1); el error relativo por región es del 0,05 % con ε = 1, pero **las celdas pequeñas (a partir de 6 clientes) sufren un 1,8 % de error medio**, y un 18 % con ε = 0,1: más desglose significa menos precisión.

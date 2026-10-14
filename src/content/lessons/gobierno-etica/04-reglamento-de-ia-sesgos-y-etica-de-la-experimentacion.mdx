@@ -1,0 +1,216 @@
+---
+title: 'Reglamento de IA, sesgos en datos y métricas, y ética de la experimentación'
+description: 'Lo que un analista debe saber del Reglamento de IA de la UE con el calendario vigente tras el Ómnibus digital, cómo aparecen los sesgos en los datos y las métricas (y cómo medirlos), y los principios éticos para experimentar con personas, con ejemplos de Lumen.'
+module: gobierno-etica
+order: 4
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Clasificar un uso de IA o de modelado según las categorías de riesgo del Reglamento de IA y ubicar las fechas de aplicación vigentes.'
+  - 'Reconocer las fuentes de sesgo en datos, métricas y modelos y comprobar la representatividad de una muestra.'
+  - 'Calcular e interpretar métricas básicas de equidad (paridad demográfica e igualdad de oportunidades) y sus límites.'
+  - 'Aplicar principios éticos a un experimento: daño potencial, información, opción de salida, minimización y revisión.'
+prerequisites:
+  [
+    'gobierno-etica/03-catalogos-linaje-y-control-de-acceso',
+    'experimentacion/05-metricas-de-ratio-interferencia-y-cultura-de-experimentacion',
+  ]
+tools: []
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Comisión Europea — AI Act: marco regulatorio y calendario de aplicación'
+    url: 'https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai'
+    type: docs
+    authors: 'Comisión Europea'
+    year: 2026
+  - title: 'Gibson Dunn — EU AI Act Omnibus agreement: postponed high-risk deadlines and other key changes'
+    url: 'https://www.gibsondunn.com/eu-ai-act-omnibus-agreement-postponed-high-risk-deadlines-and-other-key-changes/'
+    type: blog
+    authors: 'Gibson Dunn'
+    year: 2026
+  - title: 'Orrick — EU AI Act update: Digital Omnibus finalizes 8 compliance changes'
+    url: 'https://www.orrick.com/en/Insights/2026/07/EU-AI-Act-Update-Digital-Omnibus-Finalizes-8-Compliance-Changes'
+    type: blog
+    authors: 'Orrick'
+    year: 2026
+  - title: 'Mehrabi et al. — A Survey on Bias and Fairness in Machine Learning'
+    url: 'https://arxiv.org/abs/1908.09635'
+    type: paper
+    authors: 'Mehrabi, N., Morstatter, F., Saxena, N., Lerman, K., Galstyan, A.'
+    year: 2019
+  - title: 'Hardt, Price & Srebro — Equality of Opportunity in Supervised Learning'
+    url: 'https://arxiv.org/abs/1610.02413'
+    type: paper
+    authors: 'Hardt, M., Price, E., Srebro, N.'
+    year: 2016
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Lumen estudia tres ideas: un modelo que puntúe a los solicitantes de financiación de compra
+  («Lumen Pay»), un asistente de IA que conteste a los clientes y una serie de experimentos de
+  precios por región. Legal pregunta qué exige el Reglamento de IA, Producto quiere saber si el
+  modelo trata igual a todos los grupos y la dirección duda de si es ético probar precios distintos
+  a clientes distintos. Tres preguntas, un mismo principio: **el dato y el modelo afectan a
+  personas**.
+</BusinessContext>
+
+> Esta lección explica conceptos y fechas para trabajar con criterio; no es asesoramiento jurídico. Las fechas de aplicación han cambiado recientemente: verifica el texto vigente.
+
+## Intuición
+
+Un modelo es una regla que se aplica a muchas personas a la vez. Si la regla es injusta, lo es a escala. La regulación pone el foco en **cuánto daño puede hacer** la regla (según su uso) y exige más cuidado cuanto mayor es ese daño. La ética es la brújula cuando la norma no llega o no llega todavía: ¿haría lo mismo si la persona afectada supiera cómo se decidió?
+
+## Cómo funciona
+
+### El Reglamento de IA (AI Act): lo esencial para un analista
+
+El Reglamento (UE) 2024/1689 regula los sistemas de IA según su **riesgo**:
+
+| Nivel             | Ejemplos                                                                                                                                                       | Consecuencia                                                                                                                |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **Prohibido**     | Manipulación subliminal dañina, puntuación social, explotación de vulnerabilidades, algunos usos de identificación biométrica                                  | No se puede usar                                                                                                            |
+| **Alto riesgo**   | IA en contratación y empleo, educación, acceso a servicios esenciales y **evaluación de solvencia (scoring crediticio)**, infraestructuras críticas, biometría | Obligaciones: gestión de riesgos, calidad de datos, documentación, registro, supervisión humana, exactitud y ciberseguridad |
+| **Transparencia** | Chatbots, contenido generado por IA (deepfakes, texto, imagen, audio)                                                                                          | Avisar de que se interactúa con IA y etiquetar el contenido sintético                                                       |
+| **Riesgo mínimo** | Filtros de spam, la mayoría de los modelos de recomendación o previsión                                                                                        | Sin obligaciones específicas (códigos voluntarios)                                                                          |
+
+Además hay obligaciones para los modelos de IA de **propósito general**, y una obligación de **alfabetización en IA** para quienes desarrollan o usan sistemas de IA en la organización.
+
+**El calendario vigente a octubre de 2026** (según la página de la Comisión Europea):
+
+| Fecha                      | Qué se aplica                                                                                                                                                              |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 de agosto de 2024        | Entrada en vigor del Reglamento                                                                                                                                            |
+| 2 de febrero de 2025       | Prácticas prohibidas y alfabetización en IA                                                                                                                                |
+| 2 de agosto de 2025        | Gobernanza y obligaciones de los modelos de propósito general                                                                                                              |
+| 2 de agosto de 2026        | Aplicación general del Reglamento (incluidas las obligaciones de transparencia del artículo 50)                                                                            |
+| 2 de diciembre de 2026     | Marcado de contenido sintético para sistemas ya comercializados; nueva prohibición de la IA que genere imágenes íntimas no consentidas y material de abuso sexual infantil |
+| **2 de diciembre de 2027** | IA de alto riesgo de las áreas sensibles del anexo III (biometría, infraestructuras, educación, empleo, servicios esenciales, migración…)                                  |
+| 2 de agosto de 2028        | IA de alto riesgo integrada en productos regulados (juguetes, ascensores, dispositivos médicos…)                                                                           |
+
+El **Ómnibus digital** (Reglamento (UE) 2026/1744, en vigor desde el 27 de julio de 2026) aplazó las fechas de alto riesgo (antes, agosto de 2026 y agosto de 2027), suavizó la obligación de alfabetización en IA (pasa a exigir **apoyar el desarrollo** de la alfabetización del personal) y extendió a más sistemas (incluidos los modelos de propósito general) la posibilidad de tratar datos para detectar y corregir sesgos, bajo un estándar estricto de necesidad.
+
+<Snapshot date="2026-10">
+  Las fechas anteriores corresponden a la página de la Comisión Europea y a los análisis jurídicos
+  del acuerdo del Ómnibus digital consultados en octubre de 2026. Se trata de un marco en
+  movimiento: aparecen guías de la Comisión, normas armonizadas y actos delegados que precisan las
+  obligaciones. Verifica siempre el calendario y el texto consolidado en la fuente oficial antes de
+  decidir un plan de cumplimiento.
+</Snapshot>
+
+**Qué significa para el analista:**
+
+- **Inventario:** lista qué modelos y usos de IA hay, para qué y con qué datos; clasifica el riesgo.
+- **Los modelos de scoring de personas** (crédito, empleo, educación) tocan alto riesgo: exigen calidad y representatividad de datos, documentación, supervisión humana y pruebas de sesgo.
+- **El chatbot de Lumen** entra en transparencia: hay que decir que es una IA.
+- **Un modelo de previsión de ventas** es, en principio, de riesgo mínimo.
+- **El RGPD sigue aplicando** a todo tratamiento de datos personales, incluidos los datos de entrenamiento, además del Reglamento de IA y del artículo 22 (decisiones automatizadas).
+
+### Sesgos en los datos y las métricas
+
+Un sesgo es una desviación sistemática que perjudica a un grupo o distorsiona una conclusión. Fuentes habituales:
+
+| Tipo                                    | Qué es                                                            | Ejemplo                                                     |
+| --------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------- |
+| **Muestreo / selección**                | Los datos no representan a la población                           | Analizar solo clientes con cookies aceptadas                |
+| **Histórico**                           | Los datos reflejan desigualdades pasadas                          | Un modelo de contratación entrenado con decisiones sesgadas |
+| **De medición**                         | La variable mide mal o distinto a unos grupos                     | Usar «gasto» como proxy de «necesidad»                      |
+| **De supervivencia**                    | Solo se ve a quien «sobrevive» en la muestra                      | Analizar solo clientes que no se dieron de baja             |
+| **De confirmación / de automatización** | Se favorece lo que confirma lo esperado o se confía en la máquina | Aceptar la salida de un modelo sin revisarla                |
+| **Proxy**                               | Una variable inocente sustituye a una protegida                   | Código postal como sustituto de origen étnico               |
+
+**Comprobar la representatividad es una tarea de analista.** Un ejemplo con Lumen: si se analiza solo a los clientes que dieron consentimiento de marketing (70,2 %), ¿se sesga la muestra? Al comprobarlo, el consentimiento es casi idéntico por segmento (del 68,7 % de los VIP al 70,6 % de los ocasionales) y por canal (69,9-70,9 %), y los clientes con y sin consentimiento hacen un número parecido de pedidos (6,25 frente a 6,38). Aquí la muestra es representativa; en datos reales con frecuencia no lo es, y por eso se comprueba en vez de suponerlo.
+
+### Medir la equidad
+
+Para un modelo que decide sobre personas se comparan sus resultados entre grupos con métricas como:
+
+- **Paridad demográfica:** la tasa de decisiones positivas (aprobar) es igual en los grupos.
+- **Igualdad de oportunidades (Hardt et al.):** entre quienes realmente merecen el resultado positivo, la tasa de aciertos (verdaderos positivos) es igual en los grupos.
+- **Calibración:** una puntuación de 0,7 significa lo mismo en todos los grupos.
+
+Ejemplo ilustrativo con un modelo hipotético de aprobación de financiación:
+
+| Grupo | Aprobados | Buenos pagadores aprobados (TPR) |
+| ----- | --------: | -------------------------------: |
+| A     |      60 % |                             80 % |
+| B     |      40 % |                             60 % |
+
+La diferencia de paridad demográfica es de 20 puntos y la de igualdad de oportunidades también de 20: el modelo aprueba menos a los buenos pagadores del grupo B. **No es posible satisfacer todas las métricas a la vez** cuando las tasas base difieren entre grupos, y la elección es una decisión de valores, no solo técnica: hay que explicitarla, documentarla y revisarla con las personas afectadas y legal. Quitar la variable protegida no basta: los proxies pueden reproducir el sesgo, y a veces hay que usarla para medir y corregir.
+
+<Callout type="warning">
+  Medir la equidad exige datos sobre los grupos, y los datos de categorías especiales están
+  protegidos. Hay que resolver esa tensión con base jurídica, minimización y seguridad (el Ómnibus
+  digital extiende, con un estándar estricto de necesidad, la posibilidad de tratar datos para
+  detectar y corregir sesgos). No lo improvises: consulta a legal y al delegado de protección de
+  datos antes de recoger o inferir atributos sensibles.
+</Callout>
+
+### Ética de la experimentación
+
+Experimentar con personas es habitual (A/B tests) y casi siempre inocuo, pero no siempre. Preguntas para cada experimento:
+
+1. **Daño potencial:** ¿puede la variante perjudicar a alguien (precio más alto, un flujo que confunde, un mensaje inquietante)? ¿Quién? ¿Cómo lo vigilarás (métricas de protección) y cuándo pararías?
+2. **Transparencia y consentimiento:** ¿la gente sabe, en términos generales, que se prueban variantes? Para experimentos de mayor impacto o con datos sensibles, ¿hace falta información específica o una opción de salida?
+3. **Población vulnerable:** menores, personas en situación de necesidad, usuarios que no pueden evitar el servicio.
+4. **Equidad:** ¿el reparto de beneficios y riesgos es justo? Un experimento de precios que cobre más a unas regiones puede ser legal y aun así injusto o dañar la confianza.
+5. **Minimización y finalidad:** solo los datos necesarios, usados para el fin declarado; el RGPD se aplica.
+6. **Prácticas engañosas (_dark patterns_):** una variante que gana conversión manipulando (urgencia falsa, bajas imposibles) no es una mejora: es un riesgo legal y reputacional.
+7. **Revisión independiente:** un comité o una segunda opinión para los experimentos sensibles, y registro de decisiones.
+
+Ejemplo de Lumen: la subida de precios de Electrónica en Andalucía (módulo de causalidad) fue un cambio real y no un experimento aleatorizado. Si en cambio se hubiera querido probar precios distintos por región para estimar la elasticidad, el diseño éticamente razonable incluiría límites al sobreprecio, una duración corta, vigilancia de las quejas y de los clientes más expuestos, y una política clara de reembolso.
+
+## En la práctica
+
+1. **Haz el inventario de IA y de modelos que afectan a personas** y clasifícalos por riesgo; anota fechas aplicables.
+2. **Antes de entrenar:** documenta de dónde vienen los datos, qué grupos hay, qué se mide y qué falta.
+3. **Comprueba la representatividad** de las muestras (por segmento, canal, región y consentimiento).
+4. **Evalúa por grupos**, no solo en conjunto: error, tasa de aprobación y TPR por grupo.
+5. **Decide y documenta la métrica de equidad** con negocio, legal y personas afectadas.
+6. **Mantén una persona en el bucle** en decisiones con efectos significativos y explica los criterios.
+7. **Aplica la lista ética** a cada experimento y registra la decisión.
+
+## Trade-offs y cuándo usarlo
+
+- **Precisión global frente a equidad por grupos:** corregir el sesgo puede reducir ligeramente la precisión; el coste de una decisión injusta, a escala, suele ser mayor.
+- **Usar atributos protegidos para medir frente a no recogerlos:** sin ellos no se ve el sesgo; con ellos hay riesgo legal. Se resuelve con base jurídica y salvaguardas.
+- **Transparencia al experimentar frente a validez:** informar demasiado puede cambiar el comportamiento; informar poco puede ser ético y legalmente débil. Ajusta al riesgo.
+- **Cumplimiento mínimo frente a buenas prácticas:** cumplir el calendario es necesario; adelantarse (documentación, pruebas) reduce el coste cuando llegan las obligaciones.
+- **Modelo explicable frente a modelo preciso:** los de alto riesgo suelen exigir justificar decisiones; un modelo más simple puede ser preferible.
+
+## Errores comunes
+
+- **Suponer que quitar la variable protegida elimina el sesgo** (los proxies lo reproducen).
+- **Evaluar solo la métrica global** y no por grupos.
+- **Confiar en que «los datos son objetivos»:** reflejan decisiones humanas y desigualdades previas.
+- **Clasificar mal el riesgo de un uso de IA** o ignorar el calendario.
+- **Experimentar sin pensar en el daño** a un subgrupo.
+- **Usar el consentimiento como excusa para cualquier experimento.**
+- **Elegir una métrica de equidad por conveniencia** sin documentarlo.
+
+## Con IA
+
+Un asistente puede ayudarte a calcular métricas por grupos y a redactar un inventario, pero no decide qué es justo ni conoce tu contexto legal. Y los propios modelos generativos tienen sesgos de sus datos de entrenamiento: revisa lo que producen cuando afectan a personas (descripciones, resúmenes de clientes, priorización de casos). Recuerda las obligaciones de transparencia (avisar de que es una IA y etiquetar el contenido generado) y no uses IA para tomar decisiones significativas sobre personas sin supervisión humana.
+
+## En una entrevista
+
+- _"Construyes un modelo que puntúa solicitudes de crédito. ¿Qué compruebas?"_ — Pista: alto riesgo; calidad y representatividad de datos; métricas por grupo (paridad, igualdad de oportunidades); proxies; supervisión humana; documentación; RGPD art. 22.
+- _"El modelo funciona bien en conjunto pero peor para un grupo. ¿Qué haces?"_ — Pista: medir por grupos, buscar la causa (datos, proxies, etiquetas), corregir, documentar el compromiso, decidir con negocio y legal.
+- _"¿Es ético probar precios distintos a distintos clientes?"_ — Pista: daño potencial, transparencia, equidad, límites, duración, supervisión, marco legal.
+
+<KeyTakeaways
+  items={[
+    'El Reglamento de IA regula por riesgo (prohibido, alto riesgo, transparencia, mínimo); tras el Ómnibus digital (en vigor el 27 de julio de 2026), la aplicación general fue el 2 de agosto de 2026 y las obligaciones de alto riesgo se aplican desde el 2 de diciembre de 2027 (áreas sensibles) y el 2 de agosto de 2028 (productos regulados).',
+    'Un modelo que puntúa a personas para crédito o empleo es de alto riesgo: exige calidad de datos, documentación, supervisión humana y pruebas de sesgo, además del RGPD (art. 22).',
+    'Los sesgos aparecen en el muestreo, en el histórico, en la medición y en los proxies: comprobar la representatividad es una tarea de analista (en Lumen, el consentimiento es casi igual por segmento y canal).',
+    'Las métricas de equidad (paridad demográfica, igualdad de oportunidades) pueden discrepar y no se satisfacen todas a la vez: elegirlas es una decisión de valores que se documenta.',
+    'Experimentar con personas exige valorar el daño potencial, la transparencia, la equidad, la minimización y la revisión; un resultado que mejora la conversión engañando no es una mejora.',
+  ]}
+/>

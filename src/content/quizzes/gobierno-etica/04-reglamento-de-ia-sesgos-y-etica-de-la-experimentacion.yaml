@@ -1,0 +1,62 @@
+lesson: gobierno-etica/04-reglamento-de-ia-sesgos-y-etica-de-la-experimentacion
+questions:
+  - id: ge-04-q1
+    type: single
+    difficulty: 2
+    prompt: 'Según el calendario vigente a octubre de 2026, ¿desde cuándo se aplican las obligaciones de alto riesgo de las áreas sensibles del anexo III (empleo, educación, scoring crediticio…)?'
+    options:
+      - 'Desde el 2 de febrero de 2025'
+      - 'Desde el 2 de agosto de 2026'
+      - 'Desde el 2 de diciembre de 2027'
+      - 'Desde el 2 de agosto de 2028'
+    answer: [2]
+    explanation: 'El Ómnibus digital aplazó las obligaciones de alto riesgo del anexo III al 2 de diciembre de 2027 (y las de productos regulados al 2 de agosto de 2028). La aplicación general fue el 2 de agosto de 2026. Verifica el texto vigente.'
+    ref: '#el-reglamento-de-ia-ai-act-lo-esencial-para-un-analista'
+
+  - id: ge-04-q2
+    type: single
+    difficulty: 2
+    prompt: 'Lumen despliega un chatbot de atención al cliente basado en IA. ¿Qué categoría del Reglamento de IA le aplica principalmente?'
+    options:
+      - 'Prohibido'
+      - 'Obligaciones de transparencia: avisar de que se interactúa con una IA'
+      - 'Alto riesgo, siempre'
+      - 'Ninguna, nunca'
+    answer: [1]
+    explanation: 'Los chatbots entran en las obligaciones de transparencia del artículo 50. El RGPD sigue aplicándose a los datos personales que trate.'
+    ref: '#el-reglamento-de-ia-ai-act-lo-esencial-para-un-analista'
+
+  - id: ge-04-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las fuentes de sesgo habituales en datos y modelos.'
+    options:
+      - 'Sesgo de selección o muestreo (datos que no representan a la población)'
+      - 'Sesgo histórico (los datos reflejan desigualdades pasadas)'
+      - 'Variables proxy (el código postal sustituye a una característica protegida)'
+      - 'Tener muchos datos garantiza la ausencia de sesgo'
+    answer: [0, 1, 2]
+    explanation: 'Más datos del mismo origen sesgado reproducen el sesgo a mayor escala.'
+    ref: '#sesgos-en-los-datos-y-las-métricas'
+
+  - id: ge-04-q4
+    type: numeric
+    difficulty: 3
+    prompt: 'Un modelo aprueba al 60 % del grupo A y al 40 % del grupo B. ¿Cuál es la diferencia de paridad demográfica, en puntos porcentuales?'
+    answer: [20]
+    tolerance: 0
+    explanation: '60 − 40 = 20 puntos. La igualdad de oportunidades compara en cambio la tasa de aprobación entre quienes realmente merecían el resultado positivo.'
+    ref: '#medir-la-equidad'
+
+  - id: ge-04-q5
+    type: single
+    difficulty: 3
+    prompt: 'Un experimento de interfaz mejora la conversión un 8 % usando una cuenta atrás falsa y una baja muy difícil. ¿Cuál es la conclusión adecuada?'
+    options:
+      - 'Es una mejora: la conversión sube'
+      - 'Es una práctica engañosa (dark pattern) con riesgo legal y reputacional: no es una mejora y debe descartarse'
+      - 'Solo es un problema si lo detecta un cliente'
+      - 'Hay que ampliarlo a todos los clientes'
+    answer: [1]
+    explanation: 'Una variante que gana conversión manipulando a las personas no es éxito. La ética del experimento incluye daño potencial, transparencia, equidad y revisión.'
+    ref: '#ética-de-la-experimentación'

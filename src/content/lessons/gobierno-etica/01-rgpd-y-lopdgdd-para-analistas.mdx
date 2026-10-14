@@ -1,0 +1,178 @@
+---
+title: 'RGPD y LOPDGDD para analistas de datos'
+description: 'Lo que un analista necesita saber de protección de datos en España y la UE: qué es un dato personal, los principios del RGPD (finalidad, minimización, plazo), las bases jurídicas, los derechos de las personas, las evaluaciones de impacto y qué preguntas hacerse antes de cada análisis.'
+module: gobierno-etica
+order: 1
+level: intermedio
+estimatedMinutes: 45
+objectives:
+  - 'Identificar si un conjunto de datos contiene datos personales y de categorías especiales.'
+  - 'Aplicar los principios del RGPD (licitud, finalidad, minimización, exactitud, limitación del plazo, integridad y responsabilidad proactiva) a un análisis concreto.'
+  - 'Reconocer las bases jurídicas del tratamiento y por qué el consentimiento no es la única.'
+  - 'Explicar qué derechos tienen las personas, qué es una evaluación de impacto y qué aporta la LOPDGDD.'
+prerequisites: ['limpieza-calidad/04-validacion-y-contratos-de-datos']
+tools: []
+volatility: medium
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Reglamento (UE) 2016/679 (RGPD)'
+    url: 'https://eur-lex.europa.eu/eli/reg/2016/679/oj'
+    type: spec
+    authors: 'Parlamento Europeo y Consejo de la UE'
+    year: 2016
+  - title: 'Ley Orgánica 3/2018, de Protección de Datos Personales y garantía de los derechos digitales (LOPDGDD)'
+    url: 'https://www.boe.es/buscar/act.php?id=BOE-A-2018-16673'
+    type: spec
+    authors: 'Cortes Generales (BOE)'
+    year: 2018
+  - title: 'AEPD — Guía de Privacidad desde el Diseño'
+    url: 'https://www.aepd.es/guias/guia-privacidad-desde-diseno.pdf'
+    type: docs
+    authors: 'AEPD'
+    year: 2019
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Marketing de Lumen pide a Datos una lista de «clientes con más probabilidad de baja» para
+  enviarles una oferta, cruzando compras, navegación y soporte. Un analista la tiene lista en una
+  tarde. Antes de enviarla, legal pregunta: ¿se recogieron esos datos para este fin?, ¿con qué base
+  jurídica?, ¿todos han dado su consentimiento a comunicaciones?, ¿hacía falta tanta información? Es
+  una pregunta que el analista debe saber hacerse solo.
+</BusinessContext>
+
+> Esta lección explica conceptos para trabajar bien con datos; no es asesoramiento jurídico. Ante dudas concretas, consulta al delegado de protección de datos o al área legal.
+
+## Intuición
+
+Los datos personales son «prestados», no «propiedad» de la empresa. La persona te los confía para algo concreto; tú puedes usarlos para eso (y para fines compatibles), con lo mínimo necesario, durante el tiempo necesario y con las medidas de seguridad adecuadas. Cada análisis nuevo es, en cierto modo, un nuevo «préstamo» que debe tener su justificación.
+
+## Cómo funciona
+
+### Qué es un dato personal
+
+Un **dato personal** es cualquier información sobre una persona física **identificada o identificable**, directa o indirectamente (nombre, identificador de cliente, correo, dirección IP, identificadores de dispositivo, ubicación, combinación de atributos que la señala). Un `customer_id` es un dato personal aunque no lleve el nombre, porque se puede vincular a una persona.
+
+Las **categorías especiales** (art. 9 del RGPD) —origen racial o étnico, opiniones políticas, convicciones religiosas, afiliación sindical, datos genéticos y biométricos para identificar, salud, vida u orientación sexual— tienen una protección reforzada y, en general, está prohibido tratarlas salvo excepciones concretas. Para un analista, el riesgo suele estar en **inferirlas**: deducir un estado de salud de compras de farmacia, o una religión de un calendario de festivos.
+
+**No son datos personales** los datos verdaderamente anónimos (lección 2). Los **seudonimizados** siguen siéndolo.
+
+### Los principios del RGPD (art. 5)
+
+| Principio                            | Qué exige                                                                       | Pregunta del analista                                  |
+| ------------------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| **Licitud, lealtad y transparencia** | Una base jurídica válida y que la persona sepa cómo se usan sus datos           | ¿Se informó de este uso?                               |
+| **Limitación de la finalidad**       | Fines determinados, explícitos y legítimos; no usarlos para fines incompatibles | ¿Para qué se recogieron? ¿Este análisis es compatible? |
+| **Minimización**                     | Solo los datos adecuados, pertinentes y limitados a lo necesario                | ¿Necesito de verdad esta columna?                      |
+| **Exactitud**                        | Datos exactos y actualizados                                                    | ¿Están al día? ¿Qué pasa si hay errores?               |
+| **Limitación del plazo**             | Conservarlos solo el tiempo necesario                                           | ¿Hasta cuándo puedo conservar esta extracción?         |
+| **Integridad y confidencialidad**    | Seguridad adecuada frente a accesos o pérdidas                                  | ¿Dónde guardo el fichero? ¿Quién puede verlo?          |
+| **Responsabilidad proactiva**        | El responsable debe poder demostrar el cumplimiento                             | ¿Queda documentado qué hice y por qué?                 |
+
+### Bases jurídicas del tratamiento (art. 6)
+
+Hay seis; el consentimiento es una de ellas, no la única:
+
+1. **Consentimiento** de la persona (libre, específico, informado e inequívoco, y revocable).
+2. **Ejecución de un contrato** con la persona (o medidas precontractuales).
+3. **Obligación legal** del responsable.
+4. **Intereses vitales** de la persona o de otra.
+5. **Misión de interés público** o ejercicio de poderes públicos.
+6. **Interés legítimo** del responsable o de un tercero, siempre que no prevalezcan los derechos de la persona (exige una ponderación documentada).
+
+En Lumen, procesar un pedido se apoya en el contrato; enviar comunicaciones comerciales por correo exige, en general, consentimiento o, en su caso, el régimen específico de comunicaciones comerciales. En la tabla de clientes, `marketing_consent` es verdadero para el **70,2 %**: un análisis que dirija ofertas debe filtrar por esa columna, no usar a los 60.000.
+
+**Reutilizar para otra finalidad** (por ejemplo, usar datos de soporte para puntuar el riesgo de baja) es posible si el nuevo fin es **compatible** con el original: se valoran el vínculo entre fines, el contexto, la naturaleza de los datos, las consecuencias para la persona y las garantías (como seudonimizar).
+
+### Derechos de las personas
+
+Acceso, rectificación, supresión («derecho al olvido»), limitación del tratamiento, portabilidad, oposición y no ser objeto de decisiones basadas únicamente en tratamiento automatizado con efectos jurídicos o significativos (art. 22), con derecho a intervención humana. Para el analista, implica:
+
+- **Poder localizar y borrar** los datos de una persona en las copias, extracciones y bases de análisis, no solo en el sistema transaccional.
+- **No automatizar decisiones significativas** (denegar crédito, cerrar una cuenta) sin revisión humana y base jurídica, y explicar la lógica si se pide.
+- **Reproducibilidad frente a supresión:** si borrar a una persona cambia los resultados de un análisis, se documenta qué datos se conservaron de forma agregada o anonimizada.
+
+### Evaluación de impacto, registro y responsables
+
+- **Evaluación de impacto (EIPD, art. 35):** obligatoria cuando el tratamiento supone un alto riesgo para los derechos de las personas (elaboración de perfiles a gran escala, datos de categorías especiales a gran escala, vigilancia sistemática). Es habitual para la puntuación de clientes, la personalización o los modelos que afectan a las personas.
+- **Registro de actividades de tratamiento (art. 30):** qué datos, para qué, quién accede, plazos, transferencias.
+- **Delegado de protección de datos (DPD):** figura obligatoria en ciertos casos (autoridades públicas, tratamientos a gran escala de seguimiento sistemático o de categorías especiales) y recomendable como interlocutor.
+- **Brechas de seguridad (art. 33):** notificación a la autoridad de control en general en un plazo de 72 horas desde que se tiene conocimiento, salvo que sea improbable que suponga un riesgo.
+- **Transferencias fuera del Espacio Económico Europeo:** exigen garantías adicionales; un asistente de IA de un proveedor externo o un almacén en otra región es una transferencia a considerar.
+- **Sanciones (art. 83):** hasta 20 millones de euros o el 4 % de la facturación anual mundial, según el caso.
+
+### Qué añade la LOPDGDD
+
+La Ley Orgánica 3/2018, de 5 de diciembre, adapta el RGPD en España y añade, entre otras cosas, un **título de derechos digitales** (desconexión digital, derechos en el ámbito laboral, protección de los menores en internet, testamento digital, derecho al olvido en búsquedas y redes), reglas específicas como la edad a partir de la cual un menor puede consentir por sí mismo (**14 años**, art. 7) y el marco de actuación de la **Agencia Española de Protección de Datos (AEPD)**, la autoridad de control que publica guías y herramientas muy útiles para el trabajo diario.
+
+<Callout type="warning">
+  «Es información interna» no es una excepción. El RGPD se aplica a cualquier tratamiento de datos
+  personales, incluidas las exploraciones en un cuaderno, las extracciones a hojas de cálculo y las
+  conversaciones con asistentes de IA. Pegar una tabla de clientes en una herramienta externa es una
+  cesión de datos que necesita base jurídica, contrato con el proveedor y garantías.
+</Callout>
+
+<Snapshot date="2026-10">
+  El RGPD y la LOPDGDD son la norma de fondo; lo que cambia con frecuencia son las guías de las
+  autoridades (AEPD, Comité Europeo de Protección de Datos), la jurisprudencia del Tribunal de
+  Justicia de la UE (por ejemplo, sobre el carácter de los datos seudonimizados, lección siguiente)
+  y el marco de regulación digital que los rodea (Reglamento de IA, lección 4). Consulta siempre la
+  versión vigente y las guías de la AEPD (por ejemplo, la Guía de Privacidad desde el Diseño).
+</Snapshot>
+
+## En la práctica
+
+Antes de cada análisis con datos de personas:
+
+1. **¿Qué datos necesito?** Pide solo las columnas imprescindibles (minimización).
+2. **¿Para qué los usaré y se recogieron para algo compatible?** Anota la finalidad.
+3. **¿Cuál es la base jurídica?** Consentimiento (¿y en qué estado está?), contrato, interés legítimo con ponderación…
+4. **¿Hay categorías especiales o inferencias sensibles?** Evita crearlas; si son necesarias, consulta al DPD.
+5. **¿Puedo trabajar con datos seudonimizados o agregados?** Casi siempre sí.
+6. **¿Dónde se guardarán, quién accederá y hasta cuándo?** Fija plazo de borrado.
+7. **¿Hay decisiones automatizadas con efectos sobre personas o un tratamiento de alto riesgo?** Considera una evaluación de impacto.
+8. **Documenta** lo anterior: la responsabilidad proactiva se demuestra con registros.
+
+## Trade-offs y cuándo usarlo
+
+- **Utilidad analítica frente a minimización:** menos columnas dan menos precisión potencial y menos riesgo; empieza por lo mínimo y amplía con justificación.
+- **Consentimiento frente a interés legítimo:** el consentimiento es claro y revocable; el interés legítimo es más flexible y exige ponderación documentada.
+- **Datos individuales frente a agregados:** los agregados reducen el riesgo, pero pierden la capacidad de segmentar y modelar.
+- **Conservar para auditoría frente a suprimir:** la limitación del plazo obliga a decidir cuánto tiempo se guardan las extracciones.
+- **Centralizar el acceso frente a la agilidad del analista:** un control estricto protege y puede frenar; se resuelve con entornos seguros y datos seudonimizados.
+
+## Errores comunes
+
+- **Creer que sin nombre no hay dato personal** (un `customer_id` lo es).
+- **Reutilizar datos para otro fin** sin valorar la compatibilidad.
+- **Descargar extracciones completas «por si acaso»** a portátiles o hojas de cálculo.
+- **Pegar datos personales en herramientas externas** (incluidos los asistentes de IA) sin contrato ni garantías.
+- **Olvidar el consentimiento de marketing** al construir una audiencia.
+- **Crear inferencias sensibles** sin darse cuenta.
+- **No documentar** el porqué de un tratamiento.
+
+## Con IA
+
+Un asistente de IA es un encargado o un tercero: pegarle datos personales es compartirlos. Antes de usarlo con datos de clientes, comprueba el contrato con el proveedor, dónde se procesan los datos y si se usan para entrenar. Trabaja con datos sintéticos o seudonimizados y esquemas sin valores. Y no dejes que decida por sí solo sobre personas: el artículo 22 exige intervención humana en las decisiones con efectos significativos.
+
+## En una entrevista
+
+- _"¿Qué haces antes de enviar una campaña basada en el comportamiento de los clientes?"_ — Pista: finalidad compatible, base jurídica, consentimiento de marketing, minimización, perfilado y posible EIPD.
+- _"¿Un identificador de cliente es un dato personal?"_ — Pista: sí, si se puede vincular a una persona; seudonimizado sigue siéndolo.
+- _"Un cliente pide que borres sus datos. ¿Qué implica?"_ — Pista: localizar copias y extracciones; excepciones legales; agregados anonimizados; documentar.
+
+<KeyTakeaways
+  items={[
+    'Un dato personal es cualquier información sobre una persona identificable, incluido un identificador de cliente; los datos seudonimizados siguen siéndolo y solo los verdaderamente anónimos quedan fuera del RGPD.',
+    'Los principios del art. 5 (licitud, finalidad, minimización, exactitud, limitación del plazo, integridad y responsabilidad proactiva) se traducen en preguntas concretas antes de cada análisis.',
+    'El consentimiento es solo una de las seis bases jurídicas; en Lumen el 70,2 % de los clientes tiene consentimiento de marketing, así que una audiencia debe filtrarse por él.',
+    'Las personas tienen derechos de acceso, rectificación, supresión, oposición y a no ser objeto de decisiones automatizadas significativas; esto obliga a localizar sus datos también en extracciones y análisis.',
+    'La LOPDGDD (Ley Orgánica 3/2018) adapta el RGPD en España, añade derechos digitales y fija la edad de consentimiento en 14 años; compartir datos personales con herramientas externas, incluidas las de IA, es una cesión que requiere base jurídica y garantías.',
+  ]}
+/>

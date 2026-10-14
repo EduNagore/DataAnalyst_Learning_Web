@@ -1,0 +1,38 @@
+---
+title: 'Clasificar columnas con datos personales, enmascarar y definir accesos'
+description: 'Detecta identificadores directos (DNI con letra de control, correo, IBAN con control módulo 97), clasifica columnas en directas, indirectas y cuasi-identificadoras, enmascara valores y genera la política de acceso de cada rol.'
+language: python
+part: 'Parte V · Stack moderno e ingeniería analítica'
+module: gobierno-etica
+difficulty: 3
+estimatedMinutes: 40
+concepts:
+  [
+    'datos personales',
+    'clasificación de datos',
+    'enmascaramiento',
+    'control de acceso por rol',
+    'mínimo privilegio',
+  ]
+datasets: ['customers']
+packages: []
+output: console
+hints:
+  - 'DNI: ocho dígitos y una letra; la letra correcta es `"TRWAGMYFPDXBNJZSQVHLCKE"[número % 23]`. IBAN español: «ES» + 22 dígitos; mueve los 4 primeros caracteres al final, convierte cada letra a número (`int(c, 36)`) y comprueba que el número resultante módulo 97 vale 1.'
+  - 'Clasifica por el contenido (si ≥ 80 % de los valores no nulos son DNI/correo/IBAN válidos) y, si no, por el nombre de la columna (`nombre`, `region`, `signup_date`, `customer_id`…).'
+  - 'Enmascarar: correo → primera letra + `***` + `@dominio`; DNI → `****` + 4 últimos caracteres; IBAN → «ES**» + asteriscos + 4 últimos dígitos, con la misma longitud.'
+  - 'Mínimo privilegio: cada rol ve lo necesario para su trabajo. El analista no necesita identificadores directos; soporte los necesita enmascarados; finanzas, en claro.'
+relatedLessons: ['gobierno-etica/03-catalogos-linaje-y-control-de-acceso']
+businessQuestion: '¿Qué columnas de un export contienen datos personales y qué debe ver cada equipo?'
+---
+
+Antes de decidir quién accede a una tabla hay que saber **qué hay en ella**. El export de soporte `soporte` (ya definido, con datos **sintéticos**) mezcla identificadores directos, un cuasi-identificador y un texto libre. La tabla de clientes de Lumen se carga con `load_table`.
+
+Implementa:
+
+1. **`es_dni`**, **`es_email`** y **`es_iban_es`**: validadores con comprobación de control.
+2. **`clasificar_columna(serie)`** → `identificador_directo`, `cuasi_identificador`, `identificador_indirecto` o `ninguno`.
+3. **`enmascarar(valor, tipo)`** para correo, DNI e IBAN.
+4. **`politica_de_acceso(clasificacion, rol)`** → `ver`, `enmascarar` u `ocultar` para cada columna según el rol (`finanzas`, `soporte`, `analista`).
+
+Resultado esperado: en el export de soporte, `nombre`, `email`, `dni` e `iban` son identificadores directos y `region` es un cuasi-identificador; en la tabla de clientes, `customer_id` es un identificador indirecto y `signup_date`, `region` y `province` son cuasi-identificadores. Ojo: la columna `texto` no se detecta con reglas y puede contener datos personales escritos libremente.

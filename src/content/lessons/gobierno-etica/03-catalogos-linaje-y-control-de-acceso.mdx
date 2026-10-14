@@ -1,0 +1,204 @@
+---
+title: 'Catálogos, linaje y control de acceso a los datos'
+description: 'Cómo se gobierna un patrimonio de datos en la práctica: catálogo con propietarios y clasificación, linaje de tablas y columnas, control de acceso por rol con mínimo privilegio, enmascaramiento y auditoría, privacidad desde el diseño y qué cambia cuando los consumidores son agentes de IA.'
+module: gobierno-etica
+order: 3
+level: avanzado
+estimatedMinutes: 45
+objectives:
+  - 'Describir qué debe contener un catálogo de datos y quién es responsable de qué (propietario, custodio, consumidor).'
+  - 'Usar el linaje para el análisis de impacto, la auditoría y la respuesta a derechos de las personas.'
+  - 'Diseñar una política de acceso con mínimo privilegio, enmascaramiento, filas y columnas restringidas y auditoría.'
+  - 'Clasificar columnas con datos personales y aplicar privacidad desde el diseño y por defecto.'
+prerequisites:
+  [
+    'gobierno-etica/02-anonimizacion-seudonimizacion-k-anonimato-y-privacidad-diferencial',
+    'ingenieria-analitica/02-tests-contratos-y-documentacion',
+  ]
+tools: ['python']
+volatility: medium
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Reglamento (UE) 2016/679 (RGPD) — arts. 25 y 32'
+    url: 'https://eur-lex.europa.eu/eli/reg/2016/679/oj'
+    type: spec
+    authors: 'Parlamento Europeo y Consejo de la UE'
+    year: 2016
+  - title: 'AEPD — Guía de Privacidad desde el Diseño'
+    url: 'https://www.aepd.es/guias/guia-privacidad-desde-diseno.pdf'
+    type: docs
+    authors: 'AEPD'
+    year: 2019
+  - title: 'OpenLineage — Documentación'
+    url: 'https://openlineage.io/docs/'
+    type: docs
+    authors: 'LF AI & Data Foundation'
+    year: 2026
+  - title: 'dbt — Documentación de proyectos y linaje'
+    url: 'https://docs.getdbt.com/docs/build/documentation'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+relatedLabs: ['py-clasificar-pii-y-enmascarar', 'py-registro-de-metricas']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Una clienta de Lumen ejerce su derecho de supresión. Datos tarda dos semanas en descubrir en
+  cuántos sitios están sus datos: el almacén, tres hojas de cálculo, un notebook y el export que se
+  mandó a un proveedor. Además, un becario con acceso de lectura a todo el almacén ha podido ver el
+  IBAN de los clientes del servicio de soporte. Nadie sabe quién es el responsable de cada tabla. La
+  dirección quiere gobierno: saber qué hay, de dónde viene, quién puede verlo y quién responde.
+</BusinessContext>
+
+## Intuición
+
+Una biblioteca bien gobernada tiene un catálogo (qué libros hay y dónde), una procedencia (de qué edición viene cada copia), salas con acceso restringido (los manuscritos, solo bajo petición) y un registro de quién consultó qué. Los datos necesitan lo mismo: **catálogo**, **linaje**, **control de acceso** y **auditoría**, atados a personas responsables.
+
+## Cómo funciona
+
+### El catálogo de datos
+
+Un **catálogo** es el inventario de los activos de datos con su contexto:
+
+| Atributo                  | Para qué sirve                                                          |
+| ------------------------- | ----------------------------------------------------------------------- |
+| **Nombre y descripción**  | Entender qué es la tabla y sus columnas                                 |
+| **Propietario (_owner_)** | Quien decide sobre el dato y responde de su calidad y uso               |
+| **Custodio (_steward_)**  | Quien lo mantiene día a día (calidad, definiciones)                     |
+| **Clasificación**         | Público, interno, confidencial, restringido; marca de datos personales  |
+| **Calidad y frescura**    | Pruebas, última carga, nivel de servicio                                |
+| **Uso permitido y plazo** | Para qué se puede usar y cuánto tiempo se conserva                      |
+| **Glosario**              | Definiciones de negocio y métricas oficiales (módulo de capa semántica) |
+
+Los catálogos modernos se alimentan de forma automática (esquemas, estadísticas, descripciones del código de transformación) y se complementan con aportaciones humanas. Un catálogo que nadie mantiene se convierte en un cementerio: lo que importa es que los **propietarios** estén asignados y que la información tenga fecha.
+
+### Linaje de datos
+
+El **linaje** registra de dónde procede un dato y por qué transformaciones pasa: de la fuente al panel, a nivel de tabla y, idealmente, de columna.
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+    A["Fuente<br/>orders (sistema de pedidos)"] --> B["stg_orders"]
+    B --> C["fct_orders"]
+    C --> D["Panel de ventas"]
+    C --> E["Export para proveedor"]
+    F["Fuente<br/>customers"] --> G["stg_customers"]
+    G --> H["dim_customers"]
+    H --> D
+    H --> E`}
+  alt="Linaje de datos: la fuente de pedidos pasa por staging y por la tabla de hechos, que alimenta el panel de ventas y un export para un proveedor; la fuente de clientes pasa por staging y la dimensión de clientes, que alimenta también el panel y el export."
+/>
+
+Para qué sirve:
+
+- **Análisis de impacto:** antes de cambiar o retirar una columna, ver qué modelos, paneles y exportaciones se rompen (lo practicaste en los labs del registro de métricas y del DAG de dbt).
+- **Auditoría y confianza:** demostrar de dónde sale una cifra del consejo.
+- **Cumplimiento:** localizar **todos los lugares** donde hay datos de una persona para atender un derecho de acceso o supresión.
+- **Diagnóstico:** encontrar la causa de un error de datos aguas arriba.
+
+El estándar abierto **OpenLineage** modela el linaje con tres entidades (conjuntos de datos, trabajos y ejecuciones) y se integra con herramientas como Airflow, Spark, dbt o Trino; los proyectos de transformación también generan linaje de forma nativa a partir de sus dependencias (`ref` y `source`).
+
+### Control de acceso
+
+| Principio / mecanismo                        | Qué significa                                                                                |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| **Mínimo privilegio**                        | Cada persona o proceso accede solo a lo que necesita para su trabajo                         |
+| **Acceso por rol (RBAC)**                    | Los permisos se asignan a roles (analista, soporte, finanzas), no a personas una a una       |
+| **Acceso por atributos (ABAC)**              | Las reglas dependen de atributos (región, clasificación del dato, finalidad)                 |
+| **Seguridad por filas**                      | Cada persona ve solo las filas que le corresponden (su región, sus clientes)                 |
+| **Seguridad por columnas / enmascaramiento** | Las columnas sensibles se ocultan o se muestran parcialmente («a\*\*\*@correo.es»)           |
+| **Separación de funciones**                  | Quien aprueba un acceso no es quien lo usa                                                   |
+| **Auditoría**                                | Se registra quién consultó qué y cuándo, y se revisan los accesos de forma periódica         |
+| **Caducidad de accesos**                     | Los permisos temporales se retiran solos; se revisan al cambiar de puesto o dejar la empresa |
+
+En el lab clasificas las columnas de un export sintético de soporte con reglas de contenido y de nombre: cuatro identificadores directos (nombre, correo, DNI —con su letra de control— e IBAN —con su control módulo 97—), un cuasi-identificador (región) y un texto libre que **no** se puede clasificar con reglas y puede esconder datos personales. A partir de ahí defines qué ve cada rol: finanzas, todo en claro; soporte, los identificadores enmascarados; el analista, los directos ocultos y los indirectos (como `customer_id`) enmascarados.
+
+### Privacidad desde el diseño y por defecto
+
+El RGPD (art. 25) exige aplicar medidas de protección **desde el diseño** del tratamiento y **por defecto**: por defecto, solo se tratan los datos necesarios, durante el tiempo necesario y con acceso limitado. Y el art. 32 exige medidas de seguridad adecuadas al riesgo (seudonimización, cifrado, confidencialidad, capacidad de recuperación, pruebas periódicas). Para un equipo de datos se traduce en:
+
+- Entornos de análisis con **datos seudonimizados** por defecto y acceso al dato identificable bajo petición justificada.
+- **Cifrado** en tránsito y en reposo, y gestión de secretos (claves de seudonimización fuera del código).
+- **Plazos de retención** y borrado automatizado de extracciones temporales.
+- **Evitar copias:** hojas de cálculo y notebooks locales con datos personales son el primer lugar donde se pierde el control.
+
+<Callout type="warning">
+  El mayor riesgo suele no estar en el almacén, bien protegido, sino en las **copias**: un CSV en un
+  portátil, una hoja compartida por correo, una tabla pegada en un asistente de IA. El gobierno que
+  no cubre las copias es gobierno de fachada. Reduce las copias dando acceso seguro al dato en
+  origen y prohibiendo, o al menos registrando, las extracciones.
+</Callout>
+
+### Cuando los consumidores son agentes de IA
+
+Un agente con acceso a datos es un consumidor más, pero con particularidades: actúa a velocidad de máquina, puede ser engañado por instrucciones ocultas en los propios datos (módulo de analítica agéntica) y suele reutilizar credenciales. Por tanto: cuentas de servicio **propias con permisos de solo lectura**, restringidas a la capa semántica o a tablas concretas, límites de coste, registro completo de las consultas y aprobación humana para cualquier acción que modifique o envíe datos.
+
+<Snapshot date="2026-10">
+  Los principales almacenes y plataformas de datos ofrecen catálogos con linaje, etiquetas de
+  clasificación, seguridad por filas y columnas, y enmascaramiento dinámico, con nombres de producto
+  y funciones distintos; OpenLineage y los catálogos de código abierto proporcionan alternativas
+  independientes del proveedor. La capacidad y la terminología varían: consulta la documentación de
+  tu plataforma.
+</Snapshot>
+
+## En la práctica
+
+1. **Inventaría los datos personales:** qué tablas, qué columnas, quién es el propietario y para qué se usan.
+2. **Clasifica** (identificador directo, indirecto, cuasi-identificador, categoría especial, otro) y etiqueta en el catálogo.
+3. **Asigna propietario y custodio** a cada conjunto crítico; sin responsable no hay gobierno.
+4. **Define los roles** y sus permisos por clasificación, con mínimo privilegio; empieza cerrado.
+5. **Activa el enmascaramiento y la seguridad por filas** donde proceda, y entornos de análisis seudonimizados.
+6. **Registra y revisa los accesos** de forma periódica (trimestral para datos sensibles).
+7. **Prueba el procedimiento de derechos:** simula una solicitud de supresión y mide cuánto tardas en localizar los datos.
+
+```python
+clasificacion = {col: clasificar_columna(df[col]) for col in df.columns}
+politica = politica_de_acceso(clasificacion, rol="analista")  # ver / enmascarar / ocultar
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Acceso restrictivo frente a agilidad:** cerrar por defecto protege y puede ralentizar; compénsalo con procesos de petición rápidos y entornos seudonimizados.
+- **Catálogo automático frente a manual:** el automático escala; el manual aporta el significado de negocio. Combínalos.
+- **Linaje de tabla frente a columna:** el de columna es mucho más útil para impacto y cumplimiento, y más difícil de obtener.
+- **Enmascarar frente a ocultar:** enmascarar permite verificar o identificar parcialmente (soporte); ocultar es más seguro para quien no lo necesita.
+- **Control centralizado frente a por dominio:** un equipo central da coherencia; los dominios conocen mejor sus datos. Suele ir bien un marco común con responsables por dominio.
+
+## Errores comunes
+
+- **Dar a todo el mundo acceso de lectura a todo** «por comodidad».
+- **Catálogo sin propietarios** ni fechas de revisión.
+- **Gobernar el almacén e ignorar las copias** locales y los exports.
+- **No revisar los accesos** al cambiar de puesto o dejar la empresa.
+- **Compartir credenciales** entre personas o con agentes y procesos.
+- **Confundir enmascarar con anonimizar:** un valor enmascarado sigue siendo un dato personal si se puede vincular.
+- **Clasificar solo por el nombre de la columna** y olvidar los textos libres.
+
+## Con IA
+
+Un asistente puede ayudar a proponer descripciones y clasificaciones de columnas, pero puede equivocarse con textos libres y con columnas ambiguas, y no conoce tu contexto legal. Úsalo para el borrador y que una persona responsable lo valide. Cuando un asistente consulte datos, hazlo con una cuenta de solo lectura limitada a la capa semántica, sin datos personales en claro, y con registro de cada consulta.
+
+## En una entrevista
+
+- _"¿Cómo darías acceso a datos de clientes a un equipo de análisis?"_ — Pista: mínimo privilegio, roles, seudonimización por defecto, enmascaramiento, auditoría, revisión periódica.
+- _"¿Para qué sirve el linaje?"_ — Pista: impacto de cambios, auditoría de cifras, localizar datos de una persona, diagnóstico.
+- _"Un cliente pide la supresión de sus datos. ¿Cómo localizas dónde están?"_ — Pista: catálogo y linaje; copias y exports; excepciones; registro de lo hecho.
+
+<KeyTakeaways
+  items={[
+    'Un catálogo útil describe cada activo con propietario, custodio, clasificación, calidad y uso permitido; sin responsables asignados es solo un inventario que envejece.',
+    'El linaje (de la fuente al panel, idealmente por columna) permite el análisis de impacto, la auditoría de cifras y localizar los datos de una persona para atender sus derechos.',
+    'El control de acceso se basa en mínimo privilegio, roles, seguridad por filas y columnas, enmascaramiento, separación de funciones, auditoría y caducidad; el RGPD exige privacidad desde el diseño y por defecto (art. 25) y seguridad adecuada al riesgo (art. 32).',
+    'Un identificador directo se detecta por contenido (DNI con su letra de control, IBAN con módulo 97, correos) y por nombre de columna; los textos libres no se clasifican con reglas y pueden contener datos personales.',
+    'El mayor riesgo está en las copias fuera del almacén y en los consumidores nuevos, como los agentes de IA, que necesitan cuentas de solo lectura, permisos mínimos, límites de coste y registro.',
+  ]}
+/>

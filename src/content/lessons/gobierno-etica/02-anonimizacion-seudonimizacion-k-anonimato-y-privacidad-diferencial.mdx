@@ -1,0 +1,183 @@
+---
+title: 'Anonimización, seudonimización, k-anonimato y privacidad diferencial'
+description: 'Cómo reducir el riesgo de reidentificación al compartir o analizar datos: diferencia legal entre anonimizar y seudonimizar, por qué un hash no basta, k-anonimato con generalización y supresión, y privacidad diferencial con el mecanismo de Laplace, con números reales del dataset de Lumen.'
+module: gobierno-etica
+order: 2
+level: avanzado
+estimatedMinutes: 55
+objectives:
+  - 'Distinguir datos anónimos de seudonimizados y explicar sus consecuencias bajo el RGPD.'
+  - 'Demostrar con un ataque de diccionario por qué un hash sin clave no anonimiza un identificador y cómo ayuda un HMAC con clave.'
+  - 'Medir el k-anonimato de una tabla y reducir el riesgo mediante generalización y supresión.'
+  - 'Explicar la privacidad diferencial, el papel de epsilon y el coste de utilidad de publicar recuentos con ruido.'
+prerequisites: ['gobierno-etica/01-rgpd-y-lopdgdd-para-analistas']
+tools: ['python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'AEPD — Anonimización y seudonimización'
+    url: 'https://www.aepd.es/prensa-y-comunicacion/blog/anonimizacion-y-seudonimizacion'
+    type: blog
+    authors: 'AEPD'
+    year: 2026
+  - title: 'EDPB — Guidelines 01/2025 on Pseudonymisation (consulta pública)'
+    url: 'https://www.edpb.europa.eu/our-work-tools/documents/public-consultations/2025/guidelines-012025-pseudonymisation_en'
+    type: docs
+    authors: 'Comité Europeo de Protección de Datos'
+    year: 2025
+  - title: 'Sweeney — k-anonymity: a model for protecting privacy'
+    url: 'https://dataprivacylab.org/dataprivacy/projects/kanonymity/kanonymity.pdf'
+    type: paper
+    authors: 'Sweeney, L.'
+    year: 2002
+  - title: 'Dwork & Roth — The Algorithmic Foundations of Differential Privacy'
+    url: 'https://www.cis.upenn.edu/~aaroth/Papers/privacybook.pdf'
+    type: book
+    authors: 'Dwork, C., Roth, A.'
+    year: 2014
+  - title: 'Narayanan & Shmatikov — How To Break Anonymity of the Netflix Prize Dataset'
+    url: 'https://arxiv.org/abs/cs/0610105'
+    type: paper
+    authors: 'Narayanan, A., Shmatikov, V.'
+    year: 2006
+relatedLabs: ['py-seudonimizacion-y-minimizacion', 'py-k-anonimato', 'py-privacidad-diferencial']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Un proveedor de analítica externo pide la tabla de clientes de Lumen «sin datos personales». El
+  equipo propone quitar el nombre y aplicar un hash al identificador. ¿Es suficiente? ¿Puede la
+  tabla compartirse sin consentimiento? ¿Y si lo que se publica en una web de transparencia son
+  recuentos por región y segmento? La respuesta depende de entender qué significa de verdad
+  «anónimo».
+</BusinessContext>
+
+## Intuición
+
+Anonimizar no es tapar la cara, es que nadie pueda saber de quién es. Imagina un grupo fotografiado de espaldas: si solo una persona lleva un sombrero rojo y se sabe quién lo lleva, el anonimato desaparece aunque no se vea ninguna cara. Los **cuasi-identificadores** (la región, el segmento, el día de alta) funcionan como el sombrero: cada uno parece inofensivo, y juntos señalan a alguien.
+
+## Cómo funciona
+
+### Anónimo frente a seudonimizado
+
+- **Datos anónimos:** no se relacionan con una persona identificada o identificable, teniendo en cuenta todos los medios razonablemente disponibles. **Quedan fuera del RGPD.** La AEPD recuerda que hay que demostrar que no existe capacidad material para asociar los datos con personas, y valorar el progreso tecnológico y la reidentificación en el tiempo.
+- **Datos seudonimizados:** no se pueden atribuir a una persona sin información adicional (por ejemplo, la tabla que enlaza el seudónimo con el cliente), que se guarda aparte y protegida. **Siguen siendo datos personales y el RGPD se aplica.** La seudonimización es una medida de seguridad y minimización, no una exención.
+
+Los criterios habituales para evaluar la anonimización son tres riesgos: **singularización** (¿se puede aislar a una persona?), **vinculabilidad** (¿se pueden enlazar registros de la misma persona entre bases?) e **inferencia** (¿se puede deducir un atributo con probabilidad significativa?). Un conjunto es realmente anónimo solo si resiste los tres.
+
+<Snapshot date="2026-10">
+  El Comité Europeo de Protección de Datos adoptó en enero de 2025 sus Directrices 01/2025 sobre
+  seudonimización (con consulta pública del 17 de enero al 14 de marzo de 2025), que mantienen que
+  los datos seudonimizados siguen siendo datos personales cuando pueden vincularse con una persona
+  mediante información adicional. El 4 de septiembre de 2025, el Tribunal de Justicia de la UE
+  (asunto C-413/23 P, EDPS contra SRB) matizó que los datos seudonimizados no son necesariamente
+  datos personales para todo receptor, aunque eso no libera al responsable de su obligación inicial
+  de transparencia con las personas. La interpretación evoluciona: ante un caso concreto, consulta
+  la versión vigente de las directrices y a tu DPD.
+</Snapshot>
+
+### Un hash no anonimiza
+
+Es habitual «anonimizar» aplicando un hash (SHA-256) al identificador. Pero un hash es determinista y público: si el espacio de identificadores es pequeño y predecible, un atacante los prueba todos. Con los identificadores de Lumen (`cust-000000` a `cust-059999`), un **ataque de diccionario recupera el 100 % de los hashes** en el lab.
+
+La alternativa es un **HMAC con clave secreta**: el seudónimo es estable (mismo cliente, mismo seudónimo) pero sin la clave no se puede recalcular, y el mismo ataque recupera el **0 %**. Aun así, quien tiene la clave puede reidentificar: sigue siendo un dato seudonimizado, y la clave debe guardarse en un gestor de secretos, con acceso restringido y rotación.
+
+### k-anonimato
+
+Un conjunto es **k-anónimo** si cada combinación de cuasi-identificadores la comparten al menos **k** filas (Sweeney). Con la tabla de 60.000 clientes de Lumen:
+
+| Cuasi-identificadores                    | Combinaciones | Clientes únicos | Filas en grupos de menos de 5 |
+| ---------------------------------------- | ------------: | --------------: | ----------------------------: |
+| Región + segmento + canal de adquisición |           384 |               0 |                           0 % |
+| + **día de alta** (fecha exacta)         |        52.389 |      **45.882** |                    **99,8 %** |
+| + mes de alta                            |        12.804 |           3.307 |                        30,0 % |
+| + trimestre de alta                      |         5.101 |             469 |                         7,6 % |
+| + año de alta                            |         1.531 |              11 |                         0,6 % |
+
+Tres atributos «inofensivos» (región, segmento, canal) mantienen k = 6; añadir el día de alta convierte a **tres de cada cuatro clientes (76 %) en únicos**. Se reduce el riesgo con:
+
+- **Generalización:** reducir la precisión (día → mes → trimestre → año).
+- **Supresión:** eliminar las filas de grupos pequeños (con el año, suprimir un 0,6 % de las filas basta para k = 5).
+- **Equilibrio:** más generalización protege más y pierde detalle analítico; hay que elegir el nivel más fino que cumpla el objetivo de riesgo.
+
+Límites del k-anonimato: no protege contra la **inferencia** si todos los miembros de un grupo comparten el atributo sensible (todos los de un grupo son «moroso»), ni contra la **vinculación** con otras fuentes con información adicional. Existen refinamientos (l-diversidad, t-cercanía), pero ninguno ofrece garantías absolutas. El caso del premio de Netflix, en el que se reidentificó a usuarios cruzando valoraciones «anónimas» con otra base pública (Narayanan y Shmatikov), es el ejemplo clásico de por qué la vinculación importa.
+
+### Privacidad diferencial
+
+La **privacidad diferencial** (Dwork y Roth) ofrece una garantía matemática distinta: el resultado publicado casi no cambia si añades o quitas a **cualquier** persona. Se consigue añadiendo **ruido calibrado** a los resultados. El **mecanismo de Laplace** suma a un recuento un ruido de escala $\Delta/\varepsilon$, donde $\Delta$ es la **sensibilidad** (cuánto puede cambiar el resultado por una sola persona: 1 en un recuento) y $\varepsilon$ el **presupuesto de privacidad** (menor $\varepsilon$ = más ruido y más privacidad).
+
+Su error absoluto medio es $\Delta/\varepsilon$: con $\varepsilon = 1$, unos 1,0 clientes; con $\varepsilon = 0{,}1$, unos 10. El precio se nota según el desglose:
+
+| Publicación                                                                     | Error relativo medio con ε = 1 | Con ε = 0,1 |
+| ------------------------------------------------------------------------------- | -----------------------------: | ----------: |
+| Clientes por región (16 celdas)                                                 |                         0,05 % |       0,5 % |
+| Clientes por región × segmento × canal (384 celdas, las menores con 6 clientes) |                          1,8 % |      17,9 % |
+
+Más desglose significa celdas más pequeñas y más error relativo. Otras ideas clave: las consultas repetidas **gastan presupuesto** (se suman los $\varepsilon$ por composición), y **post-procesar** el resultado (recortar negativos, redondear) no consume privacidad. Es la técnica que usan algunas instituciones para publicar estadísticas, con la dificultad de elegir $\varepsilon$ y de explicarlo a quien usa los datos.
+
+<Callout type="warning">
+  Ninguna técnica es una varita. La anonimización real exige **analizar el riesgo de cada caso**, no
+  aplicar una receta rutinaria: qué otras fuentes hay, quién recibe los datos, qué tecnología de
+  reidentificación existe. Y recuerda: si has de poder volver a identificar a la persona (para
+  enviarle algo, para borrar sus datos), el dato no es anónimo, es seudonimizado.
+</Callout>
+
+## En la práctica
+
+1. **Define el fin y el receptor:** ¿análisis interno?, ¿un proveedor?, ¿publicación abierta? El riesgo y la técnica dependen de ello.
+2. **Minimiza primero:** elimina columnas que no hacen falta (identificadores directos incluidos).
+3. **Seudonimiza con HMAC y clave secreta** los identificadores que necesitas conservar, y separa la clave.
+4. **Mide la unicidad:** calcula el k y los clientes únicos con los cuasi-identificadores plausibles.
+5. **Generaliza y suprime** hasta el nivel de riesgo aceptable (k ≥ 5 o más según el caso), documentando la pérdida de utilidad.
+6. **Para publicaciones abiertas de recuentos, considera privacidad diferencial** o umbrales mínimos de celda.
+7. **Documenta la evaluación de riesgo** y revísala cuando aparezcan nuevas fuentes o técnicas.
+
+```python
+import hashlib, hmac
+seudonimo = hmac.new(clave_secreta, customer_id.encode(), hashlib.sha256).hexdigest()
+k = df.groupby(["region", "segment", "acquisition_channel"]).size().min()
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Seudonimización frente a anonimización:** la primera conserva utilidad (se puede enlazar y actualizar) y mantiene las obligaciones del RGPD; la segunda las elimina pero pierde capacidad de enlace.
+- **k-anonimato frente a privacidad diferencial:** el primero es simple de explicar y sirve para publicar microdatos; el segundo da una garantía formal para estadísticas agregadas con el coste de ruido.
+- **Más generalización frente a más detalle:** el nivel más fino que cumpla el riesgo preserva utilidad.
+- **Datos sintéticos frente a anonimizados:** los sintéticos pueden evitar identificar a personas pero también filtrar información si copian demasiado; evalúa el riesgo.
+- **Entorno seguro frente a compartir el dato:** a veces es más seguro que el tercero analice en tu entorno con controles que enviarle un fichero «anonimizado».
+
+## Errores comunes
+
+- **Quitar el nombre y creer que es anónimo.**
+- **Aplicar un hash sin clave a identificadores predecibles.**
+- **Ignorar los cuasi-identificadores combinados** (región + fecha + canal).
+- **Publicar recuentos pequeños** sin umbral ni ruido.
+- **Reutilizar la misma clave de seudonimización** en proyectos distintos (permite vincularlos).
+- **No reevaluar** cuando aparecen nuevas fuentes de datos externas.
+- **Guardar la clave junto con los datos.**
+
+## Con IA
+
+Los modelos de lenguaje pueden memorizar y revelar fragmentos de sus datos de entrenamiento, y un asistente al que pegues una tabla «anonimizada» puede, además, cruzarla con conocimiento público. Si debes compartir datos con una herramienta de IA, envía el esquema y datos sintéticos o agregados con umbral, no filas individuales. Y no confíes en que un asistente «anonimice» por ti: pídele el código y verifica la unicidad con tus propias métricas.
+
+## En una entrevista
+
+- _"¿Hash o anonimización?"_ — Pista: un hash determinista de un identificador predecible se revierte; HMAC con clave es seudonimización; sigue siendo dato personal.
+- _"¿Qué es el k-anonimato y qué límites tiene?"_ — Pista: grupos de al menos k; generalización y supresión; ataques de homogeneidad y vinculación.
+- _"¿Qué significa epsilon en privacidad diferencial?"_ — Pista: presupuesto de privacidad; menor epsilon, más ruido; composición.
+
+<KeyTakeaways
+  items={[
+    'Los datos anónimos quedan fuera del RGPD; los seudonimizados siguen siendo personales. La anonimización exige analizar el riesgo de reidentificación (singularización, vinculabilidad e inferencia) caso a caso.',
+    'Un hash sin clave de identificadores predecibles no anonimiza: en Lumen un ataque de diccionario recupera el 100 % de los identificadores; con HMAC y clave secreta, el 0 %.',
+    'Con región, segmento y canal, k = 6; añadir el día de alta deja a 45.882 clientes (76 %) únicos. Generalizar la fecha a año y suprimir el 0,6 % de las filas alcanza k = 5.',
+    'La privacidad diferencial añade ruido de escala sensibilidad/epsilon: error medio ≈ 1/ε en un recuento; a más desglose, celdas más pequeñas y más error relativo (1,8 % en 384 celdas con ε = 1).',
+    'La interpretación jurídica evoluciona (directrices 01/2025 del EDPB y la sentencia C-413/23 P de septiembre de 2025): consulta la versión vigente y a tu delegado de protección de datos.',
+  ]}
+/>
