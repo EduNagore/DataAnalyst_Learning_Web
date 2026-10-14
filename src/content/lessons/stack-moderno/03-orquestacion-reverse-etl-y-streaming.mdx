@@ -1,0 +1,182 @@
+---
+title: 'Orquestación, reverse ETL y nociones de streaming'
+description: 'Cómo se ejecutan los pipelines de datos de forma fiable: DAGs, dependencias, reintentos y backfills con Airflow 3 y Dagster; cómo se devuelven los datos del almacén a las aplicaciones de negocio (reverse ETL); y cuándo hace falta streaming y qué cambia (tiempo del evento, ventanas, datos tardíos).'
+module: stack-moderno
+order: 3
+level: intermedio
+estimatedMinutes: 45
+objectives:
+  - 'Describir un pipeline como un grafo acíclico de tareas con dependencias, reintentos, programación y backfills.'
+  - 'Comparar la orquestación por tareas (Airflow) con la orientada a activos (Dagster, activos de Airflow).'
+  - 'Explicar qué es el reverse ETL, para qué se usa y qué riesgos tiene.'
+  - 'Decidir cuándo basta el procesamiento por lotes y cuándo hace falta streaming, y distinguir tiempo del evento y tiempo de proceso.'
+prerequisites: ['stack-moderno/02-ingesta-elt-y-transformacion']
+tools: ['python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Apache Airflow — Airflow 3.0 is here'
+    url: 'https://airflow.apache.org/blog/airflow-three-point-oh-is-here/'
+    type: blog
+    authors: 'Apache Airflow'
+    year: 2025
+  - title: 'Dagster — Documentación'
+    url: 'https://docs.dagster.io/'
+    type: docs
+    authors: 'Dagster Labs'
+    year: 2026
+  - title: 'Akidau et al. — The Dataflow Model (VLDB 2015)'
+    url: 'https://research.google/pubs/the-dataflow-model-a-practical-approach-to-balancing-correctness-latency-and-cost-in-massive-scale-unbounded-out-of-order-data-processing/'
+    type: paper
+    authors: 'Akidau, T. et al.'
+    year: 2015
+relatedLabs: ['py-carga-incremental-idempotente']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Cada mañana el panel de ventas de Lumen debería estar al día a las 8:00. Hoy depende de cuatro
+  scripts que alguien lanza a mano en orden: ingesta de pedidos, ingesta de eventos,
+  transformaciones y envío de una lista de clientes en riesgo al equipo de CRM. Un lunes falló el
+  segundo y nadie se enteró hasta las 11:00. Hace falta que el flujo se ejecute solo, en orden,
+  avise cuando falle y se pueda repetir sin duplicar nada.
+</BusinessContext>
+
+## Intuición
+
+Una cocina de restaurante: cada plato necesita sus pasos en un orden (no se emplata antes de cocinar), algunos pasos pueden hacerse a la vez (la guarnición y la salsa), y si el horno falla alguien tiene que saberlo y repetir. La **orquestación** es el jefe de cocina del dato: sabe qué depende de qué, cuándo toca cada cosa, qué reintentar y a quién avisar.
+
+## Cómo funciona
+
+### Pipelines como grafos de tareas
+
+Un pipeline es un **grafo acíclico dirigido (DAG)**: cada nodo es una tarea y cada flecha, una dependencia («transformar no empieza hasta que la ingesta acabe»).
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+    A["Ingesta<br/>pedidos"] --> C["Transformar<br/>staging"]
+    B["Ingesta<br/>eventos"] --> C
+    C --> D["Modelos<br/>marts"]
+    D --> E["Tests de<br/>calidad"]
+    E --> F["Actualizar<br/>panel"]
+    E --> G["Reverse ETL<br/>lista de riesgo → CRM"]`}
+  alt="Grafo de un pipeline diario: las ingestas de pedidos y de eventos alimentan la transformación de staging, después los modelos, los tests de calidad, y de ahí salen dos ramas: actualizar el panel y enviar la lista de riesgo al CRM."
+/>
+
+Un orquestador se ocupa de:
+
+- **Programación:** ejecutar cada día a las 6:00, o cuando llegue un fichero o se actualice otro dato.
+- **Dependencias:** respetar el orden y paralelizar lo independiente.
+- **Reintentos y tiempos límite:** repetir una tarea fallida con espera creciente, abandonar si tarda demasiado.
+- **Alertas y observabilidad:** avisar a las personas adecuadas; guardar el historial de ejecuciones.
+- **Backfills:** volver a ejecutar el pipeline para un rango de fechas pasadas, algo que solo funciona si las tareas son **idempotentes** y reciben la fecha como parámetro (lección anterior).
+
+### Orquestación por tareas y por activos
+
+- **Por tareas (Airflow):** se define _qué se ejecuta y en qué orden_. Apache Airflow es el estándar abierto y más extendido. **Airflow 3.0** (22 de abril de 2025) introdujo una arquitectura orientada a servicios con una API de ejecución de tareas, el espacio de nombres `airflow.sdk` para escribir DAGs, **versionado de DAGs**, una nueva interfaz en React, programación basada en **activos** (decorador `@asset`) y un ejecutor para el borde (_edge executor_).
+- **Por activos (Dagster):** se define _qué datos se producen y de cuáles dependen_. En lugar de «ejecutar la tarea X», se declara «el activo `ingresos_mensuales` depende de `pedidos_limpios`», y la herramienta deduce qué hay que recalcular y mantiene el linaje.
+
+La diferencia práctica: pensar en **datos** (activos, su frescura y su linaje) facilita los backfills y el diagnóstico («¿qué tabla está desactualizada y por qué?»); pensar en **tareas** da control fino de los procesos y encaja con scripts heterogéneos. Muchas organizaciones combinan: el orquestador lanza la ingesta, las transformaciones de dbt y los envíos.
+
+<Snapshot date="2026-10">
+  Los orquestadores abiertos más usados son Apache Airflow (rama 3.x, con programación por activos)
+  y Dagster (modelo centrado en activos, con documentación en `docs.dagster.io`); también existen
+  Prefect y alternativas gestionadas por los proveedores de nube. La tendencia es hacia la
+  orquestación consciente del dato (activos, linaje, frescura) y hacia ejecutar el motor de
+  transformación (dbt) dentro del orquestador. Las versiones y los nombres de componentes cambian:
+  confirma en la documentación oficial la sintaxis vigente antes de copiar un ejemplo.
+</Snapshot>
+
+### Reverse ETL: del almacén a las aplicaciones
+
+El **reverse ETL** hace el camino inverso a la ingesta: toma tablas ya modeladas en el almacén y las **sincroniza con aplicaciones de negocio** (CRM, plataformas de anuncios, correo, soporte). Ejemplos: enviar la lista de clientes en riesgo de baja a Salesforce, una audiencia de clientes de alto valor a una plataforma de anuncios, o una puntuación de lead a la herramienta de ventas.
+
+Ventajas: una sola definición de «cliente en riesgo» (la del almacén), sin duplicar la lógica en cada herramienta. Riesgos:
+
+- **Datos personales:** cada destino es un tratamiento más (base legal, consentimiento, minimización; módulo de gobierno).
+- **Errores que escalan:** una definición mal calculada se envía a miles de clientes. Hay que probar antes y poder revertir.
+- **Frecuencia y límites de las API** de los destinos; sincronizaciones parciales.
+- **Dependencia del dato:** un retraso o fallo del pipeline envía listas antiguas.
+
+Regla práctica: ningún reverse ETL sin tests de calidad previos en el DAG, límites de tamaño y un responsable.
+
+### Streaming: cuándo y qué cambia
+
+El procesamiento por **lotes** (_batch_) calcula sobre un conjunto de datos acotado cada cierto tiempo; el **streaming** procesa los eventos según llegan. Se necesita streaming cuando la **latencia** exigida es de segundos (detección de fraude, personalización en la sesión, alertas operativas). Para la mayoría de los informes, una carga horaria o diaria basta y es mucho más simple de operar.
+
+Conceptos clave (Akidau et al., 2015):
+
+- **Tiempo del evento frente a tiempo de proceso:** cuándo ocurrió algo no es cuándo lo recibe el sistema. Las ventas de las 23:59 pueden llegar a las 00:03.
+- **Ventanas:** agrupaciones de eventos en el tiempo (fijas, deslizantes, por sesión).
+- **Datos tardíos y marcas de agua:** el sistema decide hasta cuándo espera a los rezagados; lo que llega después se descarta o corrige un resultado ya publicado.
+- **Semántica de entrega:** «al menos una vez» exige idempotencia en el destino; «exactamente una vez» es más costosa y tiene condiciones.
+
+Es el mismo problema de las filas tardías de la carga incremental, pero en continuo. Si tu equipo no tiene un requisito de latencia que lo justifique, no empieces por aquí.
+
+## En la práctica
+
+1. **Dibuja el DAG** antes de programar: tareas, dependencias, datos de entrada y salida.
+2. **Haz cada tarea idempotente y parametrizada por fecha** para poder reintentar y hacer backfills.
+3. **Pon tests de calidad** (frescura, volumen, unicidad) como tareas que bloquean lo que viene después.
+4. **Configura reintentos y alertas** con responsable claro y un canal; revisa qué pasa si una tarea tarda el doble.
+5. **Separa entornos** (desarrollo, producción) y versiona los DAGs.
+6. **Para el reverse ETL**, envía solo lo necesario, con límite de filas, registro de lo enviado y capacidad de revertir.
+7. **Evalúa el streaming** solo con un requisito de latencia documentado y asumiendo su coste de operación.
+
+```python
+from airflow.sdk import dag, task
+
+@dag(schedule="0 6 * * *", catchup=False)
+def ventas_diarias():
+    @task(retries=2)
+    def ingerir(fecha): ...
+    @task
+    def transformar(): ...
+    ingerir("{{ ds }}") >> transformar()
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Orquestador completo frente a `cron`:** `cron` lanza cosas a una hora; no conoce dependencias, reintentos ni historial. Con más de dos o tres pasos dependientes, un orquestador se amortiza.
+- **Tareas frente a activos:** tareas para procesos heterogéneos; activos para pipelines de datos con linaje y frescura.
+- **Autoalojado frente a gestionado:** autoalojar da control y exige operar el orquestador; lo gestionado reduce mantenimiento y cuesta por uso.
+- **Batch frente a streaming:** la simplicidad y el coste favorecen al lote; solo la latencia exigida justifica el flujo continuo.
+- **Reverse ETL frente a integración directa:** el primero centraliza la lógica en el almacén; la integración directa reduce un salto, pero duplica definiciones.
+
+## Errores comunes
+
+- **Pipelines sin alertas:** el fallo se descubre cuando un directivo ve un panel vacío.
+- **Tareas no idempotentes** que duplican datos al reintentar o hacer backfill.
+- **Programar por hora fija sin esperar a la fuente**, en lugar de por dependencia o frescura.
+- **Sin tests de calidad antes de publicar** o de enviar datos a otras aplicaciones.
+- **Enviar por reverse ETL datos personales sin base legal** o sin límites.
+- **Adoptar streaming sin necesidad real de latencia.**
+- **Ignorar el tiempo del evento** y agregar por la hora de llegada.
+
+## Con IA
+
+Un asistente genera un DAG de Airflow que funciona, pero suele usar APIs de versiones anteriores (`from airflow import DAG` con operadores antiguos) y olvidarse de la idempotencia y de los reintentos. Pídele que use la sintaxis de la versión que tienes, que parametrice por fecha y que explique qué ocurre si la tarea se ejecuta dos veces. Para reverse ETL, exige una lista de los datos personales que se enviarán.
+
+## En una entrevista
+
+- _"¿Qué es un DAG y para qué sirve un orquestador?"_ — Pista: dependencias, programación, reintentos, alertas, backfills; idempotencia.
+- _"¿Qué es el reverse ETL y qué riesgos tiene?"_ — Pista: del almacén a las aplicaciones; una sola definición; datos personales, errores que escalan, límites.
+- _"¿Cuándo usarías streaming en lugar de lotes?"_ — Pista: latencia exigida; coste y complejidad; tiempo del evento y datos tardíos.
+
+<KeyTakeaways
+  items={[
+    'Un pipeline es un grafo de tareas con dependencias; el orquestador programa, reintenta, alerta y permite repetir periodos pasados (backfills), siempre que las tareas sean idempotentes y parametrizadas por fecha.',
+    'Airflow 3.0 (22 de abril de 2025) trajo versionado de DAGs, una API de ejecución de tareas, el espacio de nombres airflow.sdk y programación por activos; Dagster es nativo de activos.',
+    'El reverse ETL devuelve tablas modeladas a CRM, anuncios o correo con una única definición, pero cada destino es un tratamiento de datos personales y los errores se amplifican.',
+    'El streaming solo se justifica con requisitos de latencia de segundos; añade tiempo del evento, ventanas y datos tardíos, y para la mayoría de los informes basta el lote.',
+    'Sin tests de calidad bloqueantes ni alertas, un pipeline automatizado simplemente falla más rápido y en silencio.',
+  ]}
+/>

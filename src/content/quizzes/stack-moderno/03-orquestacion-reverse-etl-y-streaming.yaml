@@ -1,0 +1,66 @@
+lesson: stack-moderno/03-orquestacion-reverse-etl-y-streaming
+questions:
+  - id: sm-03-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué es un DAG en un orquestador?'
+    options:
+      - 'Un tipo de base de datos'
+      - 'Un grafo dirigido y sin ciclos de tareas con sus dependencias'
+      - 'Una copia de seguridad'
+      - 'Un formato de fichero'
+    answer: [1]
+    explanation: 'Cada nodo es una tarea y cada flecha una dependencia; no hay ciclos, de modo que existe un orden de ejecución válido.'
+    ref: '#pipelines-como-grafos-de-tareas'
+
+  - id: sm-03-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Qué condición necesita una tarea para poder hacer backfills y reintentos sin duplicar datos?'
+    options:
+      - 'Ejecutarse siempre a la misma hora'
+      - 'Ser idempotente y recibir la fecha como parámetro'
+      - 'Usar siempre CDC'
+      - 'Escribirse en SQL'
+    answer: [1]
+    explanation: 'Si repetirla produce el mismo resultado y se puede ejecutar para cualquier fecha, el orquestador puede repetir periodos pasados con seguridad.'
+    ref: '#pipelines-como-grafos-de-tareas'
+
+  - id: sm-03-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Qué distingue la orquestación orientada a activos (Dagster) de la orientada a tareas?'
+    options:
+      - 'Que no admite dependencias'
+      - 'Que declara qué datos se producen y de cuáles dependen, y deduce qué recalcular, manteniendo el linaje'
+      - 'Que solo funciona con streaming'
+      - 'Que no necesita código'
+    answer: [1]
+    explanation: 'Pensar en datos (activos, frescura, linaje) facilita backfills y diagnóstico; pensar en tareas da control fino de procesos heterogéneos.'
+    ref: '#orquestación-por-tareas-y-por-activos'
+
+  - id: sm-03-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los riesgos del reverse ETL.'
+    options:
+      - 'Enviar datos personales a más destinos sin base legal ni minimización'
+      - 'Una definición mal calculada se envía a miles de clientes'
+      - 'Listas antiguas si el pipeline previo falla o se retrasa'
+      - 'Que el almacén deje de ser la fuente de la definición'
+    answer: [0, 1, 2]
+    explanation: 'El reverse ETL centraliza la definición en el almacén (es una ventaja, no un riesgo); los riesgos son el tratamiento de datos personales, los errores que escalan y la dependencia de la frescura del dato.'
+    ref: '#reverse-etl-del-almacén-a-las-aplicaciones'
+
+  - id: sm-03-q5
+    type: single
+    difficulty: 3
+    prompt: 'Una venta ocurre a las 23:59 y llega al sistema a las 00:03. Para agregar ventas por hora real, ¿qué tiempo debe usarse?'
+    options:
+      - 'El tiempo de proceso (cuándo llega)'
+      - 'El tiempo del evento (cuándo ocurrió), con una marca de agua para los datos tardíos'
+      - 'Cualquiera de los dos da igual'
+      - 'El de la última ejecución del pipeline'
+    answer: [1]
+    explanation: 'Agregar por tiempo de llegada atribuye la venta a la hora equivocada. Con el tiempo del evento hay que decidir hasta cuándo se espera a los rezagados.'
+    ref: '#streaming-cuándo-y-qué-cambia'

@@ -1,0 +1,39 @@
+---
+title: 'Un formato de tabla mínimo: instantáneas, viaje en el tiempo y conflictos'
+description: 'Construye en Python una tabla con instantáneas inmutables al estilo de Iceberg y Delta Lake: commits atómicos, lectura de versiones anteriores, compactación de ficheros pequeños, borrado por copy-on-write y detección de escrituras concurrentes.'
+language: python
+part: 'Parte V · Stack moderno e ingeniería analítica'
+module: stack-moderno
+difficulty: 3
+estimatedMinutes: 45
+concepts:
+  [
+    'formatos de tabla abiertos',
+    'instantáneas',
+    'viaje en el tiempo',
+    'copy-on-write',
+    'concurrencia optimista',
+    'compactación',
+  ]
+datasets: ['orders']
+packages: []
+output: console
+hints:
+  - 'Un commit crea una instantánea nueva: la lista de ficheros de la anterior, sin los eliminados y con los añadidos. Los ficheros nunca se modifican; solo cambia qué ficheros forman la tabla.'
+  - 'Concurrencia optimista: si `base` no coincide con `self.ultimo`, lanza `ConflictoDeEscritura` ANTES de tocar nada. Así un commit fallido no deja la tabla a medias.'
+  - 'Leer una instantánea = concatenar los ficheros que la forman. Compactar = leer todo y confirmar un único fichero nuevo eliminando los anteriores (los viejos siguen en `self.ficheros` para el viaje en el tiempo).'
+  - 'Borrar (copy-on-write): para cada fichero de la última instantánea, si el predicado afecta a alguna fila, escribe un fichero nuevo sin esas filas y marca el original como eliminado; los ficheros sin filas afectadas se reutilizan tal cual.'
+relatedLessons: ['stack-moderno/01-warehouses-lakehouses-y-formatos-de-tabla-abiertos']
+businessQuestion: '¿Cómo permite un formato de tabla abierto añadir, borrar y consultar versiones anteriores sobre ficheros inmutables?'
+---
+
+Los formatos de tabla abiertos (Apache Iceberg, Delta Lake, DuckLake) convierten una carpeta de ficheros Parquet en una **tabla**: un registro de **instantáneas** dice qué ficheros forman la tabla en cada momento. En este lab construyes una versión mínima.
+
+La clase `Tabla` ya tiene el constructor y la propiedad `ultimo`. Implementa sus métodos:
+
+1. **`commit(operacion, anade, elimina, base)`** → crea una instantánea nueva (o lanza `ConflictoDeEscritura`) y devuelve su id.
+2. **`leer(snapshot=None)`** → contenido de la tabla en una instantánea.
+3. **`historial()`** → una fila por instantánea con `id`, `operacion`, `n_ficheros` y `filas`.
+4. **`compactar()`** y **`borrar(predicado)`**.
+
+Resultado esperado: tras añadir los pedidos de octubre, noviembre y diciembre de 2025 hay tres instantáneas (16.438, 32.821 y 51.666 filas); compactar deja un solo fichero con las mismas 51.666 filas; borrar los pedidos cancelados deja 49.538, **y las instantáneas anteriores siguen siendo legibles**.

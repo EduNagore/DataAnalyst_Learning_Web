@@ -1,0 +1,167 @@
+---
+title: 'Analítica local-first con DuckDB y MotherDuck'
+description: 'Cuándo basta una sola máquina: DuckDB como base de datos analítica embebida que consulta Parquet y CSV directamente, su uso desde SQL, Python y el navegador, MotherDuck y DuckLake como extensión a la nube, y un árbol de decisión para elegir entre local, almacén y lakehouse.'
+module: stack-moderno
+order: 4
+level: intermedio
+estimatedMinutes: 40
+objectives:
+  - 'Explicar qué es una base de datos analítica embebida y por qué un portátil resuelve muchos problemas de analítica.'
+  - 'Consultar ficheros Parquet y CSV con SQL de DuckDB sin cargarlos antes, y combinarlos con DataFrames de Python.'
+  - 'Describir cómo MotherDuck y DuckLake extienden el modelo local a la nube y a equipos.'
+  - 'Aplicar un árbol de decisión para elegir entre análisis local, almacén y lakehouse.'
+prerequisites:
+  [
+    'stack-moderno/01-warehouses-lakehouses-y-formatos-de-tabla-abiertos',
+    'python-analisis/04-duckdb-desde-python-y-como-elegir-herramienta',
+  ]
+tools: ['sql', 'python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'DuckDB — Documentación'
+    url: 'https://duckdb.org/docs/stable/'
+    type: docs
+    authors: 'DuckDB Foundation'
+    year: 2026
+  - title: 'MotherDuck — Documentación'
+    url: 'https://motherduck.com/docs/'
+    type: docs
+    authors: 'MotherDuck'
+    year: 2026
+  - title: 'MotherDuck — Announcing DuckLake 1.0 on MotherDuck'
+    url: 'https://motherduck.com/blog/announcing-ducklake-1-0-on-motherduck'
+    type: blog
+    authors: 'MotherDuck'
+    year: 2026
+relatedLabs: ['py-duckdb-desde-python']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Una analista de Lumen necesita cruzar pedidos, líneas y sesiones para un estudio puntual. Pedir
+  acceso al almacén y montar una carga lleva dos semanas; descargar los datos a Excel es imposible.
+  Alguien propone: «¿y si lo hacemos en local, con DuckDB?». Para decidir hay que saber qué cabe en
+  una máquina, qué pasa cuando el trabajo lo hace un equipo y cuándo toca dar el salto a la nube.
+</BusinessContext>
+
+## Intuición
+
+Antes de alquilar un camión de mudanzas, mira si cabe en el coche. La mayoría de los análisis cotidianos de una empresa mediana pesan megabytes o pocos gigabytes: caben en la memoria de un portátil moderno y se consultan en segundos con un motor columnar bien hecho. El camión (un almacén en la nube) se justifica por la **colaboración, el gobierno y la escala**, no porque 40 MB «sean Big Data».
+
+## Cómo funciona
+
+### Una base de datos analítica embebida
+
+**DuckDB** es una base de datos analítica **en proceso**: no es un servidor aparte, sino una biblioteca que se ejecuta dentro de tu programa (Python, R, línea de comandos, navegador). Es columnar y vectorizada, lee directamente **Parquet, CSV y JSON** y habla SQL estándar. Gracias a lo visto en la primera lección (columnas, estadísticas, poda), consultar un Parquet en disco lee solo las columnas y los grupos de filas necesarios.
+
+El conjunto de datos de Lumen entero son **19 tablas, 6,4 millones de filas y 42,7 MB** de Parquet; este mismo sitio ejecuta DuckDB en el navegador (WebAssembly) para los labs de SQL.
+
+```sql
+-- Consulta directa sobre ficheros, sin cargar nada antes
+SELECT strftime(order_date, '%Y-%m') AS mes, COUNT(*) AS pedidos
+FROM 'orders.parquet'
+WHERE status <> 'cancelado'
+GROUP BY 1
+ORDER BY 1;
+
+-- Cruce de un Parquet con un CSV
+SELECT c.segment, SUM(oi.quantity * oi.unit_price) AS ingresos
+FROM 'order_items.parquet' oi
+JOIN 'orders.parquet' o USING (order_id)
+JOIN read_csv('customers.csv') c USING (customer_id)
+GROUP BY 1;
+```
+
+Desde Python, DuckDB consulta **DataFrames de pandas** sin copiarlos (lo viste en el lab de DuckDB) y devuelve el resultado como DataFrame. Eso lo hace un excelente «pegamento»: SQL para agregar y unir, Python para el resto.
+
+### Qué permite el enfoque local-first
+
+- **Iteración rápida:** sin colas, sin permisos, sin facturas por consulta; ideal para exploración y prototipos.
+- **Reproducibilidad:** el análisis son un script y unos ficheros versionables.
+- **Privacidad y control:** los datos no salen de la máquina (aunque eso no exime del RGPD: si hay datos personales, debe estar permitido tenerlos ahí).
+- **Desarrollo de la capa de transformación:** dbt puede ejecutarse sobre DuckDB para probar localmente lo que luego correrá en el almacén.
+
+### Cuando el trabajo es de un equipo: MotherDuck y DuckLake
+
+Una máquina no comparte bien: ¿quién tiene la última versión?, ¿cómo se gobierna el acceso? **MotherDuck** extiende DuckDB a la nube: bases de datos compartidas, cómputo bajo demanda y una experiencia pensada para continuar el trabajo local en la nube. Y **DuckLake** (lección 1) da una capa de tabla transaccional sobre Parquet en almacenamiento de objetos, con los metadatos en una base de datos SQL.
+
+<Snapshot date="2026-10">
+  DuckDB 1.5.x es la rama estable en la fecha de esta lección (DuckLake 1.0 se publicó con DuckDB
+  1.5.2 el 13 de abril de 2026). MotherDuck describe su servicio como una extensión de DuckDB a la
+  nube y ofrece DuckLake gestionado con catálogo propio, cómputo sin servidor y almacenamiento
+  gestionado o en tu propio bucket; DuckLake 1.0 en MotherDuck está en vista previa pública. Los
+  límites de tamaño, precios y funciones cambian: comprueba la documentación vigente y mide con tus
+  datos antes de decidir.
+</Snapshot>
+
+### Árbol de decisión
+
+| Situación                                                          | Opción razonable                                                          |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Análisis puntual, datos de hasta unos GB, una persona              | DuckDB en local (Parquet/CSV + SQL/Python)                                |
+| Un equipo pequeño que comparte datos y consultas, volumen moderado | DuckDB compartido (MotherDuck) o un almacén sencillo                      |
+| Muchos usuarios, gobierno de acceso, SLAs, BI corporativo          | Almacén o lakehouse gestionado (BigQuery, Snowflake, Databricks, Fabric…) |
+| Datos de decenas de TB o varios motores sobre los mismos datos     | Lakehouse con formato de tabla abierto y catálogo                         |
+| Latencia de segundos sobre eventos continuos                       | Streaming (con requisito documentado)                                     |
+
+<Callout type="warning">
+  «Cabe en una máquina» no significa «es lo adecuado». Si el análisis va a ser un producto con
+  usuarios, permisos y refrescos diarios, lo local se convierte en un problema de operación (¿quién
+  ejecuta el script, con qué datos, con qué versión?). Tampoco guardes datos personales en
+  portátiles sin base legal y medidas de seguridad: la comodidad no cambia las obligaciones.
+</Callout>
+
+## En la práctica
+
+1. **Mide el tamaño real:** número de filas y MB en Parquet; suele ser menor de lo que se teme.
+2. **Convierte a Parquet** y ordena por la columna de filtro habitual.
+3. **Explora con SQL sobre ficheros** y usa Python para limpieza y visualización.
+4. **Guarda el análisis como código** (consultas y scripts versionados) para poder reproducirlo.
+5. **Decide el momento de pasar a compartido:** cuando haya más de un usuario recurrente, refrescos periódicos o datos sensibles.
+6. **Mantén la definición de métricas fuera de tu script** si otros la usan (capa semántica, módulo siguiente).
+7. **Respeta la clasificación de los datos:** no copies a local lo que la política no permite.
+
+## Trade-offs y cuándo usarlo
+
+- **Local frente a almacén:** local es más rápido de arrancar y más barato; el almacén gana en colaboración, gobierno, concurrencia y escala.
+- **Un solo nodo grande frente a un clúster:** un nodo evita la complejidad de distribuir; el clúster permite crecer más allá de un nodo.
+- **Memoria frente a disco:** DuckDB puede procesar más datos que la memoria usando disco, a menor velocidad.
+- **Prototipo en DuckDB, producción en almacén:** buena práctica con dbt, siempre que se prueben las diferencias de dialecto.
+- **Nube gestionada frente a bucket propio:** gestionado simplifica; el bucket propio da control y evita copiar datos.
+
+## Errores comunes
+
+- **Descargar a CSV y trabajar en Excel** datos que caben cómodamente en Parquet y DuckDB.
+- **Usar un almacén de pago para consultas de megabytes.**
+- **Llevar a local datos personales** sin autorización.
+- **Convertir un script local en proceso de producción** sin orquestación ni pruebas.
+- **No ordenar ni particionar** los Parquet y consultar siempre todo.
+- **Suponer que SQL de DuckDB y el del almacén son idénticos** (hay diferencias de dialecto y de funciones).
+- **Confundir «Big Data» con «muchos datos para Excel».**
+
+## Con IA
+
+Un asistente puede generar consultas DuckDB y scripts completos, y es un buen uso. El riesgo es que recomiende arquitecturas pesadas por defecto («monta Spark») o, al contrario, que ignore los permisos de datos. Pídele que justifique la escala con números (filas, MB) y que indique qué datos personales tocaría. Comprueba siempre el SQL generado en un subconjunto conocido antes de fiarte de las cifras.
+
+## En una entrevista
+
+- _"¿Cuándo usarías DuckDB frente a un almacén en la nube?"_ — Pista: tamaño, colaboración, gobierno; local para exploración y prototipos; almacén para producto compartido.
+- _"¿Qué es una base de datos embebida?"_ — Pista: se ejecuta dentro del proceso, sin servidor; ejemplos y límites.
+- _"Tienes 50 GB de eventos en Parquet. ¿Cómo los analizas?"_ — Pista: probar DuckDB con poda y orden; memoria y disco; cuándo escalar.
+
+<KeyTakeaways
+  items={[
+    'DuckDB es una base de datos analítica embebida, columnar y vectorizada, que consulta Parquet, CSV y DataFrames con SQL sin cargarlos antes.',
+    'El dataset completo de Lumen son 19 tablas, 6,4 millones de filas y 42,7 MB en Parquet: cabe en un portátil y este sitio lo consulta con DuckDB en el navegador.',
+    'El enfoque local-first da iteración rápida y reproducibilidad, pero no resuelve colaboración, gobierno ni producción.',
+    'MotherDuck lleva DuckDB a la nube y DuckLake aporta una capa de tabla transaccional sobre Parquet con metadatos en SQL; DuckLake 1.0 en MotherDuck está en vista previa.',
+    'Elige por escala, número de usuarios y gobierno: local para exploración, almacén o lakehouse para productos compartidos, streaming solo con requisito de latencia.',
+  ]}
+/>

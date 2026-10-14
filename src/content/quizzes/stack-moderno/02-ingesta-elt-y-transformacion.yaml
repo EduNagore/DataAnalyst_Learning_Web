@@ -1,0 +1,58 @@
+lesson: stack-moderno/02-ingesta-elt-y-transformacion
+questions:
+  - id: sm-02-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué distingue a ELT de ETL?'
+    options:
+      - 'En ELT los datos se cargan en bruto al destino y se transforman allí; en ETL se transforman antes de cargarlos'
+      - 'ELT no usa SQL'
+      - 'ETL solo funciona con ficheros'
+      - 'No hay diferencia'
+    answer: [0]
+    explanation: 'ELT aprovecha el cómputo del almacén, permite versionar las transformaciones en SQL y conserva el dato crudo para reprocesar.'
+    ref: '#etl-frente-a-elt'
+
+  - id: sm-02-q2
+    type: single
+    difficulty: 2
+    prompt: 'La fuente no avisa de los borrados y quieres que el almacén los refleje. ¿Qué estrategia de extracción es más adecuada?'
+    options:
+      - 'Incremental por marca de agua'
+      - 'Captura de cambios (CDC) del registro de transacciones'
+      - 'Ninguna: los borrados no importan'
+      - 'Cargar solo la última fila'
+    answer: [1]
+    explanation: 'La marca de agua solo ve filas nuevas o modificadas con la columna de seguimiento; no detecta borrados. El CDC lee las inserciones, actualizaciones y borrados del log.'
+    ref: '#estrategias-de-extracción'
+
+  - id: sm-02-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'En el lab, la segunda carga lee 130.244 de las 392.906 filas de la fuente. ¿Qué porcentaje de la tabla relee? (Un decimal.)'
+    answer: [33.1]
+    tolerance: 0.2
+    explanation: '130.244 / 392.906 ≈ 33,1 %: solo la cola nueva más el solape, en vez de la tabla entera.'
+    ref: '#cargas-incrementales-correctas'
+
+  - id: sm-02-q4
+    type: truefalse
+    difficulty: 2
+    prompt: 'Una carga idempotente es la que, ejecutada dos veces, deja el destino igual que ejecutada una vez.'
+    options: ['Verdadero', 'Falso']
+    answer: [0]
+    explanation: 'Verdadero. Se consigue con upsert por clave: releer filas del solape no las duplica.'
+    ref: '#cargas-incrementales-correctas'
+
+  - id: sm-02-q5
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODOS los riesgos de una carga incremental con solape de un día.'
+    options:
+      - 'Una fila tardía más antigua que el solape se pierde'
+      - 'Una modificación de una fila antigua no se detecta'
+      - 'Se releen algunas filas ya cargadas'
+      - 'Releer el solape duplica filas aunque haya upsert por clave'
+    answer: [0, 1, 2]
+    explanation: 'Con upsert por clave, releer filas del solape no las duplica. Los otros tres son límites reales: rezagos fuera de la ventana, cambios antiguos y un pequeño coste de relectura.'
+    ref: '#cargas-incrementales-correctas'

@@ -1,0 +1,62 @@
+lesson: stack-moderno/01-warehouses-lakehouses-y-formatos-de-tabla-abiertos
+questions:
+  - id: sm-01-q1
+    type: numeric
+    difficulty: 1
+    prompt: 'Los pedidos de Lumen ocupan 29,0 MB en CSV y 3,7 MB en Parquet. ¿Cuántas veces menos ocupa el Parquet? (Un decimal.)'
+    answer: [7.8]
+    tolerance: 0.3
+    explanation: '29,0 / 3,7 ≈ 7,8 (7,7 con los tamaños exactos). La compresión columnar es muy eficaz porque cada columna tiene valores parecidos.'
+    ref: '#parquet-columnas-grupos-de-filas-y-estadísticas'
+
+  - id: sm-01-q2
+    type: single
+    difficulty: 2
+    prompt: 'Quieres filtrar marzo de 2026 en un Parquet de pedidos. ¿Qué orden de los datos permite leer menos grupos de filas?'
+    options:
+      - 'Ordenados por cliente'
+      - 'Ordenados por fecha del pedido'
+      - 'Ordenados por canal'
+      - 'El orden no influye'
+    answer: [1]
+    explanation: 'Con los datos ordenados por fecha, cada grupo tiene un rango de fechas estrecho y las estadísticas mínimo/máximo permiten descartar casi todos (1 de 8 grupos). Ordenados por cliente, todos los grupos contienen fechas de todo el periodo.'
+    ref: '#parquet-columnas-grupos-de-filas-y-estadísticas'
+
+  - id: sm-01-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Qué es un lakehouse?'
+    options:
+      - 'Un almacén de datos que solo admite CSV'
+      - 'Ficheros abiertos en un lago de datos más una capa de tabla transaccional, con rendimiento y gobierno de almacén'
+      - 'Una herramienta de visualización'
+      - 'Un sinónimo de base de datos relacional'
+    answer: [1]
+    explanation: 'El lakehouse combina el almacenamiento abierto y barato del lago con transacciones, esquema y rendimiento propios de un almacén.'
+    ref: '#almacén-lago-y-lakehouse'
+
+  - id: sm-01-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODO lo que aporta un formato de tabla abierto (Iceberg, Delta Lake, DuckLake) a una carpeta de ficheros Parquet.'
+    options:
+      - 'Transacciones atómicas: un commit publica todos sus cambios o ninguno'
+      - 'Viaje en el tiempo: leer la tabla como era en una instantánea anterior'
+      - 'Detección de conflictos entre escritores concurrentes'
+      - 'Que los ficheros de datos puedan editarse en su sitio sin reescribirlos'
+    answer: [0, 1, 2]
+    explanation: 'Los ficheros de datos son inmutables: cambiar la tabla es publicar una instantánea nueva (reescribiendo los ficheros afectados o con vectores de borrado), no editar un fichero.'
+    ref: '#formatos-de-tabla-abiertos'
+
+  - id: sm-01-q5
+    type: single
+    difficulty: 2
+    prompt: '¿Dónde guarda DuckLake los metadatos de la tabla?'
+    options:
+      - 'En ficheros JSON junto a los datos'
+      - 'En un registro de transacciones en ficheros'
+      - 'En una base de datos SQL (DuckDB, PostgreSQL o SQLite) que hace de catálogo'
+      - 'No guarda metadatos'
+    answer: [2]
+    explanation: 'Esa es su diferencia principal respecto a Iceberg y Delta Lake, que guardan los metadatos en ficheros. DuckLake 1.0 se publicó el 13 de abril de 2026.'
+    ref: '#iceberg-delta-lake-y-ducklake'

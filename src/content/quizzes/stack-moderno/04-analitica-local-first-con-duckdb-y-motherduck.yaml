@@ -1,0 +1,62 @@
+lesson: stack-moderno/04-analitica-local-first-con-duckdb-y-motherduck
+questions:
+  - id: sm-04-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué significa que DuckDB sea una base de datos «embebida» o «en proceso»?'
+    options:
+      - 'Que necesita un servidor dedicado'
+      - 'Que se ejecuta como biblioteca dentro de tu programa, sin servidor aparte'
+      - 'Que solo funciona en la nube'
+      - 'Que no admite SQL'
+    answer: [1]
+    explanation: 'DuckDB corre dentro del proceso (Python, línea de comandos, navegador) y consulta Parquet, CSV, JSON o DataFrames directamente.'
+    ref: '#una-base-de-datos-analítica-embebida'
+
+  - id: sm-04-q2
+    type: numeric
+    difficulty: 2
+    prompt: 'El dataset completo de Lumen son 19 tablas con 6,4 millones de filas y 42,7 MB en Parquet. ¿Cuántos bytes ocupa de media cada fila? (Entero.)'
+    answer: [7]
+    tolerance: 1
+    explanation: '42,7 MB / 6,42 M de filas ≈ 6,6 bytes por fila: el formato columnar comprime mucho y todo cabe sobradamente en un portátil.'
+    ref: '#una-base-de-datos-analítica-embebida'
+
+  - id: sm-04-q3
+    type: single
+    difficulty: 2
+    prompt: 'Un equipo de 15 personas necesita compartir datos con permisos, refrescos diarios y BI corporativo. ¿Qué opción es más razonable?'
+    options:
+      - 'Cada persona con su DuckDB en local'
+      - 'Un almacén o lakehouse gestionado con gobierno de acceso'
+      - 'Excel compartido por correo'
+      - 'Ninguna'
+    answer: [1]
+    explanation: 'Colaboración, permisos y refrescos son exactamente lo que el análisis local no resuelve. Local-first es excelente para exploración y prototipos.'
+    ref: '#árbol-de-decisión'
+
+  - id: sm-04-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los errores al plantear una arquitectura analítica.'
+    options:
+      - 'Pagar un almacén en la nube para consultas de megabytes'
+      - 'Llevar a un portátil datos personales sin autorización'
+      - 'Convertir un script local en proceso de producción sin orquestación ni pruebas'
+      - 'Medir primero el tamaño real de los datos antes de decidir'
+    answer: [0, 1, 2]
+    explanation: 'Medir el tamaño real es justo el primer paso recomendado. Los otros tres son errores habituales: sobredimensionar, incumplir la política de datos y operar sin control.'
+    ref: '#árbol-de-decisión'
+
+  - id: sm-04-q5
+    type: single
+    difficulty: 3
+    prompt: '¿Qué aporta MotherDuck a DuckDB?'
+    options:
+      - 'Sustituye el SQL por otro lenguaje'
+      - 'Extiende DuckDB a la nube con bases de datos compartidas y cómputo bajo demanda, y ofrece DuckLake gestionado'
+      - 'Elimina la necesidad de Parquet'
+      - 'Convierte DuckDB en un servidor local'
+    answer: [1]
+    explanation: 'MotherDuck lleva el modelo de DuckDB a equipos y a la nube. DuckLake 1.0 en MotherDuck está en vista previa pública en la fecha de la lección.'
+    ref: '#cuando-el-trabajo-es-de-un-equipo-motherduck-y-ducklake'

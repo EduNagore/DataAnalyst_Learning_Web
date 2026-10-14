@@ -14,7 +14,8 @@ Registro de qué fase del `PLAN.md` está hecha, verificada y pendiente. Se actu
 | F5 — Casos guiados                                    | ✅ Hecha (la pausa de revisión la marca el PLAN) |
 | F6 (Contenido Partes 0-II, M00-M12)                   | ✅                                               |
 | F7 (Contenido Partes III-IV, M13-M20 + casos 2-8)     | ✅                                               |
-| F8-F10                                                | ⬜                                               |
+| F8 (Partes V-VI, M21-M28)                             | 🔄 M21 hecho                                     |
+| F9-F10                                                | ⬜                                               |
 
 Repo: `https://github.com/EduNagore/DataAnalyst_Learning_Web` (rama `main`). Sitio: `https://edunagore.github.io/DataAnalyst_Learning_Web/`.
 
@@ -111,6 +112,12 @@ Hechos reales M15: subida de precios Andalucía/Electrónica (marzo 2025, +12 % 
 Hechos reales de experimentos para el contenido: CUPED con ingresos previos de 90 días apenas ayuda en `exp-onboarding-flow` (ρ = 0,126, 1,6 % de varianza); peeking diario habría declarado ganador a `exp-generic-02` el día 5; 2 de 15 experimentos con efecto real; clientes solapados en ~5 experimentos cada uno.
 
 Hechos reales del dataset para F7 (verificados 2026-10-08): `experiment_metrics` son **series diarias por rama** (no hay datos por usuario); `exp-checkout-v2` +7,8 % relativo (t = 5,34, p = 1,8e-6, 29 días), `exp-social-ads-geo-holdout` +5,9 % (último clic dice +22 %), `exp-reco-engine` SRM 11.166/8.834 (χ² = 271,9), `exp-onboarding-flow` y los 11 genéricos son nulos (p ≥ 0,36). No existe una columna pre-experimento por usuario: para CUPED derivar el ingreso previo de `orders`. Los productos tienen tasas de devolución indistinguibles del azar (dispersión 1,13 pp = esperada); el transportista es aleatorio (sin efecto real).
+
+## F8 — en curso (Contenido Partes V-VI, M21-M28, casos 9-12, Radar, playground)
+
+Estado: **M21 ✅** (4 lecciones `stack-moderno/01-04`: warehouses/lakehouses/formatos de tabla, ingesta y ELT, orquestación/reverse ETL/streaming, analítica local-first con DuckDB y MotherDuck; 3 labs: `py-parquet-por-dentro` [pyarrow], `py-carga-incremental-idempotente`, `py-formato-de-tabla-snapshots` [clase Tabla con instantáneas]; 4 quizzes). Pendientes: M22-M28, Radar (`src/content/radar/entries.yaml`), casos 9-12, playground LLM real, glosario/changelog si procede.
+
+Hechos M21 verificados (2026-10): DuckLake 1.0 el 13-abr-2026 con DuckDB 1.5.2 (inlining 10 filas, tablas ordenadas, bucket partitioning, geometry/variant, deletion vectors experimentales); MotherDuck: DuckLake 1.0 gestionado en vista previa pública; Iceberg Java 1.12.0 última en su web, formato v3 desde 1.10.0 (vectores de borrado, variant, row lineage); Delta Lake 4.0 (sep-2025, catalog-managed tables en preview; ramas 4.x); Airflow 3.0 el 22-abr-2025 (airflow.sdk, DAG versioning, assets, edge executor); Fivetran + dbt Labs fusión completada el 1-jun-2026 (dbt Core v2.0 alpha con motor Fusion bajo Apache 2.0); dlt = biblioteca Python (`pip install dlt`); Airbyte = open source (MIT y ELv2), >600 conectores. Datos Lumen: Parquet de pedidos 3,7 MB vs CSV 29,0 MB, 8 grupos de filas, marzo-2026 = 1 grupo (0,19 % de bytes en 2 columnas); carga incremental 263.852 + 129.054 filas (lee 130.244 en la 2.ª); dataset total 19 tablas, 6,42 M filas, 42,7 MB. Lección técnica: `Series.dt.strftime` sobre cientos de miles de filas es lentísimo en Pyodide (el e2e agotaba 400 s); usar comparaciones de fechas.
 
 ## Notas para retomar
 

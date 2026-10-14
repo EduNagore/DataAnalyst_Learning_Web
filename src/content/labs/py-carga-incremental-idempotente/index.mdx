@@ -1,0 +1,29 @@
+---
+title: 'Carga incremental idempotente: marca de agua y upsert'
+description: 'Implementa una sincronización ELT incremental con marca de agua, solape para filas tardías y upsert por clave, y demuestra que repetirla no duplica ni cambia nada (idempotencia) con los pedidos de Lumen.'
+language: python
+part: 'Parte V · Stack moderno e ingeniería analítica'
+module: stack-moderno
+difficulty: 3
+estimatedMinutes: 40
+concepts: ['ELT', 'carga incremental', 'marca de agua', 'upsert', 'idempotencia', 'filas tardías']
+datasets: ['orders']
+packages: []
+output: console
+hints:
+  - 'La marca de agua es el máximo de la columna de seguimiento en el destino. Si el destino está vacío, lee todo; si no, lee desde `marca − solape` (con `>=`) para recoger filas que llegan tarde.'
+  - 'Upsert: concatena destino y lote, quédate con la última aparición de cada clave (`drop_duplicates(subset=clave, keep="last")`) y ordena por clave.'
+  - 'Nuevas = filas del lote cuya clave no está en el destino. Actualizadas = filas con clave existente cuyo contenido cambió: tras concatenar la versión del lote y la del destino, `drop_duplicates(keep=False)` deja las dos versiones de cada fila cambiada.'
+  - 'Una carga es idempotente si ejecutarla dos veces deja el destino igual: el solape relee filas, pero el upsert no las duplica.'
+relatedLessons: ['stack-moderno/02-ingesta-elt-y-transformacion']
+businessQuestion: '¿Cómo mantener actualizada una tabla del almacén sin releerla entera ni duplicar filas?'
+---
+
+Implementa cuatro funciones:
+
+1. **`marca_de_agua(destino, columna)`** → valor máximo de `columna` (o `None` si el destino está vacío).
+2. **`extraer(fuente, columna, desde)`** → filas con `columna >= desde` (todas si `desde` es `None`).
+3. **`cargar(destino, lote, clave)`** → _upsert_ por clave, ordenado por clave.
+4. **`sincronizar(fuente, destino, columna, clave, solape=1 día)`** → `(destino_nuevo, resumen)` con `leidas`, `nuevas` y `actualizadas`.
+
+Resultado esperado: una carga inicial de los pedidos de 2023-2025 (263.852 filas), una segunda carga que añade 129.054 y una tercera que no añade ni cambia nada (idempotencia). El solape tiene un coste: se vuelven a leer algunas filas; y un límite: una fila tardía **anterior al solape** se pierde.

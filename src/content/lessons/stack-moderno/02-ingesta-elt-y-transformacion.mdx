@@ -1,0 +1,173 @@
+---
+title: 'Ingesta y ELT: cargar primero, transformar después'
+description: 'Cómo llegan los datos al almacén: ETL frente a ELT, extracción completa, incremental y por captura de cambios (CDC), marcas de agua, solape para filas tardías, idempotencia y herramientas actuales (Fivetran, Airbyte, dlt), con una carga incremental real de los pedidos de Lumen.'
+module: stack-moderno
+order: 2
+level: intermedio
+estimatedMinutes: 45
+objectives:
+  - 'Distinguir ETL de ELT y explicar por qué el segundo domina en el almacén moderno.'
+  - 'Elegir entre carga completa, incremental por marca de agua y captura de cambios (CDC) según la fuente.'
+  - 'Diseñar una carga idempotente con upsert y solape, y explicar qué filas tardías se pierden.'
+  - 'Situar herramientas de ingesta gestionadas, de código abierto y en código (Fivetran, Airbyte, dlt).'
+prerequisites: ['stack-moderno/01-warehouses-lakehouses-y-formatos-de-tabla-abiertos']
+tools: ['python', 'sql']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'dlt — Documentación (introducción)'
+    url: 'https://dlthub.com/docs/intro'
+    type: docs
+    authors: 'dltHub'
+    year: 2026
+  - title: 'Airbyte — Documentación'
+    url: 'https://docs.airbyte.com/'
+    type: docs
+    authors: 'Airbyte'
+    year: 2026
+  - title: 'Fivetran y dbt Labs completan su fusión (nota de prensa)'
+    url: 'https://www.fivetran.com/press/fivetran-dbt-labs-complete-merger-to-create-the-data-infrastructure-for-trusted-ai-agents'
+    type: blog
+    authors: 'Fivetran'
+    year: 2026
+relatedLabs: ['py-carga-incremental-idempotente']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Cada noche, un script relee los 392.906 pedidos de Lumen desde el sistema transaccional y
+  reescribe la tabla del almacén. Tarda cuarenta minutos, a veces falla a medias dejando datos
+  duplicados y, cuando el sistema de pedidos se ralentiza, los comerciales se quejan. Ingeniería
+  propone cargar solo lo nuevo. ¿Qué hay que cuidar para que no se pierdan ni se dupliquen filas?
+</BusinessContext>
+
+## Intuición
+
+Mudarse de casa: o metes todo en cajas y lo ordenas luego en la casa nueva (ELT), o ordenas y descartas antes de salir (ETL). Con un camión barato y una casa grande, conviene lo primero: traer todo y decidir después. Y si cada semana llegan cajas nuevas, no vacías la casa para volver a llenarla: pasas la lista de lo ya entregado (marca de agua) y traes solo lo que falta, comprobando que no entra dos veces la misma caja (idempotencia).
+
+## Cómo funciona
+
+### ETL frente a ELT
+
+- **ETL (extraer, transformar, cargar):** los datos se transforman **antes** de llegar al destino, en un servidor intermedio. Era lo habitual cuando el almacenamiento y el cómputo del destino eran caros.
+- **ELT (extraer, cargar, transformar):** se cargan los datos **en bruto** (con su esquema original) y se transforman **dentro** del almacén con SQL. Domina hoy porque el cómputo del almacén escala, el SQL es versionable (dbt, lección siguiente del módulo de ingeniería analítica) y conservar el dato crudo permite rehacer las transformaciones.
+
+Una arquitectura típica tiene tres capas: **crudo** (_raw_, copia fiel de la fuente), **limpio** (_staging_: tipos, nombres, deduplicación) y **modelos** (_marts_: tablas listas para análisis).
+
+### Estrategias de extracción
+
+| Estrategia                        | Cómo funciona                                                                                                      | Cuándo                                        | Límite                                                       |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- | ------------------------------------------------------------ |
+| **Carga completa**                | Se relee y reemplaza toda la tabla                                                                                 | Tablas pequeñas o de referencia               | Cara y lenta si crece; ventana sin datos o a medias          |
+| **Incremental por marca de agua** | Se leen las filas con una columna de seguimiento (fecha de creación o de modificación) mayor que la última cargada | Fuentes con `updated_at` fiable               | No detecta borrados; falla si la columna no cambia al editar |
+| **Captura de cambios (CDC)**      | Se lee el registro de transacciones de la base de datos (inserciones, actualizaciones y borrados)                  | Bases transaccionales críticas, baja latencia | Más compleja; exige acceso al log                            |
+| **Snapshots periódicos**          | Se copia la tabla entera cada día y se comparan versiones                                                          | Fuentes sin columna de seguimiento            | Almacenamiento; el cambio intermedio se pierde               |
+
+### Cargas incrementales correctas
+
+Tres ideas hacen que una carga incremental sea fiable:
+
+1. **Marca de agua:** guarda hasta dónde has cargado (el máximo de la columna de seguimiento en el destino) y lee desde ahí.
+2. **Solape:** lee desde `marca − ventana`, no desde `marca`, para recoger filas que llegan tarde o con la misma marca.
+3. **Upsert por clave:** inserta las filas nuevas y sustituye las que ya existen. Así releer filas del solape no las duplica: la carga es **idempotente** (ejecutarla dos veces deja el mismo resultado).
+
+Con los pedidos de Lumen (clave `order_id`, seguimiento por `order_date`), simulando una carga inicial hasta 2025 y una segunda con todo:
+
+| Carga                      | Filas leídas |  Nuevas | Actualizadas |
+| -------------------------- | -----------: | ------: | -----------: |
+| Inicial (hasta 2025)       |      263.852 | 263.852 |            0 |
+| Segunda (hasta junio 2026) |      130.244 | 129.054 |            0 |
+| Repetición                 |        1.561 |       0 |            0 |
+
+La segunda carga lee solo la cola (130.244 de 392.906 filas) y la repetición no cambia nada. El solape cuesta releer algo más de mil filas, pero protege frente a llegadas tardías.
+
+<Callout type="warning">
+  El solape tiene un límite: una fila tardía **más antigua que la ventana** se pierde, y una
+  modificación de una fila antigua también. Si la fuente puede cambiar el pasado (devoluciones,
+  correcciones), necesitas CDC, una ventana mayor o una recarga periódica completa de los últimos N
+  días. Documenta esa garantía; no digas «los datos están al día» sin decir hasta cuándo y con qué
+  tolerancia.
+</Callout>
+
+### Esquema y calidad en la ingesta
+
+- **Evolución de esquema:** la fuente añade una columna o cambia un tipo; la ingesta debe decidir si lo acepta, lo rechaza o lo avisa. Un **contrato de datos** (esquema, tipos, nulos permitidos) pactado con el productor evita sorpresas.
+- **Frescura** (_freshness_): cuándo se cargó por última vez cada tabla; se vigila con alertas.
+- **Dato crudo inmutable:** no edites el crudo; corrige en las capas siguientes para poder reproducir.
+- **Deduplicación y orden:** los eventos pueden llegar duplicados o desordenados; define la clave y el criterio de «gana el último».
+
+### Herramientas
+
+<Snapshot date="2026-10">
+  Tres familias de herramientas de ingesta: **gestionadas**, con conectores listos y mantenimiento
+  incluido (Fivetran); **de código abierto o autoalojables**, con catálogo de conectores y opción en
+  la nube (Airbyte); y **bibliotecas en código** (dlt, una biblioteca de Python de código abierto
+  que se instala con `pip install dlt`, carga datos de API, bases de datos y ficheros a destinos
+  como DuckDB, infiere esquemas y ofrece carga incremental, evolución de esquema y contratos de
+  datos). El sector se consolida: Fivetran y dbt Labs completaron su fusión el 1 de junio de 2026 y
+  operan como «Fivetran + dbt Labs». Los precios y conectores cambian con frecuencia; compara con tu
+  volumen real y el coste de mantener tú los conectores.
+</Snapshot>
+
+## En la práctica
+
+1. **Lista las fuentes** y para cada una decide la estrategia (completa, marca de agua, CDC) según tamaño, columna de seguimiento y si se borran filas.
+2. **Carga primero en crudo** y guarda la fecha de carga de cada fila.
+3. **Haz la carga idempotente:** upsert por clave y reintentos seguros.
+4. **Elige el solape** según el retraso máximo de llegada y documenta lo que no cubre.
+5. **Vigila la frescura y el volumen** (filas por carga) con alertas.
+6. **Reconcilia** de vez en cuando el destino con la fuente (recuentos y sumas de control).
+7. **Versiona y prueba** el código de ingesta como cualquier otro código.
+
+```python
+def sincronizar(fuente, destino, columna, clave, solape=pd.Timedelta(days=1)):
+    marca = None if destino.empty else destino[columna].max()
+    lote = fuente if marca is None else fuente[fuente[columna] >= marca - solape]
+    return pd.concat([destino, lote]).drop_duplicates(subset=clave, keep="last")
+```
+
+En el lab implementas la sincronización con marca de agua, solape y upsert, y compruebas la idempotencia.
+
+## Trade-offs y cuándo usarlo
+
+- **Gestionado frente a construido por ti:** lo gestionado ahorra mantenimiento (APIs que cambian, reintentos), pero cuesta por volumen; construirlo da control y cuesta tiempo de ingeniería.
+- **Batch frente a casi tiempo real:** la mayoría de los informes se satisfacen con cargas horarias o diarias; el tiempo real encarece y complica.
+- **Marca de agua frente a CDC:** la primera es simple pero ciega a los borrados; la segunda lo ve todo, a cambio de acceso al log y complejidad.
+- **Solape corto frente a largo:** más solape recoge más rezagos pero relee más.
+- **Cargar en bruto frente a limpiar antes:** conservar el crudo da trazabilidad y reprocesado; limpiar antes ahorra almacenamiento pero pierde información.
+
+## Errores comunes
+
+- **Cargar con `>` en lugar de `>=` sin solape** y perder las filas con la misma marca.
+- **Cargas que no son idempotentes** (un reintento duplica filas).
+- **Confiar en `updated_at` sin comprobar** que la aplicación lo actualiza al editar.
+- **No contemplar los borrados** en la fuente.
+- **Transformar en la ingesta** y perder el dato crudo.
+- **No vigilar la frescura:** el panel se ve normal pero lleva tres días sin cargar.
+- **Cambiar de esquema sin avisar** al consumidor.
+
+## Con IA
+
+Un asistente escribe un script de carga incremental en segundos, pero casi siempre con `>` estricto, sin solape y con `to_sql(if_exists="append")`, que duplica filas al reintentar. Pídele que sea idempotente (upsert por clave), que explique qué garantiza y qué pierde, y que incluya una prueba de ejecución doble. Revisa cómo trata los borrados.
+
+## En una entrevista
+
+- _"¿Qué diferencia hay entre ETL y ELT y por qué importa?"_ — Pista: dónde se transforma; escalado del almacén, SQL versionado, conservar el crudo.
+- _"¿Cómo harías una carga incremental sin perder ni duplicar filas?"_ — Pista: marca de agua, solape, upsert por clave, idempotencia, borrados.
+- _"La fuente no tiene columna de modificación. ¿Qué opciones tienes?"_ — Pista: CDC, snapshots y comparación, hash de filas, recarga completa.
+
+<KeyTakeaways
+  items={[
+    'ELT carga primero el dato en bruto y lo transforma dentro del almacén con SQL versionable; conservar el crudo permite reprocesar.',
+    'La carga incremental correcta combina marca de agua, solape y upsert por clave; repetirla no debe cambiar el resultado (idempotencia).',
+    'En Lumen, la segunda carga lee 130.244 de 392.906 filas y añade 129.054 nuevas; repetirla relee 1.561 filas por el solape y no cambia nada.',
+    'Una fila tardía anterior al solape se pierde y la marca de agua no ve los borrados: para eso están el CDC, una ventana mayor o una recarga periódica.',
+    'Fivetran (gestionado), Airbyte (abierto) y dlt (biblioteca de Python) cubren distintos equilibrios entre mantenimiento y control; el sector se consolida (Fivetran + dbt Labs, junio de 2026).',
+  ]}
+/>

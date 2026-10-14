@@ -1,0 +1,202 @@
+---
+title: 'Warehouses, lakehouses y formatos de tabla abiertos'
+description: 'Cómo se almacenan y consultan los datos analíticos hoy: separación de almacenamiento y cómputo, Parquet y su poda de datos, almacenes frente a lakehouses, y qué aportan Iceberg, Delta Lake y DuckLake (instantáneas, viaje en el tiempo, concurrencia).'
+module: stack-moderno
+order: 1
+level: intermedio
+estimatedMinutes: 50
+objectives:
+  - 'Explicar por qué un formato columnar como Parquet reduce el tamaño y los bytes leídos, y cómo ayudan el orden y las estadísticas del fichero.'
+  - 'Comparar almacén de datos, lago de datos y lakehouse, y situar los productos habituales.'
+  - 'Describir qué añade un formato de tabla abierto (instantáneas, ACID, viaje en el tiempo, evolución de esquema) a una carpeta de ficheros.'
+  - 'Distinguir Iceberg, Delta Lake y DuckLake por dónde guardan los metadatos.'
+prerequisites: ['analista-2026/03-la-ia-y-el-stack-moderno']
+tools: ['python', 'sql']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Armbrust, Ghodsi, Xin & Zaharia — Lakehouse: A New Generation of Open Platforms that Unify Data Warehousing and Advanced Analytics (CIDR 2021)'
+    url: 'https://www.cidrdb.org/cidr2021/papers/cidr2021_paper17.pdf'
+    type: paper
+    authors: 'Armbrust, M., Ghodsi, A., Xin, R., Zaharia, M.'
+    year: 2021
+  - title: 'Apache Parquet — Documentación del formato de fichero'
+    url: 'https://parquet.apache.org/docs/file-format/'
+    type: spec
+    authors: 'Apache Parquet'
+    year: 2026
+  - title: 'Apache Iceberg — Especificación de tabla'
+    url: 'https://iceberg.apache.org/spec/'
+    type: spec
+    authors: 'Apache Iceberg'
+    year: 2026
+  - title: 'Google Open Source Blog — What’s new in Apache Iceberg v3?'
+    url: 'https://opensource.googleblog.com/2025/08/whats-new-in-iceberg-v3.html'
+    type: blog
+    authors: 'Google'
+    year: 2025
+  - title: 'Delta Lake 4.0'
+    url: 'https://delta.io/blog/2025-09-25-delta-lake-40/'
+    type: blog
+    authors: 'Delta Lake'
+    year: 2025
+  - title: 'DuckLake v1.0: the lakehouse format built on SQL reaches production-readiness'
+    url: 'https://ducklake.select/2026/04/13/ducklake-10/'
+    type: blog
+    authors: 'DuckDB Labs'
+    year: 2026
+relatedLabs: ['py-parquet-por-dentro', 'py-formato-de-tabla-snapshots']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  El equipo de datos de Lumen guarda los pedidos en ficheros CSV que se multiplican cada mes. Las
+  consultas tardan, nadie sabe qué versión del fichero es la buena y un analista pisó ayer el de
+  otro. Dirección pregunta: «¿necesitamos un almacén en la nube, un lago de datos o algo más
+  sencillo?». Para responder hay que entender cómo se guardan los datos analíticos y qué problema
+  resuelve cada capa.
+</BusinessContext>
+
+## Intuición
+
+Un archivo de oficina. Con carpetas sueltas (un lago de ficheros) cabe todo y es barato, pero nadie garantiza que el índice esté al día ni que dos personas no archiven a la vez. Un archivador con bibliotecaria (un almacén) es fiable y rápido, pero te ata a su sistema. Un **formato de tabla abierto** es un libro de registro estándar que cualquier archivo puede leer: dice qué documentos forman el expediente en cada momento y deja volver a una versión anterior.
+
+## Cómo funciona
+
+### Almacenamiento y cómputo separados
+
+La arquitectura actual separa **dónde viven los datos** (almacenamiento de objetos barato y duradero: S3, GCS, ADLS) de **quién los consulta** (motores de cómputo que se encienden cuando hacen falta). Se paga el cómputo por uso y se puede tener varios motores sobre los mismos datos. La pieza que lo hace posible es un formato de fichero eficiente.
+
+### Parquet: columnas, grupos de filas y estadísticas
+
+**Apache Parquet** guarda los datos **por columnas**, en bloques llamados **grupos de filas**, y escribe al pie del fichero un resumen con el mínimo y el máximo de cada columna en cada grupo. Tres consecuencias:
+
+1. **Compresión.** Una columna tiene valores parecidos (muchos «online», pocas fechas distintas) y comprime muy bien. Los 392.906 pedidos de Lumen ocupan **29,0 MB en CSV y 3,7 MB en Parquet con zstd** (7,7 veces menos). La columna más pesada es el identificador del pedido (2,1 MB); `channel` ocupa 34 KB.
+2. **Lectura de solo las columnas necesarias.** Una consulta sobre `order_date` y `status` no toca el resto.
+3. **Poda por estadísticas.** Si los datos están ordenados por fecha, filtrar marzo de 2026 exige leer **1 de los 8 grupos de filas** (≈ 0,2 % de los bytes si solo se piden esas dos columnas); si están ordenados por cliente, hay que leer los 8, porque cada grupo contiene fechas de todo el periodo.
+
+<Callout type="note">
+  El orden físico importa tanto como el formato. «Particionar» u ordenar por la columna con la que
+  más se filtra (casi siempre la fecha) es la optimización más rentable de un almacén. En el lab lo
+  mides tú.
+</Callout>
+
+### Almacén, lago y lakehouse
+
+| Enfoque                        | Qué es                                                               | Ventaja                                              | Límite                                             |
+| ------------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------- |
+| **Almacén** (_data warehouse_) | Base de datos analítica gestionada con su formato propio             | Rendimiento, SQL, gobierno, transacciones            | Datos en su formato; dependencia del proveedor     |
+| **Lago** (_data lake_)         | Ficheros (Parquet, CSV, JSON) en almacenamiento de objetos           | Barato, flexible, cualquier dato                     | Sin transacciones ni esquema: «pantano»            |
+| **Lakehouse**                  | Ficheros abiertos en el lago **más** una capa de tabla transaccional | Lo mejor de ambos, formatos abiertos, varios motores | Más piezas que gestionar (catálogo, mantenimiento) |
+
+Armbrust et al. (2021) formularon el _lakehouse_: formatos abiertos de acceso directo (Parquet), soporte de transacciones y rendimiento de almacén sobre el lago. Hoy los principales almacenes en la nube (BigQuery, Snowflake, Redshift) y plataformas (Databricks, Microsoft Fabric) ofrecen una mezcla de ambos enfoques y leen formatos abiertos.
+
+### Formatos de tabla abiertos
+
+Una carpeta de ficheros Parquet no es una tabla: no sabe qué ficheros están vigentes, no puede borrar una fila de forma atómica ni deja ver el ayer. Un **formato de tabla** añade un registro de **instantáneas** (_snapshots_): cada confirmación (_commit_) crea una instantánea que enumera los ficheros que forman la tabla en ese momento. Los ficheros de datos son **inmutables**; cambiar la tabla es publicar una instantánea nueva.
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+    S1["Instantánea 1<br/>pedidos-oct"] --> S2["Instantánea 2<br/>+ pedidos-nov"]
+    S2 --> S3["Instantánea 3<br/>+ pedidos-dic"]
+    S3 --> S4["Instantánea 4<br/>compactar: 1 fichero"]
+    S4 --> S5["Instantánea 5<br/>borrar cancelados"]
+    S2 -.->|"viaje en el tiempo"| L["Leer la tabla<br/>como era en la 2"]`}
+  alt="Línea de instantáneas de una tabla: la 1 contiene pedidos de octubre, la 2 añade noviembre, la 3 diciembre, la 4 compacta en un fichero y la 5 borra los cancelados; se puede leer la tabla como era en la instantánea 2."
+/>
+
+Lo que se gana:
+
+- **Transacciones (ACID):** un commit publica todos sus cambios o ninguno. Los lectores ven siempre una instantánea completa.
+- **Viaje en el tiempo:** leer la tabla en una instantánea o fecha anterior (auditoría, reproducir un informe, deshacer un error).
+- **Concurrencia optimista:** dos escritores no se pisan; si la base ha cambiado, el segundo recibe un conflicto y reintenta.
+- **Evolución de esquema y de particiones** sin reescribir los datos antiguos.
+- **Mantenimiento:** compactar ficheros pequeños, retirar ficheros huérfanos.
+
+En el lab construyes una tabla mínima con estas ideas: con los pedidos de octubre a diciembre de 2025 se crean tres instantáneas (16.438, 32.821 y 51.666 filas), se compacta, se borran los cancelados (49.538 filas) y las instantáneas anteriores siguen siendo legibles.
+
+### Iceberg, Delta Lake y DuckLake
+
+Los tres ofrecen lo anterior. La diferencia principal es **dónde guardan los metadatos**:
+
+| Formato            | Metadatos                                                                                           | Notas de estado                                                                                                     |
+| ------------------ | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Apache Iceberg** | Ficheros de metadatos y manifiestos junto a los datos, y un catálogo que apunta a la última versión | La versión 3 del formato (con vectores de borrado, tipo `variant` y trazabilidad de filas) llegó con Iceberg 1.10.0 |
+| **Delta Lake**     | Registro de transacciones (_log_) en ficheros junto a los datos                                     | La versión 4.0 (septiembre de 2025) introdujo tablas gestionadas por catálogo en modo vista previa                  |
+| **DuckLake**       | Una **base de datos SQL** (DuckDB, PostgreSQL o SQLite) que hace de catálogo                        | Versión 1.0 el 13 de abril de 2026, con compatibilidad hacia atrás garantizada                                      |
+
+<Snapshot date="2026-10">
+  La última versión de Apache Iceberg (Java) que aparece en su página de lanzamientos es la 1.12.0,
+  y la especificación v3 ya forma parte del formato. Delta Lake publica versiones de la rama 4.x.
+  **DuckLake 1.0** se publicó el 13 de abril de 2026 junto con DuckDB 1.5.2 e incluye inlining de
+  datos pequeños, tablas ordenadas, particionado por _bucket_, tipos geometría y `variant`, y
+  vectores de borrado experimentales compatibles con Iceberg v3. MotherDuck ofrece DuckLake
+  gestionado en vista previa pública. El panorama de catálogos y formatos cambia deprisa: comprueba
+  la documentación vigente antes de elegir y prioriza lo que tu almacén y tus herramientas ya leen y
+  escriben.
+</Snapshot>
+
+La elección práctica rara vez es «cuál es mejor» sino **qué lee y escribe tu ecosistema**: muchos motores leen Iceberg o Delta; DuckLake encaja cuando se quiere un lakehouse sencillo con un catálogo SQL.
+
+## En la práctica
+
+1. **Empieza por el volumen y el patrón de acceso:** unos pocos GB consultados por analistas caben en una máquina (lección 4); decenas de TB con varios equipos piden almacén o lakehouse.
+2. **Guarda en Parquet** (con compresión zstd o snappy), ordenado o particionado por la columna de filtro habitual (la fecha).
+3. **Evita los ficheros pequeños:** miles de ficheros diminutos ralentizan; compacta de forma periódica.
+4. **Usa un formato de tabla** cuando necesites actualizaciones, borrados, auditoría o varios escritores.
+5. **Define el catálogo:** quién sabe qué tablas hay, dónde están y quién puede leerlas.
+6. **Planifica el mantenimiento:** compactación, retirada de instantáneas antiguas, estadísticas.
+7. **Documenta el coste:** almacenamiento + cómputo + transferencia entre regiones.
+
+```python
+buf = io.BytesIO()
+df.sort_values("order_date").to_parquet(buf, index=False, row_group_size=50_000, compression="zstd")
+md = pq.ParquetFile(io.BytesIO(buf.getvalue())).metadata
+st = md.row_group(0).column(2).statistics   # min / max de la columna en el grupo
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Almacén gestionado frente a lakehouse abierto:** el primero es más simple y rápido de poner en marcha; el segundo evita el bloqueo del proveedor y permite varios motores, a costa de más operación.
+- **Iceberg frente a Delta frente a DuckLake:** por compatibilidad con el ecosistema (qué lee tu motor), por madurez y por dónde quieras los metadatos (ficheros o base de datos).
+- **Particiones finas frente a gruesas:** muy finas generan ficheros pequeños; muy gruesas no podan. Ordenar y agrupar suele ser mejor que particionar en exceso.
+- **Copy-on-write frente a vectores de borrado:** reescribir ficheros es simple y rápido de leer; los vectores de borrado hacen baratos los borrados pero añaden trabajo de lectura y mantenimiento.
+- **Datos abiertos frente a formato propietario:** lo abierto facilita migrar; lo propietario puede ofrecer optimizaciones adicionales.
+
+## Errores comunes
+
+- **Dejar los datos analíticos en CSV** y repetir lecturas de 29 MB para consultar un mes.
+- **Ordenar los datos por una columna que no se usa en los filtros.**
+- **Particionar por una columna de alta cardinalidad** (cliente, pedido) y crear millones de ficheros.
+- **Confundir viaje en el tiempo con copia de seguridad:** las instantáneas se retiran con el mantenimiento.
+- **Suponer que cualquier motor lee cualquier formato** sin comprobar versiones y catálogos.
+- **No compactar** y acabar con miles de ficheros pequeños.
+- **Elegir por moda** en lugar de por lo que lee tu ecosistema.
+
+## Con IA
+
+Un asistente propone con soltura «migremos a un lakehouse con Iceberg», sin preguntar el volumen, los motores en uso ni los equipos implicados. Pídele que compare al menos dos alternativas con sus costes de operación, que justifique con el patrón de acceso y que cite la documentación vigente de cada formato. Verifica los números de versión: son lo primero que un modelo da por buenos de forma anticuada.
+
+## En una entrevista
+
+- _"¿Qué ventaja tiene Parquet frente a CSV para analítica?"_ — Pista: columnar, compresión, lectura de columnas, estadísticas y poda; el orden importa.
+- _"¿Qué es un lakehouse y qué añade un formato de tabla como Iceberg?"_ — Pista: lago abierto más transacciones; instantáneas, ACID, viaje en el tiempo, concurrencia optimista.
+- _"Dos procesos escriben a la vez en la misma tabla. ¿Qué pasa?"_ — Pista: concurrencia optimista; el commit comprueba la base; conflicto y reintento.
+
+<KeyTakeaways
+  items={[
+    'La arquitectura moderna separa almacenamiento barato (objetos) de cómputo bajo demanda; Parquet columnar con estadísticas es la pieza que lo hace eficiente.',
+    'Los 392.906 pedidos de Lumen ocupan 29,0 MB en CSV y 3,7 MB en Parquet; ordenados por fecha, filtrar un mes lee 1 de 8 grupos de filas (≈ 0,2 % de los bytes de dos columnas).',
+    'Un lakehouse es un lago de ficheros abiertos más una capa de tabla transaccional; un almacén gestionado es más simple pero ata los datos a su formato.',
+    'Iceberg, Delta Lake y DuckLake ofrecen instantáneas, ACID, viaje en el tiempo y concurrencia optimista; difieren sobre todo en dónde guardan los metadatos (ficheros o una base de datos SQL).',
+    'Elige por el patrón de acceso y por lo que lee tu ecosistema; compacta, ordena y documenta el catálogo en lugar de perseguir la moda.',
+  ]}
+/>

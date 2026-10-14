@@ -1,0 +1,30 @@
+---
+title: 'Parquet por dentro: columnas, grupos de filas y poda'
+description: 'Escribe los pedidos de Lumen en CSV y en Parquet, mide cuánto ocupa cada columna, y usa las estadísticas mínimo/máximo del fichero para saltarte grupos de filas: comprueba por qué un formato columnar y ordenado hace que una consulta lea una fracción mínima de los datos.'
+language: python
+part: 'Parte V · Stack moderno e ingeniería analítica'
+module: stack-moderno
+difficulty: 2
+estimatedMinutes: 35
+concepts:
+  ['Parquet', 'formato columnar', 'compresión', 'grupos de filas', 'estadísticas', 'poda de datos']
+datasets: ['orders']
+packages: ['pyarrow']
+output: console
+hints:
+  - 'CSV: `df.to_csv(index=False).encode("utf-8")`. Parquet: `df.to_parquet(buffer, index=False, row_group_size=..., compression=...)` sobre un `io.BytesIO()` y `buffer.getvalue()`.'
+  - 'Los metadatos están en el pie del fichero: `pq.ParquetFile(io.BytesIO(datos)).metadata`. Cada `row_group(g).column(j)` tiene `path_in_schema`, `total_compressed_size` y `statistics` (con `min`, `max` y `has_min_max`).'
+  - 'Un grupo de filas puede contener valores del rango `[desde, hasta]` solo si `max >= desde` y `min <= hasta`. Si no hay estadísticas, hay que leerlo.'
+  - 'Fracción leída = bytes comprimidos de las columnas pedidas en los grupos elegidos / bytes comprimidos de todo el fichero.'
+relatedLessons: ['stack-moderno/01-warehouses-lakehouses-y-formatos-de-tabla-abiertos']
+businessQuestion: '¿Por qué una consulta sobre un mes de pedidos lee una fracción mínima de un fichero Parquet bien organizado?'
+---
+
+Implementa cinco funciones:
+
+1. **`a_csv(df)`** y **`a_parquet(df, filas_por_grupo=50_000, compresion="zstd")`** → los datos serializados en memoria (bytes).
+2. **`bytes_por_columna(parquet)`** → `Series` con los bytes comprimidos de cada columna, de mayor a menor.
+3. **`grupos_a_leer(parquet, columna, desde, hasta)`** → índices de los grupos de filas que pueden contener valores en ese rango, usando solo las estadísticas del fichero.
+4. **`fraccion_leida(parquet, columnas, grupos)`** → fracción de los bytes del fichero que hay que leer.
+
+Resultado esperado: los 392.906 pedidos ocupan ≈ 29 MB en CSV y ≈ 3,7 MB en Parquet; con los datos ordenados por fecha, filtrar marzo de 2026 exige leer **1 de 8 grupos** (≈ 0,2 % de los bytes si solo necesitas `order_date` y `status`); ordenados por cliente, los 8 grupos.
