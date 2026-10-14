@@ -1,0 +1,62 @@
+lesson: ingenieria-analitica/01-proyecto-dbt-modelos-ref-y-capas
+questions:
+  - id: ia-01-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Para qué sirve la función ref() en un modelo de dbt?'
+    options:
+      - 'Para leer una tabla cruda cargada por la ingesta'
+      - 'Para referenciar otro modelo del proyecto, de modo que dbt conozca el grafo de dependencias y el orden de ejecución'
+      - 'Para definir una macro'
+      - 'Para ejecutar una prueba'
+    answer: [1]
+    explanation: 'source() referencia tablas crudas; ref() referencia modelos. Con los ref, dbt construye el DAG y ejecuta cada modelo después de aquellos de los que depende.'
+    ref: '#modelos-fuentes-y-referencias'
+
+  - id: ia-01-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Cuál de estas es una violación de la estructura por capas?'
+    options:
+      - 'Un modelo stg_ que lee una fuente con source()'
+      - 'Un modelo int_ que une varios stg_'
+      - 'Un mart que lee una fuente cruda directamente, saltándose staging'
+      - 'Un fct_ que lee un int_'
+    answer: [2]
+    explanation: 'Los marts no deben leer fuentes crudas: duplican las reglas de limpieza y se rompen cuando cambia la fuente. Solo staging lee source().'
+    ref: '#las-tres-capas'
+
+  - id: ia-01-q3
+    type: single
+    difficulty: 2
+    prompt: 'Un modelo de staging es ligero, siempre debe reflejar la fuente actual y no se consulta directamente por usuarios. ¿Qué materialización encaja mejor?'
+    options:
+      - 'view'
+      - 'table reconstruida cada hora'
+      - 'ephemeral siempre'
+      - 'incremental con microbatch'
+    answer: [0]
+    explanation: 'Una vista no ocupa almacenamiento y siempre está al día. Las tablas e incrementales se reservan para modelos pesados o muy consultados.'
+    ref: '#materializaciones'
+
+  - id: ia-01-q4
+    type: numeric
+    difficulty: 2
+    prompt: 'En el proyecto de ejemplo de Lumen (9 modelos), cambia stg_orders. Incluido él mismo, ¿cuántos modelos hay que reconstruir?'
+    answer: [6]
+    tolerance: 0
+    explanation: 'stg_orders → int_order_lines → fct_orders → dim_customers, mart_revenue_monthly y mart_customer_ltv: seis modelos. Los demás no dependen de él.'
+    ref: '#modelos-fuentes-y-referencias'
+
+  - id: ia-01-q5
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODOS los errores habituales al construir un proyecto dbt.'
+    options:
+      - 'Escribir nombres de tabla a mano en lugar de ref() y source()'
+      - 'Duplicar la definición de una métrica en varios modelos'
+      - 'Crear ciclos entre modelos'
+      - 'Tener una convención de nombres documentada'
+    answer: [0, 1, 2]
+    explanation: 'Una convención documentada es la buena práctica. Los otros tres rompen el grafo, multiplican las definiciones o impiden la ejecución (un ciclo es un error).'
+    ref: '#las-tres-capas'

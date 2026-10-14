@@ -1,0 +1,198 @@
+---
+title: 'Modelos incrementales, snapshots y rendimiento'
+description: 'Cómo hacer que las transformaciones escalen y conserven la historia: modelos incrementales (estrategias append, merge, delete+insert, insert_overwrite y microbatch), snapshots de dimensiones de cambio lento tipo 2 y criterios de coste y rendimiento, con los datos de Lumen.'
+module: ingenieria-analitica
+order: 3
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Escribir un modelo incremental con is_incremental() y unique_key y razonar sobre idempotencia y filas tardías.'
+  - 'Elegir entre las estrategias incrementales (append, merge, delete+insert, insert_overwrite, microbatch) según el caso.'
+  - 'Explicar cómo un snapshot registra el historial de una dimensión (SCD tipo 2) y consultar el estado en una fecha pasada.'
+  - 'Aplicar criterios básicos de rendimiento y coste: qué materializar, cuándo reconstruir y cómo acotar lo que se lee.'
+prerequisites:
+  [
+    'ingenieria-analitica/02-tests-contratos-y-documentacion',
+    'stack-moderno/02-ingesta-elt-y-transformacion',
+  ]
+tools: ['sql', 'python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'dbt — Incremental models'
+    url: 'https://docs.getdbt.com/docs/build/incremental-models'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'dbt — Microbatch incremental strategy'
+    url: 'https://docs.getdbt.com/docs/build/incremental-microbatch'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'dbt — Snapshots'
+    url: 'https://docs.getdbt.com/docs/build/snapshots'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+relatedLabs: ['py-snapshots-scd2', 'py-carga-incremental-idempotente']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  La tabla de eventos de Lumen supera el millón y medio de filas y crece cada día; reconstruirla
+  entera cada noche cuesta cada vez más y tarda más. Además, Marketing pregunta algo que la tabla de
+  clientes no puede responder: «¿en qué segmento estaba esta clienta cuando compró en febrero?». El
+  segmento se sobrescribe cuando cambia y la historia se pierde. Hacen falta dos técnicas: procesar
+  solo lo nuevo y guardar las versiones.
+</BusinessContext>
+
+## Intuición
+
+Un diario frente a una libreta de direcciones. Si cada noche reescribes el diario entero desde el primer día, pierdes horas; basta añadir las páginas nuevas (incremental). Y si en la libreta de direcciones tachas la antigua cuando alguien se muda, no podrás saber dónde vivía en 2024; si la conservas con las fechas de validez, sí (snapshot).
+
+## Cómo funciona
+
+### Modelos incrementales
+
+En un modelo `materialized='incremental'`, la primera ejecución construye la tabla entera y las siguientes **solo procesan filas nuevas o modificadas** y las integran en la tabla existente. La macro `is_incremental()` devuelve verdadero cuando la tabla ya existe, no se ha pedido `--full-refresh` y el modelo es incremental:
+
+```sql
+{{ config(materialized='incremental', unique_key='event_id', on_schema_change='append_new_columns') }}
+
+select event_id, session_id, event_type, occurred_at
+from {{ ref('stg_events') }}
+{% if is_incremental() %}
+  where occurred_at >= (select coalesce(max(occurred_at), '1900-01-01') - interval 2 day from {{ this }})
+{% endif %}
+```
+
+Es la misma idea del módulo anterior: **marca de agua, solape y upsert por clave**. Tres configuraciones clave:
+
+- `unique_key`: la clave con la que se hace el upsert (sin ella, el modelo solo añade filas y puede duplicar).
+- `on_schema_change`: qué hacer si aparece una columna nueva (`ignore`, `fail`, `append_new_columns`, `sync_all_columns`).
+- `--full-refresh`: reconstruir desde cero (para corregir lógica o recuperar de errores).
+
+### Estrategias incrementales
+
+| Estrategia         | Qué hace                                                           | Cuándo                                               |
+| ------------------ | ------------------------------------------------------------------ | ---------------------------------------------------- |
+| `append`           | Añade las filas nuevas sin comprobar duplicados                    | Eventos inmutables con deduplicación aguas arriba    |
+| `merge`            | Actualiza por `unique_key` y añade lo nuevo (`MERGE`)              | Filas que pueden cambiar; almacenes con `MERGE`      |
+| `delete+insert`    | Borra las filas con la clave y las vuelve a insertar               | Almacenes sin `MERGE` eficiente                      |
+| `insert_overwrite` | Sustituye particiones enteras                                      | Tablas particionadas por fecha (carga por partición) |
+| `microbatch`       | Divide el trabajo en lotes de tiempo independientes e idempotentes | Series temporales grandes con backfills frecuentes   |
+
+La estrategia **microbatch** merece mención aparte. Requiere `event_time` (la columna con la hora de la fila), `begin` (el inicio de los tiempos) y `batch_size` (`hour`, `day`, `month` o `year`); la opción `lookback` (por defecto 1) reprocesa los N lotes anteriores para capturar filas tardías. dbt filtra automáticamente los modelos padre que tengan `event_time` y trata cada lote como una unidad atómica, de modo que **no hace falta escribir `is_incremental()`**. Los reintentos solo repiten los lotes fallidos, y los backfills se piden con `--event-time-start` y `--event-time-end`. Todas las horas se interpretan en UTC.
+
+<Callout type="warning">
+  Un modelo incremental puede **divergir en silencio** de la verdad: si la fuente corrige una fila
+  antigua que queda fuera del solape, la tabla incremental conserva el valor viejo. Programa una
+  reconstrucción completa periódica (por ejemplo semanal o mensual) o amplía el solape, y concilia
+  el total con la fuente. Lo que ahorras en cómputo lo pagas en rigor si nadie lo comprueba.
+</Callout>
+
+### Snapshots: dimensiones de cambio lento tipo 2
+
+Un **snapshot** registra los cambios de una tabla mutable guardando **cada versión** de la fila con su periodo de validez. Es una **dimensión de cambio lento de tipo 2 (SCD2)**. dbt añade columnas de control: `dbt_valid_from` (cuándo empezó a ser válida esa versión) y `dbt_valid_to` (cuándo dejó de serlo; nulo en la versión vigente), además de `dbt_scd_id`, `dbt_updated_at` y, si se registran borrados, `dbt_is_deleted`.
+
+```yaml
+snapshots:
+  - name: clientes_snapshot
+    relation: source('lumen', 'customers')
+    config:
+      schema: snapshots
+      unique_key: customer_id
+      strategy: timestamp
+      updated_at: updated_at
+```
+
+Hay dos estrategias de detección de cambios:
+
+- **`timestamp` (recomendada):** compara una columna `updated_at` fiable; es más robusta ante cambios de esquema.
+- **`check`:** compara columnas concretas (`check_cols`); sirve cuando no existe un `updated_at` fiable, a costa de más mantenimiento.
+
+El snapshot **no edita** la fila antigua: la **cierra** (`dbt_valid_to` = inicio de la nueva) y **inserta** una nueva. En el lab lo implementas con 2.000 clientes de Lumen: carga inicial (2.000 filas), dos cambios de segmento en febrero (2.002 filas) y un cambio más con un borrado en marzo (2.003 filas, 1.999 vigentes). Para saber cómo era un cliente en una fecha, se filtra `dbt_valid_from <= fecha` y `dbt_valid_to` nulo o posterior; así, el primer cliente fue `original → vip → habitual`. Es el mismo patrón que la consulta SQL de «punto en el tiempo» del módulo de SQL.
+
+Dos límites: el snapshot solo ve el estado **cuando se ejecuta** (si una fila cambia dos veces entre ejecuciones, se pierde el cambio intermedio) y los borrados físicos requieren configuración explícita (`hard_deletes`) para invalidar o registrar la fila.
+
+### Rendimiento y coste
+
+El coste de un almacén suele ser proporcional a los datos que se **leen** y al tiempo de cómputo. Palancas habituales:
+
+1. **Leer menos:** seleccionar solo las columnas necesarias, filtrar por fecha sobre la columna de partición u orden (lección de formatos), evitar `select *` sobre tablas anchas.
+2. **Materializar con criterio:** tabla o incremental para modelos pesados y muy consultados; vista para lo ligero.
+3. **Procesar solo lo nuevo:** incrementales y microbatch para tablas grandes de hechos.
+4. **Evitar cálculos repetidos:** reutilizar modelos intermedios en lugar de repetir la misma lógica.
+5. **Medir antes de optimizar:** el plan de ejecución y los tiempos por modelo indican qué mejorar.
+
+<Snapshot date="2026-10">
+  La documentación actual de dbt describe los snapshots con configuración en YAML (formato
+  recomendado desde dbt 1.9), con opciones como `dbt_valid_to_current` y `hard_deletes`, y la
+  estrategia microbatch con las configuraciones `event_time`, `begin`, `batch_size` y `lookback`.
+  dbt Core v2 y el motor Fusion prometen mejoras de velocidad de análisis y ejecución selectiva, y
+  proponen una nueva capa de estado (dbt State, en vista previa según el anuncio de la fusión con
+  Fivetran) para construir solo lo que ha cambiado. Estas funciones evolucionan rápido: verifica en
+  la documentación de tu versión qué está disponible.
+</Snapshot>
+
+## En la práctica
+
+1. **Empieza con tablas completas** y pasa a incremental solo cuando el tiempo o el coste lo justifiquen.
+2. **Define la `unique_key`** y la columna de seguimiento antes de escribir el modelo; añade un solape razonable.
+3. **Prueba la idempotencia:** ejecutar el modelo dos veces seguidas no debe cambiar la tabla (compáralo con una reconstrucción completa).
+4. **Programa una reconstrucción completa periódica** y concilia con la fuente.
+5. **Usa microbatch** para series temporales muy grandes con backfills frecuentes.
+6. **Crea un snapshot** para cada dimensión cuya historia necesites (clientes, precios, planes) y ejecútalo con la frecuencia con la que cambia.
+7. **Mide coste y tiempo por modelo** y optimiza lo que más pesa.
+
+```sql
+-- Estado del cliente en una fecha: consulta de punto en el tiempo sobre el snapshot
+select customer_id, segment
+from snapshots.clientes_snapshot
+where dbt_valid_from <= date '2026-02-15'
+  and (dbt_valid_to is null or dbt_valid_to > date '2026-02-15');
+```
+
+## Trade-offs y cuándo usarlo
+
+- **Incremental frente a tabla completa:** el incremental ahorra cómputo pero añade complejidad y riesgo de divergencia; la tabla completa es simple y siempre correcta.
+- **`merge` frente a `delete+insert` frente a `insert_overwrite`:** `merge` es flexible y puede ser caro; `insert_overwrite` es muy eficiente si se particiona por fecha; `delete+insert` es el recurso cuando no hay `merge`.
+- **Microbatch frente a incremental clásico:** microbatch simplifica backfills y reintentos a costa de requerir `event_time` y más consultas pequeñas.
+- **Snapshot frente a tabla de hechos con histórico en origen:** si la fuente ya guarda el historial, aprovéchalo; el snapshot lo reconstruye desde cero y solo desde que lo activas.
+- **`timestamp` frente a `check`:** el primero es más barato y robusto; el segundo es el único recurso sin `updated_at` fiable.
+
+## Errores comunes
+
+- **Incremental sin `unique_key`**, que duplica filas al reejecutar.
+- **Filtro `>` sin solape** y pérdida de filas con la misma marca o tardías.
+- **No reconstruir nunca** y arrastrar errores antiguos sin saberlo.
+- **Esperar que un snapshot reconstruya el pasado:** solo guarda lo que ve desde que se activa.
+- **Snapshotear tablas enormes y volátiles** (eventos) en lugar de dimensiones pequeñas.
+- **Optimizar sin medir**, o sacrificar legibilidad por micro-mejoras.
+- **Ignorar los borrados físicos** en la fuente.
+
+## Con IA
+
+Un asistente escribe un modelo incremental correcto en sintaxis pero casi siempre con `>` estricto, sin solape y sin `unique_key`. Pídele que explique qué ocurre con las filas tardías y las modificadas, que incluya una prueba que compare el resultado incremental con el completo y que proponga una reconstrucción periódica. Verifica que usa la sintaxis de tu versión para snapshots (YAML frente a bloques Jinja antiguos).
+
+## En una entrevista
+
+- _"¿Cuándo usarías un modelo incremental y qué riesgos tiene?"_ — Pista: tablas grandes; unique_key, solape, idempotencia; divergencia y reconstrucción periódica.
+- _"¿Cómo guardas el historial de cambios de un cliente?"_ — Pista: SCD2 / snapshot; valid_from y valid_to; estrategia timestamp o check; punto en el tiempo.
+- _"El modelo tarda cuatro horas. ¿Qué miras?"_ — Pista: datos leídos, partición/orden, materialización, incremental, plan de ejecución.
+
+<KeyTakeaways
+  items={[
+    'Un modelo incremental procesa solo lo nuevo: necesita una columna de seguimiento, un solape para las filas tardías y una unique_key para que releer no duplique; su riesgo es divergir en silencio de la fuente.',
+    'Las estrategias (append, merge, delete+insert, insert_overwrite y microbatch) se eligen por el almacén y el patrón de datos; microbatch divide el trabajo en lotes de tiempo idempotentes sin escribir is_incremental().',
+    'Un snapshot SCD2 conserva cada versión de una fila con dbt_valid_from y dbt_valid_to; no edita, cierra e inserta; solo ve el estado cuando se ejecuta.',
+    'En el lab, 2.000 clientes dan 2.003 filas tras tres ejecuciones (1.999 vigentes) y permiten reconstruir el segmento de cada cliente en cualquier fecha.',
+    'Optimiza leyendo menos y procesando solo lo nuevo, después de medir; programa reconstrucciones periódicas y conciliaciones para no confiar a ciegas en lo incremental.',
+  ]}
+/>

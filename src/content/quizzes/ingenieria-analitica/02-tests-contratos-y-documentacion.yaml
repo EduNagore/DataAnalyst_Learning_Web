@@ -1,0 +1,62 @@
+lesson: ingenieria-analitica/02-tests-contratos-y-documentacion
+questions:
+  - id: ia-02-q1
+    type: multiple
+    difficulty: 1
+    prompt: 'Selecciona TODOS los tests de datos genéricos incluidos en dbt.'
+    options:
+      - 'unique'
+      - 'not_null'
+      - 'accepted_values'
+      - 'relationships'
+    answer: [0, 1, 2, 3]
+    explanation: 'dbt incluye cuatro tests genéricos: unicidad, no nulos, valores aceptados e integridad referencial entre modelos.'
+    ref: '#tests-de-datos'
+
+  - id: ia-02-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Qué distingue a un test unitario de un test de datos?'
+    options:
+      - 'El unitario valida la lógica SQL con entradas estáticas antes de materializar el modelo; el de datos comprueba el contenido real tras construirlo'
+      - 'No hay diferencia'
+      - 'El unitario se ejecuta siempre en producción'
+      - 'El de datos solo funciona con Python'
+    answer: [0]
+    explanation: 'Los unitarios se recomiendan solo en desarrollo e integración continua; los tests de datos sí se ejecutan en producción porque el dato cambia.'
+    ref: '#tests-unitarios'
+
+  - id: ia-02-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODOS los cambios que rompen un contrato de modelo.'
+    options:
+      - 'Eliminar una columna'
+      - 'Cambiar el tipo de una columna'
+      - 'Quitar una restricción not_null'
+      - 'Añadir una columna nueva opcional'
+    answer: [0, 1, 2]
+    explanation: 'Añadir una columna es compatible con los consumidores existentes; eliminar, cambiar el tipo o relajar una restricción no lo es.'
+    ref: '#contratos-de-modelo'
+
+  - id: ia-02-q4
+    type: single
+    difficulty: 2
+    prompt: 'Contrato y test de datos: ¿cuál es la diferencia?'
+    options:
+      - 'El contrato vigila la forma (columnas y tipos) y falla antes de crear la tabla; el test vigila el contenido y se ejecuta después'
+      - 'El contrato vigila el contenido y el test la forma'
+      - 'Son lo mismo'
+      - 'El contrato solo sirve para fuentes'
+    answer: [0]
+    explanation: 'Se usan juntos: el contrato protege a quien consume la tabla y los tests la calidad de lo que contiene.'
+    ref: '#contratos-de-modelo'
+
+  - id: ia-02-q5
+    type: numeric
+    difficulty: 2
+    prompt: 'El acuerdo de nivel de servicio de una fuente es de 24 horas y la recomendación es comprobar la frescura al menos al doble de frecuencia. ¿Cada cuántas horas como máximo?'
+    answer: [12]
+    tolerance: 0
+    explanation: 'Con un SLA de un día, se comprueba cada doce horas (con un SLA de una hora, cada 30 minutos).'
+    ref: '#frescura-de-las-fuentes'

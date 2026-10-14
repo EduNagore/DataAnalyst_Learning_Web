@@ -1,0 +1,203 @@
+---
+title: 'Git, revisión de SQL, integración continua y el ecosistema dbt'
+description: 'Cómo trabajar en equipo con transformaciones de datos: ramas y pull requests, qué revisar en el SQL de otra persona, integración continua que construye solo lo modificado en un esquema temporal, entornos, y el panorama vigente (dbt v2 y Fusion, la fusión Fivetran + dbt Labs y alternativas como SQLMesh).'
+module: ingenieria-analitica
+order: 4
+level: avanzado
+estimatedMinutes: 45
+objectives:
+  - 'Describir un flujo de trabajo con ramas, pull requests y revisión de código aplicado a SQL y modelos de datos.'
+  - 'Explicar cómo una integración continua para datos construye y prueba solo lo modificado y sus dependientes en un esquema temporal.'
+  - 'Aplicar una lista de comprobación para revisar un cambio de SQL (grano, uniones, pruebas, coste, nombres).'
+  - 'Situar el estado del ecosistema (dbt v1 y v2, Fusion, Fivetran + dbt Labs, SQLMesh) y decidir con criterios en lugar de modas.'
+prerequisites: ['ingenieria-analitica/03-incrementales-snapshots-y-rendimiento']
+tools: ['sql']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'dbt — Continuous integration (CI) jobs'
+    url: 'https://docs.getdbt.com/docs/deploy/continuous-integration'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'dbt — dbt Core v2 is here (alpha)'
+    url: 'https://docs.getdbt.com/blog/dbt-core-v2-is-here'
+    type: blog
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'Fivetran — Fivetran and dbt Labs complete merger'
+    url: 'https://www.fivetran.com/press/fivetran-dbt-labs-complete-merger-to-create-the-data-infrastructure-for-trusted-ai-agents'
+    type: blog
+    authors: 'Fivetran'
+    year: 2026
+  - title: 'Fivetran — Fivetran acquires Tobiko Data (SQLMesh y SQLGlot)'
+    url: 'https://www.fivetran.com/press/fivetran-acquires-tobiko-data-to-power-the-next-generation-of-advanced-ai-ready-data-transformation'
+    type: blog
+    authors: 'Fivetran'
+    year: 2025
+relatedLabs: ['py-dag-de-modelos-dbt']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Dos analistas de Lumen modificaron a la vez el modelo de ingresos. Uno cambió el filtro de pedidos
+  cancelados; el otro, la unión con las devoluciones. Se fusionaron los dos cambios sin revisar, el
+  panel multiplicó por dos los ingresos de un canal y nadie supo quién tuvo la culpa ni cómo volver
+  atrás. Quieren un proceso donde cada cambio se revise, se pruebe automáticamente y se pueda
+  revertir.
+</BusinessContext>
+
+## Intuición
+
+Escribir un documento entre varias personas con control de cambios: cada una propone modificaciones en su copia, otra las revisa, un corrector automático detecta erratas antes de unir los textos y todo cambio puede deshacerse. El **código de datos** merece el mismo cuidado que el del software, con una diferencia: un error no «rompe la aplicación», sino que cambia una cifra y nadie lo nota hasta que alguien decide con ella.
+
+## Cómo funciona
+
+### Ramas, pull requests y revisión
+
+El flujo habitual con Git es:
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+    A["main<br/>(producción)"] --> B["rama de trabajo<br/>feat/ingresos-netos"]
+    B --> C["pull request"]
+    C --> D["CI: construir y probar<br/>lo modificado"]
+    D --> E["revisión<br/>de otra persona"]
+    E --> F["fusión a main"]
+    F --> G["despliegue<br/>a producción"]`}
+  alt="Flujo de trabajo con Git para transformaciones: se parte de main, se crea una rama de trabajo, se abre un pull request, la integración continua construye y prueba lo modificado, otra persona revisa, se fusiona a main y se despliega a producción."
+/>
+
+- **Rama por cambio,** pequeña y con un propósito.
+- **Pull request (PR)** con la descripción del cambio, el porqué y cómo se ha comprobado.
+- **Revisión por otra persona** antes de fusionar; nadie aprueba su propio cambio.
+- **`main` siempre desplegable:** lo que está ahí es lo que corre en producción.
+
+### Qué revisar en un cambio de SQL
+
+| Pregunta                                     | Qué buscar                                                                                   |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| **¿Cambia el grano?**                        | Una unión que multiplica filas (relación 1:N) o una agregación que las pierde                |
+| **¿Las uniones son correctas?**              | Tipo de unión, claves, nulos que descartan filas en un `INNER JOIN`                          |
+| **¿Hay pruebas?**                            | Clave única y no nula, relaciones, valores aceptados; pruebas unitarias para la lógica nueva |
+| **¿Se respeta la estructura?**               | Capas, prefijos, `ref` y `source` (sin nombres de tabla a mano)                              |
+| **¿Rompe a alguien?**                        | Columnas eliminadas o renombradas, cambios de tipo (contratos)                               |
+| **¿Cuánto cuesta?**                          | Lecturas completas, `select *`, uniones cartesianas, materialización                         |
+| **¿La métrica sigue significando lo mismo?** | Definición de «ingresos», «cliente activo»; cifras antes y después                           |
+| **¿Es legible?**                             | Nombres claros, CTE con propósito, comentarios del «por qué»                                 |
+
+Una buena práctica es incluir en el PR una **comparación de resultados** (recuentos y sumas antes y después) para que quien revisa vea el efecto del cambio en las cifras.
+
+### Integración continua (CI) para datos
+
+La CI automatiza la comprobación antes de fusionar. En dbt, un trabajo de CI usa el **estado de producción** para saber qué ha cambiado: construye y prueba **solo los modelos modificados en el PR y sus dependientes** (`state:modified+`) en un **esquema temporal único para ese PR**, que se borra al cerrarse o fusionarse. Los resultados se publican en el propio PR.
+
+```bash
+# Idea de un trabajo de CI (ilustrativo)
+dbt build --select state:modified+ --defer --state ./artefactos-produccion
+```
+
+`--defer` permite que los modelos no modificados se lean de producción en lugar de reconstruirse, lo que ahorra tiempo y dinero. En el lab calculas el conjunto de modelos afectados por un cambio con el DAG: si cambia `stg_orders`, son seis de los nueve modelos.
+
+```yaml
+# .github/workflows/ci.yml (esquema ilustrativo)
+on: pull_request
+jobs:
+  dbt-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install dbt-duckdb
+      - run: dbt build --select state:modified+ --defer --state prod-artifacts
+```
+
+Complementos habituales: un **linter de SQL** (como SQLFluff) para unificar el estilo, comprobaciones de documentación (todo modelo con descripción) y un límite de coste del trabajo de CI.
+
+### Entornos y despliegue
+
+- **Desarrollo:** cada persona con su esquema personal y una muestra de los datos.
+- **CI / staging:** un esquema por PR, con datos reales o una copia reducida.
+- **Producción:** construida solo desde `main`, con un orquestador (lección 3 del módulo anterior) y alertas.
+- **Secretos y permisos:** credenciales fuera del repositorio; el trabajo de CI solo tiene permiso de escritura sobre sus esquemas temporales.
+- **Reversión:** al estar todo en Git, deshacer es revertir el cambio y reconstruir; los snapshots y las instantáneas de tabla ayudan a recuperar datos.
+
+### El ecosistema, a fecha de hoy
+
+<Snapshot date="2026-10">
+  **dbt:** la documentación distingue dbt v1 (Python; v1.11 en soporte crítico y v1.12, de julio de
+  2026, en soporte activo) y dbt v2 (motor Rust Fusion, con fecha de lanzamiento del 14 de
+  septiembre de 2026 en la tabla oficial de versiones). dbt Core v2 se anunció en alfa el 1 de junio
+  de 2026 bajo licencia Apache 2.0, con la recomendación de migrar primero a la v1.12 y comprobar el
+  proyecto con `dbt parse --use-v2-parser`; el anuncio menciona también la herramienta `dbt-autofix`
+  para ayudar en la migración. **Mercado:** Fivetran y dbt Labs completaron su fusión el 1 de junio
+  de 2026 y operan como «Fivetran + dbt Labs». Fivetran adquirió en septiembre de 2025 Tobiko Data,
+  la empresa de código abierto detrás de **SQLMesh** y SQLGlot, otra herramienta de transformación
+  que, según la nota de prensa, ofrece entornos de desarrollo integrados y comprensión semántica del
+  SQL. Los planes, licencias y funciones de pago cambian: antes de elegir, lee la documentación y la
+  licencia vigentes, y valora el riesgo de dependencia de un proveedor.
+</Snapshot>
+
+Criterios para elegir, más allá de la moda: **madurez y comunidad** (documentación, adaptadores, personas que lo conocen), **licencia y apertura**, **encaje con tu almacén** y orquestador, **coste total** (licencias y tiempo de ingeniería) y **facilidad de adopción por el equipo**. dbt es la opción más extendida; SQLMesh, otras herramientas y los modelos nativos del almacén (vistas materializadas, tablas dinámicas) son alternativas válidas en contextos concretos.
+
+<Callout type="note">
+  La herramienta cambia más rápido que los principios. Si dominas el grafo de dependencias, las
+  pruebas, los contratos, la idempotencia y la revisión de cambios, migrar de una herramienta a otra
+  es cuestión de sintaxis. Y, con asistentes de IA que escriben SQL, estas barreras (pruebas,
+  revisión, CI) son lo que separa un cambio acelerado de un error acelerado.
+</Callout>
+
+## En la práctica
+
+1. **Protege `main`:** sin fusiones directas; requiere PR, CI en verde y una aprobación.
+2. **Haz PR pequeños** y describe el efecto en las cifras (recuentos antes y después).
+3. **Automatiza lo mecánico:** formato, linter, `dbt build` de lo modificado, comprobación de documentación.
+4. **Usa esquemas temporales por PR** y bórralos al cerrar.
+5. **Separa permisos** por entorno; credenciales fuera del repositorio.
+6. **Documenta el proceso** (cómo abrir un PR, qué se revisa, cómo se despliega).
+7. **Revisa el ecosistema** una vez al año: versión, licencia, soporte y alternativas.
+
+## Trade-offs y cuándo usarlo
+
+- **CI completa frente a selectiva:** reconstruir todo es lo más seguro y lo más caro; `state:modified+` con `--defer` es rápido pero depende de que el estado de producción esté al día.
+- **Revisión estricta frente a rapidez:** más revisión evita errores y frena el cambio; ajusta el rigor al riesgo del modelo (un mart del consejo no es una exploración).
+- **Una herramienta de transformación frente a varias:** estandarizar simplifica; mezclar suele crear fricción.
+- **Gestionado frente a autoalojado:** lo gestionado reduce la operación y suma coste y dependencia.
+- **Adoptar lo nuevo frente a esperar:** una versión recién publicada puede tener cambios incompatibles; pilota en un proyecto no crítico.
+
+## Errores comunes
+
+- **Fusionar sin revisión ni CI** «porque es solo un cambio pequeño».
+- **PR enormes** que nadie puede revisar de verdad.
+- **CI que tarda una hora** y se salta, o que no prueba nada relevante.
+- **Probar en producción** o con credenciales de producción en desarrollo.
+- **No mirar el efecto del cambio en las cifras**, solo que «compila».
+- **Migrar de versión sin leer los cambios incompatibles** ni probar con un proyecto piloto.
+- **Elegir herramienta por popularidad** sin valorar licencia, coste ni encaje.
+
+## Con IA
+
+Los agentes de código pueden abrir PR de dbt completos. La revisión humana sigue siendo obligatoria: pide que cada PR incluya la comparación de cifras antes y después, que no modifique pruebas para que pasen y que respete la estructura de capas. Configura la CI como árbitro: si las pruebas fallan, el PR no se fusiona, lo haya escrito una persona o un agente. Y no des a un agente permisos de escritura en producción.
+
+## En una entrevista
+
+- _"¿Cómo revisarías un PR que cambia un modelo de ingresos?"_ — Pista: grano, uniones, pruebas, comparación de cifras antes y después, impacto en consumidores, coste.
+- _"¿Qué hace una CI de dbt?"_ — Pista: construye y prueba solo lo modificado y sus dependientes en un esquema temporal por PR; defer; resultados en el PR.
+- _"¿dbt o SQLMesh?"_ — Pista: criterios (madurez, licencia, encaje, coste) en lugar de preferencias; ambos con comprensión del SQL; riesgo de dependencia.
+
+<KeyTakeaways
+  items={[
+    'El código de datos se trabaja como software: rama por cambio, pull request, revisión por otra persona, CI en verde y main siempre desplegable.',
+    'La CI de dbt construye y prueba solo los modelos modificados y sus dependientes (state:modified+) en un esquema temporal por PR; en el proyecto de ejemplo de Lumen, un cambio en stg_orders afecta a seis de nueve modelos.',
+    'Revisar SQL es revisar grano, uniones, pruebas, estructura, impacto en consumidores, coste y significado de las métricas, con una comparación de cifras antes y después.',
+    'A octubre de 2026, dbt v2 (motor Rust Fusion, Apache 2.0) convive con la v1.11-v1.12; Fivetran y dbt Labs se fusionaron el 1 de junio de 2026 y Fivetran adquirió Tobiko Data (SQLMesh) en 2025.',
+    'Los principios (grafo, pruebas, contratos, idempotencia, revisión) duran más que las herramientas, y son las barreras que hacen seguro delegar parte del trabajo en asistentes de IA.',
+  ]}
+/>

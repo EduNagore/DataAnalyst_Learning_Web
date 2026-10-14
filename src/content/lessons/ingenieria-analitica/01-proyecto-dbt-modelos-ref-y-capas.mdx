@@ -1,0 +1,193 @@
+---
+title: 'Un proyecto dbt: modelos, ref() y capas'
+description: 'Qué es la ingeniería analítica y cómo se organiza un proyecto dbt: modelos SQL con ref() y source(), el grafo de dependencias, las materializaciones y la estructura recomendada en capas staging, intermediate y marts, con un proyecto sobre los datos de Lumen.'
+module: ingenieria-analitica
+order: 1
+level: intermedio
+estimatedMinutes: 45
+objectives:
+  - 'Explicar qué problema resuelve dbt y qué es un modelo, una fuente (source) y una referencia (ref).'
+  - 'Estructurar un proyecto en capas staging, intermediate y marts y justificar la responsabilidad de cada una.'
+  - 'Elegir la materialización de un modelo (vista, tabla, incremental, efímero) según su uso.'
+  - 'Calcular el orden de ejecución y los modelos afectados por un cambio a partir de las dependencias.'
+prerequisites:
+  ['stack-moderno/02-ingesta-elt-y-transformacion', 'sql-iii/03-estilo-sql-y-arquitectura-medallon']
+tools: ['sql', 'python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'dbt — How we structure our dbt projects'
+    url: 'https://docs.getdbt.com/best-practices/how-we-structure/1-guide-overview'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'dbt — About the dbt Fusion engine'
+    url: 'https://docs.getdbt.com/docs/fusion/about-fusion'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'dbt — About dbt versions'
+    url: 'https://docs.getdbt.com/docs/dbt-versions/core'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+relatedLabs: ['py-dag-de-modelos-dbt']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  En Lumen hay cuarenta consultas SQL en carpetas distintas. «Ingresos del mes» se calcula de tres
+  maneras, nadie sabe cuál alimenta el panel y, cuando cambia la tabla de pedidos, se rompen
+  informes que ni se sabía que existían. Quieren tratar el SQL como se trata el software:
+  versionado, probado, documentado y con dependencias explícitas.
+</BusinessContext>
+
+## Intuición
+
+Una receta de cocina compuesta: la salsa es un ingrediente de otro plato, que a su vez va en el menú. Si cambias la salsa, debes saber qué platos se ven afectados y volver a probarlos. **dbt** (_data build tool_) es el recetario de la transformación de datos: cada plato intermedio es un **modelo** (un `SELECT`), declara de qué otros depende y la herramienta se ocupa de ejecutarlos en el orden correcto, probarlos y documentarlos.
+
+## Cómo funciona
+
+### Ingeniería analítica
+
+La **ingeniería analítica** es el trabajo entre la ingeniería de datos (que lleva los datos al almacén) y el análisis (que los consume): transformar datos crudos en **modelos fiables, documentados y reutilizables** con prácticas de software (Git, revisión de código, pruebas, integración continua). El _analytics engineer_ es quien mantiene esa capa.
+
+### Modelos, fuentes y referencias
+
+En dbt, un **modelo** es un fichero `.sql` con una sentencia `SELECT`. dbt la convierte en una vista o tabla del almacén con el nombre del fichero. Dos funciones de Jinja crean el grafo:
+
+- `{{ source('lumen', 'orders') }}`: una tabla **cruda** cargada por la ingesta (se declara en un YAML).
+- `{{ ref('stg_orders') }}`: **otro modelo** del proyecto. dbt deduce el orden de ejecución a partir de los `ref`.
+
+```sql
+-- models/staging/stg_orders.sql
+select
+    order_id,
+    customer_id,
+    cast(order_date as date) as order_date,
+    status
+from {{ source('lumen', 'orders') }}
+where status <> 'cancelado'
+```
+
+```sql
+-- models/marts/fct_orders.sql
+select order_id, customer_id, order_date, sum(ingresos) as ingresos
+from {{ ref('int_order_lines') }}
+group by 1, 2, 3
+```
+
+El conjunto de `ref` forma un **grafo acíclico dirigido (DAG)**. Un ciclo (A depende de B y B de A) es un error.
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+    S1["source<br/>orders"] --> A["stg_orders"]
+    S2["source<br/>order_items"] --> B["stg_order_items"]
+    S3["source<br/>products"] --> C["stg_products"]
+    A --> D["int_order_lines"]
+    B --> D
+    C --> D
+    D --> E["fct_orders"]
+    E --> F["mart_revenue_monthly"]
+    E --> G["dim_customers"]
+    H["stg_customers"] --> G`}
+  alt="Grafo de un proyecto dbt sobre Lumen: tres fuentes alimentan tres modelos de staging, que se unen en int_order_lines, de ahí a fct_orders, que alimenta mart_revenue_monthly y dim_customers (junto con stg_customers)."
+/>
+
+En el lab lees los `ref` y `source` de un proyecto de nueve modelos, calculas el orden de ejecución (cinco niveles, con los cuatro modelos de staging en paralelo) y los modelos afectados por un cambio: si cambia `stg_orders`, hay que reconstruir seis modelos.
+
+### Las tres capas
+
+La guía de estructura de dbt recomienda mover los datos de lo **conforme a la fuente** a lo **conforme al negocio**:
+
+| Capa             | Prefijo                 | Responsabilidad                                                                      | Reglas habituales                         |
+| ---------------- | ----------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------- |
+| **Staging**      | `stg_`                  | Bloques atómicos: renombrar, convertir tipos, filtrar basura, uno por tabla fuente   | Solo lee `source`; una fuente → un modelo |
+| **Intermediate** | `int_`                  | Pasos de lógica con propósito claro (uniones, deduplicaciones) entre staging y marts | Lee `stg_` y otros `int_`                 |
+| **Marts**        | `fct_`, `dim_`, `mart_` | Entidades de negocio listas para consumo: hechos, dimensiones, métricas              | No lee fuentes crudas directamente        |
+
+Una violación típica es un _mart_ que lee una fuente directamente, saltándose staging: duplica las reglas de limpieza y se rompe cuando cambia la fuente. Es lo que detecta la función `violaciones_de_capas` del lab.
+
+### Materializaciones
+
+La **materialización** decide cómo se guarda un modelo en el almacén:
+
+| Materialización | Qué crea                                  | Cuándo                                                      |
+| --------------- | ----------------------------------------- | ----------------------------------------------------------- |
+| `view`          | Una vista (consulta guardada)             | Staging ligero; siempre actual; sin coste de almacenamiento |
+| `table`         | Una tabla reconstruida en cada ejecución  | Modelos pesados que se consultan mucho                      |
+| `incremental`   | Una tabla que solo procesa lo nuevo       | Tablas grandes de hechos (lección 3)                        |
+| `ephemeral`     | Nada: se inyecta como CTE en quien lo usa | Lógica auxiliar pequeña, sin consulta directa               |
+
+Regla práctica: vistas en staging, tablas (o incrementales) en marts que consumen los paneles.
+
+### Ejecutar el proyecto
+
+`dbt build` ejecuta el DAG en orden: construye cada modelo y **corre sus pruebas justo después**, deteniendo lo que depende de un modelo que falla. Con `--select` se eligen modelos (`dbt build --select fct_orders+` construye ese modelo y todo lo que depende de él), lo que permite reconstruir solo lo afectado por un cambio.
+
+<Snapshot date="2026-10">
+  La documentación de dbt distingue dos generaciones: **dbt v1**, basada en Python, y **dbt v2**,
+  basada en el motor Rust _Fusion_, con núcleo de código abierto bajo licencia Apache 2.0 y
+  comprensión nativa del SQL de varios dialectos (detecta errores antes de llegar al almacén). La
+  tabla de versiones oficial indica v1.11 (diciembre de 2025), v1.12 (16 de julio de 2026) y dbt
+  v2.0 con fecha de lanzamiento del 14 de septiembre de 2026; la primera versión alfa de dbt Core v2
+  se publicó el 1 de junio de 2026, el día en que se completó la fusión de Fivetran y dbt Labs. Para
+  migrar, la documentación recomienda actualizar primero a la v1.12. Comprueba siempre la versión y
+  los requisitos del adaptador de tu almacén antes de actualizar.
+</Snapshot>
+
+## En la práctica
+
+1. **Crea una fuente por tabla cruda** (YAML) y un modelo `stg_` por fuente, con renombrados y tipos explícitos.
+2. **Mantén la lógica de negocio en un solo sitio:** una definición de «ingresos» en `fct_orders`, no copiada en cada informe.
+3. **Un modelo, una responsabilidad:** si un modelo tiene diez CTE y tres uniones, divídelo en `int_`.
+4. **Nombra de forma coherente** (`stg_`, `int_`, `fct_`, `dim_`) y documenta la convención.
+5. **Elige la materialización** por uso y coste, y revísala si el tiempo de ejecución crece.
+6. **Ejecuta solo lo afectado** (`--select modelo+`) durante el desarrollo y la integración continua.
+7. **Pasa las dependencias por `ref`, nunca por nombre de tabla escrito a mano:** así dbt conoce el grafo y puede cambiar el esquema por entorno.
+
+## Trade-offs y cuándo usarlo
+
+- **dbt frente a vistas SQL sueltas:** dbt añade dependencias explícitas, pruebas, documentación y entornos; para tres consultas es excesivo, para decenas es imprescindible.
+- **Pocas capas frente a muchas:** tres bastan en la mayoría de proyectos; más capas dan flexibilidad y ceremonia.
+- **Vista frente a tabla:** una vista siempre está al día pero repite el cómputo en cada consulta; una tabla paga el cómputo una vez por ejecución.
+- **Modelos pequeños frente a grandes:** los pequeños se prueban y reutilizan mejor, pero multiplican ficheros y objetos en el almacén.
+- **SQL con Jinja frente a SQL puro:** Jinja permite macros y condiciones, pero en exceso vuelve ilegible la consulta.
+
+## Errores comunes
+
+- **Escribir nombres de tabla a mano** en lugar de `ref()` y `source()`.
+- **Marts que leen fuentes crudas** saltándose staging.
+- **Lógica duplicada** en varios modelos (la misma definición de «cliente activo» en cinco sitios).
+- **Ciclos entre modelos** o modelos «dios» de cientos de líneas.
+- **Todo materializado como tabla** (coste y tiempo) o todo como vista (rendimiento).
+- **Sin convención de nombres** ni documentación de qué es cada capa.
+- **Cambiar un modelo sin saber qué depende de él.**
+
+## Con IA
+
+Un asistente genera modelos dbt correctos en sintaxis, pero suele ignorar la estructura del proyecto: pone todo en una capa, lee fuentes desde marts o repite lógica que ya existe. Dale el DAG y la convención de nombres, pídele que use `ref`/`source` y que no cree un modelo nuevo si ya hay uno que sirve. Con dbt v2 y los agentes de código (módulo de IA), conviene revisar los cambios con las pruebas de la siguiente lección.
+
+## En una entrevista
+
+- _"¿Qué es dbt y qué problema resuelve?"_ — Pista: transformaciones SQL como código; dependencias con ref, pruebas, documentación, versionado.
+- _"¿Para qué sirven las capas staging, intermediate y marts?"_ — Pista: de conforme a la fuente a conforme al negocio; una responsabilidad por capa; reglas de lectura.
+- _"Cambia una tabla fuente. ¿Cómo sabes qué se rompe?"_ — Pista: grafo de dependencias, `state:modified+`/`--select modelo+`, pruebas, linaje.
+
+<KeyTakeaways
+  items={[
+    'dbt trata cada transformación como un modelo SQL versionable; ref() y source() construyen el grafo de dependencias y dbt ejecuta, prueba y documenta en el orden correcto.',
+    'La estructura recomendada va de staging (uno por fuente, solo lee source) a intermediate (lógica con propósito) y marts (entidades de negocio que no leen fuentes crudas).',
+    'La materialización decide coste y frescura: vistas en staging, tablas o incrementales en marts de uso frecuente, efímeros para lógica auxiliar.',
+    'Un proyecto de nueve modelos sobre Lumen tiene cinco niveles de ejecución; si cambia stg_orders hay que reconstruir seis modelos, y el grafo permite saberlo.',
+    'dbt v2 (motor Rust Fusion, Apache 2.0) convive con la rama v1; verifica la versión vigente y el adaptador antes de migrar.',
+  ]}
+/>

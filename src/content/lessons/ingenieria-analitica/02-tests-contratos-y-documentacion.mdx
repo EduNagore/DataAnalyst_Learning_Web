@@ -1,0 +1,238 @@
+---
+title: 'Tests, contratos y documentación en dbt'
+description: 'Cómo hacer fiable la capa de transformación: tests de datos (genéricos y singulares), tests unitarios de lógica, contratos de modelo con detección de cambios que rompen, frescura de las fuentes y documentación con linaje, con una estrategia de qué probar y dónde.'
+module: ingenieria-analitica
+order: 2
+level: intermedio
+estimatedMinutes: 50
+objectives:
+  - 'Distinguir tests de datos genéricos y singulares, tests unitarios y contratos de modelo, y saber qué detecta cada uno.'
+  - 'Escribir las pruebas mínimas de un modelo (unicidad, no nulos, valores aceptados, relaciones) y configurar su severidad.'
+  - 'Declarar un contrato de modelo y reconocer los cambios que rompen a los consumidores.'
+  - 'Configurar la frescura de una fuente y documentar un modelo para que el linaje sea explorable.'
+prerequisites:
+  [
+    'ingenieria-analitica/01-proyecto-dbt-modelos-ref-y-capas',
+    'limpieza-calidad/04-validacion-y-contratos-de-datos',
+  ]
+tools: ['sql', 'python']
+volatility: high
+lastReviewed: 2026-10-14
+sources:
+  - title: 'dbt — Add data tests to your DAG'
+    url: 'https://docs.getdbt.com/docs/build/data-tests'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'dbt — Unit tests'
+    url: 'https://docs.getdbt.com/docs/build/unit-tests'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'dbt — Model contracts'
+    url: 'https://docs.getdbt.com/docs/mesh/govern/model-contracts'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+  - title: 'dbt — Source freshness'
+    url: 'https://docs.getdbt.com/docs/deploy/source-freshness'
+    type: docs
+    authors: 'dbt Labs'
+    year: 2026
+relatedLabs: ['py-contratos-de-datos']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Snapshot from '../../../components/content/Snapshot.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Un martes el panel de ingresos de Lumen muestra un 12 % menos y la reunión de dirección empieza a
+  las 9:00. Tras dos horas se descubre que una carga duplicó pedidos y que otro cambio convirtió
+  `shipping_cost` en texto. Nadie lo había probado. Quieren una red de seguridad: que el problema se
+  detecte al construir el modelo, no al abrir el panel.
+</BusinessContext>
+
+## Intuición
+
+Un avión no despega sin lista de comprobación: no confías en que el piloto «se acuerde de todo». Los tests de datos son la lista del **dato** (¿hay duplicados?, ¿faltan valores?), los tests unitarios comprueban la **lógica** (¿esta fórmula hace lo que dice?), el contrato fija **la forma** que prometes a quien consume tu tabla, y la frescura vigila que la **entrada** llegue a tiempo.
+
+## Cómo funciona
+
+### Tests de datos
+
+Un **test de datos** es una consulta que devuelve las filas que **incumplen** una expectativa: si devuelve alguna, el test falla. Hay dos tipos:
+
+- **Genéricos:** plantillas parametrizadas que se aplican por YAML a una columna o un modelo. dbt incluye cuatro: `unique`, `not_null`, `accepted_values` y `relationships` (integridad referencial).
+- **Singulares:** una consulta SQL propia en la carpeta `tests/` que devuelve las filas problemáticas.
+
+```yaml
+models:
+  - name: stg_orders
+    columns:
+      - name: order_id
+        data_tests:
+          - unique
+          - not_null
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['completado', 'devuelto_parcial', 'cancelado']
+      - name: customer_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+```
+
+```sql
+-- tests/assert_importe_no_negativo.sql  (singular: devuelve las filas que fallan)
+select order_id, sum(ingresos) as total
+from {{ ref('fct_orders') }}
+group by 1
+having sum(ingresos) < 0
+```
+
+Cada test admite **severidad** (`error` detiene la construcción; `warn` solo avisa) y umbrales (`warn_if`, `error_if`), útiles para tolerar un pequeño porcentaje de excepciones conocidas.
+
+### Tests unitarios
+
+Los **tests unitarios** (desde dbt 1.8) validan la **lógica SQL** de un modelo con unas pocas filas de entrada estáticas y la salida esperada, **antes** de materializar el modelo completo:
+
+```yaml
+unit_tests:
+  - name: test_pedido_grande
+    model: fct_orders
+    given:
+      - input: ref('int_order_lines')
+        rows:
+          - { order_id: o1, customer_id: c1, order_date: '2026-03-01', ingresos: 150 }
+          - { order_id: o1, customer_id: c1, order_date: '2026-03-01', ingresos: 100 }
+    expect:
+      rows:
+        - { order_id: o1, customer_id: c1, order_date: '2026-03-01', ingresos: 250 }
+```
+
+Conviene escribirlos para lógica compleja (expresiones regulares, matemática de fechas, funciones de ventana, `case when` con muchas ramas), para errores que ya ocurrieron, casos límite que aún no aparecen en los datos y antes de refactorizar. La documentación de dbt recomienda ejecutarlos solo en desarrollo e integración continua: las entradas son estáticas y en producción no aportan información.
+
+### Contratos de modelo
+
+Un **contrato** declara las columnas de un modelo, sus tipos y restricciones. Si el resultado no coincide, la construcción **falla antes de publicar**:
+
+```yaml
+models:
+  - name: fct_orders
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: order_id
+        data_type: string
+        constraints:
+          - type: not_null
+      - name: ingresos
+        data_type: double
+```
+
+dbt hace dos comprobaciones: una **validación previa** (los nombres y tipos de la consulta coinciden con el contrato, sin importar el orden) y la **imposición en el DDL** (los tipos y restricciones viajan a la sentencia que crea la tabla). Se consideran **cambios que rompen** a los consumidores: eliminar una columna, cambiar su tipo, quitar o modificar una restricción y eliminar el modelo. Solo se aplican a modelos SQL materializados como tabla, vista o incremental.
+
+En el lab implementas ese mecanismo: el contrato del modelo de pedidos limpios se cumple, pero el export crudo incumple tres cláusulas (580 nulos en `device` y dos columnas, `order_date` y `shipping_cost`, que llegan como texto), y una función compara dos versiones del contrato para listar qué cambios rompen.
+
+<Callout type="note">
+  Test y contrato no son lo mismo. El **contrato** vigila la _forma_ (columnas y tipos) y falla
+  antes de crear la tabla; el **test de datos** vigila el _contenido_ y se ejecuta después. Úsalos
+  juntos: el contrato protege a quien consume; los tests protegen la calidad de lo que contiene.
+</Callout>
+
+### Frescura de las fuentes
+
+La **frescura** (_freshness_) comprueba que los datos crudos se han cargado a tiempo:
+
+```yaml
+sources:
+  - name: lumen
+    tables:
+      - name: orders
+        loaded_at_field: _cargado_en
+        freshness:
+          warn_after: { count: 12, period: hour }
+          error_after: { count: 24, period: hour }
+```
+
+Se ejecuta con `dbt source freshness`. La recomendación es comprobarla al menos al doble de frecuencia del acuerdo de nivel de servicio más exigente (con un SLA de un día, cada doce horas).
+
+### Documentación y linaje
+
+Las descripciones de modelos y columnas viven en el mismo YAML que los tests. dbt genera con ellas un sitio de documentación navegable con el **linaje**: de qué fuentes y modelos procede cada tabla y qué consume cada modelo. Documentar la definición de cada métrica cerca del código evita las discusiones de «¿qué significa cliente activo?» y es el contexto que las herramientas de IA aprovechan después (módulo de capa semántica).
+
+### Qué probar y dónde
+
+| Capa / elemento              | Pruebas mínimas                                                                              |
+| ---------------------------- | -------------------------------------------------------------------------------------------- |
+| Fuentes                      | Frescura; `not_null` y `unique` de la clave si la fuente lo garantiza                        |
+| Staging                      | Clave primaria `unique` + `not_null`; `accepted_values` en estados                           |
+| Intermediate                 | Pruebas de la lógica compleja (unitarias); el grano no cambia tras las uniones               |
+| Marts (hechos y dimensiones) | Clave `unique`; `relationships` con dimensiones; contrato; pruebas de negocio (ingresos ≥ 0) |
+| Métricas clave               | Conciliación con la fuente de verdad (suma de ingresos frente a contabilidad)                |
+
+<Snapshot date="2026-10">
+  La sintaxis de los tests de datos en YAML pasó a anidar los parámetros bajo `arguments:` (por
+  ejemplo, `accepted_values: arguments: values: [...]`); la clave `data_tests` sustituye a la
+  antigua `tests`. Los tests unitarios existen desde dbt 1.8 y los contratos se aplican a modelos
+  SQL de tipo tabla, vista o incremental. Con dbt v2 las comprobaciones de esquema pueden hacerse
+  antes de llegar al almacén gracias a la comprensión nativa de SQL del motor Fusion. Revisa la
+  documentación de tu versión antes de copiar un ejemplo.
+</Snapshot>
+
+## En la práctica
+
+1. **Empieza por lo barato:** `unique` y `not_null` en cada clave primaria, `relationships` en las claves foráneas, `accepted_values` en los estados.
+2. **Pon contrato** a los modelos que otros consumen (marts, modelos compartidos).
+3. **Escribe pruebas unitarias** para la lógica con ramas, fechas y ventanas, y para cada error que ya ocurrió.
+4. **Decide la severidad:** `error` para lo que invalida el dato; `warn` (con umbral) para tolerancias conocidas.
+5. **Vigila la frescura** de las fuentes críticas y alerta a un responsable.
+6. **Documenta** descripciones de modelos y columnas, empezando por las métricas.
+7. **Ejecuta `dbt build` en CI** para que ningún cambio llegue a producción sin pasar las pruebas (lección 4).
+
+## Trade-offs y cuándo usarlo
+
+- **Muchos tests frente a pocos:** más cobertura detecta más, pero cada test cuesta cómputo y puede generar falsas alarmas; empieza por las claves y por lo crítico.
+- **Error frente a aviso:** un error que detiene el pipeline protege el dato pero puede dejar el panel sin actualizar; un aviso nunca bloquea y suele ignorarse.
+- **Contrato estricto frente a flexible:** el contrato evita sorpresas pero obliga a versionar cada cambio de esquema.
+- **Pruebas en producción frente a solo en CI:** las unitarias solo en CI; los tests de datos sí en producción, porque el dato cambia.
+- **Documentar en el YAML frente a una wiki aparte:** en el YAML se mantiene junto al código; una wiki se desactualiza.
+
+## Errores comunes
+
+- **No probar la clave primaria** de los modelos de hechos y descubrir duplicados en el panel.
+- **Tests que siempre fallan** y se ignoran (fatiga de alertas): corrige la causa o ajusta el umbral.
+- **Confundir test y contrato** y no usar ninguno de los dos para los modelos compartidos.
+- **No probar el grano** después de una unión (un `join` que multiplica filas).
+- **Copiar la sintaxis de tutoriales antiguos** (`tests:` sin `arguments`) sin comprobar la versión.
+- **Medir la calidad solo con el número de tests**, no con lo que cubren.
+- **Documentar el «qué» y no el «por qué»** de cada definición.
+
+## Con IA
+
+Un asistente genera tests YAML a granel: `unique` y `not_null` en todas las columnas, incluidas las que no deben cumplirlo, lo que produce ruido. Pídele que proponga pruebas a partir de la clave y las reglas de negocio reales, y que explique qué falla si se rompe cada una. Para los tests unitarios, exige casos límite (nulos, fechas de borde, duplicados) y no solo el camino feliz. Verifica que usa la sintaxis de tu versión.
+
+## En una entrevista
+
+- _"¿Qué tests pondrías a un modelo de pedidos?"_ — Pista: unicidad y no nulos de la clave, relaciones con clientes, valores aceptados de estado, importes no negativos, frescura de la fuente.
+- _"¿Qué diferencia hay entre un test de datos y un test unitario?"_ — Pista: contenido del dato real frente a lógica con entradas estáticas; cuándo se ejecuta cada uno.
+- _"¿Qué es un contrato de modelo y qué cambios lo rompen?"_ — Pista: columnas, tipos y restricciones declarados; eliminar/cambiar tipo/quitar restricción; falla antes de publicar.
+
+<KeyTakeaways
+  items={[
+    'Los tests de datos (genéricos unique, not_null, accepted_values, relationships, y singulares en SQL) devuelven las filas que incumplen una expectativa; los tests unitarios comprueban la lógica con entradas estáticas y los contratos fijan la forma del modelo.',
+    'Un contrato falla antes de publicar si las columnas, los tipos o las restricciones no coinciden; eliminar una columna, cambiar su tipo o quitar una restricción son cambios que rompen a los consumidores.',
+    'En Lumen, el contrato de pedidos limpios se cumple, pero el export crudo incumple tres cláusulas: 580 nulos en device y dos columnas que llegan como texto (order_date y shipping_cost).',
+    'La frescura de las fuentes (warn_after, error_after) y la documentación con linaje completan la red de seguridad; comprueba la frescura al menos al doble de frecuencia del SLA.',
+    'Empieza por probar claves, relaciones y estados, añade contratos a lo que otros consumen y unitarios a la lógica compleja; ejecuta los unitarios solo en desarrollo e integración continua.',
+  ]}
+/>

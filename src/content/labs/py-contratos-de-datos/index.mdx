@@ -1,0 +1,30 @@
+---
+title: 'Contratos de datos: validar un modelo y detectar cambios que rompen'
+description: 'Implementa un contrato de datos al estilo de los contratos de modelo de dbt: comprueba columnas, tipos y restricciones not_null, valida el export crudo de pedidos de Lumen contra el contrato de los pedidos limpios y detecta qué cambios entre dos versiones del contrato rompen a los consumidores.'
+language: python
+part: 'Parte V · Stack moderno e ingeniería analítica'
+module: ingenieria-analitica
+difficulty: 3
+estimatedMinutes: 35
+concepts: ['contratos de datos', 'esquema', 'tipos', 'restricciones', 'cambios incompatibles']
+datasets: ['orders', 'raw:orders']
+packages: []
+output: console
+hints:
+  - 'Tipo lógico con `pandas.api.types`: `is_bool_dtype` antes que `is_integer_dtype` (un booleano no es un entero aquí), luego `is_float_dtype`, `is_datetime64_any_dtype`; todo lo demás es «string».'
+  - 'Recorre la unión de columnas del contrato y del DataFrame en orden alfabético: falta (está en el contrato, no en los datos), sobra (al revés); si está en ambos, compara tipo y, si `not_null`, cuenta nulos con `isna().sum()`.'
+  - 'Un cambio es incompatible si elimina una columna, cambia su tipo o quita un `not_null`. Añadir columnas es compatible.'
+relatedLessons: ['ingenieria-analitica/02-tests-contratos-y-documentacion']
+businessQuestion: '¿Cumple el export crudo de pedidos lo que prometen los pedidos limpios, y qué cambios de esquema avisar a los consumidores?'
+---
+
+Un **contrato de datos** declara qué columnas tiene una tabla, de qué tipo son y cuáles no admiten nulos. Si una construcción no lo cumple, falla **antes** de publicarse. `contrato_pedidos` describe el modelo de pedidos limpios de Lumen.
+
+Implementa:
+
+1. **`tipo_logico(serie)`** → `bool`, `int`, `float`, `datetime` o `string`.
+2. **`validar_contrato(df, contrato)`** → lista de incumplimientos.
+3. **`inferir_contrato(df)`** → contrato que describe el DataFrame actual.
+4. **`cambios_incompatibles(antiguo, nuevo)`** → cambios que rompen a los consumidores.
+
+Resultado esperado: los pedidos limpios cumplen el contrato; el export crudo incumple tres cláusulas: 580 nulos en `device` y las columnas `order_date` y `shipping_cost`, que llegan como texto.

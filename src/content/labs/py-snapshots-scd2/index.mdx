@@ -1,0 +1,38 @@
+---
+title: 'Snapshots tipo 2: historial de cambios al estilo dbt'
+description: 'Implementa un snapshot de dimensión lenta tipo 2 (SCD2) como el de dbt: detección de cambios por marca de tiempo o por comparación de columnas, cierre de la versión anterior, borrados físicos y consulta del estado en una fecha pasada.'
+language: python
+part: 'Parte V · Stack moderno e ingeniería analítica'
+module: ingenieria-analitica
+difficulty: 3
+estimatedMinutes: 40
+concepts:
+  [
+    'snapshots',
+    'SCD tipo 2',
+    'dbt_valid_from',
+    'dbt_valid_to',
+    'estrategia timestamp',
+    'estrategia check',
+  ]
+datasets: ['customers']
+packages: []
+output: console
+hints:
+  - 'El historial tiene las columnas de la fuente más `dbt_valid_from` y `dbt_valid_to`. La versión vigente de cada clave es la que tiene `dbt_valid_to` nulo.'
+  - 'Estrategia timestamp: hay cambio si el `updated_at` de la fuente es posterior al de la fila vigente; la versión nueva empieza en ese `updated_at`. Estrategia check: hay cambio si alguna de `check_cols` difiere; la versión nueva empieza «ahora».'
+  - 'Al detectar un cambio, no se edita la fila antigua: se cierra (`dbt_valid_to` = inicio de la nueva) y se inserta una fila nueva con `dbt_valid_to` nulo.'
+  - 'Estado en una fecha: `dbt_valid_from <= fecha` y (`dbt_valid_to` nulo o `> fecha`).'
+relatedLessons: ['ingenieria-analitica/03-incrementales-snapshots-y-rendimiento']
+businessQuestion: '¿Cómo era un cliente (su segmento) en una fecha pasada, y cuándo cambió?'
+---
+
+La función `extracto(dia, cambios, quitar)` (ya escrita) simula la tabla de 2.000 clientes de Lumen vista por la fuente en distintos días: algunos clientes cambian de segmento y otros desaparecen.
+
+Implementa:
+
+1. **`snapshot(historial, actual, clave, ahora, estrategia, updated_at, check_cols, hard_deletes)`** → el historial actualizado tras una ejecución de `dbt snapshot`.
+2. **`vigentes(snap)`** → la versión actual de cada clave.
+3. **`en_fecha(snap, fecha)`** → la tabla tal y como era en esa fecha.
+
+Resultado esperado: tras la carga inicial (2.000 filas), dos cambios en febrero (2.002 filas) y un cambio más con un borrado en marzo (2.003 filas), hay 1.999 filas vigentes; ejecutar de nuevo el mismo extracto no añade nada, y el primer cliente fue `original → vip → habitual`.

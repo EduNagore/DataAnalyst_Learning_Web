@@ -1,0 +1,40 @@
+---
+title: 'El DAG de un proyecto dbt: ref(), orden de ejecución y CI selectivo'
+description: 'Lee las llamadas ref() y source() de los modelos SQL de un proyecto estilo dbt, construye el grafo de dependencias, calcula el orden de ejecución, los grupos paralelizables y los modelos afectados por un cambio, y detecta violaciones de la estructura por capas.'
+language: python
+part: 'Parte V · Stack moderno e ingeniería analítica'
+module: ingenieria-analitica
+difficulty: 3
+estimatedMinutes: 40
+concepts:
+  [
+    'dbt',
+    'ref y source',
+    'DAG',
+    'orden topológico',
+    'state:modified+',
+    'capas staging-intermediate-marts',
+  ]
+datasets: []
+packages: []
+output: console
+hints:
+  - 'Expresiones regulares: `ref\(\s*[''"]([^''"]+)[''"]\s*\)` captura el nombre del modelo; `source\(\s*[''"]([^''"]+)[''"]\s*,\s*[''"]([^''"]+)[''"]\s*\)`, los dos textos de una fuente. Admite comillas simples o dobles y espacios.'
+  - 'Orden topológico: repite «toma los modelos sin dependencias pendientes, ordénalos por nombre, añádelos y quítalos de las dependencias de los demás». Si en una vuelta no queda ninguno listo pero hay pendientes, hay un ciclo.'
+  - 'Los niveles son las «vueltas» de ese algoritmo: los modelos de un mismo nivel no dependen entre sí y se pueden ejecutar en paralelo.'
+  - 'Modelos afectados (`state:modified+`): parte de los cambiados y añade cualquier modelo que dependa de alguno del conjunto, hasta que no crezca.'
+relatedLessons: ['ingenieria-analitica/01-proyecto-dbt-modelos-ref-y-capas']
+businessQuestion: '¿En qué orden se construyen los modelos y cuáles hay que reconstruir cuando cambia uno?'
+---
+
+El diccionario `modelos` es un proyecto dbt en miniatura sobre Lumen: cada clave es el nombre de un modelo y cada valor, su SQL con llamadas `{{ ref('…') }}` (otro modelo) y `{{ source('…', '…') }}` (tabla cruda).
+
+Implementa:
+
+1. **`dependencias(sql)`** → `(refs, fuentes)`.
+2. **`grafo(modelos)`** → modelo → modelos de los que depende (error si un `ref` no existe).
+3. **`orden_de_ejecucion(modelos)`** y **`niveles(modelos)`** → orden topológico determinista y grupos paralelizables (error con la palabra «ciclo» si hay dependencias circulares).
+4. **`afectados(modelos, cambiados)`** → los modelos cambiados y todos sus descendientes.
+5. **`violaciones_de_capas(modelos)`** → los `stg_` solo leen fuentes; el resto nunca lee fuentes directamente.
+
+Resultado esperado: nueve modelos en cinco niveles; si cambia `stg_orders` se reconstruyen seis modelos, y `mart_customer_ltv` incumple la estructura por capas al leer una fuente directamente.

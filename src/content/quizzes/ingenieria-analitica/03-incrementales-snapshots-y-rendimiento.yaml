@@ -1,0 +1,62 @@
+lesson: ingenieria-analitica/03-incrementales-snapshots-y-rendimiento
+questions:
+  - id: ia-03-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué ocurre si un modelo incremental no define unique_key y se reejecuta sobre un periodo ya cargado?'
+    options:
+      - 'Nada: dbt deduce las claves'
+      - 'Puede duplicar filas, porque solo añade'
+      - 'Falla siempre'
+      - 'Se borra la tabla'
+    answer: [1]
+    explanation: 'Sin unique_key no hay upsert: las filas releídas se añaden de nuevo. Con unique_key la carga es idempotente.'
+    ref: '#modelos-incrementales'
+
+  - id: ia-03-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Qué ventaja tiene la estrategia microbatch?'
+    options:
+      - 'Procesa lotes de tiempo independientes e idempotentes, sin escribir is_incremental(), con reintentos y backfills sencillos'
+      - 'Elimina la necesidad de event_time'
+      - 'Solo sirve para tablas pequeñas'
+      - 'Hace que los modelos sean siempre más rápidos'
+    answer: [0]
+    explanation: 'Requiere event_time, begin y batch_size; el lookback reprocesa lotes anteriores para filas tardías. Cada lote es atómico y los backfills se piden con --event-time-start/--event-time-end.'
+    ref: '#estrategias-incrementales'
+
+  - id: ia-03-q3
+    type: single
+    difficulty: 2
+    prompt: 'Un snapshot de dbt detecta que un cliente cambia de segmento. ¿Qué hace?'
+    options:
+      - 'Sobrescribe la fila con el valor nuevo'
+      - 'Cierra la fila vigente (dbt_valid_to = inicio de la nueva) e inserta una fila nueva con dbt_valid_to nulo'
+      - 'Borra la fila antigua'
+      - 'Crea una tabla nueva por cada cambio'
+    answer: [1]
+    explanation: 'Así se conserva el historial: cada versión de la fila con su periodo de validez (SCD tipo 2).'
+    ref: '#snapshots-dimensiones-de-cambio-lento-tipo-2'
+
+  - id: ia-03-q4
+    type: numeric
+    difficulty: 2
+    prompt: 'En el lab de snapshots, 2.000 clientes dan 2.003 filas tras tres ejecuciones (dos cambios en febrero, un cambio en marzo) y un cliente desaparece de la fuente. ¿Cuántas filas vigentes hay?'
+    answer: [1999]
+    tolerance: 0
+    explanation: 'Hay 2.000 claves; una desaparece y su fila se invalida con hard_deletes. Quedan 1.999 vigentes (las filas cerradas por cambios no cuentan).'
+    ref: '#snapshots-dimensiones-de-cambio-lento-tipo-2'
+
+  - id: ia-03-q5
+    type: multiple
+    difficulty: 3
+    prompt: 'Selecciona TODOS los riesgos de depender solo de modelos incrementales.'
+    options:
+      - 'Una corrección de una fila antigua fuera del solape no llega a la tabla'
+      - 'Un filtro con > estricto sin solape pierde filas tardías o con la misma marca'
+      - 'La tabla puede divergir en silencio de la fuente si nunca se reconstruye'
+      - 'Que al reejecutar con unique_key se duplique siempre la tabla entera'
+    answer: [0, 1, 2]
+    explanation: 'Con unique_key, reejecutar no duplica. Los otros tres son riesgos reales; se mitigan con solape, reconstrucciones periódicas y conciliación con la fuente.'
+    ref: '#modelos-incrementales'

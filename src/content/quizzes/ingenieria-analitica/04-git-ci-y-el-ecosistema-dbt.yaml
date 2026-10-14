@@ -1,0 +1,66 @@
+lesson: ingenieria-analitica/04-git-ci-y-el-ecosistema-dbt
+questions:
+  - id: ia-04-q1
+    type: single
+    difficulty: 1
+    prompt: '¿Qué construye y prueba un trabajo de integración continua de dbt con state:modified+?'
+    options:
+      - 'Todos los modelos del proyecto'
+      - 'Solo los modelos modificados en el pull request y sus dependientes, en un esquema temporal único para ese PR'
+      - 'Solo las fuentes'
+      - 'Únicamente los tests unitarios'
+    answer: [1]
+    explanation: 'Así se ahorra tiempo y coste; el esquema temporal se borra al cerrar o fusionar el PR y los resultados se publican en el propio PR.'
+    ref: '#integración-continua-ci-para-datos'
+
+  - id: ia-04-q2
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODO lo que conviene revisar en un pull request que cambia un modelo de ingresos.'
+    options:
+      - 'Si el cambio altera el grano (una unión que multiplica filas)'
+      - 'Si hay pruebas para la lógica nueva'
+      - 'Una comparación de cifras antes y después'
+      - 'Que el autor apruebe su propio cambio para ir más rápido'
+    answer: [0, 1, 2]
+    explanation: 'La revisión la hace otra persona. Grano, pruebas y efecto en las cifras son lo que más errores evita.'
+    ref: '#qué-revisar-en-un-cambio-de-sql'
+
+  - id: ia-04-q3
+    type: single
+    difficulty: 2
+    prompt: '¿Para qué sirve --defer en una CI de dbt?'
+    options:
+      - 'Para ignorar las pruebas'
+      - 'Para leer de producción los modelos no modificados en lugar de reconstruirlos'
+      - 'Para ejecutar los modelos en paralelo'
+      - 'Para borrar el esquema temporal'
+    answer: [1]
+    explanation: 'Ahorra tiempo y dinero, a cambio de depender de que el estado de producción esté al día.'
+    ref: '#integración-continua-ci-para-datos'
+
+  - id: ia-04-q4
+    type: single
+    difficulty: 3
+    prompt: 'A octubre de 2026, ¿cómo describe la documentación oficial la relación entre dbt v1 y v2?'
+    options:
+      - 'v1 es el motor Rust y v2 el Python'
+      - 'v1 es la generación basada en Python (v1.11, v1.12) y v2 la actual, basada en el motor Rust Fusion, con licencia Apache 2.0 en su núcleo'
+      - 'v2 y v1 son idénticas'
+      - 'v2 es solo para BigQuery'
+    answer: [1]
+    explanation: 'La documentación recomienda migrar primero a la v1.12 y comprobar el proyecto con el analizador v2. Verifica siempre la versión y el adaptador antes de actualizar.'
+    ref: '#el-ecosistema-a-fecha-de-hoy'
+
+  - id: ia-04-q5
+    type: single
+    difficulty: 3
+    prompt: 'Un agente de código abre un pull request de dbt que modifica las pruebas para que pasen. ¿Qué debería ocurrir?'
+    options:
+      - 'Fusionarlo: las pruebas ahora pasan'
+      - 'No fusionarlo sin revisión humana: modificar las pruebas para que pasen oculta el problema; la CI y la revisión son el árbitro'
+      - 'Desactivar la CI'
+      - 'Dar al agente permisos de producción'
+    answer: [1]
+    explanation: 'Las barreras (pruebas, revisión, CI) son lo que hace seguro delegar en asistentes. Un agente no debe tener permisos de escritura en producción.'
+    ref: '#el-ecosistema-a-fecha-de-hoy'
