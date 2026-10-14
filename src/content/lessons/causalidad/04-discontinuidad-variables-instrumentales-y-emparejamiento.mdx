@@ -1,0 +1,197 @@
+---
+title: 'Regresión discontinua, variables instrumentales y emparejamiento por propensión'
+description: 'Tres formas de aproximar un experimento con datos observacionales: aprovechar un umbral de asignación (regresión discontinua), una fuente de variación exógena (variables instrumentales) o comparar unidades parecidas (propensity scores, IPW y emparejamiento), y cuándo basta un análisis observacional.'
+module: causalidad
+order: 4
+level: avanzado
+estimatedMinutes: 55
+objectives:
+  - 'Estimar un efecto con una regresión discontinua local y explicar sus supuestos y comprobaciones.'
+  - 'Describir una variable instrumental (relevancia, exclusión, independencia) y calcular el estimador de Wald.'
+  - 'Estimar un efecto con propensity scores mediante ponderación inversa (IPW) y emparejamiento, comprobando el balance con diferencias estandarizadas.'
+  - 'Decidir cuándo un análisis observacional es suficiente y cómo evaluar su sensibilidad a confusores no medidos.'
+prerequisites: ['causalidad/03-control-sintetico-y-causalimpact']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Cattaneo, Idrobo & Titiunik — A Practical Introduction to Regression Discontinuity Designs: Foundations'
+    url: 'https://arxiv.org/abs/1911.09511'
+    type: paper
+    authors: 'Cattaneo, M. D., Idrobo, N., Titiunik, R.'
+    year: 2019
+  - title: 'Hernán & Robins — Causal Inference: What If'
+    url: 'https://miguelhernan.org/whatifbook'
+    type: book
+    authors: 'Hernán, M. A., Robins, J. M.'
+    year: 2020
+  - title: 'Huntington-Klein — The Effect'
+    url: 'https://theeffectbook.net/'
+    type: book
+    authors: 'Huntington-Klein, N.'
+    year: 2021
+  - title: 'Cunningham — Causal Inference: The Mixtape'
+    url: 'https://mixtape.scunning.com/'
+    type: book
+    authors: 'Cunningham, S.'
+    year: 2021
+relatedLabs: ['py-ipw-y-emparejamiento']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Lumen quiere saber si el **programa de envío gratis** aumenta las compras. No hubo experimento, y
+  los clientes que lo activan ya compraban más. Comparar activos con no activos mezcla el efecto del
+  programa con la forma de ser del cliente. ¿Qué se puede hacer cuando la asignación no es
+  aleatoria? Hay tres familias de soluciones, cada una con un supuesto distinto.
+</BusinessContext>
+
+Sin aleatorización, la comparación directa suele estar sesgada por **confusores**. La pregunta es de dónde sacar un contrafactual creíble: de un **umbral** (discontinuidad), de una **fuente de variación externa** (instrumento) o de **comparar solo unidades similares** (propensión).
+
+## Intuición
+
+- **Discontinuidad:** si un envío es gratis solo desde los 50 €, los clientes que gastan 49,90 € y 50,10 € son casi idénticos y solo difieren en el beneficio. Comparar justo a ambos lados del umbral se parece a un experimento local.
+- **Instrumento:** si algo empuja a algunas personas a tratarse **sin afectar directamente al resultado** (un correo promocional enviado al azar), puedes usar ese empujón para aislar el efecto del tratamiento.
+- **Propensión:** si todo lo que confunde está medido, compara clientes con la **misma probabilidad de recibir el tratamiento** y la asignación dentro de cada grupo de «parecidos» es como si fuera aleatoria.
+
+## Cómo funciona
+
+### Regresión discontinua (RDD)
+
+Hay una **variable de asignación** $X$ (puntuación, gasto, edad) y un **umbral** $c$: se trata a quien cumple $X \ge c$. El efecto en el umbral es la diferencia entre los límites de la esperanza de $Y$ a ambos lados:
+
+$$
+\tau_{\text{RDD}} = \lim_{x \downarrow c}\mathbb{E}[Y \mid X = x] - \lim_{x \uparrow c}\mathbb{E}[Y \mid X = x]
+$$
+
+Se estima con una **regresión local lineal** en una ventana (_bandwidth_) $h$ alrededor del umbral, con pendiente distinta a cada lado:
+
+$$
+Y = \alpha + \tau\,D + \beta_1 (X - c) + \beta_2 D\,(X - c) + \varepsilon, \quad |X - c| \le h
+$$
+
+Simulación (50.000 unidades, efecto verdadero 0,8, con $Y$ creciendo con $X$): la diferencia de medias entre tratados y no tratados da **2,30** (sesgada, porque quien tiene $X$ alto ya tiene $Y$ alto), mientras que la regresión local da **0,70** con $h=0{,}1$, **0,77** con $h=0{,}2$ y **0,75** con $h=0{,}5$: cerca de 0,8 y con la precisión que permita la ventana.
+
+Supuestos y comprobaciones:
+
+- **No manipulación:** las unidades no pueden controlar con precisión su posición respecto del umbral. Prueba de densidad (¿hay un salto en el número de unidades justo al cruzar?).
+- **Continuidad:** nada más cambia bruscamente en el umbral. Comprobación: covariables previas suaves en $c$.
+- **Sensibilidad a la ventana:** repite con varias $h$.
+- **Efecto local:** solo vale para unidades cercanas al umbral, no para todo el mundo.
+
+### Variables instrumentales (IV)
+
+Un **instrumento** $Z$ afecta al tratamiento $T$ y solo afecta a $Y$ **a través de** $T$. Condiciones:
+
+1. **Relevancia:** $Z$ cambia $T$ (primera etapa no trivial).
+2. **Independencia:** $Z$ es independiente de los confusores (p. ej. asignado al azar o «como si»).
+3. **Exclusión:** $Z$ no afecta a $Y$ salvo por $T$.
+
+Con un instrumento binario, el estimador de **Wald** es el cociente entre el efecto de $Z$ sobre $Y$ (la _intención de tratar_) y el de $Z$ sobre $T$ (la primera etapa):
+
+$$
+\hat{\tau}_{\text{IV}} = \frac{\mathbb{E}[Y \mid Z=1] - \mathbb{E}[Y \mid Z=0]}{\mathbb{E}[T \mid Z=1] - \mathbb{E}[T \mid Z=0]}
+$$
+
+Simulación con un confusor no medido $U$ (efecto verdadero 1,0): la comparación de tratados y no tratados da **2,94**; el instrumento aleatorio mueve la participación en **34,7 puntos** y el efecto de $Z$ sobre $Y$ es 0,346, así que el Wald da **1,00**. Interpretación: el IV estima el efecto **local para quienes cambian de decisión por el instrumento** (_cumplidores_, LATE), no para todos.
+Un instrumento débil (primera etapa pequeña) da estimaciones muy imprecisas y sesgadas; la exclusión no se puede probar, solo argumentar.
+
+### Propensity scores: IPW y emparejamiento
+
+Si todos los confusores $X$ están medidos, la **puntuación de propensión** $e(X) = P(T=1 \mid X)$ resume lo necesario para el ajuste (Rosenbaum y Rubin). Se estima con una regresión logística o un modelo de ML. Tres usos:
+
+- **Ponderación inversa (IPW):** pesos $w_i = T_i/e_i + (1-T_i)/(1-e_i)$ crean una población donde el tratamiento es independiente de $X$. $\widehat{\text{ATE}} = \dfrac{\sum w_i T_i Y_i}{\sum w_i T_i} - \dfrac{\sum w_i (1-T_i) Y_i}{\sum w_i (1-T_i)}$.
+- **Emparejamiento:** para cada tratado se busca el control con propensión más cercana (con o sin reemplazo, con una distancia máxima, _caliper_). Estima el efecto sobre los tratados (ATT).
+- **Estratificación / regresión con la propensión como covariable.**
+
+Hay que **comprobar el balance** con la **diferencia media estandarizada** (SMD) de cada covariable antes y después: por debajo de 0,1 se considera bien equilibrada. Y verificar el **solapamiento** (_positivity_): sin tratados y controles con propensión parecida, no hay comparación posible; los pesos extremos (propensión cercana a 0 o 1) hacen inestable el IPW.
+
+Simulación con dos confusores y efecto verdadero 1,0 (20.000 clientes, el 50 % tratado):
+
+| Método                             | Efecto estimado |
+| ---------------------------------- | --------------: |
+| Comparación ingenua                |            3,06 |
+| Regresión ajustando por $X_1, X_2$ |            1,02 |
+| **IPW**                            |        **1,03** |
+| **Emparejamiento (ATT)**           |        **1,02** |
+
+La diferencia estandarizada de $X_1$ pasa de 0,69 a 0,005 con IPW, y la de $X_2$ de −0,52 a −0,005: el balance es excelente. Pero esto funciona porque **todos los confusores están medidos**; con un confusor oculto (la «motivación» del cliente) los tres métodos siguen sesgados.
+
+### ¿Cuándo basta un análisis observacional?
+
+Un análisis observacional puede ser suficiente cuando:
+
+- hay un **mecanismo de asignación conocido** y medido (reglas, umbrales, aleatorización parcial);
+- los confusores relevantes están **medidos y bien especificados**, y hay solapamiento;
+- el **coste de equivocarse es bajo** o el resultado es sólo una orientación;
+- el resultado es **robusto** a diseños distintos (DiD, sintético, IPW) y a supuestos sobre confusores ocultos.
+
+Para evaluar los confusores no medidos se usa el **análisis de sensibilidad**: el **valor E** (VanderWeele y Ding) indica cuán fuerte tendría que ser la asociación de un confusor oculto con tratamiento y resultado para anular la conclusión. Cuando el coste de un error es alto (precios, salud, políticas grandes), lo correcto es **diseñar un experimento** o un piloto controlado.
+
+<Callout type="warning">
+  Ningún método observacional crea información que los datos no tengan: DiD, sintético, RDD, IV e
+  IPW sustituyen la aleatorización por **supuestos**. Documenta cuál usas, pruébalo donde se pueda
+  (balance, tendencias previas, densidad, primera etapa) y cuenta las amenazas.
+</Callout>
+
+## En la práctica
+
+1. **Pregunta qué mecanismo asigna el tratamiento.** Un umbral, un orden de despliegue, una invitación al azar o una decisión del cliente indican diseños distintos.
+2. **Elige el diseño con el supuesto más creíble:** RDD si hay umbral nítido, IV si hay un empujón exógeno, DiD/sintético si hay antes y después, IPW/emparejamiento si crees haber medido los confusores.
+3. **Verifica los supuestos que se pueden verificar** (balance, tendencias, primera etapa, densidad, solapamiento).
+4. **Estima con incertidumbre** (bootstrap, errores robustos) y compara con otros diseños.
+5. **Haz análisis de sensibilidad** y comunica los supuestos y el alcance (efecto local o medio).
+
+```python
+import numpy as np
+
+def smd(x, t, w=None):
+    w = np.ones(len(x)) if w is None else w
+    m1 = np.average(x[t == 1], weights=w[t == 1])
+    m0 = np.average(x[t == 0], weights=w[t == 0])
+    return (m1 - m0) / np.sqrt((x[t == 1].var() + x[t == 0].var()) / 2)
+```
+
+En el lab simulas un estudio observacional con dos confusores y estimas el efecto con IPW y emparejamiento, comprobando el balance antes y después.
+
+## Trade-offs y cuándo usarlo
+
+- **RDD:** supuestos muy creíbles, pero el efecto es local y requiere muchas unidades cerca del umbral.
+- **IV:** puede resolver confusores no medidos, pero un buen instrumento es raro y la exclusión es inverificable.
+- **Propensión:** flexible y común, pero depende de no tener confusores ocultos; el solapamiento limita a qué población se generaliza.
+- **Regresión frente a propensión:** si el modelo de resultados está bien especificado, ambas dan resultados parecidos; combinarlas («doblemente robusto») protege contra errores en una.
+
+## Errores comunes
+
+- **Ajustar por todas las covariables** sin DAG (incluyendo colisionadores y mediadores).
+- **No comprobar el balance** después del ponderado o del emparejamiento.
+- **Pesos extremos** (propensiones casi 0 o 1) que dominan el estimador.
+- **Elegir la ventana de la RDD mirando el resultado** o ignorar la manipulación del umbral.
+- **Usar un instrumento débil** o que afecta directamente al resultado.
+- **Tratar el efecto local (RDD, LATE) como efecto general.**
+- **Creer que un modelo de ML para la propensión elimina el sesgo de los confusores no medidos.**
+
+## Con IA
+
+Un asistente puede escribir el código de IPW o de una RDD con facilidad, pero suele omitir la comprobación del balance y del solapamiento, ajusta por todas las variables disponibles y no menciona los confusores no medidos. Pide el **gráfico de solapamiento de propensiones**, la **tabla de SMD** y un **análisis de sensibilidad**, y desconfía de las conclusiones sin ellos.
+
+## En una entrevista
+
+- _"No hay experimento. ¿Cómo estimas el efecto del programa de envío gratis?"_ — Pista: busca un mecanismo de asignación; propensión con balance y sensibilidad; DiD si hay lanzamiento escalonado; límites.
+- _"¿Qué es un instrumento válido?"_ — Pista: relevancia, independencia, exclusión; Wald; efecto local (LATE).
+- _"¿Qué comprobarías en una regresión discontinua?"_ — Pista: manipulación (densidad), continuidad de covariables, sensibilidad a la ventana, efecto local.
+
+<KeyTakeaways
+  items={[
+    'Sin aleatorización, el contrafactual sale de un umbral (regresión discontinua), de una fuente exógena de variación (variable instrumental) o de comparar unidades parecidas (propensión); cada diseño cambia aleatorización por un supuesto.',
+    'En simulación, la regresión discontinua local recupera el efecto verdadero 0,8 (0,70-0,77 según la ventana) donde la diferencia de medias da 2,30; el estimador de Wald con un instrumento aleatorio da 1,00 frente al 2,94 de la comparación ingenua.',
+    'IPW y emparejamiento corrigen un confusor medido: de 3,06 (ingenuo) a 1,02-1,03, con diferencias estandarizadas que bajan de 0,69 y −0,52 a ≈ 0,005; solo funcionan si no hay confusores ocultos y hay solapamiento.',
+    'Comprueba siempre lo comprobable: balance (SMD < 0,1), solapamiento, densidad y continuidad en el umbral, primera etapa del instrumento, tendencias previas.',
+    'Un análisis observacional basta si el mecanismo de asignación es conocido, los confusores están medidos, el error cuesta poco y el resultado es robusto a otros diseños y a un análisis de sensibilidad; si no, hay que experimentar.',
+  ]}
+/>

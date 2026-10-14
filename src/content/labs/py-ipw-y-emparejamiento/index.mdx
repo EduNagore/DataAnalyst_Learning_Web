@@ -1,0 +1,36 @@
+---
+title: 'Propensity scores: IPW, emparejamiento y balance'
+description: 'Simula un estudio observacional con dos confusores, estima la propensión con una regresión logística hecha a mano y calcula el efecto con ponderación inversa y con emparejamiento, comprobando el balance con diferencias estandarizadas.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: causalidad
+difficulty: 3
+estimatedMinutes: 40
+concepts:
+  [
+    'propensity score',
+    'IPW',
+    'emparejamiento',
+    'diferencia media estandarizada',
+    'regresión logística',
+  ]
+datasets: []
+packages: []
+output: console
+hints:
+  - 'Los datos: `x1, x2 ~ N(0,1)`, `p = 1/(1+exp(-(0,8 x1 - 0,6 x2)))`, `t = 1[U < p]` con `U` uniforme, `y = 1,0 t + 2 x1 - 1,5 x2 + N(0,1)`. Usa `rng = np.random.default_rng(seed)` y genera en este orden: `x1`, `x2`, `rng.random(n)`, ruido de `y`.'
+  - 'Regresión logística por Newton-Raphson: `X` con una columna de unos; repite `beta += solve(X.T @ (X * W[:, None]), X.T @ (t - p))` con `p = sigmoide(X @ beta)` y `W = p (1 - p)`.'
+  - 'IPW normalizado: `w = t/ps + (1-t)/(1-ps)`; el efecto es `sum(w t y)/sum(w t) - sum(w (1-t) y)/sum(w (1-t))`.'
+  - 'Emparejamiento con reemplazo: ordena los controles por propensión y, para cada tratado, usa `np.searchsorted` para hallar el control más cercano a la izquierda y a la derecha, y elige el más próximo. El ATT es la media de `y_tratado - y_vecino`.'
+relatedLessons: ['causalidad/04-discontinuidad-variables-instrumentales-y-emparejamiento']
+businessQuestion: '¿Cuánto vale realmente el efecto del programa si quienes lo activan ya eran distintos del resto?'
+---
+
+Implementa cinco funciones usando solo `numpy` y `pandas`:
+
+1. **`simular_observacional(n=20000, seed=0)`** → DataFrame con `x1`, `x2`, `t`, `y` (efecto verdadero de `t` = 1,0).
+2. **`propension(df, covariables=("x1", "x2"))`** → array con la probabilidad estimada de tratamiento (regresión logística por Newton-Raphson).
+3. **`diferencia_ingenua(df)`**, **`ate_ipw(df, ps)`** y **`att_emparejamiento(df, ps)`** → los tres estimadores del efecto.
+4. **`smd(df, columna, pesos=None)`** → diferencia media estandarizada entre tratados y no tratados, con pesos opcionales.
+
+El script imprime los tres efectos y el balance de `x1` antes y después de ponderar.

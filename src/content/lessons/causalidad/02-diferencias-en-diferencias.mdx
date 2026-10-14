@@ -1,0 +1,235 @@
+---
+title: 'Diferencias en diferencias: tendencias paralelas, estudio de eventos y adopción escalonada'
+description: 'Cómo estimar el efecto de un cambio sin experimento comparando la evolución de un grupo tratado con la de un grupo de control: el diseño 2×2, el supuesto de tendencias paralelas, el estudio de eventos, la regresión con efectos fijos y los problemas de la adopción escalonada.'
+module: causalidad
+order: 2
+level: avanzado
+estimatedMinutes: 55
+objectives:
+  - 'Calcular la estimación de diferencias en diferencias de un diseño 2×2 y explicar qué supuesto la hace causal.'
+  - 'Comprobar las tendencias paralelas con un estudio de eventos y una prueba sobre la tendencia previa, conociendo sus límites.'
+  - 'Estimar el efecto con un intervalo de confianza y distinguir el efecto en ingresos del efecto en unidades.'
+  - 'Reconocer por qué la regresión con efectos fijos de dos vías puede fallar con adopción escalonada y qué alternativas existen.'
+prerequisites: ['causalidad/01-dags-confusores-colisionadores-y-mediadores']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Callaway & Sant’Anna — Difference-in-Differences with Multiple Time Periods'
+    url: 'https://arxiv.org/abs/1803.09015'
+    type: paper
+    authors: 'Callaway, B., Sant’Anna, P. H. C.'
+    year: 2021
+  - title: 'Goodman-Bacon — Difference-in-Differences with Variation in Treatment Timing (NBER WP 25018)'
+    url: 'https://www.nber.org/papers/w25018'
+    type: paper
+    authors: 'Goodman-Bacon, A.'
+    year: 2018
+  - title: 'de Chaisemartin & D’Haultfœuille — Difference-in-Differences Estimators of Intertemporal Treatment Effects'
+    url: 'https://arxiv.org/abs/2007.04267'
+    type: paper
+    authors: 'de Chaisemartin, C., D’Haultfœuille, X.'
+    year: 2020
+  - title: 'Cunningham — Causal Inference: The Mixtape (capítulo Difference-in-Differences)'
+    url: 'https://mixtape.scunning.com/'
+    type: book
+    authors: 'Cunningham, S.'
+    year: 2021
+  - title: 'Callaway — did: documentación del paquete'
+    url: 'https://bcallaway11.github.io/did/'
+    type: docs
+    authors: 'Callaway, B.'
+    year: 2026
+relatedLabs: ['py-did-precios']
+relatedCases: ['subida-precios-andalucia']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import VegaChart from '../../../components/content/VegaChart.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  El 1 de marzo de 2025 Lumen subió un 12 % los precios de Electrónica en Andalucía, sin tocar el
+  resto de regiones. Un año después, dirección pregunta: «¿funcionó?». Los ingresos de Electrónica
+  en Andalucía han crecido un **135 %** en los 12 meses posteriores respecto a los 12 anteriores,
+  pero el resto de España también creció un **109 %**: la empresa estaba en plena expansión. La
+  comparación «antes y después» atribuye al precio un crecimiento que ya ocurría. Hace falta un
+  contrafactual.
+</BusinessContext>
+
+No hubo experimento: nadie asignó al azar qué regiones subían de precio. Pero hay un grupo tratado, un grupo no tratado y datos antes y después. Eso basta para el diseño más usado en economía aplicada y en analítica de negocio: **diferencias en diferencias** (DiD, _difference-in-differences_).
+
+## Intuición
+
+Una comparación «antes y después» mezcla el efecto del cambio con todo lo demás que cambió con el tiempo (estacionalidad, crecimiento, campañas). Una comparación «tratados frente a no tratados» mezcla el efecto con las diferencias permanentes entre grupos. DiD combina las dos:
+mide cuánto **más** (o menos) cambió el grupo tratado que el de control. Lo que se asume es que, sin el tratamiento, ambos habrían evolucionado **en paralelo**.
+
+## Cómo funciona
+
+### El diseño 2×2
+
+Con dos grupos (tratado $T$, control $C$) y dos periodos (antes, después):
+
+$$
+\widehat{\tau}_{\text{DiD}} = \bigl(\bar{Y}_{T,\text{después}} - \bar{Y}_{T,\text{antes}}\bigr) - \bigl(\bar{Y}_{C,\text{después}} - \bar{Y}_{C,\text{antes}}\bigr)
+$$
+
+Cuando $Y$ está en logaritmos, la diferencia se interpreta como un cambio **relativo**. En Lumen, para los ingresos mensuales de Electrónica (media de los 12 meses previos y de los 12 posteriores, del logaritmo del cociente Andalucía / resto):
+
+| Resultado         | DiD en logaritmos | Efecto relativo | Intervalo de confianza 95 % |
+| ----------------- | ----------------: | --------------: | --------------------------- |
+| **Ingresos**      |             0,130 |     **+13,9 %** | de +6,4 % a +21,8 %         |
+| Unidades vendidas |             0,022 |          +2,3 % | de −4,8 % a +9,9 %          |
+
+Lectura: los ingresos de Electrónica en Andalucía fueron **entre un 6 % y un 22 % superiores** a lo que habrían sido sin el cambio, y las unidades vendidas **no cayeron de forma detectable**. Un precio un 12 % más alto con volumen estable explica la subida de ingresos. (Calculado sobre totales anuales en lugar de promedios mensuales, el DiD de ingresos es +12,7 %.)
+El error estándar se calcula con la dispersión mensual de los dos periodos; con solo 12 + 12 meses, el intervalo es ancho.
+
+<Callout type="note">
+  En el dataset sintético de Lumen la demanda no responde al precio por construcción (la subida solo
+  cambia el precio unitario). En datos reales es raro que el volumen no se mueva: lo esperable es
+  una caída de unidades (elasticidad) y un efecto neto en ingresos y margen que hay que medir, como
+  hace este caso.
+</Callout>
+
+### El supuesto: tendencias paralelas
+
+El DiD identifica el efecto causal si, **en ausencia del tratamiento**, la diferencia entre grupos se habría mantenido constante (o evolucionado igual). Ese contrafactual no se observa, pero se puede **criticar con los datos previos**:
+
+- **Gráfico de tendencias:** ¿evolucionan en paralelo antes del cambio?
+- **Estudio de eventos:** estima la diferencia entre grupos en cada periodo relativo al tratamiento, con un periodo de referencia (el mes anterior al cambio). Los coeficientes previos deberían ser cercanos a cero y sin tendencia.
+- **Prueba de tendencia previa:** regresión de la diferencia (en logaritmos) sobre el tiempo, solo con los datos previos. En Lumen, la pendiente previa de los ingresos es de 0,0074 por mes (error estándar 0,0066; $p = 0{,}29$): no hay evidencia de divergencia previa, aunque con 12 meses y tanta variación mensual la potencia de esta prueba es limitada.
+
+<VegaChart
+  minHeight={320}
+  alt="Estudio de eventos de los ingresos de Electrónica en Andalucía frente al resto de España: la diferencia en logaritmos respecto a febrero de 2025 fluctúa alrededor de 0,1 antes del cambio y sube a unos 0,2 de media después, con picos en mayo y junio de 2025."
+  client:visible
+  spec={{
+    $schema: 'https://vega.github.io/schema/vega-lite/v6.json',
+    width: 'container',
+    height: 240,
+    background: 'transparent',
+    data: {
+      values: [
+        { mes: '2024-03', dif: 0.107 },
+        { mes: '2024-04', dif: -0.011 },
+        { mes: '2024-05', dif: -0.087 },
+        { mes: '2024-06', dif: 0.056 },
+        { mes: '2024-07', dif: 0.141 },
+        { mes: '2024-08', dif: 0.044 },
+        { mes: '2024-09', dif: 0.18 },
+        { mes: '2024-10', dif: 0.101 },
+        { mes: '2024-11', dif: 0.087 },
+        { mes: '2024-12', dif: 0.119 },
+        { mes: '2025-01', dif: 0.177 },
+        { mes: '2025-02', dif: 0.0 },
+        { mes: '2025-03', dif: 0.124 },
+        { mes: '2025-04', dif: 0.211 },
+        { mes: '2025-05', dif: 0.354 },
+        { mes: '2025-06', dif: 0.309 },
+        { mes: '2025-07', dif: 0.139 },
+        { mes: '2025-08', dif: 0.119 },
+        { mes: '2025-09', dif: 0.251 },
+      ],
+    },
+    layer: [
+      {
+        mark: { type: 'rule', color: '#c0392b', strokeDash: [4, 4] },
+        encoding: { x: { datum: '2025-03' } },
+      },
+      {
+        mark: { type: 'line', point: true, color: '#4C78A8' },
+        encoding: {
+          x: { field: 'mes', type: 'ordinal', title: 'Mes', axis: { labelAngle: -45 } },
+          y: {
+            field: 'dif',
+            type: 'quantitative',
+            title: 'Diferencia Andalucía − resto (logaritmo, ref. feb. 2025)',
+          },
+        },
+      },
+    ],
+  }}
+/>
+
+Un estudio de eventos honesto muestra **ruido**: los datos mensuales de una sola región varían mucho, y eso es lo que se refleja en el intervalo de confianza. Si los coeficientes previos ya son grandes o muestran tendencia, el DiD no es creíble.
+
+### Regresión y errores estándar
+
+La forma de regresión equivale al 2×2 y permite covariables y varios periodos:
+
+$$
+Y_{it} = \alpha_i + \lambda_t + \tau\,D_{it} + \varepsilon_{it}, \qquad D_{it} = \mathbf{1}[\text{$i$ tratado y } t \ge t_0]
+$$
+
+con efectos fijos de unidad $\alpha_i$ y de tiempo $\lambda_t$. Los **errores estándar** deben agruparse (_cluster_) por unidad: las observaciones de una misma unidad a lo largo del tiempo están correlacionadas y, con pocos grupos tratados (aquí, uno), los errores agrupados estándar pueden ser demasiado optimistas; hay métodos específicos (bootstrap por bloques, inferencia por permutación, control sintético) para pocos clústeres.
+
+```python
+import numpy as np
+
+lr = np.log(rev_and / rev_resto)                 # serie mensual
+did = lr["2025-03":"2026-02"].mean() - lr["2024-03":"2025-02"].mean()
+se = np.sqrt(lr["2024-03":"2025-02"].var(ddof=1) / 12 + lr["2025-03":"2026-02"].var(ddof=1) / 12)
+efecto_pct = np.exp(did) - 1
+```
+
+### Adopción escalonada
+
+Si distintas unidades reciben el tratamiento en **momentos distintos** (despliegue por tiendas o por regiones), la regresión con efectos fijos de dos vías (TWFE) usa como «controles» también a unidades **ya tratadas**. Si el efecto cambia con el tiempo o difiere entre cohortes, la estimación puede ser un promedio con **pesos negativos**, e incluso tener signo contrario al efecto real
+(Goodman-Bacon, 2018; de Chaisemartin y D’Haultfœuille, 2020). Los estimadores modernos evitan usar unidades ya tratadas como control:
+
+- **Callaway y Sant’Anna (2021):** estima efectos por cohorte de adopción y periodo, $ATT(g, t)$, comparando cada cohorte con unidades «aún no tratadas» o «nunca tratadas», y luego los agrega (por periodo relativo, por cohorte o en total).
+- **Otras opciones:** estimadores de imputación, de apilado de cohortes y de de Chaisemartin y D’Haultfœuille. La documentación del paquete `did` (R) de Callaway recoge la implementación de referencia.
+
+Regla práctica: con un único momento de adopción, el DiD clásico basta; con adopción escalonada, usa un estimador robusto y comprueba que no dependes de «controles ya tratados».
+
+## En la práctica
+
+1. **Define tratados, controles y fecha**, y verifica que el control no se vio afectado (sin «contaminación»).
+2. **Grafica** la evolución de ambos grupos (en niveles y en logaritmos).
+3. **Estima el DiD** con intervalo de confianza; mejor en logaritmos si el efecto es proporcional.
+4. **Comprueba las tendencias paralelas** con un estudio de eventos y una prueba previa; haz análisis con otros controles y periodos para ver si el resultado es robusto.
+5. **Analiza varias métricas** (ingresos, unidades, precio, margen) para entender el mecanismo.
+6. **Si hay adopción escalonada**, usa un estimador robusto.
+7. **Comunica** el supuesto, la incertidumbre y las amenazas (eventos simultáneos, spillovers, selección de tratados).
+
+En el lab calcularás el DiD, el intervalo, la prueba de tendencia previa y el estudio de eventos con los datos de Lumen; en el caso «¿Funcionó la subida de precios en Andalucía?» redactarás la recomendación.
+
+## Trade-offs y cuándo usarlo
+
+- **DiD frente a antes/después:** DiD controla por tendencias comunes; antes/después, no.
+- **DiD frente a control sintético:** si no hay un control claramente paralelo, el control sintético construye uno ponderando varias unidades (lección siguiente).
+- **Un solo tratado:** la inferencia es frágil (un solo clúster tratado); complementa con placebos y análisis de sensibilidad.
+- **Efectos dinámicos:** el DiD 2×2 da un efecto medio; el estudio de eventos muestra si crece, decae o se estabiliza.
+
+## Errores comunes
+
+- **Comparar solo antes y después** o solo tratados y controles.
+- **Elegir como control una unidad que también cambió** (contaminación) o que reaccionó al tratamiento (_spillover_).
+- **No mirar las tendencias previas** o usar una prueba con poca potencia para concluir «paralelas».
+- **Usar errores estándar sin agrupar** o ignorar que hay pocos clústeres.
+- **Usar TWFE con adopción escalonada y efectos heterogéneos** sin comprobar los pesos.
+- **Escoger el periodo previo para que salga un buen ajuste** (p-hacking).
+- **Confundir efecto en ingresos con efecto en margen o en clientes** sin medirlos.
+
+## Con IA
+
+Un asistente puede escribir la regresión DiD en segundos, pero suele omitir la comprobación de tendencias paralelas, agrupar mal los errores o aplicar TWFE a una adopción escalonada. Pide que **dibuje las tendencias previas**, que **declare el supuesto** y que repita el análisis con otro grupo de control o con un estudio de eventos.
+
+## En una entrevista
+
+- _"Subimos precios en una región. ¿Cómo mides el efecto?"_ — Pista: DiD con regiones de control, tendencias paralelas, estudio de eventos, ingresos y unidades.
+- _"¿Qué supuesto necesita el DiD y cómo lo compruebas?"_ — Pista: tendencias paralelas contrafactuales; gráfico previo, estudio de eventos, placebos.
+- _"¿Qué problema tiene TWFE con adopción escalonada?"_ — Pista: controles ya tratados y pesos negativos; Callaway-Sant'Anna.
+
+<KeyTakeaways
+  items={[
+    'DiD compara el cambio del grupo tratado con el del control: τ = (T después − T antes) − (C después − C antes); es causal si, sin tratamiento, ambos habrían evolucionado en paralelo.',
+    'En Lumen, Electrónica en Andalucía creció un 135 % tras la subida de precios, pero el resto de España un 109 %; el DiD en ingresos es +13,9 % (IC 95 %: +6,4 % a +21,8 %) y en unidades +2,3 % (−4,8 % a +9,9 %).',
+    'Las tendencias paralelas se critican con gráficos, un estudio de eventos y una prueba de tendencia previa (pendiente 0,0074 ± 0,0066 por mes, p = 0,29), sabiendo que con pocos meses la prueba tiene poca potencia.',
+    'Con pocos clústeres tratados (aquí, uno), los errores estándar convencionales son frágiles: complementa con placebos, permutaciones o control sintético.',
+    'Con adopción escalonada, la regresión de efectos fijos de dos vías puede sesgar el efecto; usa estimadores robustos como Callaway-Sant’Anna.',
+  ]}
+/>

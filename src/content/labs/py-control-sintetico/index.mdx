@@ -1,0 +1,30 @@
+---
+title: 'Control sintético para Electrónica en Andalucía, con placebos'
+description: 'Construye el panel mensual de ingresos de Electrónica por región, calcula los pesos del control sintético con mínimos cuadrados no negativos, mide la brecha posterior y evalúa su significación con placebos en el espacio.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: causalidad
+difficulty: 3
+estimatedMinutes: 45
+concepts: ['control sintético', 'NNLS', 'ajuste previo', 'placebos', 'RMSPE', 'permutación']
+datasets: ['orders', 'order_items', 'customers', 'products']
+packages: ['scipy']
+output: console
+hints:
+  - 'Panel: une líneas de pedido (no cancelados) con clientes y productos de Electrónica (`category_id` que empieza por `cat-00`), calcula `quantity * unit_price` y haz `pivot_table(index="mes", columns="region", values="ingresos", aggfunc="sum", fill_value=0)`. Recorta con `.loc[desde:hasta]`.'
+  - 'Índice: `panel / panel.loc[:fin_previo].mean() * 100`. El periodo previo termina el mes anterior a `inicio`.'
+  - 'Pesos con `scipy.optimize.nnls`: apila una fila `lam * [1, …, 1]` a la matriz de donantes y un `lam` al vector de la tratada (`lam = 1000`) para forzar que los pesos sumen ≈ 1; después divide entre su suma.'
+  - 'Brecha = serie de la tratada − `donantes @ pesos`. `rmse_previo` y `rmse_post` son las raíces de la media de cuadrados de la brecha; `ratio = rmse_post / rmse_previo`; `gap_pct = 100 * media(brecha posterior) / media(sintético posterior)`.'
+relatedLessons: ['causalidad/03-control-sintetico-y-causalimpact']
+businessQuestion: '¿Qué ingresos habría tenido Electrónica en Andalucía sin la subida de precios, y es el efecto distinguible de lo que ocurre por azar en otras regiones?'
+---
+
+Implementa cinco funciones:
+
+1. **`panel_regional(orders, order_items, customers, products, desde="2023-01", hasta="2026-02")`** → DataFrame con los ingresos mensuales de **Electrónica** (pedidos no cancelados) por región (filas = mes en formato `"AAAA-MM"`, columnas = región), con 0 donde no hay ventas.
+2. **`a_indice(panel, fin_previo)`** → cada región dividida por su media hasta `fin_previo` y multiplicada por 100.
+3. **`pesos_sinteticos(previo, tratada, lam=1000.0)`** → Serie con los pesos de las demás regiones (no negativos, suman 1) que reproducen la serie previa de `tratada`.
+4. **`efecto_sintetico(panel, tratada, inicio="2025-03")`** → diccionario con `pesos`, `rmse_previo`, `gap_pct` y `ratio` (RMSPE posterior / previo).
+5. **`placebos(panel, tratada, inicio="2025-03")`** → DataFrame con `region`, `ratio` y `gap_pct` de aplicar el método a **cada** región, ordenado por `ratio` descendente.
+
+El script imprime los pesos, el efecto y el p-valor de permutación (proporción de regiones con un `ratio` al menos tan alto como el de Andalucía).

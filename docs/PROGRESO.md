@@ -93,7 +93,9 @@ Hechos verificados para M07 (2026-10): pandas 3.0.6 (última; local 3.0.2), Pola
 
 ## F7 — en curso (Contenido Partes III-IV, M13-M20 + casos 2-8)
 
-Estado: **M13 ✅** (4 lecciones, 4 labs: IC/bootstrap/Wilson, Welch+potencia, comparaciones múltiples, beta-binomial; widget `CoverageExplorer` + `src/lib/inference.ts` con tests vitest). **M14 ✅** (5 lecciones, 4 labs: duración/MDE, SRM+A/A, CUPED, peeking+mSPRT; widgets `CupedDemo` y `PeekingSimulator`; casos 2 `checkout-nuevo` y 3 `motor-recomendaciones-srm`; `tests/e2e/todos-los-casos.spec.ts` resuelve cada caso con las respuestas publicadas). Pendientes: M15, M16, M17, M18, M19, M20 y casos 4-8 (+9-12 en F8).
+Estado: **M13 ✅** (4 lecciones, 4 labs: IC/bootstrap/Wilson, Welch+potencia, comparaciones múltiples, beta-binomial; widget `CoverageExplorer` + `src/lib/inference.ts` con tests vitest). **M14 ✅** (5 lecciones, 4 labs: duración/MDE, SRM+A/A, CUPED, peeking+mSPRT; widgets `CupedDemo` y `PeekingSimulator`; casos 2 `checkout-nuevo` y 3 `motor-recomendaciones-srm`; `tests/e2e/todos-los-casos.spec.ts` resuelve cada caso con las respuestas publicadas). **M15 ✅** (4 lecciones, 4 labs: DAG/confusor/colisionador, DiD de precios, control sintético con placebos, IPW+emparejamiento; casos 4 `subida-precios-andalucia` y 6 `baja-lumen-plus`). Pendientes: M16, M17, M18, M19, M20 y casos 5, 7, 8 (+9-12 en F8).
+
+Hechos reales M15: subida de precios Andalucía/Electrónica (marzo 2025, +12 % solo en precio; demanda sin respuesta): DiD ingresos +13,9 % (IC 6,4-21,8), unidades +2,3 % (n.s.), control sintético +13,9 %, RMSPE ratio rank 1/16 (p = 0,0625); churn Lumen+: un retraso grave (≥ 5 días) en los 30 días previos sube la baja mensual de 3,5 % a 38,9 %; comparar por cliente ("alguna vez") da solo +13,9 pp por sesgo de tiempo de exposición.
 
 Hechos reales de experimentos para el contenido: CUPED con ingresos previos de 90 días apenas ayuda en `exp-onboarding-flow` (ρ = 0,126, 1,6 % de varianza); peeking diario habría declarado ganador a `exp-generic-02` el día 5; 2 de 15 experimentos con efecto real; clientes solapados en ~5 experimentos cada uno.
 

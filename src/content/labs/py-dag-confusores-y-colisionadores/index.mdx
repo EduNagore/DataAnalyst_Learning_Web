@@ -1,0 +1,36 @@
+---
+title: 'Simular un confusor, un colisionador y un mediador'
+description: 'Genera datos con la verdad causal conocida, estima el efecto con mínimos cuadrados con y sin controles y descubre cuándo controlar ayuda y cuándo crea sesgo.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: causalidad
+difficulty: 2
+estimatedMinutes: 30
+concepts:
+  [
+    'DAG',
+    'confusor',
+    'colisionador',
+    'mediador',
+    'criterio de la puerta trasera',
+    'mínimos cuadrados',
+  ]
+datasets: []
+packages: []
+output: console
+hints:
+  - 'Los tres escenarios usan `rng = np.random.default_rng(seed + k)` con `k` = 0 (confusor), 1 (colisionador) y 2 (mediador), y ruido normal estándar en cada ecuación.'
+  - 'Confusor: `z ~ N(0,1)`, `t = 1[z + N(0,1) > 0]`, `y = 2t + 3z + N(0,1)`. Colisionador: `t ~ N(0,1)`, `y = 0,5t + N(0,1)`, `c = t + y + N(0,1)`. Mediador: `t ~ N(0,1)`, `m = 0,8t + N(0,1)`, `y = 0,5m + 0,3t + N(0,1)`.'
+  - 'Efecto por mínimos cuadrados: `X = column_stack([ones, t, *controles])` y `np.linalg.lstsq(X, y, rcond=None)[0][1]` es el coeficiente de `t`.'
+  - 'Efecto total: el confusor se controla (`["z"]`), el colisionador no (`[]`) y el mediador tampoco (`[]`); el efecto directo del mediador se obtiene controlando `["m"]`.'
+relatedLessons: ['causalidad/01-dags-confusores-colisionadores-y-mediadores']
+businessQuestion: '¿Qué variables hay que controlar para estimar el efecto causal correcto, y cuáles lo estropean?'
+---
+
+Implementa tres funciones sin librerías externas salvo `numpy` y `pandas`:
+
+1. **`simular(escenario, n=100000, seed=0)`** → DataFrame para `"confusor"` (columnas `z`, `t`, `y`), `"colisionador"` (`t`, `y`, `c`) o `"mediador"` (`t`, `m`, `y`), con las ecuaciones de las pistas. Lanza `ValueError` si el escenario no existe.
+2. **`efecto_ols(df, controles=())`** → coeficiente de `t` en la regresión de `y` sobre `t` y los `controles` (lista de nombres de columnas).
+3. **`controles_correctos(escenario, efecto="total")`** → lista de columnas que hay que controlar para estimar el efecto `"total"` o `"directo"` de `t` sobre `y`.
+
+El script imprime, para cada escenario, el efecto sin controles y con los controles correctos.

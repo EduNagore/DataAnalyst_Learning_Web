@@ -1,0 +1,154 @@
+---
+title: '¿Por qué se dan de baja de Lumen+?'
+description: 'Un caso de causalidad observacional: relaciona los retrasos de envío con las cancelaciones de la suscripción, detecta el sesgo de tiempo de exposición de la comparación ingenua y estima un efecto creíble.'
+difficulty: 3
+estimatedMinutes: 45
+role: producto
+datasets: ['orders', 'shipments', 'subscriptions']
+brief: |
+  De: Javier Prieto (Retención)
+  Asunto: Bajas de Lumen+ y retrasos de envío
+
+  Hola, la mitad de los suscriptores de Lumen+ se ha dado de baja y sospecho que los retrasos de los envíos tienen algo que ver. He mirado cuántos de los que se dieron de baja tuvieron algún retraso grave (5 días o más) y es bastante más alto que entre los que siguen.
+
+  ¿Puedes confirmarlo y decirme cuánto pesan los retrasos? Quiero proponer una inversión en logística y necesito cifras creíbles.
+
+  Gracias, Javier
+steps:
+  - id: s1-bajas
+    tool: sql
+    answerType: numeric
+    answer: 56.52
+    tolerance: 0.05
+    prompt: |
+      Empieza dimensionando el problema. `subscriptions` tiene una fila por suscripción, con `cancelled_at` (vacío si sigue activa).
+
+      ¿Qué **porcentaje** de las suscripciones se ha cancelado? (Dos decimales.)
+    hints:
+      - 'Cuenta las filas con `cancelled_at IS NOT NULL` entre el total.'
+    explanation: |
+      Se ha dado de baja el **56,52 %** de las 25.000 suscripciones, como decía Javier.
+
+  - id: s2-expuestos
+    tool: sql
+    answerType: numeric
+    answer: 53.39
+    tolerance: 0.05
+    prompt: |
+      Define un **retraso grave** como un envío cuya `actual_date` supera la `promised_date` en 5 días o más. Une `shipments` con `orders` para llegar al cliente.
+
+      ¿Qué **porcentaje de las suscripciones** pertenece a clientes que alguna vez han tenido un retraso grave? (Dos decimales.)
+    hints:
+      - "Usa `date_diff('day', promised_date, actual_date) >= 5` y `customer_id IN (...)`."
+    explanation: |
+      El **53,39 %** de las suscripciones corresponde a clientes con al menos un retraso grave en su historial.
+
+  - id: s3-ingenua
+    tool: sql
+    answerType: numeric
+    answer: 13.88
+    tolerance: 0.1
+    prompt: |
+      Reproduce la comparación de Javier: diferencia, en **puntos porcentuales**, entre el % de cancelación de las suscripciones con algún retraso grave y el de las que nunca lo tuvieron. (Dos decimales.)
+    hints:
+      - 'Calcula `AVG(cancelled_at IS NOT NULL)` por grupo (con retraso / sin retraso) y réstalos.'
+    explanation: |
+      Cancelan **13,88 puntos** más los clientes que alguna vez tuvieron un retraso grave (62,99 % frente a 49,11 %). Pero esta cifra tiene un problema de diseño.
+
+  - id: s4-sesgo
+    tool: reasoning
+    answerType: single
+    answer: [1]
+    options:
+      - 'Ninguno: es una comparación directa y válida del efecto de los retrasos.'
+      - 'Quien permanece suscrito más tiempo tiene más oportunidades de sufrir un retraso y de acabar cancelando: el tiempo en riesgo mezcla exposición y resultado (sesgo de tiempo de exposición).'
+      - 'Que hay un SRM entre los grupos.'
+      - 'Que la muestra de suscripciones es demasiado pequeña.'
+    prompt: |
+      ¿Qué problema tiene comparar «alguna vez con retraso» con «nunca con retraso»?
+    hints:
+      - 'Piensa en cuándo ocurre el retraso respecto de la baja, y en cuánto tiempo estuvo suscrito cada cliente.'
+    explanation: |
+      Un retraso solo puede causar una baja que ocurra **después**. Pero «alguna vez expuesto» se acumula con el tiempo suscrito: quien dura más tiene más oportunidades de exposición. Hay que alinear la exposición con el momento en que se mide la baja.
+
+  - id: s5-expuestos
+    tool: sql
+    answerType: numeric
+    answer: 39.7
+    tolerance: 0.2
+    prompt: |
+      Mira solo la **primera cuota**: para cada suscripción cuya primera revisión (30 días tras `started_at`) cae antes del 30 de junio de 2026, considera **expuestas** las que tuvieron un retraso grave con `actual_date` entre `started_at` y `started_at + 30 días`, y define **baja en la primera revisión** como `cancelled_at = started_at + 30 días`.
+
+      ¿Qué **porcentaje de las expuestas** se da de baja en esa primera revisión? (Un decimal.)
+    hints:
+      - 'Usa `EXISTS` con los envíos graves del cliente y `COALESCE(cancelled_at = started_at + INTERVAL 30 DAY, false)` para tratar las activas como «no baja».'
+    explanation: |
+      Entre las 471 suscripciones expuestas, se da de baja el **39,7 %** en la primera revisión.
+
+  - id: s6-no-expuestos
+    tool: sql
+    answerType: numeric
+    answer: 3.31
+    tolerance: 0.1
+    prompt: |
+      Con la misma definición, ¿qué **porcentaje de las no expuestas** se da de baja en la primera revisión? (Dos decimales.)
+    hints:
+      - 'Es la misma consulta con `NOT expuesto`.'
+    explanation: |
+      Entre las no expuestas (24.529 suscripciones) se da de baja solo el **3,31 %**. La comparación alineada en el tiempo muestra una diferencia de unos 36 puntos, no de 14.
+
+  - id: s7-riesgo
+    tool: sql
+    answerType: numeric
+    answer: 11.98
+    tolerance: 0.15
+    prompt: |
+      Resume el efecto como un **riesgo relativo**: cuántas veces mayor es la probabilidad de baja en la primera revisión de las suscripciones expuestas respecto de las no expuestas. (Dos decimales.)
+    hints:
+      - 'Divide los dos porcentajes de los pasos anteriores (o calcula las medias en una sola consulta).'
+    explanation: |
+      Un retraso grave **multiplica por 12** la probabilidad de baja en el mes siguiente. Es un efecto enorme, mucho mayor que el +14 % de la comparación ingenua.
+
+  - id: s8-causal
+    tool: reasoning
+    answerType: multiple
+    answer: [0, 1, 2]
+    options:
+      - 'La exposición (retraso) precede a la baja, y se compara dentro de la misma ventana de tiempo tras el alta.'
+      - 'En Lumen los retrasos no dependen de características del cliente (el transportista se asigna al azar), lo que reduce el riesgo de confusión.'
+      - 'Aun así, conviene comprobar si otros factores (producto, zona, plan) cambian con el retraso, y repetir el análisis en otras revisiones mensuales.'
+      - 'Con 471 expuestas ya no hace falta ninguna otra comprobación.'
+    prompt: |
+      ¿Qué hace razonable interpretar el 39,7 % frente al 3,3 % como un efecto causal, y qué comprobarías aún? (Marca todas las que apliquen.)
+    hints:
+      - 'Recuerda el criterio de la puerta trasera y el sesgo de tiempo de exposición.'
+    explanation: |
+      Alinear el tiempo y la ausencia de confusores plausibles dan credibilidad al diseño, pero hay que seguir comprobando robustez (otras revisiones, otros ajustes). La última opción confunde un buen diseño con certeza.
+
+  - id: s9-recomendacion
+    tool: reasoning
+    answerType: text-self-assessed
+    prompt: |
+      Escribe la respuesta a Javier en 4-5 líneas: **si los retrasos explican las bajas, cuánto pesan, por qué su primera cifra subestimaba el efecto y qué propones**.
+    hints:
+      - 'Empieza por la conclusión y el multiplicador de riesgo; explica brevemente el sesgo de la comparación ingenua; cuantifica con prudencia y propón una acción de logística con una forma de medir su efecto.'
+    explanation: |
+      Un buen mensaje evita decir que «los retrasos explican el 56 % de las bajas» (no lo sabemos con este análisis) y habla del efecto sobre el riesgo mensual de baja.
+rubric:
+  - 'Empiezo por la conclusión: un retraso grave multiplica por unas 12 la probabilidad de baja en el mes siguiente.'
+  - 'Explico por qué la comparación ingenua (+14 puntos) subestima el efecto: tiempo en riesgo y alineación de la exposición.'
+  - 'Cito las cifras alineadas en el tiempo (39,7 % frente a 3,3 %) con el número de suscripciones expuestas.'
+  - 'No atribuyo a los retrasos todas las bajas; digo qué parte del efecto puedo cuantificar y qué no.'
+  - 'Propongo una acción concreta de logística y una forma de medir su efecto (piloto o seguimiento).'
+modelReport: |
+  **Conclusión.** Sí: un retraso grave de envío multiplica por unas 12 la probabilidad de que un suscriptor de Lumen+ se dé de baja en el mes siguiente (39,7 % frente a 3,3 %). La comparación que habías hecho (+14 puntos entre «alguna vez con retraso» y «nunca») infravalora el efecto.
+
+  **Por qué la primera cifra engaña.** Comparar «alguna vez expuestos» con «nunca expuestos» mezcla exposición con tiempo suscrito: quien permanece más meses tiene más oportunidades de sufrir un retraso y de cancelar por cualquier motivo. Al alinear la exposición con la ventana de 30 días previa a cada revisión, el efecto se ve con claridad: entre las 471 suscripciones expuestas en su primer mes, cancela el 39,7 %; entre las 24.529 no expuestas, el 3,3 %.
+
+  **Alcance y límites.** Esto estima el efecto sobre el riesgo de baja tras un retraso, no qué parte de las bajas totales se debe a los retrasos. La exposición es poco frecuente (el 2 % de los meses de suscripción) y se ha analizado la primera revisión; conviene repetirlo con todas las revisiones y ajustar por producto o zona.
+
+  **Propuesta.** Priorizar la reducción de retrasos de 5 días o más (peores transportistas o rutas), enviar una compensación proactiva a los suscriptores con un retraso grave y medir con un piloto (con grupo de control) cuánto baja la tasa de baja mensual.
+---
+
+Este caso usa las tablas `orders`, `shipments` y `subscriptions` del dataset Lumen. La teoría está en la lección
+«DAGs: confusores, colisionadores y mediadores».

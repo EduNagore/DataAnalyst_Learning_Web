@@ -1,0 +1,199 @@
+---
+title: 'DAGs: confusores, colisionadores y mediadores'
+description: 'Cómo dibujar tus supuestos causales como un grafo acíclico dirigido y decidir qué variables hay que ajustar y cuáles no: confusores, mediadores y colisionadores, criterio de la puerta trasera y sesgos de selección y de tiempo de exposición.'
+module: causalidad
+order: 1
+level: avanzado
+estimatedMinutes: 55
+objectives:
+  - 'Distinguir correlación de efecto causal y formular la pregunta causal con tratamiento, resultado y población.'
+  - 'Dibujar un DAG con confusores, mediadores y colisionadores y leer sus caminos abiertos y cerrados.'
+  - 'Aplicar el criterio de la puerta trasera para elegir el conjunto de ajuste y evitar controles dañinos.'
+  - 'Reconocer sesgos de selección y de tiempo de exposición en comparaciones «observacionales» de clientes.'
+prerequisites: ['experimentacion/05-metricas-de-ratio-interferencia-y-cultura-de-experimentacion']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Hernán & Robins — Causal Inference: What If'
+    url: 'https://miguelhernan.org/whatifbook'
+    type: book
+    authors: 'Hernán, M. A., Robins, J. M.'
+    year: 2020
+  - title: 'Huntington-Klein — The Effect: An Introduction to Research Design and Causality'
+    url: 'https://theeffectbook.net/'
+    type: book
+    authors: 'Huntington-Klein, N.'
+    year: 2021
+  - title: 'Cunningham — Causal Inference: The Mixtape'
+    url: 'https://mixtape.scunning.com/'
+    type: book
+    authors: 'Cunningham, S.'
+    year: 2021
+relatedLabs: ['py-dag-confusores-y-colisionadores']
+relatedCases: ['baja-lumen-plus']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+import Diagram from '../../../components/content/Diagram.tsx';
+
+## Contexto de negocio
+
+<BusinessContext>
+  Retención de Lumen+ (la suscripción) tiene una hipótesis: «los clientes que sufren un retraso
+  grave de envío cancelan más». Comparan, entre los 25.000 suscriptores, a los que alguna vez
+  tuvieron un retraso de 5 días o más (13.347) con los que nunca lo tuvieron (11.653): el 63,0 % ha
+  cancelado frente al 49,1 %, una diferencia de 13,9 puntos. ¿Es el efecto de los retrasos? Como
+  veremos, la cifra correcta es más del doble, y la comparación ingenua falla por una razón que un
+  diagrama causal hace evidente.
+</BusinessContext>
+
+Los experimentos aleatorizan para que el tratamiento sea independiente de todo lo demás. Cuando no puedes aleatorizar, la ciencia causal observacional empieza por una disciplina: **explicitar tus supuestos** sobre cómo se generan los datos. La herramienta es el **grafo acíclico dirigido** (DAG).
+
+## Intuición
+
+Un DAG es un mapa de «quién causa a quién». Dibujas variables como nodos y flechas del causante al efecto. No contiene números: contiene **tus hipótesis**, que otros pueden discutir. Con ese mapa se responde de forma casi mecánica a una pregunta crucial: **¿qué variables debo controlar, y cuáles no?**
+Controlar más no siempre es mejor: hay variables cuyo control **crea** sesgo.
+
+## Cómo funciona
+
+### La pregunta causal
+
+Una pregunta causal bien formulada tiene cuatro partes: **tratamiento** $T$ (retraso grave), **resultado** $Y$ (cancelación), **población** (suscriptores de Lumen+) y **contraste** (¿qué habría pasado con el mismo cliente sin el retraso?). Ese «mismo cliente, otra situación» es el **resultado potencial** $Y^{(0)}$ frente a $Y^{(1)}$; solo observamos uno de los dos,
+así que el efecto causal se estima comparando grupos, y el truco está en que esos grupos sean comparables.
+
+### Las tres estructuras básicas
+
+<Diagram
+  client:visible
+  chart={`flowchart LR
+  subgraph conf["Confusor"]
+    Z1["Z"] --> T1["T"]
+    Z1 --> Y1["Y"]
+    T1 --> Y1
+  end
+  subgraph med["Mediador"]
+    T2["T"] --> M2["M"]
+    M2 --> Y2["Y"]
+    T2 --> Y2
+  end
+  subgraph col["Colisionador"]
+    T3["T"] --> C3["C"]
+    Y3["Y"] --> C3
+    T3 --> Y3
+  end`}
+  alt="Tres estructuras causales: confusor Z que causa a la vez el tratamiento T y el resultado Y; mediador M por el que T influye en Y; y colisionador C causado por T e Y."
+/>
+
+| Estructura           | Qué es                                             | ¿Controlar?                                                      | Qué pasa si te equivocas                                     |
+| -------------------- | -------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------ |
+| **Confusor** $Z$     | Causa común de $T$ e $Y$                           | **Sí**: abre una «puerta trasera» $T \leftarrow Z \to Y$         | Si no lo controlas, el efecto estimado mezcla ambos          |
+| **Mediador** $M$     | Está en el camino causal $T \to M \to Y$           | **No** si quieres el efecto **total**; sí para el efecto directo | Controlarlo oculta parte del efecto                          |
+| **Colisionador** $C$ | Efecto común de $T$ e $Y$ ($T \to C \leftarrow Y$) | **No**: controlarlo (o filtrar por él) **abre** un camino falso  | Crea asociación donde no hay causalidad (sesgo de selección) |
+
+Un camino entre $T$ e $Y$ está **abierto** si transmite asociación. Un colisionador **cierra** el camino por defecto; condicionar sobre él (o sobre un descendiente suyo) lo abre.
+
+### El criterio de la puerta trasera
+
+Para estimar el efecto causal de $T$ sobre $Y$ hay que **bloquear todos los caminos «de puerta trasera»** (los que empiezan con una flecha hacia $T$) sin bloquear los causales ni abrir caminos nuevos. Un conjunto $S$ de variables satisface el criterio si:
+
+1. ninguna variable de $S$ es **descendiente** de $T$ (no controlas mediadores ni consecuencias del tratamiento), y
+2. $S$ bloquea todos los caminos de puerta trasera entre $T$ e $Y$.
+
+Entonces $\mathbb{E}[Y^{(t)}] = \sum_s \mathbb{E}[Y \mid T=t, S=s]\,P(S=s)$ (ajuste por $S$).
+
+### Una simulación con la verdad conocida
+
+Con datos simulados (100.000 observaciones) se ve el sesgo:
+
+| Escenario               | Verdad (efecto de $T$ sobre $Y$) | Comparación ingenua | Controlando la variable de la estructura |
+| ----------------------- | -------------------------------: | ------------------: | ---------------------------------------: |
+| Confusor                |                              2,0 |            **5,39** |                      **2,01** (correcto) |
+| Colisionador            |                              0,5 |     0,50 (correcto) |     **−0,25** (sesgado, signo contrario) |
+| Mediador (efecto total) |  0,7 (0,3 directo + 0,4 vía $M$) |     0,70 (correcto) |                   0,30 (solo el directo) |
+
+La regla «controla todo lo que puedas» **falla** en dos de tres casos. En el colisionador, controlar convierte un efecto positivo en uno negativo.
+
+### Sesgos de selección y de tiempo de exposición
+
+Dos formas de colisionador y de confusor que aparecen en datos de negocio:
+
+- **Sesgo de selección:** analizar solo a los clientes que cumplen algo que depende de $T$ e $Y$ (por ejemplo, «clientes activos») es condicionar sobre un colisionador.
+- **Sesgo de tiempo de exposición** (_immortal time bias_): comparar «clientes que alguna vez tuvieron el tratamiento» con los que no. Quien permanece más tiempo suscrito tiene más oportunidades de sufrir un retraso, así que **el tiempo en riesgo** actúa como confusor: más tiempo de suscripción ⇒ más cancelaciones posibles y más exposición.
+
+Volvamos a Lumen+. La comparación por cliente («alguna vez tuvo un retraso grave») dio +13,9 puntos. Pero un cliente cancela en un **momento**, y el retraso debe haber ocurrido **antes**. Reorganizando los datos por **suscriptor-mes** (cada 30 días de suscripción es una observación, y la exposición es «hubo un retraso grave en los 30 días previos»),
+sobre 328.780 suscriptor-mes:
+
+| Exposición en los 30 días previos | Suscriptor-meses | Cancelan |
+| --------------------------------- | ---------------: | -------: |
+| Sin retraso grave                 |          321.376 |   3,50 % |
+| Con retraso grave                 |            7.404 |  38,92 % |
+
+El efecto es de unos **+35 puntos porcentuales** de probabilidad mensual de cancelar, no +14. La comparación por cliente lo **subestimaba** a más de la mitad porque mezclaba tiempo en riesgo y exposición. (En el caso guiado «¿Por qué se dan de baja de Lumen+?» harás este análisis tú.)
+
+<Callout type="note">
+  En Lumen el retraso de envío no está asociado a características del cliente (el transportista se
+  asigna al azar), así que, bien alineado en el tiempo, la comparación por suscriptor-mes es una
+  estimación causal. En datos reales, además habría que preguntarse por confusores (zona, tipo de
+  producto, temporada) y ajustarlos según el DAG.
+</Callout>
+
+## En la práctica
+
+1. **Formula la pregunta:** tratamiento, resultado, población y contraste.
+2. **Dibuja el DAG** con ayuda de gente que conozca el negocio; incluye variables que no tienes (no medidas).
+3. **Aplica la puerta trasera:** lista los caminos y elige un conjunto de ajuste disponible. Si hay un confusor no medido, no hay ajuste honesto: busca otra fuente de variación (diseño: DiD, discontinuidad, instrumento) o declara el sesgo.
+4. **Alinea el tiempo:** el tratamiento precede al resultado; usa estructuras de tipo persona-periodo para exposiciones que cambian.
+5. **Estima y haz análisis de sensibilidad** (¿qué confusor no medido tendría que existir para anular el resultado?).
+
+```python
+import numpy as np
+
+def efecto_ols(y, t, controles=()):
+    X = np.column_stack([np.ones(len(y)), t, *controles])
+    return np.linalg.lstsq(X, y, rcond=None)[0][1]   # coeficiente de t
+
+efecto_ols(y, t)            # ingenuo
+efecto_ols(y, t, [z])       # ajustando el confusor
+```
+
+En el lab simulas las tres estructuras y comprobarás qué conjunto de ajuste recupera el efecto verdadero en cada una.
+
+## Trade-offs y cuándo usarlo
+
+- **Más controles frente a controles correctos:** añadir variables por si acaso puede abrir caminos (colisionadores) o bloquear efecto (mediadores). El DAG decide.
+- **Supuestos explícitos frente a «cajas negras»:** un DAG se puede criticar; un modelo con 200 variables no. A cambio, el DAG obliga a comprometerse con supuestos.
+- **Observacional frente a experimento:** lo observacional exige supuestos no verificables (sin confusores no medidos); un experimento los sustituye por la aleatorización.
+- **Efecto total frente a efecto directo:** cuál interesa depende de la decisión (¿cambiar el envío o la comunicación de los retrasos?).
+
+## Errores comunes
+
+- **«Controlar por todo lo disponible»**, incluidos mediadores y colisionadores.
+- **Filtrar a una población definida por el resultado** (clientes activos, compradores, usuarios que respondieron).
+- **Comparar «alguna vez expuestos» con «nunca expuestos»** sin alinear el tiempo.
+- **Interpretar un coeficiente de regresión como causal** sin DAG.
+- **Ignorar los confusores no medidos** y presentar el ajuste como definitivo.
+- **Controlar por una variable medida después del tratamiento.**
+- **Creer que «más datos» arreglan el sesgo.**
+
+## Con IA
+
+Un asistente puede ayudarte a **proponer un DAG** y a listar variables, pero suele recomendar «incluir todas las covariables disponibles» sin distinguir confusores de colisionadores y mediadores. Dale el DAG que tú has decidido y pídele que **verifique el criterio de la puerta trasera**; comprueba su respuesta con una simulación como la del lab.
+
+## En una entrevista
+
+- _"¿Qué es un confusor y qué es un colisionador? ¿Controlas por ambos?"_ — Pista: confusor sí, colisionador no (abre un camino); mediador según efecto total o directo.
+- _"Los clientes con retraso grave cancelan 14 puntos más. ¿Es el efecto?"_ — Pista: alinear exposición y tiempo; sesgo de tiempo en riesgo; persona-periodo.
+- _"¿Cómo decides qué variables incluir en una regresión causal?"_ — Pista: DAG, criterio de la puerta trasera, no descendientes del tratamiento.
+
+<KeyTakeaways
+  items={[
+    'Un DAG expresa tus supuestos causales; con él se decide qué ajustar: confusores sí, colisionadores no, y mediadores solo si quieres el efecto directo.',
+    'El criterio de la puerta trasera exige un conjunto de ajuste que bloquee todos los caminos de puerta trasera sin incluir descendientes del tratamiento.',
+    'En una simulación con efecto verdadero 2, la comparación ingenua da 5,39 y el ajuste por el confusor 2,01; en el colisionador, controlar convierte +0,5 en −0,25.',
+    'Comparar «alguna vez expuestos» con «nunca expuestos» introduce sesgo de tiempo de exposición: en Lumen+ da +13,9 puntos, mientras que el análisis por suscriptor-mes da +35 (3,5 % frente a 38,9 % de cancelación mensual).',
+    'Si hay un confusor relevante no medido, ningún ajuste lo resuelve: hace falta un diseño con otra fuente de variación (DiD, discontinuidad, instrumento) o declarar el sesgo.',
+  ]}
+/>

@@ -1,0 +1,199 @@
+---
+title: 'Control sintético y CausalImpact'
+description: 'Cómo construir un grupo de control a medida con una combinación ponderada de unidades no tratadas (control sintético), evaluar el efecto con placebos y cuándo usar modelos de series temporales estructurales bayesianas (CausalImpact).'
+module: causalidad
+order: 3
+level: avanzado
+estimatedMinutes: 50
+objectives:
+  - 'Explicar la idea del control sintético y calcular los pesos de las unidades donantes con mínimos cuadrados restringidos.'
+  - 'Evaluar el ajuste previo y el efecto posterior de forma coherente, y medir la significación con placebos en el espacio.'
+  - 'Describir cómo CausalImpact predice el contrafactual con un modelo de series temporales y covariables no afectadas.'
+  - 'Elegir entre diferencias en diferencias, control sintético y CausalImpact según los datos disponibles.'
+prerequisites: ['causalidad/02-diferencias-en-diferencias']
+tools: ['python']
+volatility: low
+lastReviewed: 2026-10-14
+sources:
+  - title: 'Abadie, Diamond & Hainmueller (2010) — Synthetic Control Methods for Comparative Case Studies'
+    url: 'https://economics.mit.edu/sites/default/files/publications/Synthetic%20Control%20Methods.pdf'
+    type: paper
+    authors: 'Abadie, A., Diamond, A., Hainmueller, J.'
+    year: 2010
+  - title: 'Brodersen et al. (2015) — Inferring causal impact using Bayesian structural time-series models'
+    url: 'https://projecteuclid.org/journals/annals-of-applied-statistics/volume-9/issue-1/Inferring-causal-impact-using-Bayesian-structural-time-series-models/10.1214/14-AOAS788.full'
+    type: paper
+    authors: 'Brodersen, K. H., Gallusser, F., Koehler, J., Remy, N., Scott, S. L.'
+    year: 2015
+  - title: 'Google — CausalImpact (documentación)'
+    url: 'https://google.github.io/CausalImpact/CausalImpact.html'
+    type: docs
+    authors: 'Google'
+    year: 2026
+  - title: 'Cunningham — Causal Inference: The Mixtape (capítulo Synthetic Control)'
+    url: 'https://mixtape.scunning.com/'
+    type: book
+    authors: 'Cunningham, S.'
+    year: 2021
+relatedLabs: ['py-control-sintetico']
+---
+
+import BusinessContext from '../../../components/content/BusinessContext.astro';
+import Callout from '../../../components/content/Callout.astro';
+import KeyTakeaways from '../../../components/content/KeyTakeaways.astro';
+
+## Contexto de negocio
+
+<BusinessContext>
+  En el caso de la subida de precios de Andalucía comparamos Electrónica en Andalucía con **todas**
+  las demás regiones en bloque. Pero Madrid, Cataluña y Extremadura no se parecen a Andalucía: ¿y si
+  el control «correcto» fuera una mezcla de regiones que sí evolucionaban como ella antes del
+  cambio? Con un solo grupo tratado y muchos posibles controles, el **control sintético** construye
+  ese control a medida.
+</BusinessContext>
+
+Cuando solo una unidad (una región, una tienda, un país) recibe el tratamiento y hay muchas unidades sin tratar con historia larga, el control sintético es una alternativa más transparente que elegir «el mejor control» a mano.
+
+## Intuición
+
+Imagina que quieres saber cómo habrían evolucionado las ventas de Andalucía sin la subida. Buscas una combinación de otras regiones, por ejemplo 40 % Madrid, 18 % País Vasco, 17 % Castilla y León…, cuyo **historial previo** reproduzca el de Andalucía lo mejor posible. Si esa combinación sigue a Andalucía antes del cambio, es razonable usarla como su
+sombra después: la **brecha** entre Andalucía real y su sombra es el efecto estimado.
+
+## Cómo funciona
+
+### El método
+
+Sea $Y_{jt}$ el resultado de la unidad $j$ en el periodo $t$, la unidad 1 la tratada (desde $T_0$) y $j = 2, \dots, J+1$ las donantes. Los pesos $w_j \ge 0$, con $\sum_j w_j = 1$, se eligen para reproducir la trayectoria **previa** de la tratada:
+
+$$
+\hat{w} = \arg\min_{w \ge 0,\;\sum w = 1} \sum_{t \le T_0} \Bigl(Y_{1t} - \sum_{j} w_j Y_{jt}\Bigr)^2
+$$
+
+El efecto estimado en el periodo $t > T_0$ es la brecha $\hat{\tau}_t = Y_{1t} - \sum_j \hat{w}_j Y_{jt}$. Las restricciones (pesos no negativos que suman 1) impiden extrapolar: el control sintético es una **interpolación** de unidades reales, lo que lo hace interpretable y evita pesos extremos.
+
+Recomendaciones prácticas:
+
+- **Normaliza las series** (por ejemplo, índice 100 en la media previa) para que unidades de distinto tamaño sean comparables.
+- Usa **muchos periodos previos** y vigila el **ajuste previo**: si el control sintético no reproduce bien la serie antes del cambio, el método no es fiable.
+- Excluye donantes **afectadas** por el tratamiento (contaminación) o con shocks propios.
+- No elijas las covariables o el periodo mirando el resultado.
+
+### El caso Andalucía
+
+Electrónica, ingresos mensuales por región entre enero de 2023 y febrero de 2026, con el cambio de precios en marzo de 2025. Las 15 regiones donantes reciben pesos que minimizan el error en los 26 meses previos. El control sintético queda formado por:
+
+| Donante          |   Peso |
+| ---------------- | -----: |
+| Madrid           | 39,5 % |
+| País Vasco       | 18,4 % |
+| Castilla y León  | 16,6 % |
+| Región de Murcia | 14,8 % |
+| Galicia          |  4,7 % |
+| Canarias         |  4,3 % |
+| Cantabria        |  1,4 % |
+| Resto            |  < 1 % |
+
+Con ese control, el error cuadrático medio previo es de **4,7 puntos de índice** (el nivel medio previo es 100) y, tras el cambio, Andalucía queda de media **un 13,9 % por encima** de su control sintético. Es coherente con el DiD de la lección anterior (+13,9 % en el análisis mensual).
+
+### Inferencia con placebos
+
+Con una sola unidad tratada no hay error estándar clásico. Se usa un **test de permutación en el espacio**: se aplica el mismo método a cada donante como si hubiera sido la tratada (el «placebo») y se compara la brecha de la unidad real con la distribución de brechas de los placebos.
+Como unas unidades se ajustan mejor que otras, la estadística recomendada es el **cociente de errores** posterior/previo (RMSPE posterior ÷ RMSPE previo):
+
+| Unidad             | RMSPE posterior / previo |
+| ------------------ | -----------------------: |
+| **Andalucía**      |                 **11,5** |
+| Aragón             |                      5,1 |
+| Castilla-La Mancha |                      4,6 |
+| País Vasco         |                      4,5 |
+| …                  |                        … |
+
+Andalucía tiene el cociente más alto de las 16 unidades: si el tratamiento no tuviera efecto, la probabilidad de que una unidad al azar tuviera un cociente así de alto sería de 1/16 = **0,0625**. Con solo 16 unidades, ese es el p-valor más pequeño posible.
+Fíjate en que la **brecha media en bruto** no habría bastado: Extremadura (+16,6 %) tiene una brecha mayor que Andalucía (+13,9 %) porque su ajuste previo es peor; por eso se normaliza con el ajuste previo.
+
+<Callout type="note">
+  El resultado coincide con el DiD, pero no es una prueba de validez: ambos métodos asumen que no
+  hubo otros shocks específicos de Andalucía en el mismo momento. Su ventaja es que el control se
+  construye con una regla objetiva y que permite evaluar el ajuste previo y los placebos.
+</Callout>
+
+### CausalImpact: series temporales estructurales bayesianas
+
+**CausalImpact** (Brodersen et al., 2015) responde a la misma pregunta con un modelo bayesiano: ajusta un **modelo de series temporales estructural** (nivel local, tendencia, estacionalidad) a la serie tratada usando como regresoras otras series **no afectadas** por el cambio, durante el periodo previo. Luego **predice** la serie en el periodo posterior sin tratamiento (el contrafactual) con su incertidumbre:
+
+1. Elige la serie de respuesta y las covariables no afectadas (otras regiones, búsquedas, tráfico de mercado).
+2. Ajusta el modelo en el periodo previo.
+3. Proyecta el contrafactual en el posterior con intervalos creíbles.
+4. El efecto es la diferencia entre lo observado y lo predicho (puntual y acumulado), con una probabilidad posterior de efecto causal.
+
+Frente al control sintético, CausalImpact modela explícitamente **tendencia y estacionalidad** y da intervalos creíbles por construcción; a cambio, depende de que las covariables no estén afectadas y de que la relación estimada en el periodo previo se mantenga. Hay implementaciones en R (paquete de Google) y adaptaciones a Python.
+
+### Cuándo usar cada método
+
+| Situación                                                      | Método                           |
+| -------------------------------------------------------------- | -------------------------------- |
+| Varios tratados y controles claros, dos periodos               | DiD (con estudio de eventos)     |
+| Un tratado, muchas donantes, buen historial                    | Control sintético                |
+| Una serie agregada (p. ej., ventas del país) y series de apoyo | CausalImpact (BSTS)              |
+| Tratamiento escalonado entre muchas unidades                   | DiD robusto (Callaway-Sant’Anna) |
+| Se puede aleatorizar                                           | Experimento                      |
+
+## En la práctica
+
+1. **Define el tratamiento, la fecha y la unidad.**
+2. **Prepara el panel** (unidad × tiempo), normaliza y elimina donantes contaminadas.
+3. **Ajusta los pesos** con el periodo previo y revisa el **ajuste** (gráfico y error).
+4. **Calcula la brecha** posterior y su equivalente en porcentaje del contrafactual.
+5. **Haz placebos** en el espacio (y en el tiempo: fechas falsas previas) y compara los cocientes de error.
+6. **Prueba robustez:** quita las donantes con más peso una a una; si el resultado se desmorona, es frágil.
+7. **Comunica** el efecto con el ajuste previo y el p-valor de permutación, y los supuestos.
+
+```python
+import numpy as np
+from scipy.optimize import nnls
+
+def pesos(pre_donantes, pre_tratada, lam=1000.0):
+    A = np.vstack([pre_donantes, lam * np.ones((1, pre_donantes.shape[1]))])
+    b = np.concatenate([pre_tratada, [lam]])
+    w, _ = nnls(A, b)               # w >= 0
+    return w / w.sum()               # suma 1
+```
+
+En el lab implementas los pesos, el ajuste previo, la brecha y los placebos con los datos de Lumen.
+
+## Trade-offs y cuándo usarlo
+
+- **Control sintético frente a DiD:** el sintético justifica el control con datos, pero requiere muchas donantes y ajuste previo bueno; el DiD tolera diferencias de nivel pero exige tendencias paralelas con el control elegido.
+- **Pocos periodos previos:** el sintético tiende a sobreajustar; con pocos periodos, el DiD es más estable.
+- **Interpolación frente a extrapolación:** si la tratada está fuera del «rango» de las donantes (más grande que todas), el sintético no puede reproducirla.
+- **Intervalos:** CausalImpact da intervalos creíbles bajo su modelo; el control sintético usa inferencia por permutación, de potencia limitada con pocas unidades.
+
+## Errores comunes
+
+- **Ignorar el ajuste previo** y comunicar una brecha de un control que no sigue a la tratada.
+- **Elegir la ventana previa o las covariables después de ver el resultado.**
+- **Incluir donantes afectadas por el tratamiento** (efectos de contagio entre regiones, canibalización).
+- **Interpretar la brecha en bruto de los placebos sin normalizar por el ajuste.**
+- **Presentar un efecto «significativo» sin mostrar los placebos.**
+- **Usar covariables medidas después del tratamiento en CausalImpact.**
+- **Extrapolar a largo plazo** con un modelo ajustado en un periodo corto.
+
+## Con IA
+
+Un asistente puede generar el código de un control sintético o una llamada a CausalImpact, pero con frecuencia usa la media de las demás unidades como «sintético», omite la normalización o presenta el efecto sin placebos. Pide el **gráfico del ajuste previo**, los **pesos** y los **placebos**, y revisa que ninguna donante esté contaminada.
+
+## En una entrevista
+
+- _"Lanzamos una campaña en una sola ciudad. ¿Cómo mides su efecto?"_ — Pista: control sintético (o CausalImpact) con otras ciudades; ajuste previo; placebos.
+- _"¿Cómo evalúas la significación del control sintético?"_ — Pista: permutación en el espacio con el cociente de errores posterior/previo.
+- _"¿Qué ventaja tiene CausalImpact?"_ — Pista: modela tendencia y estacionalidad, da intervalos creíbles; depende de covariables no afectadas.
+
+<KeyTakeaways
+  items={[
+    'El control sintético combina unidades no tratadas con pesos no negativos que suman 1 para reproducir la trayectoria previa de la tratada; la brecha posterior es el efecto.',
+    'En Lumen, el control sintético de Electrónica en Andalucía (Madrid 40 %, País Vasco 18 %, Castilla y León 17 %…) ajusta con un error previo de 4,7 puntos de índice y deja a Andalucía un 13,9 % por encima tras la subida, en línea con el DiD.',
+    'La inferencia con una sola unidad tratada se hace por placebos en el espacio con el cociente RMSPE posterior/previo: Andalucía tiene el más alto de 16 unidades (11,5), p = 1/16 = 0,0625.',
+    'La brecha en bruto no basta: Extremadura tiene una brecha mayor (+16,6 %) que Andalucía, pero con peor ajuste previo.',
+    'CausalImpact predice el contrafactual con un modelo bayesiano de series temporales y covariables no afectadas; elige entre DiD, sintético y CausalImpact según unidades, historia y datos disponibles.',
+  ]}
+/>

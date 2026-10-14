@@ -1,0 +1,71 @@
+lesson: causalidad/02-diferencias-en-diferencias
+questions:
+  - id: cau-02-q1
+    type: numeric
+    difficulty: 1
+    prompt: 'Los ingresos medios del grupo tratado pasan de 100 a 160 y los del control de 100 a 130. ¿Cuál es la estimación de diferencias en diferencias (en las mismas unidades)?'
+    answer: [30]
+    tolerance: 0.01
+    explanation: 'DiD = (160 − 100) − (130 − 100) = 60 − 30 = 30. El control descuenta la parte del aumento que habría ocurrido de todos modos.'
+    ref: '#el-diseño-22'
+
+  - id: cau-02-q2
+    type: single
+    difficulty: 2
+    prompt: '¿Qué supuesto necesita el DiD para interpretarse como efecto causal?'
+    options:
+      - 'Que el grupo tratado y el de control sean idénticos antes del cambio'
+      - 'Que, sin el tratamiento, ambos grupos habrían evolucionado en paralelo (tendencias paralelas)'
+      - 'Que el tratamiento se asigne al azar'
+      - 'Que haya muchos grupos tratados'
+    answer: [1]
+    explanation: 'Los grupos pueden diferir en nivel, pero no en tendencia contrafactual. Este supuesto no se puede probar, solo criticar con los datos previos.'
+    ref: '#el-supuesto-tendencias-paralelas'
+
+  - id: cau-02-q3
+    type: single
+    difficulty: 2
+    prompt: 'En Lumen, los ingresos de Electrónica en Andalucía crecieron un 135 % tras la subida de precios, pero el resto de España creció un 109 %. ¿Qué conclusión es correcta?'
+    options:
+      - 'La subida de precios provocó un crecimiento del 135 %'
+      - 'Gran parte del crecimiento es tendencia común; el efecto de la subida es la diferencia relativa entre ambas evoluciones (≈ +14 % en el DiD)'
+      - 'La subida de precios no tuvo efecto'
+      - 'No se puede decir nada sin un experimento'
+    answer: [1]
+    explanation: 'Un antes/después atribuiría al precio el crecimiento que ocurrió en todas partes. El DiD resta la evolución del control y deja un efecto relativo de unos +14 %, con un intervalo amplio.'
+    ref: '#el-diseño-22'
+
+  - id: cau-02-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las comprobaciones razonables de las tendencias paralelas.'
+    options:
+      - 'Graficar la evolución de tratados y controles antes del cambio'
+      - 'Estudio de eventos con los coeficientes previos cerca de cero y sin tendencia'
+      - 'Repetir el análisis con otro grupo de control o con un cambio ficticio previo (placebo)'
+      - 'Comprobar que los grupos tienen exactamente el mismo nivel de ingresos'
+    answer: [0, 1, 2]
+    explanation: 'Lo que importa es la tendencia, no el nivel: dos grupos de tamaños muy distintos pueden tener tendencias paralelas, y al revés. La igualdad de niveles no es un requisito del DiD.'
+    ref: '#el-supuesto-tendencias-paralelas'
+
+  - id: cau-02-q5
+    type: single
+    difficulty: 3
+    prompt: 'Las regiones adoptan una nueva política en meses distintos (adopción escalonada) y estimas una regresión con efectos fijos de unidad y de tiempo. ¿Cuál es el riesgo principal?'
+    options:
+      - 'Que haya demasiados datos'
+      - 'Que unidades ya tratadas actúen como controles de otras y, si el efecto varía en el tiempo o entre cohortes, la estimación quede sesgada (incluso con signo contrario)'
+      - 'Que no se pueda calcular un intervalo'
+      - 'Ninguno: es el estimador estándar'
+    answer: [1]
+    explanation: 'Goodman-Bacon (2018) y otros muestran que la estimación TWFE es un promedio ponderado de comparaciones, algunas con pesos negativos. Estimadores como el de Callaway y Sant’Anna comparan con unidades aún no tratadas.'
+    ref: '#adopción-escalonada'
+
+  - id: cau-02-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Con una única región tratada y 12 meses antes y después, un intervalo de confianza calculado a partir de la dispersión mensual es una medida precisa de la incertidumbre del DiD.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Con un solo clúster tratado la inferencia es frágil: el supuesto de independencia entre meses y la ausencia de choques específicos de la región no se verifican. Conviene complementar con placebos, permutaciones o control sintético.'
+    ref: '#regresión-y-errores-estándar'

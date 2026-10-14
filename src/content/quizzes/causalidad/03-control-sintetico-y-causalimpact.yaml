@@ -1,0 +1,71 @@
+lesson: causalidad/03-control-sintetico-y-causalimpact
+questions:
+  - id: cau-03-q1
+    type: single
+    difficulty: 2
+    prompt: '¿Por qué los pesos del control sintético se restringen a ser no negativos y sumar 1?'
+    options:
+      - 'Para que el cálculo sea más rápido'
+      - 'Para que el control sea una interpolación de unidades reales, sin extrapolar ni dar pesos extremos'
+      - 'Para que el efecto siempre sea positivo'
+      - 'Porque lo exige la inferencia bayesiana'
+    answer: [1]
+    explanation: 'Con pesos no negativos que suman 1, el sintético queda dentro de la envolvente de las donantes: es interpretable y no extrapola fuera de lo observado.'
+    ref: '#el-método'
+
+  - id: cau-03-q2
+    type: single
+    difficulty: 3
+    prompt: 'En los placebos en el espacio, ¿por qué se compara el cociente RMSPE posterior/previo y no solo la brecha media posterior?'
+    options:
+      - 'Porque el cociente siempre es mayor'
+      - 'Porque las unidades se ajustan mejor o peor antes del cambio: una brecha grande con mal ajuste previo no es tan sorprendente'
+      - 'Porque la brecha media no se puede calcular'
+      - 'Porque así no hacen falta placebos'
+    answer: [1]
+    explanation: 'En Lumen, Extremadura tiene una brecha mayor que Andalucía (+16,6 % frente a +13,9 %), pero su ajuste previo es peor; el cociente corrige esa diferencia.'
+    ref: '#inferencia-con-placebos'
+
+  - id: cau-03-q3
+    type: numeric
+    difficulty: 2
+    prompt: 'Con 16 unidades (la tratada y 15 donantes), si la tratada tiene el cociente más alto, ¿cuál es el p-valor de permutación?'
+    answer: [0.0625]
+    tolerance: 0.001
+    explanation: 'p = 1/16 = 0,0625: la fracción de unidades con un cociente al menos tan alto (solo ella misma). Con tan pocas unidades es el p-valor más pequeño posible.'
+    ref: '#inferencia-con-placebos'
+
+  - id: cau-03-q4
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las buenas prácticas con un control sintético.'
+    options:
+      - 'Normalizar las series para que unidades de distinto tamaño sean comparables'
+      - 'Comprobar que el control sintético reproduce bien la serie previa de la tratada'
+      - 'Excluir donantes afectadas por el tratamiento o con shocks propios'
+      - 'Elegir la ventana previa que dé el efecto más favorable'
+    answer: [0, 1, 2]
+    explanation: 'Elegir la ventana según el resultado es p-hacking. Las otras tres son prácticas estándar.'
+    ref: '#en-la-práctica'
+
+  - id: cau-03-q5
+    type: single
+    difficulty: 2
+    prompt: 'Una campaña local se emite en una sola ciudad. Tienes 30 ciudades sin campaña con ventas semanales durante 3 años. ¿Qué método es el más natural?'
+    options:
+      - 'Un test t entre la ciudad y la media del resto'
+      - 'Control sintético (o CausalImpact) con las otras ciudades como donantes o covariables'
+      - 'Regresión discontinua'
+      - 'No se puede estimar el efecto'
+    answer: [1]
+    explanation: 'Una sola unidad tratada, muchas donantes y larga historia previa es el escenario para el control sintético o un modelo de series temporales como CausalImpact.'
+    ref: '#cuándo-usar-cada-método'
+
+  - id: cau-03-q6
+    type: truefalse
+    difficulty: 3
+    prompt: 'En CausalImpact es válido usar como covariables series que también se ven afectadas por la intervención.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Las covariables deben ser independientes de la intervención; si también reaccionan al tratamiento, el contrafactual predicho absorbe parte del efecto y lo subestima.'
+    ref: '#causalimpact-series-temporales-estructurales-bayesianas'

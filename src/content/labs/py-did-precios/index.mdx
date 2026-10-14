@@ -1,0 +1,36 @@
+---
+title: 'Diferencias en diferencias: la subida de precios de Electrónica en Andalucía'
+description: 'Construye la serie mensual de Electrónica en Andalucía y en el resto de España, estima el efecto de la subida de precios con diferencias en diferencias y su intervalo, y comprueba las tendencias previas con un estudio de eventos.'
+language: python
+part: 'Parte III · Inferencia y experimentación'
+module: causalidad
+difficulty: 3
+estimatedMinutes: 40
+concepts:
+  [
+    'diferencias en diferencias',
+    'tendencias paralelas',
+    'estudio de eventos',
+    'logaritmos',
+    'intervalo de confianza',
+  ]
+datasets: ['orders', 'order_items', 'customers', 'products']
+packages: ['scipy']
+output: console
+hints:
+  - 'Electrónica son los productos cuyo `category_id` empieza por `cat-00`. Une `order_items` con `orders` (sin cancelados), `customers` (región) y `products`, calcula `ingresos = quantity * unit_price` y agrupa por mes (`order_date.dt.to_period("M").astype(str)`) y por Andalucía (`region.str.startswith("Andaluc")`).'
+  - 'Con las series `rev_and` y `rev_resto`, el logaritmo del cociente es `np.log(rev_and / rev_resto)`. El DiD es la media de ese logaritmo en los 12 meses posteriores menos la de los 12 previos; el efecto relativo es `exp(did) - 1`.'
+  - 'Error estándar: `sqrt(var_pre/12 + var_post/12)` (varianzas con `ddof=1`). Intervalo: `did ± t * se` con `t = stats.t.ppf(0.975, 22)` y se transforma con `exp(...) - 1`.'
+  - 'Tendencia previa: `stats.linregress(range(12), lr_previo)` da `slope`, `stderr` y `pvalue`. Estudio de eventos: `lr - lr[base]` con base `"2025-02"`.'
+relatedLessons: ['causalidad/02-diferencias-en-diferencias']
+businessQuestion: '¿Cuánto cambiaron los ingresos y las unidades de Electrónica en Andalucía a raíz de la subida de precios, descontando la tendencia común?'
+---
+
+Implementa cuatro funciones:
+
+1. **`serie_mensual(orders, order_items, customers, products)`** → DataFrame indexado por mes (`"2023-01"`…) con las columnas `rev_and`, `rev_resto`, `q_and`, `q_resto`: ingresos y unidades de **Electrónica** (pedidos no cancelados) en Andalucía y en el resto de regiones. Los meses sin ventas deben aparecer con 0.
+2. **`did_log(serie, y, previo=("2024-03", "2025-02"), posterior=("2025-03", "2026-02"))`** → diccionario con `did` (en logaritmos), `efecto_pct` (en %), `se`, `ic_inf` e `ic_sup` (en %, intervalo al 95 % con la t de 22 grados de libertad). `y` es `"rev"` o `"q"`.
+3. **`pendiente_previa(serie, y, previo=("2024-03", "2025-02"))`** → `(pendiente, error_estandar, p_valor)` de la regresión del logaritmo del cociente Andalucía / resto sobre el tiempo en el periodo previo.
+4. **`estudio_eventos(serie, y, base="2025-02")`** → Serie con el logaritmo del cociente menos su valor en el mes base.
+
+El script imprime los resultados para ingresos y unidades.

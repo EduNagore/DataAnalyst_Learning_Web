@@ -1,0 +1,153 @@
+---
+title: '¿Funcionó la subida de precios en Andalucía?'
+description: 'Un caso de inferencia causal sin experimento: evalúa con diferencias en diferencias el efecto de una subida de precios regional en Electrónica sobre ingresos y unidades, y redacta la recomendación con sus límites.'
+difficulty: 3
+estimatedMinutes: 50
+role: finanzas
+datasets: ['orders', 'order_items', 'customers', 'products']
+brief: |
+  De: Carmen Ortiz (Finanzas)
+  Asunto: Subida de precios de Electrónica en Andalucía (marzo 2025)
+
+  Hola, hace un año subimos un 12 % los precios de Electrónica solo en Andalucía. Los ingresos de allí han crecido mucho, y dirección quiere extenderlo al resto de España.
+
+  Antes de decidir necesito saber si la subida funcionó de verdad o si es que la empresa está creciendo en todas partes. ¿Puedes ayudarme?
+
+  Gracias, Carmen
+steps:
+  - id: s1-andalucia
+    tool: sql
+    answerType: numeric
+    answer: 135.08
+    tolerance: 0.1
+    prompt: |
+      Define el periodo **previo** como marzo de 2024 a febrero de 2025 y el **posterior** como marzo de 2025 a febrero de 2026. «Electrónica» son los productos con `category_id LIKE 'cat-00-%'`; los ingresos son `quantity * unit_price` de los pedidos no cancelados, asignados a la región del cliente (`customers.region`).
+
+      ¿En qué **porcentaje** crecieron los ingresos de Electrónica en **Andalucía** (región que empieza por «Andaluc») entre los dos periodos? (Dos decimales.)
+    hints:
+      - "Une `order_items`, `orders`, `customers` y `products`; filtra `o.status <> 'cancelado'` y los dos rangos de fechas con límites semiabiertos."
+      - 'Crecimiento = ingresos posteriores / ingresos previos − 1.'
+    explanation: |
+      Los ingresos de Electrónica en Andalucía pasan de unos 2,29 M€ a unos 5,39 M€: un **+135,08 %**. Parece un éxito rotundo de la subida de precios… si no miras nada más.
+
+  - id: s2-resto
+    tool: sql
+    answerType: numeric
+    answer: 108.66
+    tolerance: 0.1
+    prompt: |
+      Repite el cálculo para **el resto de regiones** (todas las que no empiezan por «Andaluc»). ¿En qué porcentaje crecieron los ingresos de Electrónica? (Dos decimales.)
+    hints:
+      - "Usa `NOT (c.region LIKE 'Andaluc%')` o una columna booleana y agrupa."
+    explanation: |
+      En el resto de España los ingresos de Electrónica crecieron un **+108,66 %**. Lumen estaba en plena expansión en todas partes: buena parte del +135 % de Andalucía no tiene nada que ver con el precio.
+
+  - id: s3-antes-despues
+    tool: reasoning
+    answerType: single
+    answer: [1]
+    options:
+      - 'Atribuir a la subida los 135 puntos de crecimiento: es lo que ocurrió en Andalucía.'
+      - 'Usar el resto de España como contrafactual de la tendencia común y atribuir a la subida solo la diferencia entre ambos crecimientos.'
+      - 'Descartar el análisis porque no hubo experimento.'
+      - 'Comparar solo los dos primeros meses tras la subida.'
+    prompt: |
+      ¿Cómo debes comparar para estimar el efecto de la subida?
+    hints:
+      - 'Piensa en qué habría pasado en Andalucía sin la subida y qué grupo te da una pista de ello.'
+    explanation: |
+      El diseño es de **diferencias en diferencias**: el resto de regiones aproxima la tendencia común. El efecto es la diferencia relativa entre los dos crecimientos, bajo el supuesto de que, sin la subida, Andalucía habría crecido igual que el resto.
+
+  - id: s4-did
+    tool: sql
+    answerType: numeric
+    answer: 12.66
+    tolerance: 0.1
+    prompt: |
+      Calcula el efecto relativo sobre los **ingresos** como cociente de crecimientos:
+
+      (ingresos posteriores / previos en Andalucía) / (ingresos posteriores / previos en el resto) − 1, en %. (Dos decimales.)
+    hints:
+      - 'Reutiliza los ingresos de los pasos anteriores: (1 + crecimiento Andalucía) / (1 + crecimiento resto) − 1.'
+    explanation: |
+      (2,3508 / 2,0866) − 1 = **+12,66 %**. Tras descontar la tendencia común, la subida de precios aportó alrededor de un 13 % más de ingresos de los que Andalucía habría tenido sin ella.
+
+  - id: s5-unidades
+    tool: sql
+    answerType: numeric
+    answer: 0.97
+    tolerance: 0.1
+    prompt: |
+      ¿Cómo ha afectado al **volumen**? Calcula el mismo efecto relativo sobre las **unidades vendidas** (`SUM(quantity)`): cociente de crecimientos entre Andalucía y el resto, menos 1, en %. (Dos decimales.)
+    hints:
+      - 'Sustituye `quantity * unit_price` por `quantity` en las mismas agregaciones.'
+    explanation: |
+      Las unidades vendidas en Andalucía crecieron un **+0,97 %** más que en el resto: prácticamente nada. Es decir, los clientes siguieron comprando las mismas unidades a precios más altos.
+
+  - id: s6-precio
+    tool: sql
+    answerType: numeric
+    answer: 11.58
+    tolerance: 0.1
+    prompt: |
+      Comprueba el mecanismo con el **precio medio por unidad** (ingresos / unidades). Calcula el efecto relativo (DiD) sobre el precio medio por unidad: el cociente entre el cambio relativo del precio medio en Andalucía y el del resto, menos 1, en %. (Dos decimales.)
+    hints:
+      - 'Precio medio = SUM(quantity * unit_price) / SUM(quantity) en cada región y periodo.'
+    explanation: |
+      El precio medio por unidad subió un **+11,58 %** más en Andalucía que en el resto, en línea con el 12 % anunciado (la diferencia viene del cambio de mezcla de productos y de los descuentos). El mecanismo es coherente: precio ↑, unidades estables, ingresos ↑.
+
+  - id: s7-ingresos
+    tool: sql
+    answerType: numeric
+    answer: 0.61
+    tolerance: 0.03
+    prompt: |
+      Traduce el efecto a euros: ¿cuántos **millones de euros adicionales** ingresó Electrónica en Andalucía en el periodo posterior respecto al contrafactual (ingresos previos de Andalucía × crecimiento del resto)? (Dos decimales.)
+    hints:
+      - 'Contrafactual = ingresos previos de Andalucía × (ingresos posteriores del resto / ingresos previos del resto). Resta ese valor a los ingresos posteriores reales de Andalucía.'
+    explanation: |
+      Contrafactual ≈ 4,79 M€ frente a 5,39 M€ reales: unos **0,61 M€ adicionales** en 12 meses. Es una estimación con un intervalo amplio (el DiD mensual da de +6 % a +22 %).
+
+  - id: s8-limites
+    tool: reasoning
+    answerType: multiple
+    answer: [0, 1, 2]
+    options:
+      - 'Tendencias paralelas: solo hay 12 meses previos y mucha variación mensual; la prueba de tendencia previa tiene poca potencia.'
+      - 'Un único grupo tratado: la inferencia es frágil y cualquier shock específico de Andalucía en ese año contaminaría el resultado.'
+      - 'No se ha medido el margen, los clientes perdidos ni los efectos a más largo plazo (elasticidad, competencia).'
+      - 'Que el resto de España haya subido precios también: no se puede saber, pero no importa.'
+    prompt: |
+      Antes de recomendar extender la subida al resto de España, ¿qué **límites** del análisis señalarías? (Marca todas las que apliquen.)
+    hints:
+      - 'Recuerda los supuestos del DiD, el número de grupos tratados y qué métricas faltan.'
+    explanation: |
+      Las tres primeras son límites reales. La última es una amenaza: si el control también cambió (contaminación), el DiD estaría sesgado; sí importa y hay que comprobarlo (en Lumen no ocurre).
+
+  - id: s9-recomendacion
+    tool: reasoning
+    answerType: text-self-assessed
+    prompt: |
+      Escribe la respuesta a Carmen en 4-5 líneas: **si la subida funcionó, cuánto, con qué seguridad y qué recomiendas** sobre extenderla.
+    hints:
+      - 'Empieza por la conclusión y el rango (no solo la cifra), explica el contrafactual, menciona los límites y propone un piloto con control antes de generalizar.'
+    explanation: |
+      Un buen mensaje distingue entre «los ingresos crecieron un 135 %» (tendencia común) y «la subida aportó ~13 %» (efecto), y propone ampliar de forma controlada (otra región con un control) en lugar de generalizar.
+rubric:
+  - 'Empiezo por la conclusión: la subida aportó un +13 % de ingresos con unidades estables, no un +135 %.'
+  - 'Explico el contrafactual (el resto de España) y el supuesto de tendencias paralelas.'
+  - 'Muestro el mecanismo con precio y unidades, no solo con ingresos.'
+  - 'Expreso la incertidumbre con un rango y menciono los límites (un grupo tratado, 12 meses, margen no medido).'
+  - 'Propongo un siguiente paso concreto: un piloto controlado en otra región antes de generalizar.'
+modelReport: |
+  **Conclusión.** La subida de precios funcionó: tras descontar la tendencia común, los ingresos de Electrónica en Andalucía fueron aproximadamente un 13 % superiores a lo que habrían sido sin ella (unos 0,6 M€ en 12 meses), sin pérdida detectable de unidades vendidas. El intervalo es amplio (del 6 % al 22 % con el análisis mensual).
+
+  **Evidencia.** Los ingresos de Electrónica en Andalucía crecieron un 135 % entre los doce meses previos y los posteriores, pero el resto de España creció un 109 %: la mayor parte de ese crecimiento es la expansión general de Lumen. Comparando ambos crecimientos (diferencias en diferencias), la subida añade un +12,7 % a los ingresos. Las unidades vendidas apenas se desvían (+1,0 %) y el precio medio por unidad sube un 11,6 % más que en el resto, en línea con el 12 % anunciado: precio arriba, volumen estable, ingresos arriba.
+
+  **Límites.** Hay un único grupo tratado y solo 12 meses de historia, así que el supuesto de tendencias paralelas no se puede comprobar con mucha potencia y un shock específico de Andalucía contaminaría el resultado. No he medido margen, clientes perdidos ni efectos a largo plazo. En datos reales sería habitual ver caer las unidades; aquí no se detecta.
+
+  **Recomendación.** No extender la subida a toda España de golpe: pilotar en otra región (idealmente aleatorizando o con un control claro), medir ingresos, unidades y margen durante al menos seis meses y decidir con esos resultados.
+---
+
+Este caso usa las tablas `orders`, `order_items`, `customers` y `products` del dataset Lumen. La teoría está en la
+lección «Diferencias en diferencias: tendencias paralelas, estudio de eventos y adopción escalonada».

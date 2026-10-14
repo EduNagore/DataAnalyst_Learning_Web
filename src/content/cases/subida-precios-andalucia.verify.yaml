@@ -1,0 +1,68 @@
+# Consultas que RECALCULAN las respuestas numéricas del caso a partir de los datos
+# (las ejecuta tests/labs/test_cases.py; no se publican en la web).
+s1-andalucia: |
+  WITH x AS (
+    SELECT (c.region LIKE 'Andaluc%') AS andal,
+           CASE WHEN o.order_date >= DATE '2024-03-01' AND o.order_date < DATE '2025-03-01' THEN 'pre'
+                WHEN o.order_date >= DATE '2025-03-01' AND o.order_date < DATE '2026-03-01' THEN 'post' END AS per,
+           oi.quantity * oi.unit_price AS rev, oi.quantity AS q
+    FROM order_items oi JOIN orders o USING (order_id) JOIN customers c USING (customer_id) JOIN products p USING (product_id)
+    WHERE o.status <> 'cancelado' AND p.category_id LIKE 'cat-00-%'
+  ), a AS (SELECT andal, per, SUM(rev) AS rev, SUM(q) AS q FROM x WHERE per IS NOT NULL GROUP BY 1, 2)
+  SELECT ROUND(100 * (MAX(rev) FILTER (WHERE andal AND per = 'post') / MAX(rev) FILTER (WHERE andal AND per = 'pre') - 1), 2) FROM a
+s2-resto: |
+  WITH x AS (
+    SELECT (c.region LIKE 'Andaluc%') AS andal,
+           CASE WHEN o.order_date >= DATE '2024-03-01' AND o.order_date < DATE '2025-03-01' THEN 'pre'
+                WHEN o.order_date >= DATE '2025-03-01' AND o.order_date < DATE '2026-03-01' THEN 'post' END AS per,
+           oi.quantity * oi.unit_price AS rev, oi.quantity AS q
+    FROM order_items oi JOIN orders o USING (order_id) JOIN customers c USING (customer_id) JOIN products p USING (product_id)
+    WHERE o.status <> 'cancelado' AND p.category_id LIKE 'cat-00-%'
+  ), a AS (SELECT andal, per, SUM(rev) AS rev, SUM(q) AS q FROM x WHERE per IS NOT NULL GROUP BY 1, 2)
+  SELECT ROUND(100 * (MAX(rev) FILTER (WHERE NOT andal AND per = 'post') / MAX(rev) FILTER (WHERE NOT andal AND per = 'pre') - 1), 2) FROM a
+s4-did: |
+  WITH x AS (
+    SELECT (c.region LIKE 'Andaluc%') AS andal,
+           CASE WHEN o.order_date >= DATE '2024-03-01' AND o.order_date < DATE '2025-03-01' THEN 'pre'
+                WHEN o.order_date >= DATE '2025-03-01' AND o.order_date < DATE '2026-03-01' THEN 'post' END AS per,
+           oi.quantity * oi.unit_price AS rev, oi.quantity AS q
+    FROM order_items oi JOIN orders o USING (order_id) JOIN customers c USING (customer_id) JOIN products p USING (product_id)
+    WHERE o.status <> 'cancelado' AND p.category_id LIKE 'cat-00-%'
+  ), a AS (SELECT andal, per, SUM(rev) AS rev, SUM(q) AS q FROM x WHERE per IS NOT NULL GROUP BY 1, 2)
+  SELECT ROUND(100 * ((MAX(rev) FILTER (WHERE andal AND per = 'post') / MAX(rev) FILTER (WHERE andal AND per = 'pre'))
+    / (MAX(rev) FILTER (WHERE NOT andal AND per = 'post') / MAX(rev) FILTER (WHERE NOT andal AND per = 'pre')) - 1), 2) FROM a
+s5-unidades: |
+  WITH x AS (
+    SELECT (c.region LIKE 'Andaluc%') AS andal,
+           CASE WHEN o.order_date >= DATE '2024-03-01' AND o.order_date < DATE '2025-03-01' THEN 'pre'
+                WHEN o.order_date >= DATE '2025-03-01' AND o.order_date < DATE '2026-03-01' THEN 'post' END AS per,
+           oi.quantity * oi.unit_price AS rev, oi.quantity AS q
+    FROM order_items oi JOIN orders o USING (order_id) JOIN customers c USING (customer_id) JOIN products p USING (product_id)
+    WHERE o.status <> 'cancelado' AND p.category_id LIKE 'cat-00-%'
+  ), a AS (SELECT andal, per, SUM(rev) AS rev, SUM(q) AS q FROM x WHERE per IS NOT NULL GROUP BY 1, 2)
+  SELECT ROUND(100 * ((MAX(q) FILTER (WHERE andal AND per = 'post') / MAX(q) FILTER (WHERE andal AND per = 'pre'))
+    / (MAX(q) FILTER (WHERE NOT andal AND per = 'post') / MAX(q) FILTER (WHERE NOT andal AND per = 'pre')) - 1), 2) FROM a
+s6-precio: |
+  WITH x AS (
+    SELECT (c.region LIKE 'Andaluc%') AS andal,
+           CASE WHEN o.order_date >= DATE '2024-03-01' AND o.order_date < DATE '2025-03-01' THEN 'pre'
+                WHEN o.order_date >= DATE '2025-03-01' AND o.order_date < DATE '2026-03-01' THEN 'post' END AS per,
+           oi.quantity * oi.unit_price AS rev, oi.quantity AS q
+    FROM order_items oi JOIN orders o USING (order_id) JOIN customers c USING (customer_id) JOIN products p USING (product_id)
+    WHERE o.status <> 'cancelado' AND p.category_id LIKE 'cat-00-%'
+  ), a AS (SELECT andal, per, SUM(rev) AS rev, SUM(q) AS q FROM x WHERE per IS NOT NULL GROUP BY 1, 2)
+  SELECT ROUND(100 * (((MAX(rev) FILTER (WHERE andal AND per = 'post') / MAX(q) FILTER (WHERE andal AND per = 'post'))
+      / (MAX(rev) FILTER (WHERE andal AND per = 'pre') / MAX(q) FILTER (WHERE andal AND per = 'pre')))
+    / ((MAX(rev) FILTER (WHERE NOT andal AND per = 'post') / MAX(q) FILTER (WHERE NOT andal AND per = 'post'))
+      / (MAX(rev) FILTER (WHERE NOT andal AND per = 'pre') / MAX(q) FILTER (WHERE NOT andal AND per = 'pre'))) - 1), 2) FROM a
+s7-ingresos: |
+  WITH x AS (
+    SELECT (c.region LIKE 'Andaluc%') AS andal,
+           CASE WHEN o.order_date >= DATE '2024-03-01' AND o.order_date < DATE '2025-03-01' THEN 'pre'
+                WHEN o.order_date >= DATE '2025-03-01' AND o.order_date < DATE '2026-03-01' THEN 'post' END AS per,
+           oi.quantity * oi.unit_price AS rev, oi.quantity AS q
+    FROM order_items oi JOIN orders o USING (order_id) JOIN customers c USING (customer_id) JOIN products p USING (product_id)
+    WHERE o.status <> 'cancelado' AND p.category_id LIKE 'cat-00-%'
+  ), a AS (SELECT andal, per, SUM(rev) AS rev, SUM(q) AS q FROM x WHERE per IS NOT NULL GROUP BY 1, 2)
+  SELECT ROUND((MAX(rev) FILTER (WHERE andal AND per = 'post') - MAX(rev) FILTER (WHERE andal AND per = 'pre')
+    * (MAX(rev) FILTER (WHERE NOT andal AND per = 'post') / MAX(rev) FILTER (WHERE NOT andal AND per = 'pre'))) / 1000000, 2) FROM a

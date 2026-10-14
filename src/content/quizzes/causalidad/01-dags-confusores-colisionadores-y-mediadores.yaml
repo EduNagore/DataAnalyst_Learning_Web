@@ -1,0 +1,71 @@
+lesson: causalidad/01-dags-confusores-colisionadores-y-mediadores
+questions:
+  - id: cau-01-q1
+    type: single
+    difficulty: 1
+    prompt: 'La satisfacción del cliente (Z) influye tanto en que reciba un descuento (T) como en que recompre (Y). Para estimar el efecto del descuento sobre la recompra, ¿qué papel tiene Z?'
+    options:
+      - 'Mediador: hay que dejarlo sin controlar'
+      - 'Confusor: es causa común de T e Y y hay que controlarlo'
+      - 'Colisionador: no hay que controlarlo'
+      - 'Irrelevante'
+    answer: [1]
+    explanation: 'Z causa T y causa Y: abre el camino de puerta trasera T ← Z → Y. Para aislar el efecto de T hay que bloquearlo ajustando por Z.'
+    ref: '#las-tres-estructuras-básicas'
+
+  - id: cau-01-q2
+    type: single
+    difficulty: 2
+    prompt: 'Analizas solo a los clientes que han comprado en el último mes (C). Tanto haber recibido una campaña (T) como la intención de compra (Y) hacen más probable comprar. ¿Qué problema introduces?'
+    options:
+      - 'Ninguno: es la población relevante'
+      - 'Condicionas sobre un colisionador y puedes crear una asociación falsa entre T e Y'
+      - 'Controlas por un confusor'
+      - 'Pierdes potencia, pero no sesgo'
+    answer: [1]
+    explanation: 'C es efecto común de T e Y. Filtrar por C abre el camino T → C ← Y y genera asociación aunque no exista efecto (sesgo de selección).'
+    ref: '#las-tres-estructuras-básicas'
+
+  - id: cau-01-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Quieres el efecto TOTAL de T sobre Y. Selecciona TODAS las variables que NO debes controlar.'
+    options:
+      - 'Un mediador M situado en T → M → Y'
+      - 'Un colisionador C con T → C ← Y'
+      - 'Un descendiente del tratamiento medido después de él'
+      - 'Un confusor Z con Z → T y Z → Y'
+    answer: [0, 1, 2]
+    explanation: 'El confusor sí se controla. Los mediadores, los colisionadores y los descendientes del tratamiento no cumplen el criterio de la puerta trasera.'
+    ref: '#el-criterio-de-la-puerta-trasera'
+
+  - id: cau-01-q4
+    type: numeric
+    difficulty: 2
+    prompt: 'En una simulación el efecto de T sobre Y vía el mediador M es 0,8 × 0,5 y el efecto directo es 0,3. ¿Cuál es el efecto total de T sobre Y?'
+    answer: [0.7]
+    tolerance: 0.001
+    explanation: 'Efecto total = directo + indirecto = 0,3 + 0,8 × 0,5 = 0,7. Controlar por M dejaría solo el 0,3 directo.'
+    ref: '#una-simulación-con-la-verdad-conocida'
+
+  - id: cau-01-q5
+    type: single
+    difficulty: 3
+    prompt: 'En Lumen+, comparar clientes «que alguna vez tuvieron un retraso grave» con los que «nunca lo tuvieron» da +13,9 puntos de cancelación, mientras que el análisis por suscriptor-mes da unos +35. ¿Por qué falla la primera comparación?'
+    options:
+      - 'Porque el retraso no tiene efecto'
+      - 'Porque el tiempo que el cliente permanece suscrito actúa como confusor: quien dura más tiene más oportunidades de sufrir un retraso y también de cancelar en cualquier momento'
+      - 'Porque hay un SRM'
+      - 'Porque la muestra es pequeña'
+    answer: [1]
+    explanation: 'Es un sesgo de tiempo de exposición. Alinear exposición y resultado en el tiempo (persona-periodo) elimina esa mezcla y revela un efecto mucho mayor.'
+    ref: '#sesgos-de-selección-y-de-tiempo-de-exposición'
+
+  - id: cau-01-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Cuantas más variables incluyas como controles en una regresión, más cerca estarás del efecto causal.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Controlar un colisionador o un mediador sesga el efecto (en la simulación, el colisionador convierte +0,5 en −0,25). Qué controlar lo decide el DAG, no el número de variables.'
+    ref: '#una-simulación-con-la-verdad-conocida'

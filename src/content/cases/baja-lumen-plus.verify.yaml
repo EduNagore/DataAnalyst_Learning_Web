@@ -1,0 +1,63 @@
+# Consultas que RECALCULAN las respuestas numéricas del caso a partir de los datos
+# (las ejecuta tests/labs/test_cases.py; no se publican en la web).
+s1-bajas: |
+  SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE cancelled_at IS NOT NULL) / COUNT(*), 2) FROM subscriptions
+s2-expuestos: |
+  WITH graves AS (
+    SELECT DISTINCT o.customer_id FROM shipments s JOIN orders o USING (order_id)
+    WHERE date_diff('day', s.promised_date, s.actual_date) >= 5
+  )
+  SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE customer_id IN (SELECT customer_id FROM graves)) / COUNT(*), 2) FROM subscriptions
+s3-ingenua: |
+  WITH graves AS (
+    SELECT DISTINCT o.customer_id FROM shipments s JOIN orders o USING (order_id)
+    WHERE date_diff('day', s.promised_date, s.actual_date) >= 5
+  ), s AS (
+    SELECT cancelled_at IS NOT NULL AS c, customer_id IN (SELECT customer_id FROM graves) AS g FROM subscriptions
+  )
+  SELECT ROUND(100.0 * (AVG(c::INT) FILTER (WHERE g) - AVG(c::INT) FILTER (WHERE NOT g)), 2) FROM s
+s5-expuestos: |
+  WITH graves AS (
+    SELECT o.customer_id, s.actual_date FROM shipments s JOIN orders o USING (order_id)
+    WHERE date_diff('day', s.promised_date, s.actual_date) >= 5
+  ), s AS (
+    SELECT subscription_id, customer_id, started_at, cancelled_at FROM subscriptions
+    WHERE started_at + INTERVAL 30 DAY < DATE '2026-06-30'
+  ), e AS (
+    SELECT s.subscription_id,
+           EXISTS (SELECT 1 FROM graves g WHERE g.customer_id = s.customer_id
+                   AND g.actual_date >= s.started_at AND g.actual_date <= s.started_at + INTERVAL 30 DAY) AS expuesto,
+           COALESCE(s.cancelled_at = s.started_at + INTERVAL 30 DAY, false) AS cancela
+    FROM s
+  )
+  SELECT ROUND(100.0 * AVG(cancela::INT) FILTER (WHERE expuesto), 1) FROM e
+s6-no-expuestos: |
+  WITH graves AS (
+    SELECT o.customer_id, s.actual_date FROM shipments s JOIN orders o USING (order_id)
+    WHERE date_diff('day', s.promised_date, s.actual_date) >= 5
+  ), s AS (
+    SELECT subscription_id, customer_id, started_at, cancelled_at FROM subscriptions
+    WHERE started_at + INTERVAL 30 DAY < DATE '2026-06-30'
+  ), e AS (
+    SELECT s.subscription_id,
+           EXISTS (SELECT 1 FROM graves g WHERE g.customer_id = s.customer_id
+                   AND g.actual_date >= s.started_at AND g.actual_date <= s.started_at + INTERVAL 30 DAY) AS expuesto,
+           COALESCE(s.cancelled_at = s.started_at + INTERVAL 30 DAY, false) AS cancela
+    FROM s
+  )
+  SELECT ROUND(100.0 * AVG(cancela::INT) FILTER (WHERE NOT expuesto), 2) FROM e
+s7-riesgo: |
+  WITH graves AS (
+    SELECT o.customer_id, s.actual_date FROM shipments s JOIN orders o USING (order_id)
+    WHERE date_diff('day', s.promised_date, s.actual_date) >= 5
+  ), s AS (
+    SELECT subscription_id, customer_id, started_at, cancelled_at FROM subscriptions
+    WHERE started_at + INTERVAL 30 DAY < DATE '2026-06-30'
+  ), e AS (
+    SELECT s.subscription_id,
+           EXISTS (SELECT 1 FROM graves g WHERE g.customer_id = s.customer_id
+                   AND g.actual_date >= s.started_at AND g.actual_date <= s.started_at + INTERVAL 30 DAY) AS expuesto,
+           COALESCE(s.cancelled_at = s.started_at + INTERVAL 30 DAY, false) AS cancela
+    FROM s
+  )
+  SELECT ROUND(AVG(cancela::INT) FILTER (WHERE expuesto) / AVG(cancela::INT) FILTER (WHERE NOT expuesto), 2) FROM e

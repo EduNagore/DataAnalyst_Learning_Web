@@ -1,0 +1,71 @@
+lesson: causalidad/04-discontinuidad-variables-instrumentales-y-emparejamiento
+questions:
+  - id: cau-04-q1
+    type: numeric
+    difficulty: 2
+    prompt: 'Un correo enviado al azar (instrumento Z) aumenta la compra media en 0,30 € y la participación en el programa en 0,50 (50 puntos). ¿Cuánto vale el estimador de Wald del efecto del programa, en euros?'
+    answer: [0.6]
+    tolerance: 0.001
+    explanation: 'Wald = efecto de Z sobre Y / efecto de Z sobre T = 0,30 / 0,50 = 0,60 €. Es el efecto local para quienes cambian de decisión por el correo (cumplidores).'
+    ref: '#variables-instrumentales-iv'
+
+  - id: cau-04-q2
+    type: single
+    difficulty: 2
+    prompt: 'En una regresión discontinua con umbral de 50 € de gasto para el envío gratis, ¿qué supuesto es esencial?'
+    options:
+      - 'Que los clientes con gasto superior a 50 € sean iguales a los de gasto inferior'
+      - 'Que los clientes no puedan manipular con precisión si quedan por encima o por debajo, y que nada más cambie bruscamente en el umbral'
+      - 'Que el efecto sea el mismo para todos los clientes'
+      - 'Que haya pocos clientes cerca del umbral'
+    answer: [1]
+    explanation: 'Sin manipulación y con continuidad de todo lo demás, los clientes justo a ambos lados son comparables. El efecto estimado es local en el umbral.'
+    ref: '#regresión-discontinua-rdd'
+
+  - id: cau-04-q3
+    type: multiple
+    difficulty: 2
+    prompt: 'Selecciona TODAS las comprobaciones razonables en una regresión discontinua.'
+    options:
+      - 'Una prueba de densidad: no debe haber un salto en el número de unidades justo en el umbral'
+      - 'Que las covariables previas sean continuas en el umbral'
+      - 'Repetir el análisis con varias ventanas'
+      - 'Elegir la ventana que dé el efecto mayor'
+    answer: [0, 1, 2]
+    explanation: 'Elegir la ventana por el resultado es p-hacking; hay que comprobar la sensibilidad a la ventana y no seleccionar la más favorable.'
+    ref: '#regresión-discontinua-rdd'
+
+  - id: cau-04-q4
+    type: single
+    difficulty: 2
+    prompt: 'Tras ponderar con IPW, la diferencia media estandarizada de una covariable pasa de 0,69 a 0,005. ¿Qué indica?'
+    options:
+      - 'Que el efecto estimado es 0,005'
+      - 'Que la covariable está muy bien equilibrada entre tratados y controles después de ponderar'
+      - 'Que hay un confusor no medido'
+      - 'Que la covariable no es importante'
+    answer: [1]
+    explanation: 'Una SMD por debajo de 0,1 se considera un buen balance. Es una comprobación sobre las covariables medidas; no dice nada sobre los confusores no medidos.'
+    ref: '#propensity-scores-ipw-y-emparejamiento'
+
+  - id: cau-04-q5
+    type: single
+    difficulty: 3
+    prompt: '¿Qué problema aparece si algunos clientes tienen una propensión estimada cercana a 0 o a 1?'
+    options:
+      - 'Ninguno'
+      - 'Falta de solapamiento: casi no hay controles (o tratados) comparables y los pesos IPW se vuelven extremos e inestables'
+      - 'El modelo de propensión es perfecto'
+      - 'Que el efecto es cero'
+    answer: [1]
+    explanation: 'Sin solapamiento (positividad), la comparación no existe para esos clientes y el estimador queda dominado por unos pocos pesos enormes. Se recorta la población o se usan pesos truncados.'
+    ref: '#propensity-scores-ipw-y-emparejamiento'
+
+  - id: cau-04-q6
+    type: truefalse
+    difficulty: 2
+    prompt: 'Los propensity scores corrigen también el sesgo de los confusores que no hemos medido.'
+    options: ['Verdadero', 'Falso']
+    answer: [1]
+    explanation: 'Falso. Solo equilibran las covariables incluidas en el modelo. Con un confusor oculto el estimador sigue sesgado; por eso se hace un análisis de sensibilidad (valor E) o se busca otro diseño.'
+    ref: '#cuándo-basta-un-análisis-observacional'
