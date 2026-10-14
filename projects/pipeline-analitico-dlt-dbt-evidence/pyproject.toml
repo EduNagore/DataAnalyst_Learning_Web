@@ -1,0 +1,17 @@
+[project]
+name = "pipeline-analitico-lumen"
+version = "0.1.0"
+description = "Pipeline ELT de Lumen: dlt -> DuckDB -> dbt -> Evidence"
+requires-python = ">=3.11"
+dependencies = [
+  "dlt[duckdb]>=1.0",
+  "duckdb>=1.5",
+  "pyarrow>=20",
+  "dbt-core>=1.11",
+  "dbt-duckdb>=1.11",
+]
+
+[project.optional-dependencies]
+# MetricFlow para la capa semántica (consulta la documentación de dbt por la versión compatible)
+semantic = ["dbt-metricflow"]
+dev = ["pytest>=8", "ruff>=0.8"]

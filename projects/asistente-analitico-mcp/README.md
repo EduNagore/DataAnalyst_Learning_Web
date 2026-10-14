@@ -1,0 +1,73 @@
+# Asistente analítico con IA: un servidor MCP de solo lectura y su evaluación
+
+> Construye un servidor MCP propio sobre DuckDB con usuario de solo lectura, límites y registro, expón métricas gobernadas y evalúalo con un conjunto de 30 preguntas de oro y un arnés de evaluación.
+
+- **Dificultad:** ★★★ · **Tiempo estimado:** 18 h
+- **Habilidades:** MCP, seguridad de herramientas, capa semántica, evaluación de sistemas con LLM
+- **Herramientas:** Python, MCP SDK, DuckDB, pytest, YAML
+- **Datos:** el dataset sintético Lumen (se descarga con `scripts/download_data.py`).
+
+## Arranque rápido
+
+```bash
+uv sync --extra dev && uv run python scripts/download_data.py && uv run pytest && uv run mcp dev server.py
+```
+
+Los ficheros con `TODO` son el punto de partida: complétalos y haz pasar las pruebas (`pytest`) cuando existan.
+
+## Objetivo
+
+Diseñar un asistente analítico responsable: un servidor del Model Context Protocol que da acceso de **solo lectura** a los datos de Lumen y a un catálogo de métricas gobernadas, con límites de coste, registro de cada llamada y una evaluación reproducible de su calidad.
+
+## Lo que entregas
+
+- `server.py`: servidor MCP con herramientas pequeñas (listar tablas, describir una tabla, consultar métricas, ejecutar SQL de solo lectura validado).
+- `guard.py`: validador de consultas (una sentencia, solo `SELECT`, lista de tablas, límites de filas) con pruebas.
+- `golden_set.yaml`: 30 preguntas en lenguaje natural con su consulta y resultado esperados, incluyendo preguntas que **no se pueden responder** (abstención).
+- `evaluate.py`: arnés que ejecuta el asistente, compara resultados (no texto SQL), clasifica errores y calcula la exactitud con su intervalo de Wilson.
+- Un informe con la exactitud, los fallos principales y las medidas de seguridad.
+
+## Arquitectura
+
+```text
+Cliente MCP (asistente) ──► server.py ──► guard.py (validación) ──► DuckDB (solo lectura, límites)
+                                   └──► catálogo de métricas (YAML/capa semántica)
+                                   └──► registro de auditoría (JSON Lines)
+evaluate.py ──► golden_set.yaml ──► comparación de resultados ──► informe
+```
+
+## Pasos
+
+1. **Entorno y datos:** instala dependencias, descarga las tablas y crea una base `lumen.duckdb` de solo lectura.
+2. **Validador:** implementa `guard.validate_sql` con las reglas y pruebas del módulo de agentes (una sentencia, solo `SELECT`, sin funciones de acceso a ficheros, lista de tablas, límite de filas).
+3. **Herramientas:** `list_tables`, `describe_table`, `run_query` (con validación y `LIMIT`), `get_metric` (desde `metrics.yaml`).
+4. **Seguridad:** usuario de solo lectura (conexión `read_only=True`), tiempo y filas máximos, registro de cada llamada con hash de la consulta, sin tokens en los registros.
+5. **Conjunto de oro:** escribe 30 preguntas (10 sencillas, 10 con joins o definiciones, 10 difíciles o sin respuesta posible) con consulta y resultado esperados.
+6. **Evaluación:** `evaluate.py` con un asistente (real o simulado) que usa tus herramientas; categorías: correcta, resultado distinto, error de ejecución, abstención correcta, abstención innecesaria.
+7. **Pruebas de seguridad:** intenta inyecciones de instrucciones en los datos (un texto de ticket con órdenes ocultas) y comprueba que no se ejecutan acciones; documenta lo que funciona y lo que no.
+8. **Informe:** exactitud con intervalo, errores típicos y qué mejorarías (capa semántica, descripciones del esquema, ejemplos).
+
+## Criterios de evaluación
+
+| Criterio                                        | Puntos |
+| ----------------------------------------------- | ------ |
+| Validador y límites con pruebas que cubren ataques simples | 3 |
+| Herramientas pequeñas, bien descritas y de solo lectura | 2   |
+| Conjunto de oro representativo, con abstenciones  | 2      |
+| Evaluación que compara resultados y mide incertidumbre | 2   |
+| Registro, pruebas de seguridad y documentación     | 1      |
+
+## Extensiones
+
+- Exponer las métricas de una capa semántica real (MetricFlow, vistas semánticas) en lugar de un YAML.
+- Aprobación humana para consultas costosas.
+- Autenticación y autorización siguiendo la guía de seguridad de MCP.
+- Comparar el asistente con y sin capa semántica sobre el mismo conjunto de oro.
+
+## Cómo presentarlo en tu portfolio
+
+Cuenta el diseño de seguridad (qué puede y qué no puede hacer el asistente), enseña la tabla de resultados del conjunto de oro con intervalo de confianza y un caso de fallo analizado. Es un proyecto que destaca porque trata la IA como un sistema que se prueba, no como una demostración. Consulta la documentación vigente del SDK de MCP: la API ha cambiado entre versiones.
+
+---
+
+Página del proyecto con más contexto: `/proyectos/asistente-analitico-mcp/` en Data Analyst Academy. Verifica las versiones de las librerías y APIs contra su documentación oficial antes de empezar.

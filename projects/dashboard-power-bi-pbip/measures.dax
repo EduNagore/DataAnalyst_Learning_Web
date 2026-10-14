@@ -1,0 +1,29 @@
+// Medidas sugeridas para el modelo (tablas: Ventas, Clientes, Productos, Fechas, Devoluciones).
+// Adapta los nombres a tu modelo. Comprueba cada una contra una consulta SQL.
+
+Ingresos = SUMX ( Ventas, Ventas[quantity] * Ventas[unit_price] )
+
+Pedidos = DISTINCTCOUNT ( Ventas[order_id] )
+
+Ticket medio = DIVIDE ( [Ingresos], [Pedidos] )
+
+Clientes activos = DISTINCTCOUNT ( Ventas[customer_id] )
+
+Unidades = SUM ( Ventas[quantity] )
+
+Ingresos año anterior = CALCULATE ( [Ingresos], SAMEPERIODLASTYEAR ( Fechas[Fecha] ) )
+
+Variación % año anterior = DIVIDE ( [Ingresos] - [Ingresos año anterior], [Ingresos año anterior] )
+
+Ingresos acumulados año = TOTALYTD ( [Ingresos], Fechas[Fecha] )
+
+Ingresos media móvil 3 meses =
+CALCULATE (
+    [Ingresos],
+    DATESINPERIOD ( Fechas[Fecha], MAX ( Fechas[Fecha] ), -3, MONTH )
+) / 3
+
+// TODO: Ingresos netos de devoluciones (relaciona Devoluciones con las líneas de venta)
+// TODO: Margen y Margen % (usa el coste de Productos)
+// TODO: Participación de la categoría sobre el total (ALL / ALLSELECTED)
+// TODO: Ranking de productos (RANKX) y Top 5 (TOPN)

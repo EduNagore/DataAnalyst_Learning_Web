@@ -1,0 +1,21 @@
+[project]
+name = "forecasting-demanda"
+version = "0.1.0"
+description = "Previsión de la demanda de Lumen con backtesting honesto"
+requires-python = ">=3.11"
+dependencies = [
+  "pandas>=3.0",
+  "duckdb>=1.5",
+  "numpy>=2",
+  "statsforecast>=2.0",
+  "matplotlib>=3.9",
+]
+
+[project.optional-dependencies]
+# Modelo fundacional: Chronos-2 (Apache-2.0). Comprueba la licencia de cualquier otro modelo antes de usarlo.
+foundation = ["chronos-forecasting"]
+dev = ["pytest>=8", "ruff>=0.8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

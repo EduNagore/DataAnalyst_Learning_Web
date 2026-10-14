@@ -1,0 +1,34 @@
+# Conjunto de oro: 30 preguntas con consulta y resultado esperados. Aquí tienes 5 ejemplos; completa hasta 30.
+# `answerable: false` marca preguntas que el asistente debe RECHAZAR (abstención) porque faltan datos o definiciones.
+- id: q01
+  question: '¿Cuántos clientes hay registrados?'
+  sql: 'SELECT COUNT(*) FROM customers'
+  answerable: true
+  level: facil
+- id: q02
+  question: '¿Cuántos pedidos no cancelados hubo en 2025?'
+  sql: "SELECT COUNT(*) FROM orders WHERE status <> 'cancelado' AND year(order_date) = 2025"
+  answerable: true
+  level: facil
+- id: q03
+  question: '¿Cuáles son los ingresos netos por canal en 2025?'
+  sql: |
+    SELECT o.channel, SUM(oi.quantity * oi.unit_price) AS ingresos
+    FROM orders o JOIN order_items oi USING (order_id)
+    LEFT JOIN returns r ON r.order_item_id = oi.order_item_id
+    WHERE o.status <> 'cancelado' AND r.return_id IS NULL AND year(o.order_date) = 2025
+    GROUP BY 1
+  answerable: true
+  level: medio
+- id: q04
+  question: '¿Qué transportista tiene el mayor porcentaje de entregas tardías?'
+  sql: |
+    SELECT carrier FROM shipments GROUP BY carrier
+    ORDER BY AVG((actual_date > promised_date)::INT) DESC LIMIT 1
+  answerable: true
+  level: dificil
+- id: q05
+  question: '¿Cuál es el NPS de los clientes?'
+  answerable: false
+  level: sin_respuesta
+  note: 'No existe ninguna tabla ni columna de NPS: el asistente debe decir que no puede responder.'

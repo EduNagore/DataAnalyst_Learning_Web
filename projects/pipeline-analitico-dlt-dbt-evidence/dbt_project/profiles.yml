@@ -1,0 +1,8 @@
+# Perfil de dbt para DuckDB. Ejecuta dbt con:  dbt build --profiles-dir .
+lumen:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../lumen.duckdb
+      schema: analytics

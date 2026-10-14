@@ -1,0 +1,70 @@
+# Analítica de texto: clasificar tickets con un LLM real y evaluarlo
+
+> Clasifica los tickets de soporte de Lumen con un LLM real mediante salidas estructuradas, valida cada respuesta, evalúalo contra las etiquetas humanas y analiza el coste, los errores y la alternativa de reglas.
+
+- **Dificultad:** ★★☆ · **Tiempo estimado:** 10 h
+- **Habilidades:** LLM, salidas estructuradas, evaluación, coste, análisis de errores
+- **Herramientas:** Python, API de un LLM, pandas, scikit-learn, pytest
+- **Datos:** el dataset sintético Lumen (se descarga con `scripts/download_data.py`).
+
+## Arranque rápido
+
+```bash
+uv sync --extra dev && cp .env.example .env && uv run python scripts/download_data.py && uv run pytest
+```
+
+Los ficheros con `TODO` son el punto de partida: complétalos y haz pasar las pruebas (`pytest`) cuando existan.
+
+## Objetivo
+
+Hacer con un modelo real lo que practicaste con uno simulado: clasificar texto, **validar** cada respuesta, **medir** el acierto contra etiquetas humanas, **estimar y reducir** el coste, y decidir con evidencia si el LLM compensa frente a reglas o un modelo clásico.
+
+## Lo que entregas
+
+- `classify.py`: cliente del LLM con salida estructurada, validación de esquema, reintentos acotados y registro de tokens y coste.
+- `evaluate.py`: matriz de confusión, precisión, exhaustividad, F1 y kappa de Cohen contra las 1.200 etiquetas de `support_tickets`.
+- Comparación con un clasificador de reglas y con TF-IDF más regresión logística.
+- Un informe con el coste real, el análisis de errores y la recomendación.
+
+## Arquitectura
+
+```text
+support_tickets (Parquet) ─deduplicar─► textos distintos ─► LLM (salida JSON validada) ─► etiquetas
+        └► muestra etiquetada ► matriz de confusión, kappa, intervalos ► coste y errores ► recomendación
+```
+
+## Pasos
+
+1. **Datos y deduplicación:** carga `support_tickets`; calcula cuántos textos distintos hay y clasifica solo esos.
+2. **Cliente del LLM:** configura la clave y el modelo con variables de entorno (nunca en el código); pide un JSON con el tema, la confianza y, si procede, los días de retraso.
+3. **Validación:** parsea, comprueba el esquema y los valores, reintenta como máximo una vez con el error en el prompt y descarta con registro lo que falle.
+4. **Coste:** registra los tokens de entrada y salida; calcula el coste con la tarifa vigente del proveedor y proyecta el coste de 15.000 tickets frente a los textos distintos.
+5. **Evaluación:** compara con las etiquetas humanas; calcula las métricas por clase con intervalos y el acuerdo (kappa).
+6. **Alternativas:** reglas de palabras clave y TF-IDF con regresión logística; compara acierto, coste y explicabilidad.
+7. **Errores:** lee al menos 30 fallos y agrúpalos (ambigüedad de la taxonomía, instrucciones, ruido).
+8. **Informe:** recomendación (LLM, reglas o híbrido) con coste y calidad medidos.
+
+## Criterios de evaluación
+
+| Criterio                                        | Puntos |
+| ----------------------------------------------- | ------ |
+| Deduplicación y estimación del coste correctas    | 1      |
+| Validación robusta de la salida del modelo         | 2      |
+| Evaluación contra etiquetas con métricas por clase e intervalos | 3 |
+| Comparación con alternativas baratas               | 2      |
+| Análisis de errores y recomendación justificada    | 2      |
+
+## Extensiones
+
+- Cascada: modelo pequeño primero y modelo grande para los casos de confianza baja.
+- Descubrimiento de temas con embeddings y agrupación.
+- Salidas estructuradas del proveedor (esquema JSON) en lugar de parseo manual.
+- Monitorización de deriva con una muestra mensual.
+
+## Cómo presentarlo en tu portfolio
+
+Muestra la matriz de confusión, el coste real por 1.000 tickets y una decisión argumentada, incluso si la conclusión es «las reglas bastan». Aclara qué datos enviaste al proveedor (los de Lumen son sintéticos) y qué harías con datos reales (enmascarado, contrato, base legal).
+
+---
+
+Página del proyecto con más contexto: `/proyectos/analitica-de-texto-con-llm/` en Data Analyst Academy. Verifica las versiones de las librerías y APIs contra su documentación oficial antes de empezar.

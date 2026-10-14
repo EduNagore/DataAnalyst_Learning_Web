@@ -4,18 +4,19 @@ Registro de qué fase del `PLAN.md` está hecha, verificada y pendiente. Se actu
 
 ## Resumen rápido
 
-| Fase                                                  | Estado                                           |
-| ----------------------------------------------------- | ------------------------------------------------ |
-| F0 — Setup y despliegue                               | ✅ Hecha (deploy: ver "Despliegue" abajo)        |
-| F1 — Dataset Lumen (+ página `/datos/`)               | ✅ Hecha y verificada                            |
-| F2 — Núcleo de teoría + módulo M04                    | ✅ Hecha                                         |
-| F3 — Motor de tests (quiz, examen, Leitner, progreso) | ✅ Hecha                                         |
-| F4 — Laboratorios (DuckDB-WASM, Pyodide, `datakit`)   | ✅ Hecha                                         |
-| F5 — Casos guiados                                    | ✅ Hecha (la pausa de revisión la marca el PLAN) |
-| F6 (Contenido Partes 0-II, M00-M12)                   | ✅                                               |
-| F7 (Contenido Partes III-IV, M13-M20 + casos 2-8)     | ✅                                               |
-| F8 (Partes V-VI, M21-M28)                             | 🔄 M21-M28 hechos                                |
-| F9-F10                                                | ⬜                                               |
+| Fase                                                  | Estado                                                                     |
+| ----------------------------------------------------- | -------------------------------------------------------------------------- |
+| F0 — Setup y despliegue                               | ✅ Hecha (deploy: ver "Despliegue" abajo)                                  |
+| F1 — Dataset Lumen (+ página `/datos/`)               | ✅ Hecha y verificada                                                      |
+| F2 — Núcleo de teoría + módulo M04                    | ✅ Hecha                                                                   |
+| F3 — Motor de tests (quiz, examen, Leitner, progreso) | ✅ Hecha                                                                   |
+| F4 — Laboratorios (DuckDB-WASM, Pyodide, `datakit`)   | ✅ Hecha                                                                   |
+| F5 — Casos guiados                                    | ✅ Hecha (la pausa de revisión la marca el PLAN)                           |
+| F6 (Contenido Partes 0-II, M00-M12)                   | ✅                                                                         |
+| F7 (Contenido Partes III-IV, M13-M20 + casos 2-8)     | ✅                                                                         |
+| F8 (Partes V-VI, M21-M28)                             | 🔄 M21-M28 hechos                                                          |
+| F9 (Profesional y extras)                             | ✅ M29, entrevistas, cheat sheets, glosario, fuentes, proyectos, novedades |
+| F10 (Pulido)                                          | ⬜                                                                         |
 
 Repo: `https://github.com/EduNagore/DataAnalyst_Learning_Web` (rama `main`). Sitio: `https://edunagore.github.io/DataAnalyst_Learning_Web/`.
 
@@ -125,7 +126,7 @@ Hechos M23 verificados (2026-10): MetricFlow = generador de SQL de código abier
 
 Hechos M24 verificados (2026-10): **Reglamento de IA** (Comisión Europea): entrada en vigor 1-ago-2024; prohibiciones y alfabetización 2-feb-2025; GPAI 2-ago-2025; aplicación general 2-ago-2026; alto riesgo anexo III **2-dic-2027**; productos regulados 2-ago-2028; **Ómnibus digital Reglamento (UE) 2026/1744 en vigor 27-jul-2026** (firmado 8-jul): alfabetización suavizada («apoyar»), marcado de contenido sintético y nueva prohibición NCII/CSAM el 2-dic-2026; LOPDGDD = Ley Orgánica 3/2018 de 5-dic (BOE 294, vigor 7-dic-2018), art. 7 edad 14 años; EDPB Directrices 01/2025 seudonimización (adoptadas 16-ene-2025, consulta 17-ene a 14-mar-2025); TJUE C-413/23 P EDPS v SRB (4-sep-2025): lo seudonimizado no es necesariamente dato personal para todo receptor pero persiste la transparencia inicial; AEPD: seudonimizado sigue bajo RGPD. Datos Lumen: k=6 con región+segmento+canal (384 combinaciones); con día de alta 45.882 clientes únicos (76,5 %), 99,8 % en grupos <5; mes 30,0 %, trimestre 7,6 %, año 0,6 % (11 únicos); DP Laplace: MAE ≈ 1/ε, error relativo por región 0,048 % (ε=1) y celdas región×segmento×canal 1,79 % (ε=1) / 17,9 % (ε=0,1); SHA-256 sin clave se revierte 100 % con ataque de diccionario, HMAC 0 %; consentimiento de marketing 70,2 % (68,7-70,6 % por segmento; 69,9-70,9 % por canal; pedidos medios 6,25 con y 6,38 sin consentimiento). La AEPD «Guía de orientaciones y garantías de anonimización» figura «en revisión» (no se cita).
 
-Hechos M25 verificados (2026-10): ventana de contexto hasta 1 M de tokens en modelos actuales de Anthropic (doc oficial; Claude Fable/Opus/Sonnet/Haiku 5.x), *context rot*, tokens de pensamiento facturados como salida; Kalai et al. 2025 (alucinaciones por incentivos de evaluación); Jupyter AI serie 3.x (3.2.0; agentes piden permiso antes de escribir/ejecutar); marimo AI (modos Manual/Ask/Agent/Code; accede a valores de variables; proveedores OpenAI, Copilot, Anthropic, Bedrock, Google, Ollama); Claude Code (terminal, IDE, escritorio, web; CLAUDE.md/AGENTS.md; hooks; MCP); **Excel `=COPILOT()` retirada el 14-sep-2026** (aviso MC1454373 del 14-ago; nunca GA). Datos Lumen: CSV de pedidos ≈ 7,24 M tokens; 10.000 filas ≈ 184.000; resumen de esquema ≈ 188 tokens; 8.000 tokens ≈ 440-446 filas; prompt completo 260 tokens vs 175; cinco SQL candidatos: error de ejecución + totales 47,9 (+4,2 %) / 49,5 (+7,7 %) / 31,5 (−31,5 %) vs 45,9 M€ correcto. Lecciones técnicas: el límite de ejecución de un lab Pyodide es 20 s (crear la conexión DuckDB una sola vez y reducir tablas al año necesario); `to_csv` formatea fechas distinto entre CPython y Pyodide (tolerancias en tests).
+Hechos M25 verificados (2026-10): ventana de contexto hasta 1 M de tokens en modelos actuales de Anthropic (doc oficial; Claude Fable/Opus/Sonnet/Haiku 5.x), _context rot_, tokens de pensamiento facturados como salida; Kalai et al. 2025 (alucinaciones por incentivos de evaluación); Jupyter AI serie 3.x (3.2.0; agentes piden permiso antes de escribir/ejecutar); marimo AI (modos Manual/Ask/Agent/Code; accede a valores de variables; proveedores OpenAI, Copilot, Anthropic, Bedrock, Google, Ollama); Claude Code (terminal, IDE, escritorio, web; CLAUDE.md/AGENTS.md; hooks; MCP); **Excel `=COPILOT()` retirada el 14-sep-2026** (aviso MC1454373 del 14-ago; nunca GA). Datos Lumen: CSV de pedidos ≈ 7,24 M tokens; 10.000 filas ≈ 184.000; resumen de esquema ≈ 188 tokens; 8.000 tokens ≈ 440-446 filas; prompt completo 260 tokens vs 175; cinco SQL candidatos: error de ejecución + totales 47,9 (+4,2 %) / 49,5 (+7,7 %) / 31,5 (−31,5 %) vs 45,9 M€ correcto. Lecciones técnicas: el límite de ejecución de un lab Pyodide es 20 s (crear la conexión DuckDB una sola vez y reducir tablas al año necesario); `to_csv` formatea fechas distinto entre CPython y Pyodide (tolerancias en tests).
 
 Hechos M26 verificados (2026-10): Spider 2.0 = 632 problemas (Snow 547 [mejor 96,70 %], Lite 547 [76,23 %], DBT 68 [65,6 %]); inicial: o1-preview 17,1 %, GPT-4o 10,1 % vs 86,6 % en Spider 1.0; BIRD = 12.751 pares, 95 bases, 33,4 GB, humanos 92,96 %, mejor GrainSQL 82,95 % (sep-2026); **errores de anotación** (Jin, Choi, Zhu, Kang, arXiv 2601.08778): BIRD Mini-Dev 52,8 %, Spider 2.0-Snow 62,8 %; 16 agentes cambian −7 % a +31 % relativo, ±9 puestos, Spearman 0,85 → 0,32; Cortex Analyst: servicio gestionado, vistas semánticas recomendadas, no accede a resultados previos, nueve regiones nativas; Databricks Genie: espacios/agentes con datos de confianza, métricas, reglas, respuestas verificadas; Copilot Power BI: panel de informe GA, experiencia independiente y apps en preview, capacidad Fabric F2+/P1+, 'preparar datos para IA', respuestas verificadas, caché 24 h, límite 10.000 caracteres; Tableau Next con Tableau Semantics y Concierge (GA jun-2025); ThoughtSpot Spotter 3 / Agent / Classic. Labs: schema linking recall@6 0,271 (solo nombres) vs 0,865 (con descripciones), 0,906 en k=8; golden set 10 preguntas: 4 correctas, 1 por casualidad (valor fijo), 3 resultado distinto, 1 error, 1 abstención → exactitud 0,40 (0,50 ingenua), Wilson 0,17-0,69.
 
@@ -141,3 +142,14 @@ Hechos casos 9 y 12 y Radar (2026-10): cliente activo a 30-jun-2026 de 60.000 re
 2. Regenerar dataset: `python data-gen/generate.py` (necesita `numpy pandas pyarrow pyyaml`; `duckdb` para verificar).
 3. Antes de escribir contenido, releer `docs/CONTENT_GUIDELINES.md`. Verificar toda URL de fuente con `curl -s -o /dev/null -w '%{http_code}'`.
 4. El PLAN marca una pausa de revisión tras F5, no antes.
+
+## F9 ✅ (Profesional y extras)
+
+- **M29 `carrera-entrevistas`** (4 lecciones + 4 quizzes): qué buscan las empresas por nivel, portfolio/GitHub/write-ups, entrevistas (SQL, producto, estadística, take-home, STAR), certificaciones/negociación/primeros 90 días. Verificado (2026-10): PL-300 (100 min; renovación gratuita cada 12 meses; guía actualizada 20-abr-2026), DP-600 (versión en inglés se actualiza el 19-oct-2026), examen dbt (dbt 1.11), Google Data Analytics (9 cursos, ~180 h; cifras de empleo = del proveedor).
+- **25 ejercicios SQL cronometrados** (`sql-ent-*`, módulo `carrera-entrevistas`; 8 junior, 10 intermedios, 7 sénior): verificados en CPython (DuckDB, variante distinta, starter no pasa) y en DuckDB-WASM (`all-sql-labs.spec.ts`). La página del lab muestra un cronómetro (`InterviewTimer`) para este módulo.
+- **/entrevistas/**: 150 preguntas ES/EN (`interview/questions.yaml`: SQL 30, estadística 22, experimentación 20, producto 20, BI 15, Python 15, IA 15, conductuales 13) con filtros, búsqueda, flashcards y marcas en localStorage; 8 casos (`interview/cases/*.mdx`, ruta `/entrevistas/casos/<id>/`).
+- **/cheatsheets/** (colección `cheatsheets`): SQL (dialectos), estadística y A/B, DAX, Excel ES/EN, visualización y checklist de métricas; estilos de impresión.
+- **/glosario/** (132 términos con enlaces a lecciones, búsqueda), **/fuentes/** (agregada desde el frontmatter de las lecciones: ~347 fuentes únicas por tipo), **/novedades/** (8 entradas), **/radar/** con filtros.
+- **/proyectos/**: 8 proyectos (`src/content/projects/*.mdx`) + carpeta `projects/<id>/` con README generado, scripts de descarga de datos, esqueletos con TODO y pruebas. Las pruebas de los 5 proyectos con Python se comprobaron contra soluciones de referencia (no incluidas) en una copia temporal. NO se pudo instalar dlt/mcp/marimo/statsforecast en un venv (error SSL de pip en este entorno): sus esqueletos siguen la documentación oficial (MCP SDK v2 `MCPServer`, dlt `pipeline.run`) pero no se han ejecutado; el alumno debe verificar versiones.
+- Pendiente opcional de F8: playground «LLM real» con clave propia del usuario (no hecho).
+- Tests: `tests/e2e/entrevistas.spec.ts` (7 tests).

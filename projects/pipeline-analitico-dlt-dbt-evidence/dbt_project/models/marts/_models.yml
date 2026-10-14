@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: fct_order_items
+    description: 'Una fila por línea de pedido no cancelado. Grano: order_item_id.'
+    config:
+      contract:
+        enforced: false # TODO: actívalo y declara data_type de cada columna
+    columns:
+      - name: order_item_id
+        description: 'Identificador de la línea.'
+        data_tests: [unique, not_null]
+      - name: order_id
+        data_tests:
+          - not_null
+          # TODO: prueba de relaciones con stg_orders
+      - name: revenue
+        description: 'Importe de la línea: cantidad por precio unitario.'
+        data_tests:
+          - not_null
+          # TODO: añade una prueba de rango razonable (por ejemplo, revenue >= 0)

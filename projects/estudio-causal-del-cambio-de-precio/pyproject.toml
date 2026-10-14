@@ -1,0 +1,20 @@
+[project]
+name = "estudio-causal-precio"
+version = "0.1.0"
+description = "Impacto causal de la subida de precios en una región de Lumen"
+requires-python = ">=3.11"
+dependencies = [
+  "pandas>=3.0",
+  "duckdb>=1.5",
+  "numpy>=2",
+  "scipy>=1.14",
+  "statsmodels>=0.14",
+  "matplotlib>=3.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

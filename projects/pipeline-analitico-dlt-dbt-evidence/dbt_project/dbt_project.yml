@@ -1,0 +1,14 @@
+name: lumen
+version: '0.1.0'
+config-version: 2
+profile: lumen
+
+model-paths: ['models']
+test-paths: ['tests']
+
+models:
+  lumen:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table

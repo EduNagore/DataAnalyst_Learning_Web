@@ -1,0 +1,83 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { url } from '../../lib/url';
+
+export async function getStaticPaths() {
+  const projects = await getCollection('projects');
+  return projects.map((p) => ({ params: { id: p.id }, props: { project: p } }));
+}
+
+const { project } = Astro.props;
+const { Content, headings } = await render(project);
+const d = project.data;
+const difficultyLabel = ['', 'Básico', 'Intermedio', 'Avanzado'][d.difficulty];
+const repo = `https://github.com/EduNagore/DataAnalyst_Learning_Web/tree/main/${d.repoPath}`;
+const toc = headings.filter((h) => h.depth === 2);
+---
+
+<BaseLayout title={`Proyecto: ${d.title}`} description={d.description}>
+  <article class="mx-auto max-w-3xl px-4 py-10 sm:px-6 lg:px-8">
+    <a href={url('/proyectos/')} class="text-xs text-[var(--color-accent)] hover:underline">
+      ← Todos los proyectos
+    </a>
+    <h1 class="mt-2 text-3xl font-bold text-[var(--color-text)]">{d.title}</h1>
+    <p class="mt-2 text-[var(--color-text-muted)]">{d.description}</p>
+
+    <dl class="mt-5 grid gap-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-subtle)] p-4 text-sm sm:grid-cols-2">
+      <div>
+        <dt class="text-xs font-semibold text-[var(--color-text-muted)] uppercase">
+          Nivel y tiempo
+        </dt>
+        <dd class="text-[var(--color-text)]">
+          {difficultyLabel} · {d.estimatedHours} horas
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs font-semibold text-[var(--color-text-muted)] uppercase">Herramientas</dt>
+        <dd class="text-[var(--color-text)]">{d.tools.join(', ')}</dd>
+      </div>
+      <div class="sm:col-span-2">
+        <dt class="text-xs font-semibold text-[var(--color-text-muted)] uppercase">
+          Habilidades que demuestra
+        </dt>
+        <dd class="text-[var(--color-text)]">{d.skills.join(', ')}</dd>
+      </div>
+    </dl>
+
+    <p class="mt-4 text-sm">
+      <a
+        class="rounded-md bg-[var(--color-accent)] px-3 py-1.5 font-medium text-[var(--color-accent-contrast)] hover:opacity-90"
+        href={repo}
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        Ver el código inicial en GitHub
+      </a>
+      <span class="ml-2 text-xs text-[var(--color-text-muted)]">
+        Carpeta <code>{d.repoPath}</code> con README, pruebas y scripts de descarga de datos.
+      </span>
+    </p>
+
+    {toc.length > 0 && (
+      <nav aria-label="En esta página" class="mt-6 text-sm">
+        <ul class="flex flex-wrap gap-2">
+          {toc.map((h) => (
+            <li>
+              <a
+                class="rounded-full border border-[var(--color-border)] px-3 py-1 hover:border-[var(--color-accent)]"
+                href={`#${h.slug}`}
+              >
+                {h.text}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )}
+
+    <div class="prose prose-neutral dark:prose-invert mt-8 max-w-none">
+      <Content />
+    </div>
+  </article>
+</BaseLayout>

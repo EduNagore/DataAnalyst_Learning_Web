@@ -1,0 +1,20 @@
+name: Publicar informe
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # TODO: instalar uv / Python y las dependencias, descargar los datos,
+      #       ejecutar pipelines/load_lumen.py, `dbt build`, construir Evidence
+      #       y subir el artefacto de Pages. Comprueba las versiones vigentes de cada acción.
+      - run: echo "Completa el flujo"

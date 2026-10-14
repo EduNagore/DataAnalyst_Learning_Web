@@ -1,0 +1,20 @@
+[project]
+name = "analisis-de-experimento"
+version = "0.1.0"
+description = "Análisis completo de un experimento de Lumen en un notebook marimo"
+requires-python = ">=3.11"
+dependencies = [
+  "marimo>=0.10",
+  "pandas>=3.0",
+  "duckdb>=1.5",
+  "scipy>=1.14",
+  "statsmodels>=0.14",
+  "matplotlib>=3.9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

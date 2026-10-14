@@ -1,0 +1,18 @@
+# Catálogo de métricas gobernadas. Cada métrica tiene una definición única, un propietario y una consulta.
+ingresos_netos:
+  description: 'Suma de cantidad por precio unitario de las líneas de pedidos no cancelados y no devueltas.'
+  owner: finanzas
+  sql: |
+    SELECT SUM(oi.quantity * oi.unit_price) AS valor
+    FROM orders o
+    JOIN order_items oi USING (order_id)
+    LEFT JOIN returns r ON r.order_item_id = oi.order_item_id
+    WHERE o.status <> 'cancelado' AND r.return_id IS NULL
+clientes_activos_90d:
+  description: 'Clientes con al menos un pedido no cancelado en los 90 días anteriores al 30-jun-2026.'
+  owner: bi
+  sql: |
+    SELECT COUNT(DISTINCT customer_id) AS valor
+    FROM orders
+    WHERE status <> 'cancelado' AND order_date >= TIMESTAMP '2026-04-02' AND order_date < TIMESTAMP '2026-07-01'
+# TODO: añade ticket_medio y tasa_devolucion con su definición y propietario.

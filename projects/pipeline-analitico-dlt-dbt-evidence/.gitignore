@@ -1,0 +1,12 @@
+.venv/
+data/
+*.duckdb
+*.duckdb.wal
+target/
+dbt_packages/
+logs/
+.dlt/secrets.toml
+node_modules/
+.evidence/
+build/
+__pycache__/

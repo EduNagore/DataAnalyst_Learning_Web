@@ -1,9 +1,43 @@
 ---
-import ComingSoon from '../../components/layout/ComingSoon.astro';
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { url } from '../../lib/url';
+
+const projects = (await getCollection('projects')).sort(
+  (a, b) => a.data.difficulty - b.data.difficulty || a.data.title.localeCompare(b.data.title, 'es'),
+);
+const difficultyLabel = ['', 'Básico', 'Intermedio', 'Avanzado'];
 ---
 
-<ComingSoon
+<BaseLayout
   title="Proyectos de portfolio"
   description="Proyectos para hacer en local con herramientas reales: un pipeline con dbt y capa semántica, un dashboard en Power BI versionado en Git, un servidor MCP propio y más."
-  phase="Fase 9 · Profesional y extras"
-/>
+>
+  <section class="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+    <h1 class="text-3xl font-bold text-[var(--color-text)]">Proyectos de portfolio</h1>
+    <p class="mt-2 max-w-2xl text-[var(--color-text-muted)]">
+      Ocho proyectos para hacer en tu ordenador con herramientas reales del oficio. Cada uno parte
+      de código inicial con <code>TODO</code> y pruebas, tiene criterios de evaluación y explica
+      cómo presentarlo. Usan el dataset sintético Lumen, así que puedes publicarlos sin problemas de
+      confidencialidad. Elige tres que cubran señales distintas (lección «Un portfolio que
+      convence»).
+    </p>
+    <ul class="mt-8 grid gap-4 sm:grid-cols-2">
+      {projects.map((p) => (
+        <li>
+          <a
+            class="block h-full rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-raised)] p-5 hover:border-[var(--color-accent)]"
+            href={url(`/proyectos/${p.id}/`)}
+          >
+            <p class="text-xs text-[var(--color-text-muted)]">
+              {difficultyLabel[p.data.difficulty]} · {p.data.estimatedHours} h
+            </p>
+            <h2 class="mt-1 font-semibold text-[var(--color-text)]">{p.data.title}</h2>
+            <p class="mt-2 text-sm text-[var(--color-text-muted)]">{p.data.description}</p>
+            <p class="mt-3 text-xs text-[var(--color-text-muted)]">{p.data.tools.join(' · ')}</p>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+</BaseLayout>

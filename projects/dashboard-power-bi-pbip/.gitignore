@@ -1,0 +1,6 @@
+data/
+# Caché local de Power BI Desktop (no versionar)
+**/.pbi/localSettings.json
+**/.pbi/cache.abf
+*.pbix
+__pycache__/

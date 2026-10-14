@@ -1,0 +1,18 @@
+[project]
+name = "analitica-de-texto-llm"
+version = "0.1.0"
+description = "Clasificación de tickets con un LLM real: validación, evaluación y coste"
+requires-python = ">=3.11"
+dependencies = [
+  "pandas>=3.0",
+  "duckdb>=1.5",
+  "scikit-learn>=1.6",
+  # Instala el SDK del proveedor que uses (por ejemplo, `anthropic`) y comprueba su documentación vigente.
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.8"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

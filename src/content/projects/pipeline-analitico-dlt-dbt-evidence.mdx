@@ -1,0 +1,61 @@
+---
+title: 'Pipeline analítico de extremo a extremo: dlt, DuckDB, dbt y Evidence'
+description: 'Carga los datos de Lumen con dlt en DuckDB, transfórmalos con dbt (staging, marts, pruebas y documentación), define métricas gobernadas y publica un informe con Evidence en GitHub Pages.'
+difficulty: 3
+estimatedHours: 16
+skills: ['ELT', 'modelado dimensional', 'pruebas de datos', 'capa semántica', 'BI como código']
+tools: ['dlt', 'DuckDB', 'dbt', 'MetricFlow', 'Evidence', 'GitHub Actions']
+repoPath: 'projects/pipeline-analitico-dlt-dbt-evidence'
+---
+
+## Objetivo
+
+Construir y publicar un pipeline analítico completo y reproducible: datos crudos → almacén local → modelos con pruebas → métricas definidas una vez → informe web. Es el proyecto que mejor demuestra que sabes trabajar como analytics engineer.
+
+## Lo que entregas
+
+- Un repositorio con el pipeline (`dlt`), el proyecto `dbt` (staging, intermedios y marts) y el informe `Evidence`.
+- Pruebas de calidad de datos (únicas, no nulas, relaciones, rangos) y al menos un contrato de modelo.
+- Tres métricas definidas en la capa semántica (por ejemplo, ingresos netos, clientes activos y ticket medio).
+- Un informe publicado en GitHub Pages, construido por un flujo de GitHub Actions.
+- Un README que explique cómo reproducirlo en menos de 10 minutos.
+
+## Arquitectura
+
+```text
+Parquet de Lumen ──dlt──► DuckDB (raw) ──dbt──► staging ► intermedios ► marts ──► Evidence ──► GitHub Pages
+                                      └─ pruebas, documentación y linaje   └─ MetricFlow (métricas)
+```
+
+## Pasos
+
+1. **Prepara el entorno:** `uv sync`, descarga las tablas con `python scripts/download_data.py`.
+2. **Carga con dlt:** completa `pipelines/load_lumen.py` para cargar `customers`, `orders`, `order_items`, `products`, `returns` en el esquema `raw` de DuckDB. Hazla idempotente (`write_disposition="replace"` o por clave).
+3. **Staging en dbt:** un modelo por tabla con renombrado, tipos y limpieza mínima; sin lógica de negocio.
+4. **Marts:** `fct_orders` y `fct_order_items` (grano declarado), `dim_customers`, `dim_products`. Documenta cada modelo y sus columnas.
+5. **Pruebas:** claves únicas y no nulas, relaciones entre tablas, valores aceptados (`status`), rangos razonables, y una prueba singular que cuadre los ingresos con una consulta de control.
+6. **Capa semántica:** define `ingresos_netos`, `clientes_activos_90d` y `ticket_medio` con MetricFlow (o, si lo prefieres, como vistas bien nombradas con sus definiciones documentadas).
+7. **Informe en Evidence:** una página con KPIs, una tendencia mensual con comparación frente al año anterior y un desglose por región; cada cifra con su definición.
+8. **Publicación:** un flujo de GitHub Actions que ejecute la carga, `dbt build` y publique el informe en GitHub Pages.
+
+## Criterios de evaluación
+
+| Criterio                                        | Puntos |
+| ----------------------------------------------- | ------ |
+| Reproducible desde cero con comandos documentados | 2      |
+| Modelado: grano claro, capas, nombres consistentes | 2      |
+| Pruebas y contrato de modelo que realmente fallan si rompes algo | 2      |
+| Métricas definidas una vez y cifras que cuadran con una consulta de control | 2      |
+| Informe claro: titulares, definiciones, incertidumbre o límites | 1      |
+| CI/CD y publicación automática                   | 1      |
+
+## Extensiones
+
+- Modelo incremental con `microbatch` y snapshots (SCD2) para clientes.
+- Orquestación con Dagster o Airflow en lugar de comandos manuales.
+- Servidor MCP de solo lectura sobre las métricas (proyecto 6).
+- Comparar el coste y el tiempo con la misma carga en MotherDuck.
+
+## Cómo presentarlo en tu portfolio
+
+Titula el proyecto con el resultado («Pipeline reproducible con 14 pruebas y 3 métricas gobernadas»), incluye el diagrama de arquitectura, un enlace al informe publicado, tres decisiones de diseño justificadas (por ejemplo, el grano de `fct_order_items`) y un apartado «qué haría con más tiempo». Verifica las versiones de las herramientas contra su documentación oficial antes de empezar: cambian con frecuencia.
