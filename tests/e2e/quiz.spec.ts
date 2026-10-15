@@ -32,6 +32,16 @@ test('el modo examen permite configurar, hacer el examen y ver el informe por m�
   page,
 }) => {
   await page.goto('practica/examen/');
+  await waitForHydration(page);
+  // Con muchos módulos, un examen aleatorio de todo el temario no tiene por qué incluir SQL I:
+  // se deja marcado solo ese módulo para que el informe sea determinista.
+  await expect(page.getByRole('button', { name: 'Empezar examen' })).toBeVisible(); // el banco se carga tras hidratar
+  const modulos = page.locator('fieldset').first().getByRole('checkbox');
+  for (let i = 0; i < (await modulos.count()); i++) {
+    const caja = modulos.nth(i);
+    const esSqlI = (await caja.locator('xpath=..').innerText()).includes('SQL I — Fundamentos');
+    if ((await caja.isChecked()) !== esSqlI) await caja.setChecked(esSqlI);
+  }
   await page.getByRole('button', { name: 'Empezar examen' }).click();
   await page.getByRole('button', { name: 'Comprobar respuestas' }).click();
   await expect(page.getByRole('heading', { name: 'Informe por módulo' })).toBeVisible();
